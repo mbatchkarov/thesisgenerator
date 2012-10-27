@@ -20,8 +20,8 @@ else:
         # find_library doesn't look for .so files on OSX so we need to look for
         # them manually
         for path in sys.path: 
-            if os.path.exists(os.path.join(path, 'liblinear.so.1')):
-                _libpath = os.path.join(path, 'liblinear.so.1')
+            if os.path.exists(os.path.join(path, 'libsvm.so.2')):
+                _libpath = os.path.join(path, 'libsvm.so.2')
                 break
         
         if _libpath is None:
