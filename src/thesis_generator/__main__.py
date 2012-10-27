@@ -22,9 +22,10 @@ except NameError:
 import ioutil
 import preprocess
 import metrics
-import thesis_generator
-from thesis_generator import plotter
-    
+import config
+import plotter
+
+
 _cls_header = 'LABEL, PREDICTION, SCORE'
 _num_seen = 200
 
@@ -221,7 +222,7 @@ def _liblinear_predict(source_file, output_dir, metric=None, fc=None):
     
     with open(cls_fn, 'w') as fh:
         fh.write('%s\n'%_cls_header)
-        for i, (cls, label, val) in enumerate(zip(predict_y, labels, vals)):
+        for cls, label, val in zip(predict_y, labels, vals):
             # val is an array of scores, one for each class, although in the
             # current mode of running the framework it contans one value
             fh.write( '%1.0f, %1.0f, %1.4f\n'%(cls, label, val[0]) )
@@ -284,7 +285,7 @@ def _create_tables(args):
 # COMMAND LINE
 # **********************************
 if __name__ == '__main__':
-    args = thesis_generator.arg_parser.parse_args()
+    args = config.arg_parser.parse_args()
 #    args = thesis_generator.args
     # **********************************
     # CLEAN OUTPUT DIRECTORY
