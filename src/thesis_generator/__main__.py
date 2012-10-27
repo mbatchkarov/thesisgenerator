@@ -148,14 +148,24 @@ def _feature_selection(args):
 def _train_models(args):
     import train
     for classifier in args.classifiers:
-        if classifier == 'liblinear':
+        if classifier == 'liblinear' or classifier == 'libsvm':
             if len(args.scoring_metric) > 0:
                 for metric in args.scoring_metric:
-                    train.train_liblinear(args.source, args.output,\
-                                     metric, args.feature_count)
+                    train.train_svm(args.source, args.output,\
+                                     metric, args.feature_count,\
+                                     classifier=classifier)
             else:
-                train.train_liblinear(args.source, args.output)
-
+                train.train_svm(args.source, args.output,\
+                                     classifier=classifier)
+        elif classifier.startswith('mallet'):
+            if len(args.scoring_metric) > 0:
+                for metric in args.scoring_metric:
+                    train.train_mallet(args.source, args.output,\
+                                     metric, args.feature_count,\
+                                     classifier=classifier)
+            else:
+                train.train_mallet(args.source, args.output,\
+                                     classifier=classifier)
 
 # **********************************
 # **********************************
@@ -167,19 +177,24 @@ def _train_models(args):
 def _predict(args):
 #    import predict
     for classifier in args.classifiers:
-        if classifier == 'liblinear':
+        if classifier == 'liblinear' or classifier == 'libsvm':
             if len(args.scoring_metric) > 0:
                 for metric in args.scoring_metric:
                     try:
-                        _liblinear_predict(args.source, args.output, \
-                                           metric=metric, fc=args.feature_count)
+                        _svm_predict(args.source, args.output, \
+                                           metric=metric,\
+                                           fc=args.feature_count,\
+                                           classifier=classifier)
                     except NameError as e:
                         print e
             else:
-                _liblinear_predict(args.source, args.output)
+                _svm_predict(args.source, args.output,\
+                                   classifier=classifier)
 
-def _liblinear_predict(source_file, output_dir, metric=None, fc=None):
+def _svm_predict(source_file, output_dir, metric=None, fc=None, classifier=None):
     from liblinear import liblinearutil
+    from libsvm import svmutil
+    
     predict_dir = os.path.join(output_dir, 'predict')
     if not os.path.exists(predict_dir):
         os.makedirs(predict_dir)
@@ -190,7 +205,7 @@ def _liblinear_predict(source_file, output_dir, metric=None, fc=None):
     model_fn = ioutil.model_fn_from_source(source_file, \
                                            os.path.join(output_dir, 'models'),\
                                            num_seen=_num_seen, fs=metric,\
-                                           fc=fc, classifier='liblinear',\
+                                           fc=fc, classifier=classifier,\
                                            stratified=args.stratify)
     _,cls_fn = os.path.split(model_fn)
     cls_fn,_ = os.path.splitext(cls_fn)
@@ -198,7 +213,7 @@ def _liblinear_predict(source_file, output_dir, metric=None, fc=None):
     if not os.path.exists( os.path.join(output_dir, 'classifications') ):
         os.makedirs( os.path.join(output_dir, 'classifications') )
     
-    print 'Predict \'liblinear\' - %s'%(time.strftime('%Y-%b-%d %H:%M:%S'))
+    print 'Predict \'%s\' - %s'%(classifier, time.strftime('%Y-%b-%d %H:%M:%S'))
     print '----> predict data file: \'%s\''%predict_fn
     print '----> load model from: \'%s\''%model_fn
     print '----> write classifications to: \'%s\''%cls_fn
@@ -216,8 +231,15 @@ def _liblinear_predict(source_file, output_dir, metric=None, fc=None):
     devnull = open('/dev/null', 'w')
     oldstdout_fno = os.dup(sys.stdout.fileno())
     os.dup2(devnull.fileno(), 1)
-    model = liblinearutil.load_model(model_fn)
-    labels, _, vals = liblinearutil.predict(predict_y, predict_x, model, args.prc_args)
+    if classifier == 'liblinear':
+        model = liblinearutil.load_model(model_fn)
+        labels, _, vals = liblinearutil.predict(predict_y, predict_x, model,\
+                                                args.prc_args)
+    elif classifier == 'libsvm':
+        model = svmutil.svm_load_model(model_fn)
+        labels, _, vals = svmutil.svm_predict(predict_y, predict_x, model,\
+                                              args.prc_args)
+        
     os.dup2(oldstdout_fno, 1)
     
     with open(cls_fn, 'w') as fh:
@@ -286,7 +308,7 @@ def _create_tables(args):
 # **********************************
 if __name__ == '__main__':
     args = config.arg_parser.parse_args()
-#    args = thesis_generator.args
+
     # **********************************
     # CLEAN OUTPUT DIRECTORY
     # **********************************
@@ -305,7 +327,7 @@ if __name__ == '__main__':
     # ADD classpath TO SYSTEM PATH
     # **********************************
     for path in args.classpath.split(os.pathsep):
-        print 'Adding (%s) to system path'%path
+        print 'Adding (%s) to system path'%glob.glob(path)
         sys.path.append(os.path.abspath(path))
     
     # **********************************

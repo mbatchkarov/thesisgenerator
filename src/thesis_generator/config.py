@@ -69,7 +69,7 @@ split_data_group.add_argument('--stratify',
                         action='store_true',
                         default=False)
 
-split_data_group.add_argument('--seen-data-cutoff',
+split_data_group.add_argument('--num-seen',
                               help='How many positive articles should be \
                                   considered to be the seen data from which \
                                   the training data is sampled.',

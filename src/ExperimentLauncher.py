@@ -319,7 +319,7 @@ def _liblinear_train(source_file, output_dir, metric=None, fc=None):
         liblinearutil.save_model(model_fn, model)
     return model
 
-def _liblinear_predict(source_file, output_dir, metric=None, fc=None):    
+def _svm_predict(source_file, output_dir, metric=None, fc=None):    
     predict_dir = os.path.join(output_dir, 'predict')
     if not os.path.exists(predict_dir):
         os.makedirs(predict_dir)
@@ -393,12 +393,12 @@ if args.predict:
             if len(args.scoring_metric) > 0:
                 for metric in args.scoring_metric:
                     try:
-                        _liblinear_predict(args.source, args.output, \
+                        _svm_predict(args.source, args.output, \
                                            metric, args.feature_count)
                     except NameError as e:
                         print e
             else:
-                _liblinear_predict(args.source, args.output)
+                _svm_predict(args.source, args.output)
 
 
 #elif args.classifier.lower() == 'liblinear':
