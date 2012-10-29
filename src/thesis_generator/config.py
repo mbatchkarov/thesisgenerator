@@ -106,15 +106,26 @@ feature_selection_group.add_argument('-fc', '--feature-count',
 
 train_group = arg_parser.add_argument_group('Training and evaluating classifier(s)')
 train_group.add_argument('-c', '--classifiers',
-                        help='Which classifier(s) should be trained and tested.',
+                        help='Which classifier(s) should be trained and tested.\
+                        All of the Mallet classifiers should be prefixed by \
+                        "mallet_" followed by the name of classifier trainer \
+                        class (without "Trainer").',
                         type=str,
                         nargs='+',
                         choices=['libsvm','liblinear',
-                                 'mallet_maxent','mallet_nb'])
+                                 'mallet_MaxEnt','mallet_NaiveBayes',\
+                                 'mallet_AdaBoost','mallet_AdaBoostM2'\
+                                 'mallet_Bagging','mallet_BalancedWinnow',\
+                                 'mallet_C45','mallet_DecisionTree',\
+                                 'mallet_MaxEntGE','mallet_MaxEntGERange',\
+                                 'mallet_MaxEntL1', 'mallet_MaxEntPR',\
+                                 'mallet_MCMaxEnt','mallet_NaiveBayes',\
+                                 'mallet_NaiveBayesEM','mallet_RankMaxEnt',\
+                                 'mallet_Winnow'])
 
-train_group.add_argument('--crossvalidate',
-                        help='Perform crossvalidation.',
-                        action='store_true')
+#train_group.add_argument('--crossvalidate',
+#                        help='Perform crossvalidation.',
+#                        action='store_true')
 
 train_group.add_argument('--prc-args',
                         help='A space separated string of arguments to be \
