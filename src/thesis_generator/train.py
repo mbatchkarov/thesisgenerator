@@ -64,10 +64,6 @@ def train_svm(metric=None, classifier=None):
     return model
 
 def _convert_to_mallet(mallet_exec, input_fpath):
-    if mallet_exec is None:
-        raise RuntimeError('Can not find mallet executable. Please specify the\
-        location of the mallet bin directory in classpath.')
-    
     f_id, fpath = tempfile.mkstemp(suffix='.mallet', dir=args.output)
     argslist = [mallet_exec,
                 "import-svmlight",
@@ -88,16 +84,11 @@ def _convert_to_mallet(mallet_exec, input_fpath):
     
 def train_mallet(metric=None, classifier=None):
     # find the mallet executable
-    mallet_exec = None
-    for path in sys.path:
-        if os.path.exists(os.path.join(path,'mallet')):
-            mallet_exec = os.path.join(path,'mallet')
-    
-    model_fn, train_fn = _output_paths(metric, classifier)
+    mallet_exec = ioutil.find_mallet()
+    _,_,mallet_trainer = classifier.partition("_")
+    model_fn, train_fn = _output_paths(metric, mallet_trainer)
     print 'Convert data to Mallet format - %s'%(time.strftime('%Y-%b-%d %H:%M:%S'))
     _, mallet_train_fpath = _convert_to_mallet(mallet_exec, train_fn)
-    
-    _,_,mallet_trainer = classifier.partition("_")
     
     print 'Training \'Mallet %s\' - %s'%(mallet_trainer, time.strftime('%Y-%b-%d %H:%M:%S'))
     print '----> training data file: \'%s\''%mallet_train_fpath
@@ -114,7 +105,7 @@ def train_mallet(metric=None, classifier=None):
     try:
 #        fid_out, f_out = tempfile.mkstemp(suffix='.out.txt', dir=args.output)
 #        fid_err, f_err = tempfile.mkstemp(suffix='.err.txt', dir=args.output)
-        subprocess.call(argslist)
+        subprocess.call(argslist, stdout=subprocess.PIPE)
     except subprocess.CalledProcessError as err:
         print 'Could not execute Mallet command, return code', err.returncode
         print err.output

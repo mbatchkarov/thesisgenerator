@@ -4,6 +4,7 @@ Created on Oct 18, 2012
 @author: ml249
 '''
 import os
+import sys
 import re
 
 
@@ -64,3 +65,15 @@ def model_fn_from_source(source_fn, output_dir, num_seen=None, fs=None, fc=None,
     out_fn += '.%s'%(fc) if fc is not None else ''
     out_fn += '.%s.model'%classifier
     return out_fn
+
+def find_mallet():
+    mallet_exec = None
+    for path in sys.path:
+        if os.path.exists(os.path.join(path,'mallet')):
+            mallet_exec = os.path.join(path,'mallet')
+    
+    if mallet_exec is None:
+        raise RuntimeError('Can not find mallet executable. Please specify the '\
+        'location of the mallet bin directory in classpath.')
+    
+    return mallet_exec

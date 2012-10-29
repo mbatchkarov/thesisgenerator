@@ -182,10 +182,11 @@ train_group.add_argument('-c', '--classifiers',
                                  'mallet_AdaBoost','mallet_AdaBoostM2'\
                                  'mallet_Bagging','mallet_BalancedWinnow',\
                                  'mallet_C45','mallet_DecisionTree',\
-                                 'mallet_MaxEntGE','mallet_MaxEntGERange',\
-                                 'mallet_MaxEntL1', 'mallet_MaxEntPR',\
-                                 'mallet_MCMaxEnt','mallet_NaiveBayes',\
-                                 'mallet_NaiveBayesEM','mallet_RankMaxEnt',\
+                                 'mallet_MaxEnt', 'mallet_MaxEntGE',\
+                                 'mallet_MaxEntGERange','mallet_MaxEntL1',\
+                                 'mallet_MaxEntPR', 'mallet_MCMaxEnt',\
+                                 'mallet_NaiveBayes','mallet_NaiveBayesEM',\
+                                 'mallet_MaxEntGERange','mallet_RankMaxEnt',\
                                  'mallet_Winnow'],
                          metavar='')
 

@@ -8,16 +8,11 @@ Created on Oct 18, 2012
 import os
 import sys
 import shutil
-#import subprocess
 import gzip
 import csv
 import time
 import glob
 import numpy as np
-try:
-    import cPickle as pickle
-except NameError:
-    import pickle
 
 import ioutil
 import preprocess
@@ -26,7 +21,6 @@ import config
 import plotter
 
 
-_cls_header = 'LABEL, PREDICTION, SCORE'
 _num_seen = 200
 
 def _update_table(tbl, true, predicted):
@@ -76,16 +70,15 @@ def _split_data(args):
             supported yet.')
 
 def _stratify(args):
-    train_in_fn = ioutil.train_fn_from_source(args.source, args.output, _num_seen, stratified=False)
-    train_out_fn = ioutil.train_fn_from_source(args.source, args.output, _num_seen, stratified=True)
-#    predict_fn = ioutil.predict_fn_from_source(args.source, args.output, _num_seen)
+    train_in_fn = ioutil.train_fn_from_source(args.source, args.output,\
+                                              _num_seen, stratified=False)
+    train_out_fn = ioutil.train_fn_from_source(args.source, args.output,\
+                                               _num_seen, stratified=True)
     
     with gzip.open(train_in_fn,'r') as input_fh,\
         gzip.open(train_out_fn,'w') as output_fh:
         preprocess.stratify(input_fh, output_fh, _num_seen)
-
-#    preprocess.stratify(predict_fn)
-    
+            
 # **********************************
 # **********************************
 
@@ -169,79 +162,35 @@ def _train_models(args):
 # PERFORM PREDICTION
 # **********************************
 def _predict(args):
-#    import predict
+    import predict
     for classifier in args.classifiers:
         if classifier == 'liblinear' or classifier == 'libsvm':
             if len(args.scoring_metric) > 0:
                 for metric in args.scoring_metric:
                     try:
-                        _svm_predict(args.source, args.output, \
+                        predict.svm_predict(args.source, args.output, \
                                            metric=metric,\
                                            fc=args.feature_count,\
                                            classifier=classifier)
                     except NameError as e:
                         print e
             else:
-                _svm_predict(args.source, args.output,\
+                predict.svm_predict(args.source, args.output,\
+                                   classifier=classifier)
+        if classifier.startswith('mallet'):
+            if len(args.scoring_metric) > 0:
+                for metric in args.scoring_metric:
+                    try:
+                        predict.mallet_predict(args.source, args.output, \
+                                           metric=metric,\
+                                           fc=args.feature_count,\
+                                           classifier=classifier)
+                    except NameError as e:
+                        print e
+            else:
+                predict.mallet_predict(args.source, args.output,\
                                    classifier=classifier)
 
-def _svm_predict(source_file, output_dir, metric=None, fc=None, classifier=None):
-    from liblinear import liblinearutil
-    from libsvm import svmutil
-    
-    predict_dir = os.path.join(output_dir, 'predict')
-    if not os.path.exists(predict_dir):
-        os.makedirs(predict_dir)
-    
-    predict_fn = ioutil.predict_fn_from_source(source_file, output_dir,\
-                                               num_seen=_num_seen,\
-                                               fs=metric,fc=fc)
-    model_fn = ioutil.model_fn_from_source(source_file, \
-                                           os.path.join(output_dir, 'models'),\
-                                           num_seen=_num_seen, fs=metric,\
-                                           fc=fc, classifier=classifier,\
-                                           stratified=args.stratify)
-    _,cls_fn = os.path.split(model_fn)
-    cls_fn,_ = os.path.splitext(cls_fn)
-    cls_fn = os.path.join(output_dir, 'classifications', '%s.predict.txt'%(cls_fn))
-    if not os.path.exists( os.path.join(output_dir, 'classifications') ):
-        os.makedirs( os.path.join(output_dir, 'classifications') )
-    
-    print 'Predict \'%s\' - %s'%(classifier, time.strftime('%Y-%b-%d %H:%M:%S'))
-    print '----> predict data file: \'%s\''%predict_fn
-    print '----> load model from: \'%s\''%model_fn
-    print '----> write classifications to: \'%s\''%cls_fn
-    
-    if not os.path.exists(model_fn):
-        raise NameError('Can not find model file \'%s\''%model_fn)
-    
-    if not os.path.exists(predict_fn):
-        raise NameError('Can not find predict data file \'%s\''%predict_fn)
-    
-    with gzip.open(predict_fn, 'rb') as fh:
-        predict_y, predict_x = ioutil.read_libsvm_data(fh)
-    
-    # silence libsvm
-    devnull = open('/dev/null', 'w')
-    oldstdout_fno = os.dup(sys.stdout.fileno())
-    os.dup2(devnull.fileno(), 1)
-    if classifier == 'liblinear':
-        model = liblinearutil.load_model(model_fn)
-        labels, _, vals = liblinearutil.predict(predict_y, predict_x, model,\
-                                                args.prc_args)
-    elif classifier == 'libsvm':
-        model = svmutil.svm_load_model(model_fn)
-        labels, _, vals = svmutil.svm_predict(predict_y, predict_x, model,\
-                                              args.prc_args)
-        
-    os.dup2(oldstdout_fno, 1)
-    
-    with open(cls_fn, 'w') as fh:
-        fh.write('%s\n'%_cls_header)
-        for cls, label, val in zip(predict_y, labels, vals):
-            # val is an array of scores, one for each class, although in the
-            # current mode of running the framework it contans one value
-            fh.write( '%1.0f, %1.0f, %1.4f\n'%(cls, label, val[0]) )
 # **********************************
 # **********************************
 
@@ -323,6 +272,8 @@ if __name__ == '__main__':
     for path in args.classpath.split(os.pathsep):
         print 'Adding (%s) to system path'%glob.glob(path)
         sys.path.append(os.path.abspath(path))
+    
+#    print sys.path
     
     # **********************************
     # SPLIT DATA
