@@ -16,36 +16,36 @@ from __main__ import args
 
 _num_seen = 200
 
-def _output_paths(metric=None, fc=None, classifier=None):
+def _output_paths(metric=None, classifier=None):
     model_dir = os.path.join(args.output, 'models')
     if not os.path.exists(model_dir):
         os.makedirs(model_dir)
 
     train_fn = ioutil.train_fn_from_source(args.source, args.output,\
                                            num_seen=_num_seen,\
-                                           fs=metric, fc=fc,\
+                                           fs=metric, fc=args.feature_count,\
                                            stratified=args.stratify)
     
     model_fn = ioutil.model_fn_from_source(args.source, model_dir,\
                                            num_seen=_num_seen,\
-                                           fs=metric, fc=fc,\
+                                           fs=metric, fc=args.feature_count,\
                                            stratified=args.stratify,\
                                            classifier=classifier)
 
     return model_fn, train_fn
 
-def train_svm(source_file, output_dir, metric=None, fc=None, classifier=None):
+def train_svm(metric=None, classifier=None):
     from liblinear import liblinearutil
     from libsvm import svmutil
     
-    model_fn, train_fn = _output_paths(metric, fc, classifier)
+    model_fn, train_fn = _output_paths(metric, classifier)
     
     with gzip.open(train_fn, 'rb') as fh:
         train_y, train_x = ioutil.read_libsvm_data(fh)
         
     print 'Training \'%s\' - %s'%(classifier, time.strftime('%Y-%b-%d %H:%M:%S'))
-    print '----> training data file: \'%s\''%train_fn
-    print '----> save model to: \'%s\''%model_fn
+    print '--> training data file: \'%s\''%train_fn
+    print '--> save model to: \'%s\''%model_fn
     
     devnull = open('/dev/null', 'w')
     oldstdout_fno = os.dup(sys.stdout.fileno())
@@ -86,14 +86,14 @@ def _convert_to_mallet(mallet_exec, input_fpath):
     in_fh.close()
     return f_id,fpath
     
-def train_mallet(source_file, output_dir, metric=None, fc=None, classifier=None):
+def train_mallet(metric=None, classifier=None):
     # find the mallet executable
     mallet_exec = None
     for path in sys.path:
         if os.path.exists(os.path.join(path,'mallet')):
             mallet_exec = os.path.join(path,'mallet')
     
-    model_fn, train_fn = _output_paths(metric, fc, classifier)
+    model_fn, train_fn = _output_paths(metric, classifier)
     print 'Convert data to Mallet format - %s'%(time.strftime('%Y-%b-%d %H:%M:%S'))
     _, mallet_train_fpath = _convert_to_mallet(mallet_exec, train_fn)
     

@@ -151,21 +151,15 @@ def _train_models(args):
         if classifier == 'liblinear' or classifier == 'libsvm':
             if len(args.scoring_metric) > 0:
                 for metric in args.scoring_metric:
-                    train.train_svm(args.source, args.output,\
-                                     metric, args.feature_count,\
-                                     classifier=classifier)
+                    train.train_svm(metric, classifier=classifier)
             else:
-                train.train_svm(args.source, args.output,\
-                                     classifier=classifier)
+                train.train_svm(classifier=classifier)
         elif classifier.startswith('mallet'):
             if len(args.scoring_metric) > 0:
                 for metric in args.scoring_metric:
-                    train.train_mallet(args.source, args.output,\
-                                     metric, args.feature_count,\
-                                     classifier=classifier)
+                    train.train_mallet(metric, classifier=classifier)
             else:
-                train.train_mallet(args.source, args.output,\
-                                     classifier=classifier)
+                train.train_mallet(classifier=classifier)
 
 # **********************************
 # **********************************
