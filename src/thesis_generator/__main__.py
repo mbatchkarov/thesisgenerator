@@ -13,6 +13,7 @@ import csv
 import time
 import glob
 import numpy as np
+import multiprocessing as mp
 
 import ioutil
 import preprocess
@@ -58,8 +59,8 @@ def _split_data(args):
         if magic == '\x1f\x8b':
             with gzip.open(args.source) as in_fh:
                 print 'Split data - %s'%(time.strftime('%Y-%b-%d %H:%M:%S'))
-                print '----> source file \'%s\''%(args.source)
-                print '----> seen data %i'%(_num_seen)
+                print '--> source file \'%s\''%(args.source)
+                print '--> seen data %i'%(_num_seen)
                 preprocess.split_data(in_fh, args.output, _num_seen)
         else:
             raise NotImplementedError('Reading non compressed files is \
@@ -94,43 +95,53 @@ def _feature_selection(args):
         pass
         # todo: handle the case where the source is a directory
     
+    with gzip.open(train_fn) as fh:
+        features = preprocess.compute_feature_counts(fh)
+        features = dict(features)
+    
+    print 'Creating proces pool with %i processes'%(mp.cpu_count()+1)
+    mp_pool = mp.Pool( processes = mp.cpu_count() )
+    
     for metric in args.scoring_metric:
-        print 'Perform feature selection - %s'%(time.strftime('%Y-%b-%d %H:%M:%S'))
-        print '----> metric: %s'%metric
-        print '----> feature count: %s'%args.feature_count
-        
-        with gzip.open(train_fn) as fh:
-            features = preprocess.compute_feature_counts(fh)
-        
-        sorted_features = metrics.sort(features, metric)
-        selected_features = set(sorted_features[:args.feature_count])
-        
-        train_out_fn = ioutil.train_fn_from_source(args.source,\
-                                                       args.output,\
-                                                       num_seen=_num_seen,\
-                                                       fs=metric,\
-                                                       fc=args.feature_count,\
-                                                       stratified=args.stratify) 
-        
-        predict_out_fn = ioutil.predict_fn_from_source(args.source,\
-                                                           args.output,\
-                                                           num_seen=_num_seen,\
-                                                           fs=metric,\
-                                                           fc=args.feature_count)
-        
-        if not os.path.exists(os.path.split(train_out_fn)[0]):
-            os.makedirs(os.path.split(train_out_fn)[0])
-        
-        if not os.path.exists(os.path.split(predict_out_fn)[0]):
-            os.makedirs(os.path.split(predict_out_fn)[0])
-        
-        with gzip.open(train_fn, 'rb') as in_fh, \
-                gzip.open(train_out_fn, 'wb') as out_fh:
-            preprocess.strip_features(in_fh, out_fh, selected_features)
-        
-        with gzip.open(predict_fn, 'rb') as in_fh, \
-                gzip.open(predict_out_fn, 'wb') as out_fh:
-            preprocess.strip_features(in_fh, out_fh, selected_features)
+        mp_pool.apply_async(_select_features_using_metric,
+                            args=(metric, train_fn,  predict_fn, features, args))
+    mp_pool.close()
+    mp_pool.join()
+
+def _select_features_using_metric(metric, train_fn, predict_fn, features, args):
+    print 'Perform feature selection - %s'%(time.strftime('%Y-%b-%d %H:%M:%S'))
+    print '--> metric: %s'%metric
+    print '--> feature count: %s'%args.feature_count
+    
+    sorted_features = metrics.sort(features, metric)
+    selected_features = set(sorted_features[:args.feature_count])
+    
+    train_out_fn = ioutil.train_fn_from_source(args.source,\
+                                               args.output,\
+                                               num_seen=_num_seen,\
+                                               fs=metric,\
+                                               fc=args.feature_count,\
+                                               stratified=args.stratify)
+    
+    predict_out_fn = ioutil.predict_fn_from_source(args.source,\
+                                                   args.output,\
+                                                   num_seen=_num_seen,\
+                                                   fs=metric,\
+                                                   fc=args.feature_count)
+    
+    if not os.path.exists(os.path.split(train_out_fn)[0]):
+        os.makedirs(os.path.split(train_out_fn)[0])
+    
+    if not os.path.exists(os.path.split(predict_out_fn)[0]):
+        os.makedirs(os.path.split(predict_out_fn)[0])
+    
+    with gzip.open(train_fn, 'rb') as in_fh, \
+            gzip.open(train_out_fn, 'wb') as out_fh:
+        preprocess.strip_features(in_fh, out_fh, selected_features)
+    
+    with gzip.open(predict_fn, 'rb') as in_fh, \
+            gzip.open(predict_out_fn, 'wb') as out_fh:
+        preprocess.strip_features(in_fh, out_fh, selected_features)
 # **********************************
 # **********************************
 

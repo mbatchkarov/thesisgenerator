@@ -83,9 +83,10 @@ def svm_predict(source_file, output_dir, metric=None, fc=None, classifier=None):
     with open(cls_fn, 'w') as fh:
         fh.write('%s\n'%_cls_header)
         for cls, label, val in zip(predict_y, labels, vals):
-            # val is an array of scores, one for each class, although in the
-            # current mode of running the framework it contans one value
-            fh.write( '%1.0f, %1.0f, %1.4f\n'%(cls, label, val[0]) )
+            # val is a single score or an array of probability estimates
+            # depending on what arguments were passed to liblinear and/or libsvm
+            val = reduce(lambda l,f: l + ['%1.4f'%f], val, [])
+            fh.write( '%1.0f, %1.0f, %s\n'%(cls, label, val) )
             
 def mallet_predict(source_file, output_dir, metric=None, fc=None, classifier=None):
     mallet_exec = ioutil.find_mallet()
@@ -120,20 +121,17 @@ def mallet_predict(source_file, output_dir, metric=None, fc=None, classifier=Non
     fh = open(cls_fn, 'r')
     f_id, fpath = tempfile.mkstemp(suffix='.mallet', dir=args.output)
     os.write(f_id, '%(_cls_header)s\n'%locals())
-    for line in fh:
-        line = re.sub('^.*?\t','', line)
-        line = re.sub('\t',', ', line)
-        print line
-        os.write(f_id, line)
+    with open(cls_fn, 'r') as predictions,\
+        gzip.open(predict_fn, 'r') as true_labels:
+        for predict, correct in zip(predictions, true_labels):
+            predict = re.sub('^.*?\t','', predict)
+            predict = re.sub('\t',', ', predict)
+            true_cls,_,_ = correct.partition(' ')
+            predict = '%s,%s'%(true_cls, predict)
+            os.write(f_id, predict)
     
     fh.close()
     os.close(f_id)
     os.remove(cls_fn)
     os.rename(fpath, cls_fn)
-    
-#    out_data,err_data = p.communicate(in_fh.read())
-#    if len(out_data) > 0 or len(err_data) > 0:
-#        print '** Mallet Std Out **:\n', out_data, '*****************'
-#        print '** Mallet Std Err **:\n', err_data, '*****************' 
-#    in_fh.close()
     
