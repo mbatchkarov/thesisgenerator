@@ -71,17 +71,12 @@ def get_axis_values(column_id, lines, csv_header=['tp','fp','tn','fn']):
     except AttributeError:
         stat = functools.partial( lambda line: line[column_id] )
     
-#    if column_id not in csv_header:
-#        stat = functools.partial( getattr(statistics, column_id) ) 
-#    else:
-#        stat = functools.partial( lambda line: line[column_id] )
-    
     # get the specified values from the csv lines
     values = map(stat,lines)
     return values
 
 def execute(args):
-    groups_re = re.compile('([a-z0-9]+)\.')
+    groups_re = re.compile('([\w]+)\.')
     files = []
 #    for fname in os.listdir(args.create_figures):
     for fpath in glob.glob(os.path.join(args.create_figures,'*')):
@@ -101,10 +96,13 @@ def execute(args):
                    for key in plots]
     
     for plot_group in plot_groups:
-        lines = set([fname[args.line_grouping] for fname in files])
-        line_groups = [[fname for fname in files if fname[args.line_grouping] == key] \
-                       for key in lines]
-        
+        if args.line_grouping is None:
+            line_groups = [[group] for group in plot_group]
+        else:
+            lines = set([fname[args.line_grouping] for fname in files])
+            line_groups = [[group for group in plot_group if \
+                            group[args.line_grouping] == key] for key in lines]
+#        print line_groups
         fig = plt.figure()
         axes = plt.subplot(111)
         plt.hold(b=True)
@@ -127,17 +125,22 @@ def execute(args):
                     y_values = get_axis_values(args.y_values, lines, csv_header)
                     values[i] = [x_values, y_values]
             
+#            print item
             plt.plot(np.mean(values[:,0,:], axis=0),
                      np.mean(values[:,1,:], axis=0),
                      label=' '.join(map(lambda i: item[i], args.line_label)) )
         
         plt.xlabel(args.x_values)
         plt.ylabel(args.y_values)
+        plt.title(' '.join(map(lambda i: item[i], args.figure_label)))
         leg = plt.legend(loc=( 0.0,-0.165 ), ncol=args.legend_ncol,
                          fancybox=True, shadow=True,
                          prop={'size':9}, mode='expand')
         leg.get_frame().set_lw(0.3)
         axes.minorticks_on()
-        plt.savefig( os.path.join(args.output, 'figures', '%s.png'%('.'.join(plot_group[0][1:]))) )
+        figure_fn = os.path.join(args.output, 'figures', '%s.png'%('.'.join(plot_group[0][1:])))
+        plt.savefig( figure_fn )
+        
+        print '--> save figure to: \'%s\''%figure_fn
 
 
