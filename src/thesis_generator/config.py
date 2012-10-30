@@ -215,13 +215,21 @@ plot_group.add_argument('--figure-grouping',
 
 plot_group.add_argument('--line-grouping',
                         help='',
-                        default=0,
+                        default=None,
                         type=int)
 
 plot_group.add_argument('--line-label',
                         help=textwrap.dedent('''\
                         The position of the setting value to be used as the line
                         label.'''),
+                        type=int,
+                        default=[1],
+                        nargs='+')
+
+plot_group.add_argument('--figure-label',
+                        help=textwrap.dedent('''\
+                        The position of the setting value to be used as the
+                        figure label.'''),
                         type=int,
                         default=[1],
                         nargs='+')
