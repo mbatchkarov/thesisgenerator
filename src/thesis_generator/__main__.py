@@ -22,8 +22,6 @@ import config
 import plotter
 
 
-_num_seen = 200
-
 def _update_table(tbl, true, predicted):
     true = int(true)
     predicted = int(predicted)
@@ -60,8 +58,8 @@ def _split_data(args):
             with gzip.open(args.source) as in_fh:
                 print 'Split data - %s'%(time.strftime('%Y-%b-%d %H:%M:%S'))
                 print '--> source file \'%s\''%(args.source)
-                print '--> seen data %i'%(_num_seen)
-                preprocess.split_data(in_fh, args.output, _num_seen)
+                print '--> seen data %i'%(args.num_seen)
+                preprocess.split_data(in_fh, args.output, args.num_seen)
         else:
             raise NotImplementedError('Reading non compressed files is \
                 currently not supported.')
@@ -72,13 +70,13 @@ def _split_data(args):
 
 def _stratify(args):
     train_in_fn = ioutil.train_fn_from_source(args.source, args.output,\
-                                              _num_seen, stratified=False)
+                                              args.num_seen, stratified=False)
     train_out_fn = ioutil.train_fn_from_source(args.source, args.output,\
-                                               _num_seen, stratified=True)
+                                               args.num_seen, stratified=True)
     
     with gzip.open(train_in_fn,'r') as input_fh,\
         gzip.open(train_out_fn,'w') as output_fh:
-        preprocess.stratify(input_fh, output_fh, _num_seen)
+        preprocess.stratify(input_fh, output_fh, args.num_seen)
             
 # **********************************
 # **********************************
@@ -89,8 +87,8 @@ def _stratify(args):
 # **********************************
 def _feature_selection(args):
     if os.path.isfile(args.source):
-        train_fn = ioutil.train_fn_from_source(args.source, args.output, _num_seen, stratified=args.stratify)
-        predict_fn = ioutil.predict_fn_from_source(args.source, args.output, _num_seen) 
+        train_fn = ioutil.train_fn_from_source(args.source, args.output, args.num_seen, stratified=args.stratify)
+        predict_fn = ioutil.predict_fn_from_source(args.source, args.output, args.num_seen) 
     else:
         pass
         # todo: handle the case where the source is a directory
@@ -118,14 +116,14 @@ def _select_features_using_metric(metric, train_fn, predict_fn, features, args):
     
     train_out_fn = ioutil.train_fn_from_source(args.source,\
                                                args.output,\
-                                               num_seen=_num_seen,\
+                                               num_seen=args.num_seen,\
                                                fs=metric,\
                                                fc=args.feature_count,\
                                                stratified=args.stratify)
     
     predict_out_fn = ioutil.predict_fn_from_source(args.source,\
                                                    args.output,\
-                                                   num_seen=_num_seen,\
+                                                   num_seen=args.num_seen,\
                                                    fs=metric,\
                                                    fc=args.feature_count)
     
@@ -211,6 +209,7 @@ def _predict(args):
 # VARYING THRESHOLDS
 # **********************************
 def _create_tables(args):
+    import predict
     _tbl_header = 'THRESHOLD, TP, FP, TN, FN'
     
     # split the files paths of the classifier output so that the filenames of
@@ -226,7 +225,7 @@ def _create_tables(args):
     if not os.path.exists(os.path.join(args.output, 'tables')):
         os.makedirs(os.path.join(args.output, 'tables'))
     
-    for settings in files:        
+    for settings in files:
         with open(os.path.join(args.output, 'tables',\
                                '.'.join(settings[1:]) + '.csv'), 'w') as out_fh:
             out_fh.write('%s\n'%_tbl_header)
@@ -234,13 +233,33 @@ def _create_tables(args):
             
             with open(settings[0], 'r') as in_fh:
                 reader = csv.reader(in_fh)
-                reader.next()
+                cls_header = ','.join(reader.next())
                 scores = []
                 lines = []
-                for cls, label, score in reader:
-                    scores.append(float(score))
-                    lines.append( (int(cls),int(label),float(score)) )
-            
+                
+                # there are two types of csv files, one written from
+                # libsvm/liblinear which has three columns (label, prediction,
+                # score) and one written out from mallet which has four columns
+                # (label, prediction, p(c=0), p(c=1)). We don't actually care
+                # what the confidence for the latter class is since the two
+                # confidence values add to one
+                if cls_header == predict._csv_header_scores:
+                    for cls, label, score in reader:
+                        scores.append(float(score))
+                        lines.append( (int(cls),int(label),float(score)) )
+                elif cls_header == predict._csv_header_confidence:
+                    for cls, label, score, _ in reader:
+                        scores.append(float(score))
+                        lines.append( (int(cls),int(label),float(score)) )
+                    scores.append(0)
+                    scores.append(1)
+                else:
+                    raise RuntimeError('Unknown classifications file format: '\
+                                       '"%s". Known formats\n\t"%s"\n\t"%s"'
+                                       %(cls_header, predict._csv_header_scores,
+                                         predict._csv_header_confidence) )
+                            
+            # try reclassifying all documents based on the scores found
             scores = sorted(scores)
             num_thresholds = 20
             xs = np.linspace(min(scores), max(scores), num_thresholds)

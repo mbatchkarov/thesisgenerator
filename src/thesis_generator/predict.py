@@ -16,8 +16,8 @@ import ioutil
 from __main__ import args
 
 
-_cls_header = 'LABEL, PREDICTION, SCORE'
-_num_seen = 200
+_csv_header_scores = 'LABEL, PREDICTION, SCORE'
+_csv_header_confidence = 'LABEL, PREDICTION, PROB(c0), PROB(c1)'
 
 def _output_paths(source_file, output_dir, metric=None, fc=None, classifier=None): 
     predict_dir = os.path.join(output_dir, 'predict')
@@ -25,12 +25,12 @@ def _output_paths(source_file, output_dir, metric=None, fc=None, classifier=None
         os.makedirs(predict_dir)
     
     predict_fn = ioutil.predict_fn_from_source(source_file, output_dir,\
-                                               num_seen=_num_seen,\
+                                               num_seen=args.num_seen,\
                                                fs=metric,fc=fc)
     
     model_fn = ioutil.model_fn_from_source(source_file, \
                                            os.path.join(output_dir, 'models'),\
-                                           num_seen=_num_seen, fs=metric,\
+                                           num_seen=args.num_seen, fs=metric,\
                                            fc=fc, classifier=classifier,\
                                            stratified=args.stratify)
     
@@ -55,6 +55,7 @@ def svm_predict(source_file, output_dir, metric=None, fc=None, classifier=None):
     print '--> predict data file: \'%s\''%predict_fn
     print '--> load model from: \'%s\''%model_fn
     print '--> write classifications to: \'%s\''%cls_fn
+    print '----> process arguments: \'%s\''%args.prc_args
     
     if not os.path.exists(model_fn):
         raise NameError('Can not find model file \'%s\''%model_fn)
@@ -65,7 +66,7 @@ def svm_predict(source_file, output_dir, metric=None, fc=None, classifier=None):
     with gzip.open(predict_fn, 'rb') as fh:
         predict_y, predict_x = ioutil.read_libsvm_data(fh)
     
-    # silence libsvm
+    # silence libsvm / liblinear
     devnull = open('/dev/null', 'w')
     oldstdout_fno = os.dup(sys.stdout.fileno())
     os.dup2(devnull.fileno(), 1)
@@ -81,12 +82,15 @@ def svm_predict(source_file, output_dir, metric=None, fc=None, classifier=None):
     os.dup2(oldstdout_fno, 1)
     
     with open(cls_fn, 'w') as fh:
-        fh.write('%s\n'%_cls_header)
+        fh.write('%s\n'%_csv_header_scores)
+        
         for cls, label, val in zip(predict_y, labels, vals):
             # val is a single score or an array of probability estimates
             # depending on what arguments were passed to liblinear and/or libsvm
             val = reduce(lambda l,f: l + ['%1.4f'%f], val, [])
+            val = ','.join(val)
             fh.write( '%1.0f, %1.0f, %s\n'%(cls, label, val) )
+            
             
 def mallet_predict(source_file, output_dir, metric=None, fc=None, classifier=None):
     mallet_exec = ioutil.find_mallet()
@@ -100,12 +104,14 @@ def mallet_predict(source_file, output_dir, metric=None, fc=None, classifier=Non
     print '--> predict data file: \'%s\''%predict_fn
     print '--> load model from: \'%s\''%model_fn
     print '--> write classifications to: \'%s\''%cls_fn
+    print '----> process arguments: \'%s\''%args.prc_args
     
     argslist = [mallet_exec,
                 "classify-svmlight",
                 "--input", fpath,
                 "--output", cls_fn,
                 "--classifier", model_fn]
+    
     in_fh = gzip.open(predict_fn, 'r')
     os.write(f_id, in_fh.read())
     in_fh.close()
@@ -119,15 +125,17 @@ def mallet_predict(source_file, output_dir, metric=None, fc=None, classifier=Non
     
     # remove the leading garbage from the mallet classify file
     fh = open(cls_fn, 'r')
-    f_id, fpath = tempfile.mkstemp(suffix='.mallet', dir=args.output)
-    os.write(f_id, '%(_cls_header)s\n'%locals())
+    f_id, fpath = tempfile.mkstemp(prefix='.', suffix='.mallet', dir=args.output)
+    os.write(f_id, '%s\n'%_csv_header_confidence)
     with open(cls_fn, 'r') as predictions,\
         gzip.open(predict_fn, 'r') as true_labels:
         for predict, correct in zip(predictions, true_labels):
-            predict = re.sub('^.*?\t','', predict)
-            predict = re.sub('\t',', ', predict)
-            true_cls,_,_ = correct.partition(' ')
-            predict = '%s,%s'%(true_cls, predict)
+            predict = re.sub('^.*?\t','', predict.strip())
+            cols = predict.split('\t')
+            true_cls,_,_ = correct.strip().partition(' ')
+            predict_cls = 1 if float(float(cols[1])) > float(float(cols[3])) else -1 
+            predict = '%s, %i, %1.4f, %1.4f\n'%(true_cls, predict_cls,\
+                                                float(cols[1]), float(cols[3]))
             os.write(f_id, predict)
     
     fh.close()

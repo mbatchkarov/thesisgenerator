@@ -14,7 +14,7 @@ import tempfile
 import ioutil
 from __main__ import args
 
-_num_seen = 200
+#_num_seen = 200
 
 def _output_paths(metric=None, classifier=None):
     model_dir = os.path.join(args.output, 'models')
@@ -22,12 +22,12 @@ def _output_paths(metric=None, classifier=None):
         os.makedirs(model_dir)
 
     train_fn = ioutil.train_fn_from_source(args.source, args.output,\
-                                           num_seen=_num_seen,\
+                                           num_seen=args.num_seen,\
                                            fs=metric, fc=args.feature_count,\
                                            stratified=args.stratify)
     
     model_fn = ioutil.model_fn_from_source(args.source, model_dir,\
-                                           num_seen=_num_seen,\
+                                           num_seen=args.num_seen,\
                                            fs=metric, fc=args.feature_count,\
                                            stratified=args.stratify,\
                                            classifier=classifier)
@@ -80,6 +80,7 @@ def _convert_to_mallet(mallet_exec, input_fpath):
         print '** Mallet Std Out **:\n', out_data, '*****************'
         print '** Mallet Std Err **:\n', err_data, '*****************' 
     in_fh.close()
+    os.close(f_id)
     return f_id,fpath
     
 def train_mallet(metric=None, classifier=None):
@@ -87,16 +88,18 @@ def train_mallet(metric=None, classifier=None):
     mallet_exec = ioutil.find_mallet()
     _,_,mallet_trainer = classifier.partition("_")
     model_fn, train_fn = _output_paths(metric, mallet_trainer)
+    
+    # TODO: change the mallet data conversion so that it's done once per settings only
     print 'Convert data to Mallet format - %s'%(time.strftime('%Y-%b-%d %H:%M:%S'))
     _, mallet_train_fpath = _convert_to_mallet(mallet_exec, train_fn)
     
     print 'Training \'Mallet %s\' - %s'%(mallet_trainer, time.strftime('%Y-%b-%d %H:%M:%S'))
-    print '----> training data file: \'%s\''%mallet_train_fpath
-    print '----> save model to: \'%s\''%model_fn
+    print '--> training data file: \'%s\''%mallet_train_fpath
+    print '--> save model to: \'%s\''%model_fn
     
     argslist = [mallet_exec,
                 "train-classifier",
-                "--report", "train:raw " # the space has to be there
+                "--report", "train:accuracy " # the space has to be there
                 "--trainer", mallet_trainer,
                 "--input",mallet_train_fpath,
                 "--output-classifier",model_fn,
@@ -105,7 +108,7 @@ def train_mallet(metric=None, classifier=None):
     try:
 #        fid_out, f_out = tempfile.mkstemp(suffix='.out.txt', dir=args.output)
 #        fid_err, f_err = tempfile.mkstemp(suffix='.err.txt', dir=args.output)
-        subprocess.call(argslist, stdout=subprocess.PIPE)
+        ret_code = subprocess.call(argslist, stdout=subprocess.PIPE)
     except subprocess.CalledProcessError as err:
         print 'Could not execute Mallet command, return code', err.returncode
         print err.output
