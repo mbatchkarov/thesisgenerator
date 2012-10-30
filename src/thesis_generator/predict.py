@@ -11,11 +11,12 @@ import sys
 import subprocess
 import tempfile
 import re
+import warnings
 
 import ioutil
-from __main__ import args
 
 
+args = None
 _csv_header_scores = 'LABEL, PREDICTION, SCORE'
 _csv_header_confidence = 'LABEL, PREDICTION, PROB(c0), PROB(c1)'
 
@@ -66,6 +67,23 @@ def svm_predict(source_file, output_dir, metric=None, fc=None, classifier=None):
     with gzip.open(predict_fn, 'rb') as fh:
         predict_y, predict_x = ioutil.read_libsvm_data(fh)
     
+    # the only thing that can be in the process arguments for predictions is
+    # '-b 1' anything else will throw an error
+    argv = args.prc_args.split()
+    i = 0
+    prc_args = []
+    while i < len(argv):
+        if argv[i] == '-b':
+            prc_args.append(' '.join([argv[i], argv[i+1]]))
+            i += 2
+        else:
+            warn_msg = 'LibSVM / LibLinear does not allow any other command '\
+                'line arguments for prediction than  \'-b {0,1}\'. Removing '\
+                'argument \'%s\''%(argv[i])
+            warnings.warn(warn_msg)
+            i += 1
+    prc_args = ' '.join(prc_args)
+    
     # silence libsvm / liblinear
     devnull = open('/dev/null', 'w')
     oldstdout_fno = os.dup(sys.stdout.fileno())
@@ -73,11 +91,11 @@ def svm_predict(source_file, output_dir, metric=None, fc=None, classifier=None):
     if classifier == 'liblinear':
         model = liblinearutil.load_model(model_fn)
         labels, _, vals = liblinearutil.predict(predict_y, predict_x, model,\
-                                                args.prc_args)
+                                                prc_args)
     elif classifier == 'libsvm':
         model = svmutil.svm_load_model(model_fn)
         labels, _, vals = svmutil.svm_predict(predict_y, predict_x, model,\
-                                              args.prc_args)
+                                              prc_args)
         
     os.dup2(oldstdout_fno, 1)
     

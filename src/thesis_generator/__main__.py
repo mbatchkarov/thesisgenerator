@@ -87,8 +87,12 @@ def _stratify(args):
 # **********************************
 def _feature_selection(args):
     if os.path.isfile(args.source):
-        train_fn = ioutil.train_fn_from_source(args.source, args.output, args.num_seen, stratified=args.stratify)
-        predict_fn = ioutil.predict_fn_from_source(args.source, args.output, args.num_seen) 
+        train_fn = ioutil.train_fn_from_source(args.source, args.output,\
+                                               args.num_seen,\
+                                               stratified=args.stratify)
+        
+        predict_fn = ioutil.predict_fn_from_source(args.source, args.output,\
+                                                   args.num_seen) 
     else:
         pass
         # todo: handle the case where the source is a directory
@@ -149,6 +153,7 @@ def _select_features_using_metric(metric, train_fn, predict_fn, features, args):
 # **********************************
 def _train_models(args):
     import train
+    train.args = args
     for classifier in args.classifiers:
         if classifier == 'liblinear' or classifier == 'libsvm':
             if len(args.scoring_metric) > 0:
@@ -172,6 +177,7 @@ def _train_models(args):
 # **********************************
 def _predict(args):
     import predict
+    predict.args = args
     for classifier in args.classifiers:
         if classifier == 'liblinear' or classifier == 'libsvm':
             if len(args.scoring_metric) > 0:
@@ -263,6 +269,10 @@ def _create_tables(args):
             scores = sorted(scores)
             num_thresholds = 20
             xs = np.linspace(min(scores), max(scores), num_thresholds)
+            
+            # make sure that the default classifier behaviour (threshold == 0) 
+            # is in the results table as well
+            xs = np.sort( np.concatenate((xs, np.array([0], dtype=np.float64))) )
             for threshold in xs:
                 table = {'tp':0,'fp':0,'tn':0,'fn':0}
                 for (cls,label,score) in lines:
@@ -279,9 +289,7 @@ def _create_tables(args):
 # RUN THE LOT WHEN CALLED FROM THE
 # COMMAND LINE
 # **********************************
-if __name__ == '__main__':
-    args = config.arg_parser.parse_args()
-
+def run_tasks(args):
     # **********************************
     # CLEAN OUTPUT DIRECTORY
     # **********************************
@@ -345,3 +353,8 @@ if __name__ == '__main__':
     # **********************************
     if args.create_figures is not None:
         plotter.execute(args)
+
+if __name__ == '__main__':
+    args = config.arg_parser.parse_args()
+    run_tasks(args)
+    

@@ -12,9 +12,9 @@ import subprocess
 import tempfile
 
 import ioutil
-from __main__ import args
 
-#_num_seen = 200
+
+args = None
 
 def _output_paths(metric=None, classifier=None):
     model_dir = os.path.join(args.output, 'models')
