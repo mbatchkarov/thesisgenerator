@@ -14,6 +14,7 @@ import time
 import glob
 import numpy as np
 import multiprocessing as mp
+from math import log
 
 import ioutil
 import preprocess
@@ -61,12 +62,12 @@ def _split_data(args):
                 print '--> seen data %i'%(args.num_seen)
                 preprocess.split_data(in_fh, args.output, args.num_seen)
         else:
-            raise NotImplementedError('Reading non compressed files is \
-                currently not supported.')
+            raise NotImplementedError('Reading non compressed files is '\
+                'currently not supported.')
     else:
         # todo: handle the case where the source is a directory
-        raise NotImplementedError('Reading input from directories is not \
-            supported yet.')
+        raise NotImplementedError('Reading input from directories is not '\
+            'supported yet.')
 
 def _stratify(args):
     train_in_fn = ioutil.train_fn_from_source(args.source, args.output,\
@@ -102,11 +103,19 @@ def _feature_selection(args):
         features = dict(features)
     
     print 'Creating proces pool with %i processes'%(mp.cpu_count()+1)
+    
     mp_pool = mp.Pool( processes = mp.cpu_count() )
+    
+    if not os.path.exists(os.path.join(args.output,'train')):
+        os.makedirs(os.path.join(args.output,'train'))
+    
+    if not os.path.exists(os.path.join(args.output,'predict')):
+        os.makedirs(os.path.join(args.output,'predict'))
     
     for metric in args.scoring_metric:
         mp_pool.apply_async(_select_features_using_metric,
                             args=(metric, train_fn,  predict_fn, features, args))
+#        _select_features_using_metric(metric, train_fn,  predict_fn, features, args)
     mp_pool.close()
     mp_pool.join()
 
@@ -134,19 +143,13 @@ def _select_features_using_metric(metric, train_fn, predict_fn, features, args):
                                                    fs=metric,\
                                                    fc=args.feature_count)
     
-    if not os.path.exists(os.path.split(train_out_fn)[0]):
-        os.makedirs(os.path.split(train_out_fn)[0])
-    
-    if not os.path.exists(os.path.split(predict_out_fn)[0]):
-        os.makedirs(os.path.split(predict_out_fn)[0])
-    
     with gzip.open(train_fn, 'rb') as in_fh, \
             gzip.open(train_out_fn, 'wb') as out_fh:
         if metric != 'none':
             preprocess.strip_features(in_fh, out_fh, selected_features)
         else:
             out_fh.write(in_fh.read())
-    
+
     with gzip.open(predict_fn, 'rb') as in_fh, \
             gzip.open(predict_out_fn, 'wb') as out_fh:
         preprocess.strip_features(in_fh, out_fh, selected_features)
@@ -261,10 +264,12 @@ def _create_tables(args):
                         lines.append( (int(cls),int(label),float(score)) )
                 elif cls_header == predict._csv_header_confidence:
                     for cls, label, score, _ in reader:
-                        scores.append(float(score))
-                        lines.append( (int(cls),int(label),float(score)) )
-                    scores.append(0)
-                    scores.append(1)
+                        # for computing the differencent classification
+                        # boundaries the scores must be adjusted so that they
+                        # are balances around 0
+                        score = float(score) - .5
+                        scores.append( score )
+                        lines.append( (int(cls),int(label),score) )
                 else:
                     raise RuntimeError('Unknown classifications file format: '\
                                        '"%s". Known formats\n\t"%s"\n\t"%s"'
@@ -278,7 +283,9 @@ def _create_tables(args):
             
             # make sure that the default classifier behaviour (threshold == 0) 
             # is in the results table as well
-            xs = np.sort( np.concatenate((xs, np.array([0], dtype=np.float64))) )
+            if 0 not in xs:
+                xs = np.sort( np.concatenate((xs, np.array([0], dtype=np.float64))) )
+            
             for threshold in xs:
                 table = {'tp':0,'fp':0,'tn':0,'fn':0}
                 for (cls,label,score) in lines:
@@ -322,6 +329,7 @@ def run_tasks(args):
     # **********************************
     # SPLIT DATA
     # **********************************
+    # TODO if crossvalidate is true do this several times
     if args.split_data:
         _split_data(args)
     
