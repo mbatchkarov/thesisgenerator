@@ -210,12 +210,12 @@ def predict(y, x, m, options=""):
 			pred_values += [values]
 	if len(y) == 0:
 		y = [0] * len(x)
-	ACC, MSE, SCC = evaluations(y, pred_labels)
-	l = len(y)
-	if solver_type in [L2R_L2LOSS_SVR, L2R_L2LOSS_SVR_DUAL, L2R_L1LOSS_SVR_DUAL]:
-		print("Mean squared error = %g (regression)" % MSE)
-		print("Squared correlation coefficient = %g (regression)" % SCC)
-	else:
-		print("Accuracy = %g%% (%d/%d) (classification)" % (ACC, int(l*ACC/100), l))
+#	ACC, MSE, SCC = evaluations(y, pred_labels)
+#	l = len(y)
+#	if solver_type in [L2R_L2LOSS_SVR, L2R_L2LOSS_SVR_DUAL, L2R_L1LOSS_SVR_DUAL]:
+#		print("Mean squared error = %g (regression)" % MSE)
+#		print("Squared correlation coefficient = %g (regression)" % SCC)
+#	else:
+#		print("Accuracy = %g%% (%d/%d) (classification)" % (ACC, int(l*ACC/100), l))
 
-	return pred_labels, (ACC, MSE, SCC), pred_values
+	return pred_labels, pred_values

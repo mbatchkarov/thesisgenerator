@@ -85,19 +85,18 @@ def svm_predict(source_file, output_dir, metric=None, fc=None, classifier=None):
     prc_args = ' '.join(prc_args)
     
     # silence libsvm / liblinear
-    devnull = open('/dev/null', 'w')
-    oldstdout_fno = os.dup(sys.stdout.fileno())
-    os.dup2(devnull.fileno(), 1)
+#    devnull = open('/dev/null', 'w')
+#    oldstdout_fno = os.dup(sys.stdout.fileno())
+#    os.dup2(devnull.fileno(), 1)
     if classifier == 'liblinear':
         model = liblinearutil.load_model(model_fn)
-        labels, _, vals = liblinearutil.predict(predict_y, predict_x, model,\
+        labels, vals = liblinearutil.predict(predict_y, predict_x, model,\
                                                 prc_args)
     elif classifier == 'libsvm':
         model = svmutil.svm_load_model(model_fn)
-        labels, _, vals = svmutil.svm_predict(predict_y, predict_x, model,\
+        labels, vals = svmutil.svm_predict(predict_y, predict_x, model,\
                                               prc_args)
-        
-    os.dup2(oldstdout_fno, 1)
+#    os.dup2(oldstdout_fno, 1)
     
     with open(cls_fn, 'w') as fh:
         fh.write('%s\n'%_csv_header_scores)
