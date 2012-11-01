@@ -90,7 +90,8 @@ def strip_features(in_fh, out_fh, features):
         out_fh.write("%s"%doc_class)
         doc_features = dict(re.findall('([0-9]+):([0-9]+)', doc_features))
         keys = set(doc_features.keys())
-        for key in features & keys:
+        keep_features = features & keys 
+        for key in keep_features:
             out_fh.write(" %s:%s"%(key, doc_features[key]))
         out_fh.write("\n")
 

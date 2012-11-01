@@ -113,6 +113,9 @@ def f1(feature, *args):
 
 def entropy(*args):
     total = sum(args) + 0.
+    
+    # if an argument is 0 in the list of arguments set the score for that
+    # component to 0
     e = map(lambda arg: 0 if arg == 0 else arg/total * np.log2(arg/total), args)
     return -sum(e)
 
