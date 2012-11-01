@@ -115,8 +115,11 @@ def _select_features_using_metric(metric, train_fn, predict_fn, features, args):
     print '--> metric: %s'%metric
     print '--> feature count: %s'%args.feature_count
     
-    sorted_features = metrics.sort(features, metric)
-    selected_features = set(sorted_features[:args.feature_count])
+    if metric != 'none':
+        sorted_features = metrics.sort(features, metric)
+        selected_features = set(sorted_features[:args.feature_count])
+    else:
+        selected_features = set(features.keys())
     
     train_out_fn = ioutil.train_fn_from_source(args.source,\
                                                args.output,\
@@ -139,7 +142,10 @@ def _select_features_using_metric(metric, train_fn, predict_fn, features, args):
     
     with gzip.open(train_fn, 'rb') as in_fh, \
             gzip.open(train_out_fn, 'wb') as out_fh:
-        preprocess.strip_features(in_fh, out_fh, selected_features)
+        if metric != 'none':
+            preprocess.strip_features(in_fh, out_fh, selected_features)
+        else:
+            out_fh.write(in_fh.read())
     
     with gzip.open(predict_fn, 'rb') as in_fh, \
             gzip.open(predict_out_fn, 'wb') as out_fh:

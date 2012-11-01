@@ -133,6 +133,7 @@ feature_selection_group.add_argument('-sm', '--scoring-metric',
                         training and testing files. Test files are pruned to
                         only contain  features seen in the training data.
                         Available selection metrics:
+                            * none (No feature selection)
                             * rand (Random)
                             * acc (Accuracy)
                             * acc2 (Accuracy balanced) |tpr - fpr|
@@ -148,8 +149,8 @@ feature_selection_group.add_argument('-sm', '--scoring-metric',
                         tpr = true positive rate
                         fpr = false positive rate'''),
                         type=str,
-                        choices=['rand','acc','acc2','bns','chi2','dfreq',
-                                 'f1','ig','oddn','odds','pr','pow_k'],
+                        choices=['none','rand','acc','acc2','bns','chi2',
+                                 'dfreq','f1','ig','oddn','odds','pr','pow_k'],
                         default=[],
                         nargs='+',
                         metavar='chi2 ig bns')
