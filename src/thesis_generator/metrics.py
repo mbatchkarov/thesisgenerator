@@ -19,7 +19,9 @@ def sort(features_dict, metric_name):
     if metric_name.lower() not in symbols:
         raise NameError('Can not find metric \'%s\''%metric_name)
     metric = symbols[metric_name.lower()]
-    sorted_features = sorted( features_dict.keys(), key=lambda k: metric(features_dict[k]), reverse=True )
+    sorted_features = sorted(features_dict.keys(),\
+                             key=lambda k:metric(features_dict[k]), reverse=True)
+    
     return sorted_features
 
 def _tpr(matrix):
