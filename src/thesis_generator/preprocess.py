@@ -48,11 +48,10 @@ def stratify(input_fh, output_fh, num_seen):
             pos.append( (i,line_tuple) )
         else:
             neg.append( (i,line_tuple) )
-        
     lines = []
     lines.extend( random.sample(pos,num_seen) )
     lines.extend( random.sample(neg,num_seen) )
-    lines = sorted(lines, key = lambda e: e[0])
+    lines = sorted(lines, key = lambda e: e[0])    
     for line in lines:
         output_fh.write(''.join(line[1]))
         
@@ -160,6 +159,6 @@ def compute_feature_counts(input_fh):
         features[key]["tn"] = (posCount - features[key]["tp"]) #calculate tn
         features[key]["fn"] = (negCount - features[key]["fp"]) #calculate fn
         assert(features[key]['score'] == 0)
-        assert(sum(features[key].values()) == document_count)    
+        assert(sum(features[key].values()) == document_count)
     
     return features
