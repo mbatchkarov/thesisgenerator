@@ -9,6 +9,7 @@ import time
 import gzip
 import sys
 import subprocess
+import multiprocessing as mp
 import tempfile
 import re
 import warnings
@@ -48,10 +49,6 @@ def svm_predict(source_file, output_dir, metric=None, fc=None, classifier=None):
     model_fn, predict_fn, cls_fn = _output_paths(source_file, output_dir,\
                                           metric, fc, classifier)
     
-    
-    if not os.path.exists( os.path.join(output_dir, 'classifications') ):
-        os.makedirs( os.path.join(output_dir, 'classifications') )
-    
     print 'Predict \'%s\' - %s'%(classifier, time.strftime('%Y-%b-%d %H:%M:%S'))
     print '--> predict data file: \'%s\''%predict_fn
     print '--> load model from: \'%s\''%model_fn
@@ -83,20 +80,37 @@ def svm_predict(source_file, output_dir, metric=None, fc=None, classifier=None):
             warnings.warn(warn_msg)
             i += 1
     prc_args = ' '.join(prc_args)
+
+    # because liblinear and libsvm seem to segfaul every now and then the
+    # training is best done in a separate process that can be restarted if the
+    # svm library segfaults 
+    def _run_prediction(classifier, predict_y, precit_x, model, argv, model_fn, q):
+        if classifier == 'liblinear':
+            labels, vals = liblinearutil.predict(predict_y, predict_x, model, argv)
+        elif classifier == 'libsvm':
+            labels, vals = svmutil.svm_predict(predict_y, predict_x, model, argv)
+        
+        q.put(labels)
+        q.put(vals)
+
+#    if classifier == 'liblinear':
+#        model = liblinearutil.load_model(model_fn)
+#        labels, vals = liblinearutil.predict(predict_y, predict_x, model,\
+#                                                prc_args)
+#    elif classifier == 'libsvm':
+#        model = svmutil.svm_load_model(model_fn)
+#        labels, vals = svmutil.svm_predict(predict_y, predict_x, model,\
+#                                              prc_args)
     
-    # silence libsvm / liblinear
-#    devnull = open('/dev/null', 'w')
-#    oldstdout_fno = os.dup(sys.stdout.fileno())
-#    os.dup2(devnull.fileno(), 1)
-    if classifier == 'liblinear':
-        model = liblinearutil.load_model(model_fn)
-        labels, vals = liblinearutil.predict(predict_y, predict_x, model,\
-                                                prc_args)
-    elif classifier == 'libsvm':
-        model = svmutil.svm_load_model(model_fn)
-        labels, vals = svmutil.svm_predict(predict_y, predict_x, model,\
-                                              prc_args)
-#    os.dup2(oldstdout_fno, 1)
+    q = mp.Queue(3)
+    while q.empty():
+        print 'Running svm prediction in a subprocess', q.empty()
+        p = mp.Process(target=_run_prediction, args=(classifier, predict_y, predict_x, argv, model_fn, q))
+        p.start()
+        p.join()
+        
+    labels = q.get()
+    vals = q.get()
     
     with open(cls_fn, 'w') as fh:
         fh.write('%s\n'%_csv_header_scores)
