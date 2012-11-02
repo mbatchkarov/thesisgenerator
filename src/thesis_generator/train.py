@@ -9,6 +9,7 @@ import sys
 import gzip
 import time
 import subprocess
+import multiprocessing as mp
 import tempfile
 
 import ioutil
@@ -47,21 +48,49 @@ def train_svm(metric=None, classifier=None):
     print '--> training data file: \'%s\''%train_fn
     print '--> save model to: \'%s\''%model_fn
     
-    devnull = open('/dev/null', 'w')
-    oldstdout_fno = os.dup(sys.stdout.fileno())
-    os.dup2(devnull.fileno(), 1)
-    if classifier == 'liblinear':
-        model = liblinearutil.train(train_y, train_x, args.prc_args)
-    elif classifier == 'libsvm':
-        model = svmutil.svm_train(train_y, train_x, args.prc_args)
-    os.dup2(oldstdout_fno, 1)
+#    devnull = open('/dev/null', 'w')
+#    oldstdout_fno = os.dup(sys.stdout.fileno())
+#    os.dup2(devnull.fileno(), 1)
+    argv = args.prc_args
+    if '-q' not in argv:
+        argv += ' -q'
     
-    if model_fn is not None and classifier == 'liblinear':
-        liblinearutil.save_model(model_fn, model)
-    elif model_fn is not None and classifier == 'libsvm':
-        svmutil.svm_save_model(model_fn, model)
+    # because liblinear and libsvm seem to segfaul every now and then the
+    # training is best done in a separate process that can be restarted if the
+    # svm library segfaults 
+    def _run_training(classifier, train_y, train_x, argv, model_fn, q):
+        if classifier == 'liblinear':
+            model = liblinearutil.train(train_y, train_x, argv)
+            liblinearutil.save_model(model_fn, model)
+        elif classifier == 'libsvm':
+            model = svmutil.svm_train(train_y, train_x, argv)
+            svmutil.svm_save_model(model_fn, model)
+        q.put(True)
     
-    return model
+    q = mp.Queue(1)
+    while q.empty():
+        print 'Running svm training in a subprocess', q.empty()
+        p = mp.Process(target=_run_training, args=(classifier, train_y, train_x, argv, model_fn, q))
+        p.start()
+        p.join()
+        time.sleep(1)
+    
+#    if classifier == 'liblinear':
+#        model = liblinearutil.train(train_y, train_x, argv)
+#        print 'model trained'
+#    elif classifier == 'libsvm':
+#        p = mp.Process(target=svmutil.svm_train, args=(train_y, train_x, argv))
+#        model = svmutil.svm_train(train_y, train_x, argv)
+#    os.dup2(oldstdout_fno, 1)
+#    os.close(oldstdout_fno)
+#    devnull.close()
+    
+#    if model_fn is not None and classifier == 'liblinear':
+#        liblinearutil.save_model(model_fn, model)
+#    elif model_fn is not None and classifier == 'libsvm':
+#        svmutil.svm_save_model(model_fn, model)
+    
+#    return model
 
 def _convert_to_mallet(mallet_exec, input_fpath):
     f_id, fpath = tempfile.mkstemp(suffix='.mallet', dir=args.output)
