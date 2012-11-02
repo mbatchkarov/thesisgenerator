@@ -125,7 +125,7 @@ def _select_features_using_metric(metric, train_fn, predict_fn, features, args):
     print '--> feature count: %s'%args.feature_count
     
     if metric != 'none':
-        sorted_features = metrics.sort(features, metric)
+        sorted_features = metrics.sort(features, metric)    
         selected_features = set(sorted_features[:args.feature_count])
     else:
         selected_features = set(features.keys())
@@ -187,6 +187,10 @@ def _train_models(args):
 def _predict(args):
     import predict
     predict.args = args
+    
+    if not os.path.exists( os.path.join(args.output, 'classifications') ):
+        os.makedirs( os.path.join(args.output, 'classifications') )
+    
     for classifier in args.classifiers:
         if classifier == 'liblinear' or classifier == 'libsvm':
             if len(args.scoring_metric) > 0:
