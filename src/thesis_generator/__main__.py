@@ -15,6 +15,7 @@ import glob
 import numpy as np
 import multiprocessing as mp
 from math import log
+import logging
 
 import ioutil
 import preprocess
@@ -22,6 +23,7 @@ import metrics
 import config
 import plotter
 
+from joblib import Memory
 
 def _update_table(tbl, true, predicted):
     true = int(true)
@@ -49,9 +51,15 @@ def _write_config_file(args):
         conf_fh.write( '************* END **************\n' )
 
 # **********************************
+# FEATURE EXTRACTION / PARSE
+# **********************************
+def _feature_extract(**kwargs):
+    pass
+
+# **********************************
 # SPLIT DATA
 # **********************************
-def _split_data(args):
+def _split_data(**kwargs):
     if os.path.isfile(args.source):
         in_fh = open(args.source, 'rb')
         magic = in_fh.read(2)
@@ -306,7 +314,7 @@ def _create_tables(args):
 # RUN THE LOT WHEN CALLED FROM THE
 # COMMAND LINE
 # **********************************
-def run_tasks(args):
+def run_tasks(args, configuration):
     # **********************************
     # CLEAN OUTPUT DIRECTORY
     # **********************************
@@ -319,7 +327,8 @@ def run_tasks(args):
     if not os.path.exists(args.output):
         os.makedirs(args.output)
     
-    _write_config_file(args)
+    # TODO this needs to be redone after the scikits integration is complete
+#    _write_config_file(args)
     
     # **********************************
     # ADD classpath TO SYSTEM PATH
@@ -335,7 +344,7 @@ def run_tasks(args):
     # **********************************
     # TODO if crossvalidate is true do this several times
     if args.split_data:
-        _split_data(args)
+        _split_data(vars(args))
     
         if args.stratify:
             _stratify(args)
@@ -374,5 +383,12 @@ def run_tasks(args):
 
 if __name__ == '__main__':
     args = config.arg_parser.parse_args()
-    run_tasks(args)
+    
+    from ConfigParser import ConfigParser
+    conf_parser = ConfigParser()
+    
+    conf_parser.read(args.configuration)
+    pass
+    
+    run_tasks(args, conf_parser)
     
