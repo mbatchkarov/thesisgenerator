@@ -11,7 +11,7 @@ import shutil
 import gzip
 import csv
 import time
-import glob
+from glob import glob
 import numpy as np
 import multiprocessing as mp
 from math import log
@@ -23,7 +23,9 @@ import metrics
 import config
 import plotter
 
-from joblib import Memory
+#from joblib import Memory
+
+logger = logging.getLogger(__name__)
 
 def _update_table(tbl, true, predicted):
     true = int(true)
@@ -334,7 +336,7 @@ def run_tasks(args, configuration):
     # ADD classpath TO SYSTEM PATH
     # **********************************
     for path in args.classpath.split(os.pathsep):
-        print 'Adding (%s) to system path'%glob.glob(path)
+        print 'Adding (%s) to system path'%glob(path)
         sys.path.append(os.path.abspath(path))
     
 #    print sys.path
@@ -382,11 +384,15 @@ def run_tasks(args, configuration):
         plotter.execute(args)
 
 if __name__ == '__main__':
+    # initialize the package
+    import thesis_generator
+
     args = config.arg_parser.parse_args()
     
     from ConfigParser import ConfigParser
     conf_parser = ConfigParser()
     
+    logger.info('Reading configuration file from %s'%glob(args.configuration))
     conf_parser.read(args.configuration)
     pass
     
