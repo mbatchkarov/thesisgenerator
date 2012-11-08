@@ -4,6 +4,7 @@ Created on Oct 18, 2012
 
 @author: ml249
 '''
+from collections import defaultdict
 
 import os
 import sys
@@ -202,7 +203,7 @@ def _feature_selection(args):
     for metric in args.scoring_metric:
         mp_pool.apply_async(_select_features_using_metric,
             args=(metric, train_fn, predict_fn, features, args))
-    #        _select_features_using_metric(metric, train_fn,  predict_fn, features, args)
+        #        _select_features_using_metric(metric, train_fn,  predict_fn, features, args)
     mp_pool.close()
     mp_pool.join()
 
@@ -398,12 +399,39 @@ def _create_tables(args):
 # **********************************
 # **********************************
 
-def get_cv_iterator(args, dataset_size):
-    if args.crossvalidate == 'k-fold':
-        return cross_validation.KFold(dataset_size, args.k)
-    elif args.crossvalidate == 'bootstrap':
-        return cross_validation.Bootstrap(dataset_size, args.k)
-    return 'wtf'
+def get_crossval_data(config, data_matrix, targets):
+    """
+    Returns a list of (train_indices, test_indices) that can be used to slice dataset to perform crossvalidation.
+    The method of splitting is determined by what is specified in the conf file. The full dataset is provided as a
+    parameter so that joblib can cache the call to this function
+    """
+    type = config['type']
+    k = config['k']
+    dataset_size = data_matrix.shape[0]
+
+    if k < 0:
+        logger.warn('crossvalidation.k not specified, defaulting to 1')
+        k = 1
+    if type == 'kfold':
+        iterator = cross_validation.KFold(dataset_size, int(k))
+    elif type == 'skfold':
+        iterator = cross_validation.StratifiedKFold(targets, int(k))
+    elif type == 'loo':
+        iterator = cross_validation.LeaveOneOut(dataset_size, int(k))
+    elif type == 'bootstrap':
+        ratio = config['ratio']
+        if k < 0:
+            logger.warn('crossvalidation.ration not specified, defaulting to 0.8')
+            ratio = 0.8
+        iterator = cross_validation.Bootstrap(dataset_size, n_bootstraps=int(k), train_size=float(ratio))
+    elif type == 'oracle':
+        return [(np.array(range(dataset_size)), np.array(range(dataset_size)))]
+    else:
+        raise ValueError(
+            'Unrecognised crossvalidation type. The supported types are \'k-fold\', \'sk-fold\', \'loo\', '
+            '\'bootstrap\' and \'oracle\'')
+
+    return [(train, test) for train, test in iterator]
 
 # **********************************
 # RUN THE LOT WHEN CALLED FROM THE
@@ -455,22 +483,17 @@ def run_tasks(args, configuration):
         # of computations that have been executed previously
         options = dict(vars(args).items() + configuration.items('feature_extraction'))
 
-        all_data, targets = cached_feature_extract(**options)
+        data_matrix, targets = cached_feature_extract(**options)
 
     # **********************************
-    # SPLIT DATA
+    # SPLIT DATA FOR CROSSVALIDATION
     # **********************************
-    # TODO if crossvalidate is true do this several times
-
-    print get_cv_iterator(args, all_data.shape[0])
-
-    if args.split_data:
-        _split_data(vars(args))
-
-        if args.stratify:
-            _stratify(args)
-
-    # **********************************
+    cv_options = defaultdict(lambda: -1)
+    cv_options.update(dict(configuration.items('crossvalidation')))
+    cached_get_crossval_indices = mem_cache.cache(get_crossval_data)
+    for train, test in cached_get_crossval_indices(cv_options, data_matrix, targets):
+        print train, test
+        # **********************************
     # FEATURE SELECTION
     # **********************************
     if args.feature_selection and len(args.scoring_metric) > 0:
