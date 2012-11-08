@@ -58,6 +58,10 @@ def _write_config_file(args):
 # FEATURE EXTRACTION / PARSE
 # **********************************
 def feature_extract(**kwargs):
+    # todo write docstring
+    from sklearn.datasets import load_files
+    import inspect
+
     def _filename_generator(file_list):
         for f in file_list:
             yield f
@@ -67,10 +71,6 @@ def feature_extract(**kwargs):
             with open(f,'rb') as fh:
                 yield fh.read()
     
-    # todo write docstring
-    from sklearn.datasets import load_files
-    import inspect
-
     vectorizer = get_named_object(kwargs['vectorizer'])
 
     # get the names of the arguments that the vectorizer takes 
