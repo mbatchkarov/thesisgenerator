@@ -24,7 +24,7 @@ import config
 import plotter
 
 from joblib import Memory
-from thesis_generator.utils import get_class
+from thesis_generator.utils import get_named_object
 
 logger = logging.getLogger(__name__)
 
@@ -58,16 +58,27 @@ def _write_config_file(args):
 # FEATURE EXTRACTION / PARSE
 # **********************************
 def feature_extract(**kwargs):
+    def _filename_generator(file_list):
+        for f in file_list:
+            yield f
+
+    def _content_generator(file_list):
+        for f in file_list:
+            with open(f,'rb') as fh:
+                yield fh.read()
+    
     # todo write docstring
     from sklearn.datasets import load_files
     import inspect
 
-    vectorizer = get_class(kwargs['vectorizer'])
+    vectorizer = get_named_object(kwargs['vectorizer'])
 
+    # get the names of the arguments that the vectorizer takes 
     initialize_args = inspect.getargspec(vectorizer.__init__)[0]
-    call_args = {arg: val for arg, val in kwargs.items() if val != '' and arg in initialize_args}
+    call_args = {arg: val for arg, val in kwargs.items() if\
+                 val != '' and arg in initialize_args}
 
-    # convert all the arguments to their correct types
+    # convert the arguments to their correct types
     for key in call_args:
         call_args[key] = ast.literal_eval(str(call_args[key]))
 
@@ -77,17 +88,25 @@ def feature_extract(**kwargs):
 
     vectorizer = vectorizer(**call_args)
 
-    if kwargs['input'] == '\'content\'':
+    if kwargs['input'] == '\'content\'' or kwargs['input'] == '':
         try:
-            #todo matti: refactor the lines below to use utils.get_class()
-            cp = kwargs['input_generator'].split('.')
-            _module_name = '.'.join(cp[:-1])
-            method = cp[-1]
-            module = __import__(_module_name)
-            generator = getattr(module, method)(kwargs['source'])
-
-            targets = np.asarray([t for t in generator.targets()], dtype=np.int)
-            print np.sum(targets)
+            input_gen = kwargs['input_generator']
+            source = kwargs['source'] 
+            try:
+                logger.info('Retrieving input generator for name '\
+                            '%(input_gen)s'%locals())
+                
+                generator = get_named_object(input_gen)(kwargs['source'])
+                targets = np.asarray([t for t in generator.targets()], dtype=np.int)
+            except ImportError:
+                logger.info('No input generator found for name '\
+                            '\'%(input_gen)s\'. Using a file content '\
+                            'generator with source \'%(source)s\''%locals())
+                
+                paths = glob( os.path.join(kwargs['source'], '*', '*') )
+                generator = _content_generator(paths)
+                targets = targets = load_files(input_gen).target
+            
             term_freq_matrix = vectorizer.fit_transform(generator.documents())
         except KeyError:
             raise ValueError('Can not find a name for an input generator. When '\
@@ -96,12 +115,10 @@ def feature_extract(**kwargs):
                              'defined. The defined input_generator should '\
                              'produce raw documents.')
 
-    elif kwargs['input'] == '\'directory\'':
-        data = load_files(kwargs['source'])
-        targets = data.target
-        raw_files = data.data
-
-        term_freq_matrix = vectorizer.fit_transform(raw_files)
+    elif kwargs['input'] == '\'filename\'':
+        input_files = glob( os.path.join(kwargs['source'], '*', '*') )
+        targets = load_files(kwargs['source']).target
+        term_freq_matrix = vectorizer.fit_transform(_filename_generator(input_files))
     elif kwargs['input'] == '\'file\'':
         raise NotImplementedError('The input type \'file\' is not supported yet.')
     else:
