@@ -16,7 +16,6 @@ import numpy as np
 import multiprocessing as mp
 import logging
 import ast
-import numpy as np
 from sklearn import cross_validation
 
 import ioutil
@@ -41,6 +40,7 @@ def _update_table(tbl, true, predicted):
         if predicted == 1: tbl['fp'] += 1
         elif predicted == -1: tbl['tn'] += 1
     return tbl
+
 # **********************************
 # **********************************
 
@@ -51,7 +51,7 @@ def _update_table(tbl, true, predicted):
 def _write_config_file(args):
     with open(os.path.join(args.output, 'conf.txt'), 'a+') as conf_fh:
         conf_fh.write('***** %s *****\n********************************\n'\
-                       % (time.strftime('%Y-%b-%d %H:%M:%S')))
+                      % (time.strftime('%Y-%b-%d %H:%M:%S')))
         for key in vars(args):
             conf_fh.write('%s = %s\n' % (key, vars(args)[key]))
         conf_fh.write('************* END **************\n')
@@ -70,9 +70,9 @@ def feature_extract(**kwargs):
 
     def _content_generator(file_list):
         for f in file_list:
-            with open(f,'rb') as fh:
+            with open(f, 'rb') as fh:
                 yield fh.read()
-    
+
     vectorizer = get_named_object(kwargs['vectorizer'])
 
     # get the names of the arguments that the vectorizer takes 
@@ -84,36 +84,36 @@ def feature_extract(**kwargs):
 
     for key in call_args:
         call_args[key] = ast.literal_eval(call_args[key])
-    
+
     # todo preprocessor needs to be expanded into a callable name
     # todo analyzer needs to be expanded into a callable name
     # todo tokenizer needs to be expanded into a callable name
     # todo vocabulary needs to be a complex data type - this should be allowed to be a file reference
     # todo dtype should be expanded into a numpy type
-    
+
     vectorizer = vectorizer(**call_args)
     if kwargs['input'] == '\'content\'' or kwargs['input'] == '':
         try:
             input_gen = kwargs['input_generator']
-            source = kwargs['source'] 
+            source = kwargs['source']
             try:
                 logger.info('Retrieving input generator for name '\
-                            '%(input_gen)s'%locals())
-                
-                generator = get_named_object(input_gen)(kwargs['source'])
+                            '%(input_gen)s' % locals())
+
+                generator = get_named_object(input_gen)(kwargs['source']).documents()
                 targets = np.asarray([t for t in generator.targets()], dtype=np.int)
-            except ImportError:
+            except ValueError, ImportError:
                 logger.info('No input generator found for name '\
                             '\'%(input_gen)s\'. Using a file content '\
-                            'generator with source \'%(source)s\''%locals())
-                
-                paths = glob( os.path.join(kwargs['source'], '*', '*') )
-                generator = _content_generator(paths)
-                targets = targets = load_files(input_gen).target
+                            'generator with source \'%(source)s\'' % locals())
 
-            targets = np.asarray([t for t in generator.targets()], dtype=np.int)
-            print np.sum(targets)
-            term_freq_matrix = vectorizer.fit_transform(generator.documents())
+                paths = glob(os.path.join(kwargs['source'], '*', '*'))
+                generator = _content_generator(paths)
+                targets = targets = load_files(source).target
+
+            #            targets = np.asarray([t for t in generator.targets()], dtype=np.int)
+            #            print np.sum(targets)
+            term_freq_matrix = vectorizer.fit_transform(generator)
         except KeyError:
             raise ValueError('Can not find a name for an input generator. When '\
                              'the input type for feature extraction is defined '\
@@ -121,13 +121,13 @@ def feature_extract(**kwargs):
                              'defined. The defined input_generator should '\
                              'produce raw documents.')
     elif kwargs['input'] == '\'filename\'':
-        input_files = glob( os.path.join(kwargs['source'], '*', '*') )
+        input_files = glob(os.path.join(kwargs['source'], '*', '*'))
         targets = load_files(kwargs['source']).target
         term_freq_matrix = vectorizer.fit_transform(_filename_generator(input_files))
     elif kwargs['input'] == '\'file\'':
         raise NotImplementedError('The input type \'file\' is not supported yet.')
     else:
-        raise NotImplementedError('The input type \'%s\' is not supported yet.'%kwargs['type'])
+        raise NotImplementedError('The input type \'%s\' is not supported yet.' % kwargs['type'])
 
     return term_freq_matrix, targets
 
@@ -147,21 +147,22 @@ def _split_data(**kwargs):
                 preprocess.split_data(in_fh, args.output, args.num_seen)
         else:
             raise NotImplementedError('Reading non compressed files is '\
-                'currently not supported.')
+                                      'currently not supported.')
     else:
         # todo: handle the case where the source is a directory
         raise NotImplementedError('Reading input from directories is not '\
-            'supported yet.')
+                                  'supported yet.')
+
 
 def _stratify(args):
     raise NotImplementedError('This action has not been ported to work with scikits.')
-    train_in_fn = ioutil.train_fn_from_source(args.source, args.output, \
-                                              args.num_seen, stratified=False)
-    train_out_fn = ioutil.train_fn_from_source(args.source, args.output, \
-                                               args.num_seen, stratified=True)
+    train_in_fn = ioutil.train_fn_from_source(args.source, args.output,\
+        args.num_seen, stratified=False)
+    train_out_fn = ioutil.train_fn_from_source(args.source, args.output,\
+        args.num_seen, stratified=True)
 
-    with gzip.open(train_in_fn, 'r') as input_fh, \
-        gzip.open(train_out_fn, 'w') as output_fh:
+    with gzip.open(train_in_fn, 'r') as input_fh,\
+    gzip.open(train_out_fn, 'w') as output_fh:
         preprocess.stratify(input_fh, output_fh, args.num_seen)
 
 # **********************************
@@ -174,12 +175,12 @@ def _stratify(args):
 def _feature_selection(args):
     raise NotImplementedError('This action has not been ported to work with scikits.')
     if os.path.isfile(args.source):
-        train_fn = ioutil.train_fn_from_source(args.source, args.output, \
-                                               args.num_seen, \
-                                               stratified=args.stratify)
+        train_fn = ioutil.train_fn_from_source(args.source, args.output,\
+            args.num_seen,\
+            stratified=args.stratify)
 
-        predict_fn = ioutil.predict_fn_from_source(args.source, args.output, \
-                                                   args.num_seen)
+        predict_fn = ioutil.predict_fn_from_source(args.source, args.output,\
+            args.num_seen)
     else:
         pass
         # todo: handle the case where the source is a directory
@@ -200,8 +201,8 @@ def _feature_selection(args):
 
     for metric in args.scoring_metric:
         mp_pool.apply_async(_select_features_using_metric,
-                            args=(metric, train_fn, predict_fn, features, args))
-#        _select_features_using_metric(metric, train_fn,  predict_fn, features, args)
+            args=(metric, train_fn, predict_fn, features, args))
+    #        _select_features_using_metric(metric, train_fn,  predict_fn, features, args)
     mp_pool.close()
     mp_pool.join()
 
@@ -218,29 +219,30 @@ def _select_features_using_metric(metric, train_fn, predict_fn, features, args):
     else:
         selected_features = set(features.keys())
 
-    train_out_fn = ioutil.train_fn_from_source(args.source, \
-                                               args.output, \
-                                               num_seen=args.num_seen, \
-                                               fs=metric, \
-                                               fc=args.feature_count, \
-                                               stratified=args.stratify)
+    train_out_fn = ioutil.train_fn_from_source(args.source,\
+        args.output,\
+        num_seen=args.num_seen,\
+        fs=metric,\
+        fc=args.feature_count,\
+        stratified=args.stratify)
 
-    predict_out_fn = ioutil.predict_fn_from_source(args.source, \
-                                                   args.output, \
-                                                   num_seen=args.num_seen, \
-                                                   fs=metric, \
-                                                   fc=args.feature_count)
+    predict_out_fn = ioutil.predict_fn_from_source(args.source,\
+        args.output,\
+        num_seen=args.num_seen,\
+        fs=metric,\
+        fc=args.feature_count)
 
-    with gzip.open(train_fn, 'rb') as in_fh, \
-            gzip.open(train_out_fn, 'wb') as out_fh:
+    with gzip.open(train_fn, 'rb') as in_fh,\
+    gzip.open(train_out_fn, 'wb') as out_fh:
         if metric != 'none':
             preprocess.strip_features(in_fh, out_fh, selected_features)
         else:
             out_fh.write(in_fh.read())
 
-    with gzip.open(predict_fn, 'rb') as in_fh, \
-            gzip.open(predict_out_fn, 'wb') as out_fh:
+    with gzip.open(predict_fn, 'rb') as in_fh,\
+    gzip.open(predict_out_fn, 'wb') as out_fh:
         preprocess.strip_features(in_fh, out_fh, selected_features)
+
 # **********************************
 # **********************************
 
@@ -251,6 +253,7 @@ def _select_features_using_metric(metric, train_fn, predict_fn, features, args):
 def _train_models(args):
     raise NotImplementedError('This action has not been ported to work with scikits.')
     import train
+
     train.args = args
     for classifier in args.classifiers:
         if classifier == 'liblinear' or classifier == 'libsvm':
@@ -276,6 +279,7 @@ def _train_models(args):
 def _predict(args):
     raise NotImplementedError('This action has not been ported to work with scikits.')
     import predict
+
     predict.args = args
 
     if not os.path.exists(os.path.join(args.output, 'classifications')):
@@ -286,15 +290,15 @@ def _predict(args):
             if len(args.scoring_metric) > 0:
                 for metric in args.scoring_metric:
                     try:
-                        predict.svm_predict(args.source, args.output, \
-                                           metric=metric, \
-                                           fc=args.feature_count, \
-                                           classifier=classifier)
+                        predict.svm_predict(args.source, args.output,\
+                            metric=metric,\
+                            fc=args.feature_count,\
+                            classifier=classifier)
                     except NameError as e:
                         print e
             else:
-                predict.svm_predict(args.source, args.output, \
-                                   classifier=classifier)
+                predict.svm_predict(args.source, args.output,\
+                    classifier=classifier)
         if classifier.startswith('mallet'):
             if len(args.scoring_metric) > 0:
                 for metric in args.scoring_metric:
@@ -320,6 +324,7 @@ def _predict(args):
 def _create_tables(args):
     raise NotImplementedError('This action has not been ported to work with scikits.')
     import predict
+
     _tbl_header = 'THRESHOLD, TP, FP, TN, FN'
 
     # split the files paths of the classifier output so that the filenames of
@@ -336,8 +341,8 @@ def _create_tables(args):
         os.makedirs(os.path.join(args.output, 'tables'))
 
     for settings in files:
-        with open(os.path.join(args.output, 'tables', \
-                               '.'.join(settings[1:]) + '.csv'), 'w') as out_fh:
+        with open(os.path.join(args.output, 'tables',\
+            '.'.join(settings[1:]) + '.csv'), 'w') as out_fh:
             out_fh.write('%s\n' % _tbl_header)
             writer = csv.writer(out_fh)
 
@@ -369,7 +374,7 @@ def _create_tables(args):
                     raise RuntimeError('Unknown classifications file format: '\
                                        '"%s". Known formats\n\t"%s"\n\t"%s"'
                                        % (cls_header, predict._csv_header_scores,
-                                         predict._csv_header_confidence))
+                                          predict._csv_header_confidence))
 
             # try reclassifying all documents based on the scores found
             scores = sorted(scores)
@@ -382,13 +387,14 @@ def _create_tables(args):
                 xs = np.sort(np.concatenate((xs, np.array([0], dtype=np.float64))))
 
             for threshold in xs:
-                table = {'tp':0, 'fp':0, 'tn':0, 'fn':0}
+                table = {'tp': 0, 'fp': 0, 'tn': 0, 'fn': 0}
                 for (cls, label, score) in lines:
                     label = 1 if score < threshold else -1
                     table = _update_table(table, cls, label)
 
-                writer.writerow(['%1.4f' % threshold, \
-                                table['tp'], table['fp'], table['tn'], table['fn']])
+                writer.writerow(['%1.4f' % threshold,\
+                                 table['tp'], table['fp'], table['tn'], table['fn']])
+
 # **********************************
 # **********************************
 
@@ -418,8 +424,8 @@ def run_tasks(args, configuration):
         logger.info('Creating output directory %s' % glob(args.output))
         os.makedirs(args.output)
 
-    # TODO this needs to be redone after the scikits integration is complete
-#    _write_config_file(args)
+        # TODO this needs to be redone after the scikits integration is complete
+    #    _write_config_file(args)
 
     # **********************************
     # ADD classpath TO SYSTEM PATH
@@ -499,12 +505,12 @@ def run_tasks(args, configuration):
 
 if __name__ == '__main__':
     # initialize the package, this is currently mainly used to configure the
-    # logging framework  
-    import thesis_generator
+    # logging framework
 
     args = config.arg_parser.parse_args()
 
     from ConfigParser import SafeConfigParser
+
     conf_parser = SafeConfigParser()
 
     logger.info('Reading configuration file from %s' % glob(args.configuration))

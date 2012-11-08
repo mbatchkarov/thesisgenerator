@@ -6,18 +6,16 @@ Created on Oct 27, 2012
 
 import argparse
 import textwrap
-from ConfigParser import ConfigParser
-import shlex
 
 # **********************************
 # SETUP ARGUMENTS PARSER
 # **********************************
 
 arg_parser = argparse.ArgumentParser(usage='%(prog)s SOURCE_CORPUS '\
-                                     'OUTPUT_DIR CONF_FILE [-cp CLASSPATH]'\
-                                     '[--clean][--crossvalidate METHOD][-k]',
-                                     formatter_class=argparse.RawTextHelpFormatter,
-                                     description=textwrap.dedent('''\
+                                           'OUTPUT_DIR CONF_FILE [-cp CLASSPATH]'\
+                                           '[--clean][--crossvalidate METHOD][-k]',
+    formatter_class=argparse.RawTextHelpFormatter,
+    description=textwrap.dedent('''\
                      Classifier experimentation framework
                      -----------------------------------------------------------
                          The classifier experimentation framework is a wrapper
@@ -34,31 +32,31 @@ arg_parser = argparse.ArgumentParser(usage='%(prog)s SOURCE_CORPUS '\
                                      '''))
 
 arg_parser.add_argument('source',
-                        help=textwrap.dedent('''\
+    help=textwrap.dedent('''\
                         Input file or directory for raw data when performing the
                         data split. When performing feature selection or
                         classifier training evaluation the file name(s) in this
                         variable are used to find the intermediary that contain
                         train/test data.'''),
-                        type=str,
-                        metavar='INPUT_DIR/FILE')
+    type=str,
+    metavar='INPUT_DIR/FILE')
 
 arg_parser.add_argument('output',
-                        help=textwrap.dedent('''\
+    help=textwrap.dedent('''\
                         Output directory. All the output from a group a group of
                         experiments will be written to the specified directory.
                         A predetermined file and directory hiearchy will be
                         created.'''),
-                        type=str,
-                        metavar='OUTPUT_DIR')
+    type=str,
+    metavar='OUTPUT_DIR')
 
 arg_parser.add_argument('configuration',
-                        help=textwrap.dedent('''\
+    help=textwrap.dedent('''\
                         A configuration file to read the processing steps that
                         should be performed by the framework and settings for
                         those steps.'''),
-                        type=str,
-                        metavar='CONF_FILE')
+    type=str,
+    metavar='CONF_FILE')
 
 #action_group = arg_parser.add_argument_group()
 #action_group.add_argument('--feature-extract',
@@ -91,20 +89,20 @@ arg_parser.add_argument('configuration',
 arg_parser.add_argument('--clean', help=textwrap.dedent('''\
                     Clean the output directory of all files before running any
                     other commands.'''),
-                          action='store_true', default=False)
+    action='store_true', default=False)
 
-arg_parser.add_argument('--crossvalidate',
-                        help='Perform crossvalidation.',
-                        type=str,
-                        choices=['k-fold', 'bootstrap'],
-                        default=None)
+#arg_parser.add_argument('--crossvalidate',
+#                        help='Perform crossvalidation.',
+#                        type=str,
+#                        choices=['k-fold', 'bootstrap'],
+#                        default=None)
 
-arg_parser.add_argument('-k',help=textwrap.dedent('''\
-                    The value of \'k\' for bootstrap and k-fold
-                    crossvalidation.'''),
-                        type=int,
-                        default=1,
-                        metavar='1')
+#arg_parser.add_argument('-k',help=textwrap.dedent('''\
+#                    The value of \'k\' for bootstrap and k-fold
+#                    crossvalidation.'''),
+#                        type=int,
+#                        default=1,
+#                        metavar='1')
 
 #action_group.add_argument('--create-tables', help=textwrap.dedent('''\
 #                    Create confusion matrices across all the specified
@@ -125,11 +123,11 @@ arg_parser.add_argument('--version', action='version', version='%(prog)s 0.2')
 #                        metavar='1')
 
 arg_parser.add_argument('-cp', '--classpath',
-                        help=textwrap.dedent('''\
+    help=textwrap.dedent('''\
                         Classpath for searching binaries. If several directories
                         are provided they should be separated using the system
                         path separator (\':\' on *nix)'''),
-                        default='.')
+    default='.')
 
 #split_data_group = arg_parser.add_argument_group('Splitting data')
 #split_data_group.add_argument('--stratify',
