@@ -27,6 +27,8 @@ import plotter
 
 from joblib import Memory
 
+from thesis_generator.utils import get_named_object
+
 logger = logging.getLogger(__name__)
 
 def _update_table(tbl, true, predicted):
@@ -61,17 +63,25 @@ def feature_extract(**kwargs):
     # todo write docstring
     from sklearn.datasets import load_files
     import inspect
+
+    def _filename_generator(file_list):
+        for f in file_list:
+            yield f
+
+    def _content_generator(file_list):
+        for f in file_list:
+            with open(f,'rb') as fh:
+                yield fh.read()
     
-    cp = kwargs['vectorizer'].split('.')
-    _module_name = '.'.join(cp[:-1])
-    method = cp[-1]
-    module = __import__(_module_name)
-    vectorizer = getattr(module, method)
-    
+    vectorizer = get_named_object(kwargs['vectorizer'])
+
+    # get the names of the arguments that the vectorizer takes 
     initialize_args = inspect.getargspec(vectorizer.__init__)[0]
-    call_args = {arg:val for arg,val in kwargs.items() if val != '' and arg in initialize_args}
-    
-    # convert all the arguments to their correct types
+    call_args = {arg: val for arg, val in kwargs.items() if\
+                 val != '' and arg in initialize_args}
+
+    # convert the arguments to their correct types
+
     for key in call_args:
         call_args[key] = ast.literal_eval(call_args[key])
     
@@ -82,17 +92,25 @@ def feature_extract(**kwargs):
     # todo dtype should be expanded into a numpy type
     
     vectorizer = vectorizer(**call_args)
-    
-    if kwargs['input'] == '\'content\'':
+    if kwargs['input'] == '\'content\'' or kwargs['input'] == '':
         try:
-            cp = kwargs['input_generator'].split('.')
-            _module_name = '.'.join(cp[:-1])
-            method = cp[-1]
-            module = __import__(_module_name)
-            generator = getattr(module, method)(kwargs['source'])
-            
-            targets = np.asarray([t for t in generator.targets()], dtype=np.int)
-            print np.sum(targets)
+            input_gen = kwargs['input_generator']
+            source = kwargs['source'] 
+            try:
+                logger.info('Retrieving input generator for name '\
+                            '%(input_gen)s'%locals())
+                
+                generator = get_named_object(input_gen)(kwargs['source'])
+                targets = np.asarray([t for t in generator.targets()], dtype=np.int)
+            except ImportError:
+                logger.info('No input generator found for name '\
+                            '\'%(input_gen)s\'. Using a file content '\
+                            'generator with source \'%(source)s\''%locals())
+                
+                paths = glob( os.path.join(kwargs['source'], '*', '*') )
+                generator = _content_generator(paths)
+                targets = targets = load_files(input_gen).target
+
             term_freq_matrix = vectorizer.fit_transform(generator.documents())
         except KeyError:
             raise ValueError('Can not find a name for an input generator. When '\
@@ -100,15 +118,10 @@ def feature_extract(**kwargs):
                              'as content, an input_generator must also be '\
                              'defined. The defined input_generator should '\
                              'produce raw documents.')
-            
-    elif kwargs['input'] == '\'directory\'':
+    elif kwargs['input'] == '\'filename\'':
         input_files = glob( os.path.join(kwargs['source'], '*', '*') )
         targets = load_files(kwargs['source']).target
-        def filename_generator(file_list):
-            for f in file_list:
-                yield f
-            
-        term_freq_matrix = vectorizer.fit_transform(filename_generator(input_files))
+        term_freq_matrix = vectorizer.fit_transform(_filename_generator(input_files))
     elif kwargs['input'] == '\'file\'':
         raise NotImplementedError('The input type \'file\' is not supported yet.')
     else:
@@ -407,7 +420,7 @@ def run_tasks(args, configuration):
         sys.path.append(os.path.abspath(path))
 
     # get a reference to the joblib cache object
-    mem_cache = Memory(cachedir=args.output, verbose=0)
+    mem_cache = Memory(cachedir=args.output, verbose=1)
 
     # retrieve the actions that should be run by the framework
     actions = configuration.sections()
@@ -419,17 +432,24 @@ def run_tasks(args, configuration):
             bool( configuration.get('feature_extraction', 'run') ):
 
         # make joblib cache the results of the feature extraction process
+<<<<<<< HEAD
         # todo should figure out which values to ignore, currently use all (args + secion_options)
         mem_cache.cache(feature_extract)
         
+=======
+        # todo should figure out which values to ignore, currently use all (args + section_options)
+        cached_feature_extract = mem_cache.cache(feature_extract)
+
+>>>>>>> scikit-feature-extraction
         # create the keyword argument list the action should be run with, it is
         # very important that all relevant argument:value pairs are present
         # because joblib uses the hashed argument list to lookup cached results
         # of computations that have been executed previously
         options = dict( vars(args).items() + configuration.items('feature_extraction') )
 
-        feature_extract(**options)
+        cached_feature_extract(**options)
 
+    sys.exit(0)
 
     # **********************************
     # SPLIT DATA
