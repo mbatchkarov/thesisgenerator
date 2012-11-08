@@ -16,6 +16,7 @@ import numpy as np
 import multiprocessing as mp
 import logging
 import ast
+from sklearn import cross_validation
 
 import ioutil
 import preprocess
@@ -376,6 +377,12 @@ def _create_tables(args):
 # **********************************
 # **********************************
 
+def get_cv_iterator(args, dataset_size):
+    if args.crossvalidate == 'k-fold':
+        return cross_validation.KFold(dataset_size, args.k)
+    elif args.crossvalidate == 'bootstrap':
+        return cross_validation.Bootstrap(dataset_size, args.k)
+    return 'wtf'
 
 # **********************************
 # RUN THE LOT WHEN CALLED FROM THE
@@ -427,12 +434,15 @@ def run_tasks(args, configuration):
         # of computations that have been executed previously
         options = dict(vars(args).items() + configuration.items('feature_extraction'))
 
-        cached_feature_extract(**options)
+        all_data, targets = cached_feature_extract(**options)
 
     # **********************************
     # SPLIT DATA
     # **********************************
     # TODO if crossvalidate is true do this several times
+
+    print get_cv_iterator(args, all_data.shape[0])
+
     if args.split_data:
         _split_data(vars(args))
 
