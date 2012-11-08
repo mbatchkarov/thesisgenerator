@@ -9,7 +9,7 @@ def get_named_object(pathspec):
     """
     parts = pathspec.split('.')
     module = ".".join(parts[:-1])
-    mod = __import__(module)
+    mod = __import__(module, fromlist=parts[-1])
     named_obj = getattr(mod, parts[-1])
     return named_obj
 

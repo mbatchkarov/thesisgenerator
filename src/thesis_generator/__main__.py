@@ -424,7 +424,7 @@ def run_tasks(args, configuration):
         sys.path.append(os.path.abspath(path))
 
     # get a reference to the joblib cache object
-    mem_cache = Memory(cachedir=args.output, verbose=0)
+    mem_cache = Memory(cachedir=args.output, verbose=1)
 
     # retrieve the actions that should be run by the framework
     actions = configuration.sections()
@@ -435,8 +435,8 @@ def run_tasks(args, configuration):
     if 'feature_extraction' in actions and\
        bool(configuration.get('feature_extraction', 'run')):
         # make joblib cache the results of the feature extraction process
-        # todo should figure out which values to ignore, currently use all (args + secion_options)
-        mem_cache.cache(feature_extract)
+        # todo should figure out which values to ignore, currently use all (args + section_options)
+        cached_feature_extract = mem_cache.cache(feature_extract)
 
         # create the keyword argument list the action should be run with, it is
         # very important that all relevant argument:value pairs are present
@@ -444,8 +444,9 @@ def run_tasks(args, configuration):
         # of computations that have been executed previously
         options = dict(vars(args).items() + configuration.items('feature_extraction'))
 
-        feature_extract(**options)
+        cached_feature_extract(**options)
 
+    sys.exit(0)
 
     # **********************************
     # SPLIT DATA
