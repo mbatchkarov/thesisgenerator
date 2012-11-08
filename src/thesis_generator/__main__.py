@@ -16,16 +16,16 @@ from glob import glob
 import numpy as np
 import multiprocessing as mp
 import logging
-import ast
 from sklearn import cross_validation
+import validate
 
 import ioutil
 import preprocess
 import metrics
-import config
 import plotter
 
 from joblib import Memory
+from thesis_generator import config
 
 from thesis_generator.utils import get_named_object
 
@@ -83,8 +83,8 @@ def feature_extract(**kwargs):
 
     # convert the arguments to their correct types
 
-    for key in call_args:
-        call_args[key] = ast.literal_eval(call_args[key])
+    #    for key in call_args:
+    #        call_args[key] = ast.literal_eval(call_args[key])
 
     # todo preprocessor needs to be expanded into a callable name
     # todo analyzer needs to be expanded into a callable name
@@ -93,7 +93,7 @@ def feature_extract(**kwargs):
     # todo dtype should be expanded into a numpy type
 
     vectorizer = vectorizer(**call_args)
-    if kwargs['input'] == '\'content\'' or kwargs['input'] == '':
+    if kwargs['input'] == 'content' or kwargs['input'] == '':
         try:
             input_gen = kwargs['input_generator']
             source = kwargs['source']
@@ -121,14 +121,14 @@ def feature_extract(**kwargs):
                              'as content, an input_generator must also be '\
                              'defined. The defined input_generator should '\
                              'produce raw documents.')
-    elif kwargs['input'] == '\'filename\'':
+    elif kwargs['input'] == 'filename':
         input_files = glob(os.path.join(kwargs['source'], '*', '*'))
         targets = load_files(kwargs['source']).target
         term_freq_matrix = vectorizer.fit_transform(_filename_generator(input_files))
-    elif kwargs['input'] == '\'file\'':
+    elif kwargs['input'] == 'file':
         raise NotImplementedError('The input type \'file\' is not supported yet.')
     else:
-        raise NotImplementedError('The input type \'%s\' is not supported yet.' % kwargs['type'])
+        raise NotImplementedError('The input type \'%s\' is not supported yet.' % kwargs['input'])
 
     return term_freq_matrix, targets
 
@@ -466,13 +466,12 @@ def run_tasks(args, configuration):
     mem_cache = Memory(cachedir=args.output, verbose=1)
 
     # retrieve the actions that should be run by the framework
-    actions = configuration.sections()
+    actions = configuration.keys()
 
     # **********************************
     # FEATURE EXTRACTION
     # **********************************
-    if 'feature_extraction' in actions and\
-       bool(configuration.get('feature_extraction', 'run')):
+    if 'feature_extraction' in actions and configuration['feature_extraction']['run']:
         # make joblib cache the results of the feature extraction process
         # todo should figure out which values to ignore, currently use all (args + section_options)
         cached_feature_extract = mem_cache.cache(feature_extract)
@@ -481,7 +480,9 @@ def run_tasks(args, configuration):
         # very important that all relevant argument:value pairs are present
         # because joblib uses the hashed argument list to lookup cached results
         # of computations that have been executed previously
-        options = dict(vars(args).items() + configuration.items('feature_extraction'))
+        options = {}
+        options.update(configuration['feature_extraction'])
+        options.update(vars(args))
 
         data_matrix, targets = cached_feature_extract(**options)
 
@@ -489,21 +490,25 @@ def run_tasks(args, configuration):
     # SPLIT DATA FOR CROSSVALIDATION
     # **********************************
     cv_options = defaultdict(lambda: -1)
-    cv_options.update(dict(configuration.items('crossvalidation')))
+    cv_options.update(configuration['crossvalidation'])
     cached_get_crossval_indices = mem_cache.cache(get_crossval_data)
     for train, test in cached_get_crossval_indices(cv_options, data_matrix, targets):
         print train, test
+
         # **********************************
-    # FEATURE SELECTION
-    # **********************************
-    if args.feature_selection and len(args.scoring_metric) > 0:
-        _feature_selection(args)
+        # FEATURE SELECTION
+        # **********************************
+    #    if args.feature_selection and len(args.scoring_metric) > 0:
+    #        _feature_selection(args)
 
     # **********************************
     # TRAIN MODELS
     # **********************************
-    if args.train:
-        _train_models(args)
+
+    print configuration['classifiers']
+    sys.exit(0)
+    #    if args.train:
+    #        _train_models(args)
 
     # **********************************
     # PREDICTION
@@ -529,14 +534,14 @@ def run_tasks(args, configuration):
 if __name__ == '__main__':
     # initialize the package, this is currently mainly used to configure the
     # logging framework
+    from configobj import ConfigObj
 
     args = config.arg_parser.parse_args()
-
-    from ConfigParser import SafeConfigParser
-
-    conf_parser = SafeConfigParser()
-
     logger.info('Reading configuration file from %s' % glob(args.configuration))
-    conf_parser.read(args.configuration)
+    conf_parser = ConfigObj(args.configuration, configspec='conf/main-spec.conf')
+    validator = validate.Validator()
+    result = conf_parser.validate(validator)
+    if not result:
+        sys.exit(1)
 
     run_tasks(args, conf_parser)
