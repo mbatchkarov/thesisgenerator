@@ -22,7 +22,6 @@ import validate
 import ioutil
 import preprocess
 import metrics
-import plotter
 
 from joblib import Memory
 from thesis_generator import config
@@ -492,44 +491,46 @@ def run_tasks(args, configuration):
     cv_options = defaultdict(lambda: -1)
     cv_options.update(configuration['crossvalidation'])
     cached_get_crossval_indices = mem_cache.cache(get_crossval_data)
-    for train, test in cached_get_crossval_indices(cv_options, data_matrix, targets):
-        print train, test
+    for name in configuration['classifiers']:
+        for train, test in cached_get_crossval_indices(cv_options, data_matrix, targets):
+            print train, test
 
-        # **********************************
-        # FEATURE SELECTION
-        # **********************************
-    #    if args.feature_selection and len(args.scoring_metric) > 0:
-    #        _feature_selection(args)
+            # **********************************
+            # FEATURE SELECTION
+            # **********************************
 
-    # **********************************
-    # TRAIN MODELS
-    # **********************************
+            # **********************************
+            # TRAIN MODELS
+            # **********************************
 
-    print configuration['classifiers']
+
+            clf = get_named_object(name)()
+            print clf
     sys.exit(0)
     #    if args.train:
     #        _train_models(args)
 
     # **********************************
     # PREDICTION
-    # **********************************    
-    if args.predict:
-        _predict(args)
+    # **********************************
 
-    # **********************************
-    # CREATE CONFUSION MATRIX TABLES FOR
-    # VARYING THRESHOLDS
-    # **********************************
-    if args.create_tables is not None:
-        _create_tables(args)
+#        if args.predict:
+#            _predict(args)
 
-    # **********************************
-    # CREATE PLOTS FROM CONFUSION MATRIX
-    # TABLES
-    # **********************************
-    if args.create_figures is not None:
-        raise NotImplementedError('This action has not been ported to work with scikits.')
-        plotter.execute(args)
+# **********************************
+# CREATE CONFUSION MATRIX TABLES FOR
+# VARYING THRESHOLDS
+# **********************************
+#        if args.create_tables is not None:
+#            _create_tables(args)
+
+# **********************************
+# CREATE PLOTS FROM CONFUSION MATRIX
+# TABLES
+# **********************************
+#        if args.create_figures is not None:
+#            raise NotImplementedError('This action has not been ported to work with scikits.')
+#            plotter.execute(args)
 
 if __name__ == '__main__':
     # initialize the package, this is currently mainly used to configure the
