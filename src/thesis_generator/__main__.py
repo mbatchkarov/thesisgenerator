@@ -487,13 +487,12 @@ def run_tasks(args, configuration):
     mem_cache = Memory(cachedir=args.output, verbose=1)
 
     # retrieve the actions that should be run by the framework
-    actions = configuration.sections()
+    actions = configuration.keys()
 
     # **********************************
     # FEATURE EXTRACTION
     # **********************************
-    if 'feature_extraction' in actions and\
-       bool(configuration.get('feature_extraction', 'run')):
+    if 'feature_extraction' in actions and configuration['feature_extraction']['run']:
         # make joblib cache the results of the feature extraction process
         # todo should figure out which values to ignore, currently use all (args + section_options)
         cached_feature_extract = mem_cache.cache(feature_extract)
@@ -502,7 +501,9 @@ def run_tasks(args, configuration):
         # very important that all relevant argument:value pairs are present
         # because joblib uses the hashed argument list to lookup cached results
         # of computations that have been executed previously
-        options = dict(vars(args).items() + configuration.items('feature_extraction'))
+        options = {}
+        options.update(configuration['feature_extraction'])
+        options.update(vars(args))
 
         data_matrix, targets = cached_feature_extract(**options)
 
@@ -512,8 +513,9 @@ def run_tasks(args, configuration):
     cv_options = defaultdict(lambda: -1)
     cv_options.update(configuration['crossvalidation'])
     cached_get_crossval_indices = mem_cache.cache(get_crossval_data)
-    for train, test in cached_get_crossval_indices(cv_options, data_matrix, targets):
-        print train, test
+    for name in configuration['classifiers']:
+        for train, test in cached_get_crossval_indices(cv_options, data_matrix, targets):
+            print train, test
 
         # **********************************
         # FEATURE SELECTION
@@ -524,10 +526,13 @@ def run_tasks(args, configuration):
         # **********************************
         if args.feature_selection and len(args.scoring_metric) > 0:
             _feature_selection(args)
+            # **********************************
+            # FEATURE SELECTION
+            # **********************************
 
-    # **********************************
-    # TRAIN MODELS
-    # **********************************
+            # **********************************
+            # TRAIN MODELS
+            # **********************************
 
     print configuration['classifiers']
     sys.exit(0)
@@ -536,24 +541,25 @@ def run_tasks(args, configuration):
 
     # **********************************
     # PREDICTION
-    # **********************************    
-    if args.predict:
-        _predict(args)
+    # **********************************
 
-    # **********************************
-    # CREATE CONFUSION MATRIX TABLES FOR
-    # VARYING THRESHOLDS
-    # **********************************
-    if args.create_tables is not None:
-        _create_tables(args)
+#        if args.predict:
+#            _predict(args)
 
-    # **********************************
-    # CREATE PLOTS FROM CONFUSION MATRIX
-    # TABLES
-    # **********************************
-    if args.create_figures is not None:
-        raise NotImplementedError('This action has not been ported to work with scikits.')
-        plotter.execute(args)
+# **********************************
+# CREATE CONFUSION MATRIX TABLES FOR
+# VARYING THRESHOLDS
+# **********************************
+#        if args.create_tables is not None:
+#            _create_tables(args)
+
+# **********************************
+# CREATE PLOTS FROM CONFUSION MATRIX
+# TABLES
+# **********************************
+#        if args.create_figures is not None:
+#            raise NotImplementedError('This action has not been ported to work with scikits.')
+#            plotter.execute(args)
 
 if __name__ == '__main__':
     # initialize the package, this is currently mainly used to configure the
