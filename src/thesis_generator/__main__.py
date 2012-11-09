@@ -19,7 +19,6 @@ import logging
 from scipy.sparse import lil_matrix
 from sklearn import cross_validation
 from sklearn.cross_validation import cross_val_score
-from sklearn.metrics import f1_score
 import validate
 
 import ioutil
@@ -29,7 +28,8 @@ import metrics
 from joblib import Memory
 from thesis_generator import config
 
-from thesis_generator.utils import get_named_object, LeaveNothingOut
+from thesis_generator.utils import get_named_object, LeaveNothingOut,\
+    ChainCallable
 
 logger = logging.getLogger(__name__)
 
@@ -541,6 +541,14 @@ def run_tasks(args, configuration):
         configuration['crossvalidation'], x_vals,
         y_vals)
 
+    #pick out the non-validation data from x_vals--- this requires x_vals
+    # to be cast to a format that supports slicing
+    # todo this is quite slow
+    sliceable_x = lil_matrix(x_vals)[np.logical_not(validate_mask), :]
+    #this is a row vector, need to transpose it to get the same shape as
+    # sliceable_x
+    y_vals = y_vals[:, np.logical_not(validate_mask)].transpose()
+
     for clf_name in configuration['classifiers']:
     # DO FEATURE SELECTION FOR CROSSVALIDATION DATA
     #        if args.feature_selection and len(args.scoring_metric) > 0:
@@ -548,16 +556,12 @@ def run_tasks(args, configuration):
 
         # create classifier instance but don't train it
         clf = get_named_object(clf_name)()
-        #pick out the non-validation data from x_vals--- this requires x_vals
-        # to be cast to a format that supports slicing
-        sliceable_x = lil_matrix(x_vals)[np.logical_not(validate_mask), :]
-        #this is a row vector, need to transpose it to get the same shape as
-        # sliceable_x
-        y_vals = y_vals[:, np.logical_not(validate_mask)].transpose()
-        scores = cross_val_score(clf, sliceable_x, y_vals, f1_score,
+        scores = cross_val_score(clf, sliceable_x, y_vals,
+                                 ChainCallable(configuration['evaluation']),
+                                 #                                 roc_curve,
                                  cv = deepcopy(cv_iterator), n_jobs = 4,
                                  verbose = 0)
-        print clf_name, 'scored', scores
+        print clf_name, 'scored\n', scores[:, 2]
 
         # todo create a mallet classifier wrapper in python that works with
         # the scikit crossvalidation stuff (has fit and predict and

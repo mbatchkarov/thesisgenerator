@@ -3,6 +3,7 @@
 """
 A collection of random useful utilities
 """
+import inspect
 from itertools import combinations
 import re, numpy as np
 import gzip
@@ -83,3 +84,53 @@ class LeaveNothingOut(object):
                 train_index = ind[train_index]
                 test_index = ind[test_index]
             yield train_index, test_index
+
+
+class ChainCallable(object):
+    """
+    Chains several functions as specified in the configuration. When called
+    returns the return values of all of its callables as a tuple
+
+    Example usage:
+
+    # some sample functions
+    def t1(shared_param, conf):
+        print 'called t1(%s, %s)' % (str(shared_param), str(shared_param))
+        return 1
+
+
+    def t2(shared_param, conf):
+        print 'called t1(%s, %s)' % (str(shared_param), str(shared_param))
+        return 2
+
+    config = {'a': 1, 'b': 2}
+    ccall = chain_callable(config)
+    print ccall('X_Y')
+    print ccall('A_B')
+
+    """
+
+    def __init__(self, config):
+        self.to_call = [(x, get_named_object(x)) for x in
+                        config.keys()]
+        self.config = config
+
+    def __call__(self, true_labels, predicted_labels):
+        options = {}
+        result = []
+        for func_name, func in self.to_call:
+            initialize_args = inspect.getargspec(func)[0]
+            call_args = {arg: val for arg, val in self.config[func_name]
+            .items() if  val != '' and arg in initialize_args}
+            options[func_name] = call_args
+            result.append(func(true_labels, predicted_labels, **call_args))
+            #        return tuple(func(true_labels, predicted_labels,
+        #                    **options[func_name]) for func_name,
+        # func in self.to_call)
+        return np.array(result, dtype = object)
+
+#def full_name(o):
+#    """
+#    Returns the fully quallified name of a function
+#    """
+#    return '.'.join([o.__module__, o.func_name])
