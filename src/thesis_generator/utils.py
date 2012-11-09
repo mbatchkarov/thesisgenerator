@@ -47,7 +47,7 @@ class GorkanaXmlParser():
         with gzip.open(self._source, 'r') as _in_fh:
             self._xml_etree = ET.iterparse(_in_fh, events = ('end',))
             for _, element in self._xml_etree:
-                if element.tag == 'documents': continue
+                if element.tag == 'documents' or element.text == None: continue
                 target = element.attrib['relevant'] == 'True'
                 yield target
 
