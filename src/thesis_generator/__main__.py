@@ -99,7 +99,7 @@ def feature_extract(**kwargs):
                 generator = get_named_object(input_gen)(kwargs['source'])
                 targets = np.asarray([t for t in generator.targets()], dtype=np.int)
                 generator = generator.documents()
-            except ValueError, ImportError:
+            except (ValueError, ImportError):
                 logger.info('No input generator found for name '\
                             '\'%(input_gen)s\'. Using a file content '\
                             'generator with source \'%(source)s\'' % locals())
