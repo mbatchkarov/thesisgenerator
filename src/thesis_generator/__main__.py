@@ -484,7 +484,6 @@ def run_tasks(args, configuration):
     # FEATURE EXTRACTION
     # **********************************
     if 'feature_extraction' in actions and configuration['feature_extraction']['run']:
-        # make joblib cache the results of the feature extraction process
         # todo should figure out which values to ignore, currently use all (args + section_options)
         cached_feature_extract = mem_cache.cache(feature_extract)
 
@@ -495,22 +494,19 @@ def run_tasks(args, configuration):
         options = {}
         options.update(configuration['feature_extraction'])
         options.update(vars(args))
+        x_vals, y_vals = cached_feature_extract(**options)
+        del options
 
-        data_matrix, targets = cached_feature_extract(**options)
-
-        # **********************************
-        # SPLIT DATA FOR CROSSVALIDATION
-        # **********************************
-    #    cv_options = {}
-    #    cv_options.update(configuration['crossvalidation'])
-
+    # **********************************
+    # CROSSVALIDATION
+    # **********************************
     # todo need to make sure that for several classifier the crossvalidation iterator stays consistent across all classifiers
     # CREATE CROSSVALIDATION ITERATOR 
     crossvalidate_cached = mem_cache.cache(crossvalidate)
-    cv_iterator, x_vals, y_vals, validate_mask = crossvalidate_cached(configuration['crossvalidation'], data_matrix,
-        targets)
+    cv_iterator, x_vals, y_vals, validate_mask = crossvalidate_cached(configuration['crossvalidation'], x_vals,
+        y_vals)
 
-    for name in configuration['classifiers']:
+    for clf_name in configuration['classifiers']:
         # DO FEATURE SELECTION FOR CROSSVALIDATION DATA
         if args.feature_selection and len(args.scoring_metric) > 0:
             _feature_selection(args)

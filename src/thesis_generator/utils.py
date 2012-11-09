@@ -45,3 +45,12 @@ class GorkanaXmlParser():
                 if element.tag == 'documents': continue
                 target = element.attrib['relevant'] == 'True'
                 yield target
+                
+def gorkana_200_seen_positives_validation(x,y):
+    i = 0
+    pos = 0
+    while pos < 200:
+        i += 1
+        pos += 1 if y[i] == 1 else 0
+    
+    return [(i,len(y))]
