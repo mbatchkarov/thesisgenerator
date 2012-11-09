@@ -392,7 +392,7 @@ def _create_tables(args):
 # **********************************
 # **********************************
 
-def get_crossval_data(config, data_matrix, targets):
+def crossvalidate(config, data_matrix, targets):
     """Returns a list of tuples containing indices for consecutive crossvalidation runs.
     
     Returns a list of (train_indices, test_indices) that can be used to slice
@@ -445,7 +445,7 @@ def get_crossval_data(config, data_matrix, targets):
             'types are \'k-fold\', \'sk-fold\', \'loo\', \'bootstrap\' and '\
             '\'oracle\'')
 
-    return [(train, test, unseen_data_mask, data_matrix, targets) for train, test in iterator]
+    return iterator, data_matrix, targets, unseen_data_mask
 
 # **********************************
 # RUN THE LOT WHEN CALLED FROM THE
@@ -503,15 +503,15 @@ def run_tasks(args, configuration):
     # **********************************
     # SPLIT DATA FOR CROSSVALIDATION
     # **********************************
-    cv_options = defaultdict(lambda: -1)
+    cv_options = {}
     cv_options.update(configuration['crossvalidation'])
     
-    # todo need to make sure that for several classifier the crossvalidation iterator stays consistent across all classifiers 
-    cached_get_crossval_indices = mem_cache.cache(get_crossval_data)
+    # todo need to make sure that for several classifier the crossvalidation iterator stays consistent across all classifiers
+    # CREATE CROSSVALIDATION ITERATOR 
+    crossvalidate_cached = mem_cache(crossvalidate)
+    cv_iterator, x_vals, y_vals, validate_mask = crossvalidate_cached(**options)
     
     for name in configuration['classifiers']:
-        # create crossvalidation iterator
-        
         # DO FEATURE SELECTION FOR CROSSVALIDATION DATA
         if args.feature_selection and len(args.scoring_metric) > 0:
             _feature_selection(args)
