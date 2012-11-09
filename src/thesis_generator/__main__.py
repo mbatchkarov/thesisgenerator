@@ -15,17 +15,27 @@ from glob import glob
 import numpy as np
 import multiprocessing as mp
 import logging
-from sklearn import cross_validation
-import validate
+import inspect
 
+import validate
+from configobj import ConfigObj
+
+import sklearn
+from sklearn import cross_validation
+from sklearn.feature_selection import SelectKBest
+from sklearn.pipeline import Pipeline
+from sklearn.datasets import load_files
+
+from joblib import Memory
+
+import thesis_generator
 import ioutil
 import preprocess
 import metrics
 
-from joblib import Memory
 from thesis_generator import config
-
 from thesis_generator.utils import get_named_object
+
 
 logger = logging.getLogger(__name__)
 
@@ -60,8 +70,6 @@ def _write_config_file(args):
 # **********************************
 def feature_extract(**kwargs):
     # todo write docstring
-    from sklearn.datasets import load_files
-    import inspect
 
     def _filename_generator(file_list):
         for f in file_list:
@@ -164,7 +172,7 @@ def _stratify(args):
 # **********************************
 # DO FEATURE SELECTION
 # **********************************
-def _feature_selection(args):
+def feature_selection(args):
     raise NotImplementedError('This action has not been ported to work with scikits.')
     if os.path.isfile(args.source):
         train_fn = ioutil.train_fn_from_source(args.source, args.output,\
@@ -410,7 +418,7 @@ def crossvalidate(config, data_matrix, targets):
         validate_data = [(0, 0)]
 
     validate_indices = reduce(lambda l, (head, tail): l + range(head, tail), validate_data, [])
-    mask = np.zeros(data_matrix.shape)
+    mask = np.zeros(data_matrix.shape[0])
     mask[validate_indices] = 1
 
     seen_data_mask = mask == 0
@@ -503,13 +511,55 @@ def run_tasks(args, configuration):
     # todo need to make sure that for several classifier the crossvalidation iterator stays consistent across all classifiers
     # CREATE CROSSVALIDATION ITERATOR 
     crossvalidate_cached = mem_cache.cache(crossvalidate)
-    cv_iterator, x_vals, y_vals, validate_mask = crossvalidate_cached(configuration['crossvalidation'], x_vals,
-        y_vals)
-
+    cv_iterator, x_vals, y_vals, validate_mask = \
+        crossvalidate_cached(configuration['crossvalidation'], x_vals, y_vals)
+    
+#    cv_iterator = cross_validation.Bootstrap(x_vals.shape[0], n_bootstraps=15, train_size=0.8)
+    
     for clf_name in configuration['classifiers']:
+        if not configuration['classifiers'][clf_name]: continue
         # DO FEATURE SELECTION FOR CROSSVALIDATION DATA
-        if args.feature_selection and len(args.scoring_metric) > 0:
-            _feature_selection(args)
+        # todo this will need to be implemented with Pipeline
+        
+        feature_selection = configuration['feature_selection']
+        if feature_selection['run']:
+            method = get_named_object(feature_selection['method'])
+            scoring_func = get_named_object(feature_selection['scoring_function'])
+            clf = get_named_object(clf_name)
+            
+            # the parameters for steps in the Pipeline are defined as
+            # <component_name>__<arg_name> - the Pipeline (which is actually a
+            # BaseEstimator) takes care of passing the correct arguments down
+            # along the pipeline, provided there are no name clashes between the
+            # keyword arguments of two consecutive transformers.
+            call_args = {}
+            initialize_args = inspect.getargspec(method.__init__)[0]
+            call_args.update({'fs__%s'%arg:val for arg, val in \
+                         feature_selection.items() if \
+                         val != '' and arg in initialize_args})
+            
+            initialize_args = inspect.getargspec(clf.__init__)[0]
+            call_args.update({'clf__%s'%arg:val for arg, val in \
+                         feature_selection.items() if \
+                         val != '' and arg in initialize_args})
+            
+            pipeline = Pipeline([
+                ('fs', method(scoring_func)),
+                ('clf', clf())
+            ])
+            
+            pipeline.set_params(**call_args)
+        else:
+            pipeline = Pipeline([('clf',clf_name)])
+        
+        # todo mask out the validation set from x_vals and y_vals
+        scores = cross_validation.cross_val_score(pipeline, x_vals, y_vals,
+                                                  cv=cv_iterator, verbose=1)
+        
+        pass
+        
+#        if args.feature_selection and len(args.scoring_metric) > 0:
+#            _feature_selection(args)
 
             # create classifier instance but don't train it
 
@@ -542,8 +592,7 @@ def run_tasks(args, configuration):
 if __name__ == '__main__':
     # initialize the package, this is currently mainly used to configure the
     # logging framework
-    from configobj import ConfigObj
-
+    
     args = config.arg_parser.parse_args()
     logger.info('Reading configuration file from \'%s\', conf spec from \'conf/.confrc\'' % (glob(args.configuration)))
     conf_parser = ConfigObj(args.configuration, configspec='conf/.confrc')
