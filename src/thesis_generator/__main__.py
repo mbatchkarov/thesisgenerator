@@ -76,15 +76,10 @@ def feature_extract(**kwargs):
 
     vectorizer = get_named_object(kwargs['vectorizer'])
 
-    # get the names of the arguments that the vectorizer takes 
+    # get the names of the arguments that the vectorizer class takes 
     initialize_args = inspect.getargspec(vectorizer.__init__)[0]
     call_args = {arg: val for arg, val in kwargs.items() if\
                  val != '' and arg in initialize_args}
-
-    # convert the arguments to their correct types
-
-    #    for key in call_args:
-    #        call_args[key] = ast.literal_eval(call_args[key])
 
     # todo preprocessor needs to be expanded into a callable name
     # todo analyzer needs to be expanded into a callable name
@@ -101,8 +96,9 @@ def feature_extract(**kwargs):
                 logger.info('Retrieving input generator for name '\
                             '%(input_gen)s' % locals())
 
-                generator = get_named_object(input_gen)(kwargs['source']).documents()
+                generator = get_named_object(input_gen)(kwargs['source'])
                 targets = np.asarray([t for t in generator.targets()], dtype=np.int)
+                generator = generator.documents()
             except ValueError, ImportError:
                 logger.info('No input generator found for name '\
                             '\'%(input_gen)s\'. Using a file content '\
@@ -111,9 +107,6 @@ def feature_extract(**kwargs):
                 paths = glob(os.path.join(kwargs['source'], '*', '*'))
                 generator = _content_generator(paths)
                 targets = targets = load_files(source).target
-
-            #            targets = np.asarray([t for t in generator.targets()], dtype=np.int)
-            #            print np.sum(targets)
             term_freq_matrix = vectorizer.fit_transform(generator)
         except KeyError:
             raise ValueError('Can not find a name for an input generator. When '\
@@ -557,10 +550,11 @@ if __name__ == '__main__':
     from configobj import ConfigObj
 
     args = config.arg_parser.parse_args()
-    logger.info('Reading configuration file from %s' % glob(args.configuration))
-    conf_parser = ConfigObj(args.configuration, configspec='conf/main-spec.conf')
+    logger.info('Reading configuration file from \'%s\', conf spec from \'conf/.confrc\'' %(glob(args.configuration)))
+    conf_parser = ConfigObj(args.configuration, configspec='conf/.confrc')
     validator = validate.Validator()
     result = conf_parser.validate(validator)
+    # todo add a more helpful guide to what exactly went wrong with the conf object
     if not result:
         sys.exit(1)
 

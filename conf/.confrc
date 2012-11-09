@@ -1,0 +1,49 @@
+[feature_extraction]
+    run=boolean(default=True)
+    vectorizer=string(default="")
+    input_generator=string(default="")
+	
+	# extra options required by the Bag-of-Vectors project Vectorizer
+    thesaurus=string
+	    
+    # The below options have defaults in the scikit Vectorizer init
+    input=option('content', 'filename', 'file')
+    charset=string
+    charset_error=string
+    strip_accents=string
+    lowercase=boolean
+    token_pattern=string
+    min_n=integer
+    max_n=integer
+    min_df=integer
+    max_df=integer
+    analyser=string
+    preprocessor=string
+    tokenizer=string
+    max_features=integer
+    vocabulary=string
+    binary=boolean
+
+[crossvalidation]
+	run=boolean()
+	type = option('kfold', 'skfold', 'loo', 'bootstrap', 'oracle', default = 'kfold')
+	k=integer(min=1,max=100,default=5)
+	ratio=float()
+	
+[split_data]
+    run=boolean()
+    stream_data=boolean()
+
+[feature_selection]
+    run=boolean()
+    
+[classifiers]
+    [[sklearn.naive_bayes.MultinomialNB]]
+
+    [[sklearn.neighbors.KNeighborsClassifier]]
+    	k=integer()
+
+    [[sklearn.linear_model.LogisticRegression]]
+
+    [[sklearn.svm.SVC]]
+    	kernel=option('linear','rbf', 'poly')
