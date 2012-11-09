@@ -400,38 +400,59 @@ def _create_tables(args):
 # **********************************
 
 def get_crossval_data(config, data_matrix, targets):
-    """
-    Returns a list of (train_indices, test_indices) that can be used to slice dataset to perform crossvalidation.
-    The method of splitting is determined by what is specified in the conf file. The full dataset is provided as a
+    """Returns a list of tuples containing indices for consecutive crossvalidation runs.
+    
+    Returns a list of (train_indices, test_indices) that can be used to slice
+    a dataset to perform crossvalidation. The method of splitting is determined
+    by what is specified in the conf file. The full dataset is provided as a
     parameter so that joblib can cache the call to this function
     """
-    type = config['type']
+    cv_type = config['cv_type']
     k = config['k']
-    dataset_size = data_matrix.shape[0]
-
+    
+    if config['validation_slices'] != '' and config['validation_slices'] != None:
+        # the data should be treated as a stream, which means that it should not
+        # be reordered and it should be split into a seen portion and an unseen
+        # portion separated by a virtual 'now' point in the stream
+        validate_data = get_named_object(config['validation_slices'])(data_matrix, targets)
+    else:
+        validate_data = [(0,0)]
+    
+    validate_indices = reduce(lambda l,(head,tail): l + range(head,tail), validate_data, [])
+    mask = np.zeros(data_matrix.shape)
+    mask[validate_indices] = 1
+    
+    seen_data_mask = mask == 0
+    unseen_data_mask = mask != 0 
+    dataset_size = np.sum(seen_data_mask)
+    
+    targets_seen = targets[seen_data_mask]
+    
     if k < 0:
         logger.warn('crossvalidation.k not specified, defaulting to 1')
         k = 1
-    if type == 'kfold':
+    if cv_type == 'kfold':
         iterator = cross_validation.KFold(dataset_size, int(k))
-    elif type == 'skfold':
-        iterator = cross_validation.StratifiedKFold(targets, int(k))
-    elif type == 'loo':
+    elif cv_type == 'skfold':
+        iterator = cross_validation.StratifiedKFold(targets_seen, int(k))
+    elif cv_type == 'loo':
         iterator = cross_validation.LeaveOneOut(dataset_size, int(k))
-    elif type == 'bootstrap':
+    elif cv_type == 'bootstrap':
         ratio = config['ratio']
         if k < 0:
-            logger.warn('crossvalidation.ration not specified, defaulting to 0.8')
+            logger.warn('crossvalidation.ratio not specified, defaulting to 0.8')
             ratio = 0.8
-        iterator = cross_validation.Bootstrap(dataset_size, n_bootstraps=int(k), train_size=float(ratio))
-    elif type == 'oracle':
+        iterator = cross_validation.Bootstrap(dataset_size, n_bootstraps=int(k),
+                                              train_size=float(ratio))
+    elif cv_type == 'oracle':
         return [(np.array(range(dataset_size)), np.array(range(dataset_size)))]
     else:
         raise ValueError(
-            'Unrecognised crossvalidation type. The supported types are \'k-fold\', \'sk-fold\', \'loo\', '
-            '\'bootstrap\' and \'oracle\'')
+            'Unrecognised crossvalidation type \'%(cv_type)s\'. The supported '\
+            'types are \'k-fold\', \'sk-fold\', \'loo\', \'bootstrap\' and '\
+            '\'oracle\'')
 
-    return [(train, test) for train, test in iterator]
+    return [(train, test, unseen_data_mask, data_matrix, targets) for train, test in iterator]
 
 # **********************************
 # RUN THE LOT WHEN CALLED FROM THE
@@ -466,12 +487,13 @@ def run_tasks(args, configuration):
     mem_cache = Memory(cachedir=args.output, verbose=1)
 
     # retrieve the actions that should be run by the framework
-    actions = configuration.keys()
+    actions = configuration.sections()
 
     # **********************************
     # FEATURE EXTRACTION
     # **********************************
-    if 'feature_extraction' in actions and configuration['feature_extraction']['run']:
+    if 'feature_extraction' in actions and\
+       bool(configuration.get('feature_extraction', 'run')):
         # make joblib cache the results of the feature extraction process
         # todo should figure out which values to ignore, currently use all (args + section_options)
         cached_feature_extract = mem_cache.cache(feature_extract)
@@ -480,9 +502,7 @@ def run_tasks(args, configuration):
         # very important that all relevant argument:value pairs are present
         # because joblib uses the hashed argument list to lookup cached results
         # of computations that have been executed previously
-        options = {}
-        options.update(configuration['feature_extraction'])
-        options.update(vars(args))
+        options = dict(vars(args).items() + configuration.items('feature_extraction'))
 
         data_matrix, targets = cached_feature_extract(**options)
 
@@ -500,6 +520,10 @@ def run_tasks(args, configuration):
         # **********************************
     #    if args.feature_selection and len(args.scoring_metric) > 0:
     #        _feature_selection(args)
+        # FEATURE SELECTION
+        # **********************************
+        if args.feature_selection and len(args.scoring_metric) > 0:
+            _feature_selection(args)
 
     # **********************************
     # TRAIN MODELS
