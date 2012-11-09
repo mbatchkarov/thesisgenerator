@@ -550,7 +550,8 @@ def run_tasks(args, configuration):
             
             pipeline.set_params(**call_args)
         else:
-            pipeline = Pipeline([('clf',clf_name)])
+            # no feature selection, just run the classifier
+            pipeline = get_named_object(clf_name)
         
         # todo mask out the validation set from x_vals and y_vals
         scores = cross_validation.cross_val_score(pipeline, x_vals, y_vals,
