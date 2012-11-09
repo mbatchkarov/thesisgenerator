@@ -27,7 +27,7 @@
 [crossvalidation]
 	run=boolean()
 	type = option('kfold', 'skfold', 'loo', 'bootstrap', 'oracle', default = 'kfold')
-	k=integer(min=1,max=100,default=5)
+	k=integer(min=1,max=100,default=1)
 	ratio=float()
 	
 [split_data]
