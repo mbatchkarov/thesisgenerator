@@ -29,7 +29,7 @@ import metrics
 from joblib import Memory
 from thesis_generator import config
 
-from thesis_generator.utils import get_named_object
+from thesis_generator.utils import get_named_object, LeaveNothingOut
 
 logger = logging.getLogger(__name__)
 
@@ -467,7 +467,7 @@ def crossvalidate(config, data_matrix, targets):
                                               n_bootstraps = int(k),
                                               train_size = ratio)
     elif cv_type == 'oracle':
-        return [(np.array(range(dataset_size)), np.array(range(dataset_size)))]
+        iterator = LeaveNothingOut(dataset_size, dataset_size)
     else:
         raise ValueError(
             'Unrecognised crossvalidation type \'%(cv_type)s\'. The supported '\
@@ -555,7 +555,7 @@ def run_tasks(args, configuration):
         # sliceable_x
         y_vals = y_vals[:, np.logical_not(validate_mask)].transpose()
         scores = cross_val_score(clf, sliceable_x, y_vals, f1_score,
-                                 cv = deepcopy(cv_iterator), n_jobs = 2,
+                                 cv = deepcopy(cv_iterator), n_jobs = 4,
                                  verbose = 0)
         print clf_name, 'scored', scores
 
