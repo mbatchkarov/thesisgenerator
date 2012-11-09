@@ -512,39 +512,29 @@ def run_tasks(args, configuration):
     # **********************************
     cv_options = defaultdict(lambda: -1)
     cv_options.update(configuration['crossvalidation'])
+    
+    # todo need to make sure that for several classifier the crossvalidation iterator stays consistent across all classifiers 
     cached_get_crossval_indices = mem_cache.cache(get_crossval_data)
+    
     for name in configuration['classifiers']:
-        for train, test in cached_get_crossval_indices(cv_options, data_matrix, targets):
-            print train, test
-
-        # **********************************
-        # FEATURE SELECTION
-        # **********************************
-    #    if args.feature_selection and len(args.scoring_metric) > 0:
-    #        _feature_selection(args)
-        # FEATURE SELECTION
-        # **********************************
+        # create crossvalidation iterator
+        
+        # DO FEATURE SELECTION FOR CROSSVALIDATION DATA
         if args.feature_selection and len(args.scoring_metric) > 0:
             _feature_selection(args)
-            # **********************************
-            # FEATURE SELECTION
-            # **********************************
-
-            # **********************************
-            # TRAIN MODELS
-            # **********************************
+        
+        # create classifier instance but don't train it
+        
+        # todo create a mallet classifier wrapper in python that works with the scikit crossvalidation stuff (has fit and predict and predict_probas functions)
+        
+        # run the scikits crossvalidation_scores function
+        
+        # do analysis
 
     print configuration['classifiers']
     sys.exit(0)
     #    if args.train:
     #        _train_models(args)
-
-    # **********************************
-    # PREDICTION
-    # **********************************
-
-#        if args.predict:
-#            _predict(args)
 
 # **********************************
 # CREATE CONFUSION MATRIX TABLES FOR
