@@ -4,7 +4,6 @@ Created on Oct 18, 2012
 
 @author: ml249
 '''
-from collections import defaultdict
 
 import os
 import sys
@@ -22,7 +21,6 @@ import validate
 import ioutil
 import preprocess
 import metrics
-import plotter
 
 from joblib import Memory
 from thesis_generator import config
@@ -400,27 +398,27 @@ def crossvalidate(config, data_matrix, targets):
     by what is specified in the conf file. The full dataset is provided as a
     parameter so that joblib can cache the call to this function
     """
-    cv_type = config['cv_type']
+    cv_type = config['type']
     k = config['k']
-    
+
     if config['validation_slices'] != '' and config['validation_slices'] != None:
         # the data should be treated as a stream, which means that it should not
         # be reordered and it should be split into a seen portion and an unseen
         # portion separated by a virtual 'now' point in the stream
         validate_data = get_named_object(config['validation_slices'])(data_matrix, targets)
     else:
-        validate_data = [(0,0)]
-    
-    validate_indices = reduce(lambda l,(head,tail): l + range(head,tail), validate_data, [])
+        validate_data = [(0, 0)]
+
+    validate_indices = reduce(lambda l, (head, tail): l + range(head, tail), validate_data, [])
     mask = np.zeros(data_matrix.shape)
     mask[validate_indices] = 1
-    
+
     seen_data_mask = mask == 0
-    unseen_data_mask = mask != 0 
+    unseen_data_mask = mask != 0
     dataset_size = np.sum(seen_data_mask)
-    
+
     targets_seen = targets[seen_data_mask]
-    
+
     if k < 0:
         logger.warn('crossvalidation.k not specified, defaulting to 1')
         k = 1
@@ -436,7 +434,7 @@ def crossvalidate(config, data_matrix, targets):
             logger.warn('crossvalidation.ratio not specified, defaulting to 0.8')
             ratio = 0.8
         iterator = cross_validation.Bootstrap(dataset_size, n_bootstraps=int(k),
-                                              train_size=float(ratio))
+            train_size=float(ratio))
     elif cv_type == 'oracle':
         return [(np.array(range(dataset_size)), np.array(range(dataset_size)))]
     else:
@@ -500,29 +498,30 @@ def run_tasks(args, configuration):
 
         data_matrix, targets = cached_feature_extract(**options)
 
-    # **********************************
-    # SPLIT DATA FOR CROSSVALIDATION
-    # **********************************
-    cv_options = {}
-    cv_options.update(configuration['crossvalidation'])
-    
+        # **********************************
+        # SPLIT DATA FOR CROSSVALIDATION
+        # **********************************
+    #    cv_options = {}
+    #    cv_options.update(configuration['crossvalidation'])
+
     # todo need to make sure that for several classifier the crossvalidation iterator stays consistent across all classifiers
     # CREATE CROSSVALIDATION ITERATOR 
-    crossvalidate_cached = mem_cache(crossvalidate)
-    cv_iterator, x_vals, y_vals, validate_mask = crossvalidate_cached(**options)
-    
+    crossvalidate_cached = mem_cache.cache(crossvalidate)
+    cv_iterator, x_vals, y_vals, validate_mask = crossvalidate_cached(configuration['crossvalidation'], data_matrix,
+        targets)
+
     for name in configuration['classifiers']:
         # DO FEATURE SELECTION FOR CROSSVALIDATION DATA
         if args.feature_selection and len(args.scoring_metric) > 0:
             _feature_selection(args)
-        
-        # create classifier instance but don't train it
-        
-        # todo create a mallet classifier wrapper in python that works with the scikit crossvalidation stuff (has fit and predict and predict_probas functions)
-        
-        # run the scikits crossvalidation_scores function
-        
-        # do analysis
+
+            # create classifier instance but don't train it
+
+            # todo create a mallet classifier wrapper in python that works with the scikit crossvalidation stuff (has fit and predict and predict_probas functions)
+
+            # run the scikits crossvalidation_scores function
+
+            # do analysis
 
     print configuration['classifiers']
     sys.exit(0)
@@ -550,7 +549,7 @@ if __name__ == '__main__':
     from configobj import ConfigObj
 
     args = config.arg_parser.parse_args()
-    logger.info('Reading configuration file from \'%s\', conf spec from \'conf/.confrc\'' %(glob(args.configuration)))
+    logger.info('Reading configuration file from \'%s\', conf spec from \'conf/.confrc\'' % (glob(args.configuration)))
     conf_parser = ConfigObj(args.configuration, configspec='conf/.confrc')
     validator = validate.Validator()
     result = conf_parser.validate(validator)
