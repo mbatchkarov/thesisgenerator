@@ -36,14 +36,24 @@
 
 [feature_selection]
     run=boolean()
+    method=string
+    scoring_function=string
+    k=integer
+    alpha=float
+    percentile=int
     
 [classifiers]
     [[sklearn.naive_bayes.MultinomialNB]]
+    	# add the MultinomialNB parameters
+    	run=bool(default=False) 
 
     [[sklearn.neighbors.KNeighborsClassifier]]
+    	run=bool(default=False)
     	k=integer()
 
     [[sklearn.linear_model.LogisticRegression]]
-
+		run=bool(default=False)
+		
     [[sklearn.svm.SVC]]
+    	run=bool(default=False)
     	kernel=option('linear','rbf', 'poly')

@@ -16,20 +16,34 @@ from glob import glob
 import numpy as np
 import multiprocessing as mp
 import logging
+
 from scipy.sparse import lil_matrix
 from sklearn import cross_validation
 from sklearn.cross_validation import cross_val_score
-import validate
 
+import inspect
+
+import validate
+from configobj import ConfigObj
+
+import sklearn
+from sklearn import cross_validation
+from sklearn.feature_selection import SelectKBest
+from sklearn.pipeline import Pipeline
+from sklearn.datasets import load_files
+
+from joblib import Memory
+
+import thesis_generator
 import ioutil
 import preprocess
 import metrics
 
-from joblib import Memory
 from thesis_generator import config
 
 from thesis_generator.utils import get_named_object, LeaveNothingOut,\
     ChainCallable
+
 
 logger = logging.getLogger(__name__)
 
@@ -64,8 +78,6 @@ def _write_config_file(args):
 # **********************************
 def feature_extract(**kwargs):
     # todo write docstring
-    from sklearn.datasets import load_files
-    import inspect
 
     def _filename_generator(file_list):
         for f in file_list:
@@ -174,247 +186,6 @@ def _stratify(args):
 # **********************************
 
 
-# **********************************
-# DO FEATURE SELECTION
-# **********************************
-def _feature_selection(args):
-    raise NotImplementedError(
-        'This action has not been ported to work with scikits.')
-    if os.path.isfile(args.source):
-        train_fn = ioutil.train_fn_from_source(args.source, args.output,\
-                                               args.num_seen,\
-                                               stratified = args.stratify)
-
-        predict_fn = ioutil.predict_fn_from_source(args.source, args.output,\
-                                                   args.num_seen)
-    else:
-        pass
-        # todo: handle the case where the source is a directory
-
-    with gzip.open(train_fn) as fh:
-        features = preprocess.compute_feature_counts(fh)
-        features = dict(features)
-
-    print 'Creating proces pool with %i processes' % (mp.cpu_count() + 1)
-
-    mp_pool = mp.Pool(processes = mp.cpu_count())
-
-    if not os.path.exists(os.path.join(args.output, 'train')):
-        os.makedirs(os.path.join(args.output, 'train'))
-
-    if not os.path.exists(os.path.join(args.output, 'predict')):
-        os.makedirs(os.path.join(args.output, 'predict'))
-
-    for metric in args.scoring_metric:
-        mp_pool.apply_async(_select_features_using_metric,
-                            args = (
-                                metric, train_fn, predict_fn, features, args))
-        #        _select_features_using_metric(metric, train_fn,  predict_fn,
-        # features, args)
-    mp_pool.close()
-    mp_pool.join()
-
-
-def _select_features_using_metric(metric, train_fn, predict_fn, features, args):
-    raise NotImplementedError(
-        'This action has not been ported to work with scikits.')
-    print 'Perform feature selection - %s' % (
-        time.strftime('%Y-%b-%d %H:%M:%S'))
-    print '--> metric: %s' % metric
-    print '--> feature count: %s' % args.feature_count
-
-    if metric != 'none':
-        sorted_features = metrics.sort(features, metric)
-        selected_features = set(sorted_features[:args.feature_count])
-    else:
-        selected_features = set(features.keys())
-
-    train_out_fn = ioutil.train_fn_from_source(args.source,\
-                                               args.output,\
-                                               num_seen = args.num_seen,\
-                                               fs = metric,\
-                                               fc = args.feature_count,\
-                                               stratified = args.stratify)
-
-    predict_out_fn = ioutil.predict_fn_from_source(args.source,\
-                                                   args.output,\
-                                                   num_seen = args.num_seen,\
-                                                   fs = metric,\
-                                                   fc = args.feature_count)
-
-    with gzip.open(train_fn, 'rb') as in_fh,\
-    gzip.open(train_out_fn, 'wb') as out_fh:
-        if metric != 'none':
-            preprocess.strip_features(in_fh, out_fh, selected_features)
-        else:
-            out_fh.write(in_fh.read())
-
-    with gzip.open(predict_fn, 'rb') as in_fh,\
-    gzip.open(predict_out_fn, 'wb') as out_fh:
-        preprocess.strip_features(in_fh, out_fh, selected_features)
-
-# **********************************
-# **********************************
-
-
-# **********************************
-# TRAIN MODELS
-# **********************************
-def _train_models(args):
-    raise NotImplementedError(
-        'This action has not been ported to work with scikits.')
-    import train
-
-    train.args = args
-    for classifier in args.classifiers:
-        if classifier == 'liblinear' or classifier == 'libsvm':
-            if len(args.scoring_metric) > 0:
-                for metric in args.scoring_metric:
-                    train.train_svm(metric, classifier = classifier)
-            else:
-                train.train_svm(classifier = classifier)
-        elif classifier.startswith('mallet'):
-            if len(args.scoring_metric) > 0:
-                for metric in args.scoring_metric:
-                    train.train_mallet(metric, classifier = classifier)
-            else:
-                train.train_mallet(classifier = classifier)
-
-# **********************************
-# **********************************
-
-
-# **********************************
-# PERFORM PREDICTION
-# **********************************
-def _predict(args):
-    raise NotImplementedError(
-        'This action has not been ported to work with scikits.')
-    import predict
-
-    predict.args = args
-
-    if not os.path.exists(os.path.join(args.output, 'classifications')):
-        os.makedirs(os.path.join(args.output, 'classifications'))
-
-    for classifier in args.classifiers:
-        if classifier == 'liblinear' or classifier == 'libsvm':
-            if len(args.scoring_metric) > 0:
-                for metric in args.scoring_metric:
-                    try:
-                        predict.svm_predict(args.source, args.output,\
-                                            metric = metric,\
-                                            fc = args.feature_count,\
-                                            classifier = classifier)
-                    except NameError as e:
-                        print e
-            else:
-                predict.svm_predict(args.source, args.output,\
-                                    classifier = classifier)
-        if classifier.startswith('mallet'):
-            if len(args.scoring_metric) > 0:
-                for metric in args.scoring_metric:
-                    try:
-                        predict.mallet_predict(args.source, args.output,\
-                                               metric = metric,\
-                                               fc = args.feature_count,\
-                                               classifier = classifier)
-                    except NameError as e:
-                        print e
-            else:
-                predict.mallet_predict(args.source, args.output,\
-                                       classifier = classifier)
-
-# **********************************
-# **********************************
-
-
-# **********************************
-# CREATE CONFUSION MATRIX TABLES FOR
-# VARYING THRESHOLDS
-# **********************************
-def _create_tables(args):
-    raise NotImplementedError(
-        'This action has not been ported to work with scikits.')
-    import predict
-
-    _tbl_header = 'THRESHOLD, TP, FP, TN, FN'
-
-    # split the files paths of the classifier output so that the filenames of
-    # output files are split into the settings used to produce the output
-    files = glob(os.path.join(args.create_tables, '*'))
-    for i, f_path in enumerate(files):
-        f_path, f_name = os.path.split(f_path)
-
-        # each entry is a tuple of path_name and the settings that were used to
-        # generate the results
-        files[i] = tuple(
-            [os.path.join(f_path, f_name)] + f_name.split('.')[:-2])
-
-    if not os.path.exists(os.path.join(args.output, 'tables')):
-        os.makedirs(os.path.join(args.output, 'tables'))
-
-    for settings in files:
-        with open(os.path.join(args.output, 'tables',\
-                               '.'.join(settings[1:]) + '.csv'), 'w') as out_fh:
-            out_fh.write('%s\n' % _tbl_header)
-            writer = csv.writer(out_fh)
-
-            with open(settings[0], 'r') as in_fh:
-                reader = csv.reader(in_fh)
-                cls_header = ','.join(reader.next())
-                scores = []
-                lines = []
-
-                # there are two types of csv files, one written from
-                # libsvm/liblinear which has three columns (label, prediction,
-                # score) and one written out from mallet which has four columns
-                # (label, prediction, p(c=0), p(c=1)). We don't actually care
-                # what the confidence for the latter class is since the two
-                # confidence values add to one
-                if cls_header == predict._csv_header_scores:
-                    for cls, label, score in reader:
-                        scores.append(float(score))
-                        lines.append((int(cls), int(label), float(score)))
-                elif cls_header == predict._csv_header_confidence:
-                    for cls, label, score, _ in reader:
-                        # for computing the differencent classification
-                        # boundaries the scores must be adjusted so that they
-                        # are balances around 0
-                        score = float(score) - .5
-                        scores.append(score)
-                        lines.append((int(cls), int(label), score))
-                else:
-                    raise RuntimeError('Unknown classifications file format: '\
-                                       '"%s". Known formats\n\t"%s"\n\t"%s"'
-                                       % (
-                        cls_header, predict._csv_header_scores,
-                        predict._csv_header_confidence))
-
-            # try reclassifying all documents based on the scores found
-            scores = sorted(scores)
-            num_thresholds = 20
-            xs = np.linspace(min(scores), max(scores), num_thresholds)
-
-            # make sure that the default classifier behaviour (threshold == 0) 
-            # is in the results table as well
-            if 0 not in xs:
-                xs = np.sort(
-                    np.concatenate((xs, np.array([0], dtype = np.float64))))
-
-            for threshold in xs:
-                table = {'tp': 0, 'fp': 0, 'tn': 0, 'fn': 0}
-                for (cls, label, score) in lines:
-                    label = 1 if score < threshold else -1
-                    table = _update_table(table, cls, label)
-
-                writer.writerow(['%1.4f' % threshold,\
-                                 table['tp'], table['fp'], table['tn'],
-                                 table['fn']])
-
-# **********************************
-# **********************************
-
 def crossvalidate(config, data_matrix, targets):
     """Returns a list of tuples containing indices for consecutive
     crossvalidation runs.
@@ -436,16 +207,15 @@ def crossvalidate(config, data_matrix, targets):
             data_matrix, targets)
     else:
         validate_data = [(0, 0)]
-
+    
     validate_indices = reduce(lambda l, (head, tail): l + range(head, tail),
                               validate_data, [])
+    
     mask = np.zeros(data_matrix.shape[0]) #we only mask the rows
     mask[validate_indices] = 1
 
     seen_data_mask = mask == 0
-    unseen_data_mask = mask != 0
     dataset_size = np.sum(seen_data_mask)
-
     targets_seen = targets[seen_data_mask]
 
     if k < 0:
@@ -474,7 +244,7 @@ def crossvalidate(config, data_matrix, targets):
             'types are \'k-fold\', \'sk-fold\', \'loo\', \'bootstrap\' and '\
             '\'oracle\'')
 
-    return iterator, data_matrix, targets, unseen_data_mask
+    return iterator, data_matrix, targets, validate_indices
 
 # **********************************
 # RUN THE LOT WHEN CALLED FROM THE
@@ -537,28 +307,62 @@ def run_tasks(args, configuration):
     # iterator stays consistent across all classifiers
     # CREATE CROSSVALIDATION ITERATOR 
     crossvalidate_cached = mem_cache.cache(crossvalidate)
-    cv_iterator, x_vals, y_vals, validate_mask = crossvalidate_cached(
+    cv_iterator, x_vals, y_vals, validate_indices = crossvalidate_cached(
         configuration['crossvalidation'], x_vals,
         y_vals)
-
-    #pick out the non-validation data from x_vals--- this requires x_vals
-    # to be cast to a format that supports slicing
-    # todo this is quite slow
-    sliceable_x = lil_matrix(x_vals)[np.logical_not(validate_mask), :]
-    #this is a row vector, need to transpose it to get the same shape as
-    # sliceable_x
-    y_vals = y_vals[:, np.logical_not(validate_mask)].transpose()
-
+    
+    # Pick out the non-validation data from x_vals. This requires x_vals
+    # to be cast to a format that supports slicing, such as the compressed
+    # sparse row format (converting to that is also fast).
+    seen_indices = range(x_vals.shape[0])
+    seen_indices = sorted(set(seen_indices) - set(validate_indices))
+    x_vals_seen = x_vals.tocsr()[seen_indices]
+    
+    # y_vals is a row vector, need to transpose it to get the same shape as
+    # x_vals_seen
+    y_vals = y_vals[:, seen_indices].transpose()
+    
     for clf_name in configuration['classifiers']:
-    # DO FEATURE SELECTION FOR CROSSVALIDATION DATA
-    #        if args.feature_selection and len(args.scoring_metric) > 0:
-    #            _feature_selection(args)
-
+        if not configuration['classifiers'][clf_name]: continue
+        # DO FEATURE SELECTION FOR CROSSVALIDATION DATA
+        # todo this will need to be implemented with Pipeline
+        
+        feature_selection = configuration['feature_selection']
+        if feature_selection['run']:
+            method = get_named_object(feature_selection['method'])
+            scoring_func = get_named_object(feature_selection['scoring_function'])
+            clf = get_named_object(clf_name)
+            
+            # the parameters for steps in the Pipeline are defined as
+            # <component_name>__<arg_name> - the Pipeline (which is actually a
+            # BaseEstimator) takes care of passing the correct arguments down
+            # along the pipeline, provided there are no name clashes between the
+            # keyword arguments of two consecutive transformers.
+            call_args = {}
+            initialize_args = inspect.getargspec(method.__init__)[0]
+            call_args.update({'fs__%s'%arg:val for arg, val in \
+                         feature_selection.items() if \
+                         val != '' and arg in initialize_args})
+            
+            initialize_args = inspect.getargspec(clf.__init__)[0]
+            call_args.update({'clf__%s'%arg:val for arg, val in \
+                         feature_selection.items() if \
+                         val != '' and arg in initialize_args})
+            
+            pipeline = Pipeline([
+                ('fs', method(scoring_func)),
+                ('clf', clf())
+            ])
+            
+            pipeline.set_params(**call_args)
+        else:
+            # no feature selection, just run the classifier
+            pipeline = get_named_object(clf_name)
+        
         # create classifier instance but don't train it
         clf = get_named_object(clf_name)()
-        scores = cross_val_score(clf, sliceable_x, y_vals,
+        scores = cross_val_score(clf, x_vals_seen, y_vals,
                                  ChainCallable(configuration['evaluation']),
-                                 #                                 roc_curve,
                                  cv = deepcopy(cv_iterator), n_jobs = 4,
                                  verbose = 0)
         print clf_name, 'scored\n', scores[:, 2]
@@ -594,8 +398,7 @@ def run_tasks(args, configuration):
 if __name__ == '__main__':
     # initialize the package, this is currently mainly used to configure the
     # logging framework
-    from configobj import ConfigObj
-
+    
     args = config.arg_parser.parse_args()
     logger.info(
         'Reading configuration file from \'%s\', conf spec from \'conf/'
