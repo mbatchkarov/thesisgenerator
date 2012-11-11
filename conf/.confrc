@@ -42,6 +42,12 @@
     alpha=float
     percentile=int
     
+[dimensionality_reduction]
+    run=boolean(default=False)
+    method=string(default=sklearn.decomposition.ProjectedGradientNMF)
+    n_components=integer(min=0)
+    whiten=boolean
+    
 [classifiers]
     [[sklearn.naive_bayes.MultinomialNB]]
     	# add the MultinomialNB parameters
