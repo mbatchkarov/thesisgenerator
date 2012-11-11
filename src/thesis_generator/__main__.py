@@ -298,7 +298,8 @@ def run_tasks(args, configuration):
     # **********************************
     # todo need to make sure that for several classifier the crossvalidation
     # iterator stays consistent across all classifiers
-    # CREATE CROSSVALIDATION ITERATOR 
+
+    # CREATE CROSSVALIDATION ITERATOR
     crossvalidate_cached = mem_cache.cache(crossvalidate)
     cv_iterator, x_vals, y_vals, validate_indices = crossvalidate_cached(
         configuration['crossvalidation'], x_vals,
@@ -317,41 +318,47 @@ def run_tasks(args, configuration):
 
     for clf_name in configuration['classifiers']:
         if not configuration['classifiers'][clf_name]: continue
-        # DO FEATURE SELECTION FOR CROSSVALIDATION DATA
-        # todo this will need to be implemented with Pipeline
+        # DO FEATURE SELECTION/DIMENSIONALITY REDUCTION FOR CROSSVALIDATION DATA
 
         feature_selection = configuration['feature_selection']
+        dimensionality_reduction = configuration['dimensionality_reduction']
+
+        call_args = {}
+        pipeline_list = []
         if feature_selection['run']:
             method = get_named_object(feature_selection['method'])
             scoring_func = get_named_object(
                 feature_selection['scoring_function'])
-            clf = get_named_object(clf_name)
 
             # the parameters for steps in the Pipeline are defined as
             # <component_name>__<arg_name> - the Pipeline (which is actually a
             # BaseEstimator) takes care of passing the correct arguments down
             # along the pipeline, provided there are no name clashes between the
             # keyword arguments of two consecutive transformers.
-            call_args = {}
+
             initialize_args = inspect.getargspec(method.__init__)[0]
             call_args.update({'fs__%s' % arg: val for arg, val in\
                               feature_selection.items() if\
                               val != '' and arg in initialize_args})
+            pipeline_list.append(('fs', method(scoring_func)))
 
-            initialize_args = inspect.getargspec(clf.__init__)[0]
-            call_args.update({'clf__%s' % arg: val for arg, val in\
-                              feature_selection.items() if\
+        if dimensionality_reduction['run']:
+            dr_method = get_named_object(dimensionality_reduction['method'])
+            initialize_args = inspect.getargspec(dr_method.__init__)[0]
+            call_args.update({'dr__%s' % arg: val for arg, val in\
+                              dimensionality_reduction.items() if\
                               val != '' and arg in initialize_args})
+            pipeline_list.append(('dr', dr_method()))
 
-            pipeline = Pipeline([
-                ('fs', method(scoring_func)),
-                ('clf', clf())
-            ])
-
-            pipeline.set_params(**call_args)
-        else:
-            # no feature selection, just run the classifier
-            pipeline = get_named_object(clf_name)
+        # include a classifier in the pipeline regardless of whether we are
+        # doing feature selection/dim. red.
+        clf = get_named_object(clf_name)
+        initialize_args = inspect.getargspec(clf.__init__)[0]
+        call_args.update({'clf__%s' % arg: val for arg, val in\
+                          feature_selection.items() if\
+                          val != '' and arg in initialize_args})
+        pipeline_list.append(('clf', clf()))
+        pipeline = Pipeline(pipeline_list).set_params(**call_args)
 
         #pass the (feature selector + classifier) pipeline for evaluation
         scores = cross_val_score(pipeline, x_vals_seen, y_vals,
@@ -368,9 +375,9 @@ def run_tasks(args, configuration):
 
         # do analysis
 
-    sys.exit(0)
-    #    if args.train:
-    #        _train_models(args)
+
+#    if args.train:
+#        _train_models(args)
 
 # **********************************
 # CREATE CONFUSION MATRIX TABLES FOR
