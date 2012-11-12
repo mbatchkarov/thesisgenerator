@@ -71,7 +71,7 @@ def feature_extract(**kwargs):
 
                 generator = get_named_object(input_gen)(kwargs['source'])
                 targets = np.asarray([t for t in generator.targets()],
-                                     dtype=np.int)
+                                     dtype = np.int)
                 generator = generator.documents()
             except (ValueError, ImportError):
                 logger.info('No input generator found for name '
@@ -150,8 +150,8 @@ def crossvalidate(config, data_matrix, targets):
                 'crossvalidation.ratio not specified, defaulting to 0.8')
             ratio = 0.8
         iterator = cross_validation.Bootstrap(dataset_size,
-                                              n_bootstraps=int(k),
-                                              train_size=ratio)
+                                              n_iter = int(k),
+                                              train_size = ratio)
     elif cv_type == 'oracle':
         iterator = LeaveNothingOut(dataset_size, dataset_size)
     else:
@@ -162,11 +162,60 @@ def crossvalidate(config, data_matrix, targets):
 
     return iterator, data_matrix, targets, validate_indices
 
-# **********************************
-# RUN THE LOT WHEN CALLED FROM THE
-# COMMAND LINE
-# **********************************
+
+def build_pipeline(classifier_name, configuration):
+    """
+    Builds a pipeline consisting of
+        - optional feature selection
+        - optional dimensionality reduction
+        - classifier
+    """
+    feature_selection = configuration['feature_selection']
+    dimensionality_reduction = configuration['dimensionality_reduction']
+    call_args = {}
+    pipeline_list = []
+    if feature_selection['run']:
+        method = get_named_object(feature_selection['method'])
+        scoring_func = get_named_object(
+            feature_selection['scoring_function'])
+
+        # the parameters for steps in the Pipeline are defined as
+        # <component_name>__<arg_name> - the Pipeline (which is actually a
+        # BaseEstimator) takes care of passing the correct arguments down
+        # along the pipeline, provided there are no name clashes between the
+        # keyword arguments of two consecutive transformers.
+
+        initialize_args = inspect.getargspec(method.__init__)[0]
+        call_args.update({'fs__%s' % arg: val
+                          for arg, val in feature_selection.items()
+                          if val != '' and arg in initialize_args})
+
+        pipeline_list.append(('fs', method(scoring_func)))
+    if dimensionality_reduction['run']:
+        dr_method = get_named_object(dimensionality_reduction['method'])
+        initialize_args = inspect.getargspec(dr_method.__init__)[0]
+        call_args.update({'dr__%s' % arg: val
+                          for arg, val in dimensionality_reduction.items()
+                          if val != '' and arg in initialize_args})
+        pipeline_list.append(('dr', dr_method()))
+
+    # include a classifier in the pipeline regardless of whether we are
+    # doing feature selection/dim. red.
+    clf = get_named_object(classifier_name)
+    initialize_args = inspect.getargspec(clf.__init__)[0]
+    call_args.update({'clf__%s' % arg: val
+                      for arg, val in feature_selection.items()
+                      if val != '' and arg in initialize_args})
+    pipeline_list.append(('clf', clf()))
+    pipeline = Pipeline(pipeline_list).set_params(**call_args)
+    return pipeline
+
+
 def run_tasks(args, configuration):
+    """
+    Runs all commands specified in the configuration file
+    """
+
     # **********************************
     # CLEAN OUTPUT DIRECTORY
     # **********************************
@@ -192,7 +241,7 @@ def run_tasks(args, configuration):
         sys.path.append(os.path.abspath(path))
 
     # get a reference to the joblib cache object
-    mem_cache = Memory(cachedir=args.output, verbose=1)
+    mem_cache = Memory(cachedir = args.output, verbose = 1)
 
     # retrieve the actions that should be run by the framework
     actions = configuration.keys()
@@ -244,51 +293,16 @@ def run_tasks(args, configuration):
         if not configuration['classifiers'][clf_name]: continue
         # DO FEATURE SELECTION/DIMENSIONALITY REDUCTION FOR CROSSVALIDATION DATA
 
-        feature_selection = configuration['feature_selection']
-        dimensionality_reduction = configuration['dimensionality_reduction']
-
-        call_args = {}
-        pipeline_list = []
-        if feature_selection['run']:
-            method = get_named_object(feature_selection['method'])
-            scoring_func = get_named_object(
-                feature_selection['scoring_function'])
-
-            # the parameters for steps in the Pipeline are defined as
-            # <component_name>__<arg_name> - the Pipeline (which is actually a
-            # BaseEstimator) takes care of passing the correct arguments down
-            # along the pipeline, provided there are no name clashes between the
-            # keyword arguments of two consecutive transformers.
-
-            initialize_args = inspect.getargspec(method.__init__)[0]
-            call_args.update( {'fs__%s' % arg: val
-                              for arg, val in feature_selection.items()
-                              if val != '' and arg in initialize_args} )
-            
-            pipeline_list.append(('fs', method(scoring_func)))
-        if dimensionality_reduction['run']:
-            dr_method = get_named_object(dimensionality_reduction['method'])
-            initialize_args = inspect.getargspec(dr_method.__init__)[0]
-            call_args.update( {'dr__%s' % arg: val
-                              for arg, val in dimensionality_reduction.items()
-                              if val != '' and arg in initialize_args} )
-            pipeline_list.append(('dr', dr_method()))
-
-        # include a classifier in the pipeline regardless of whether we are
-        # doing feature selection/dim. red.
-        clf = get_named_object(clf_name)
-        initialize_args = inspect.getargspec(clf.__init__)[0]
-        call_args.update( {'clf__%s' % arg: val
-                          for arg, val in feature_selection.items()
-                          if val != '' and arg in initialize_args} )
-        pipeline_list.append(('clf', clf()))
-        pipeline = Pipeline(pipeline_list).set_params(**call_args)
+        cached_build_pipeline = mem_cache.cache(build_pipeline)
+        pipeline = cached_build_pipeline(clf_name, configuration)
 
         # pass the (feature selector + classifier) pipeline for evaluation
-        scores = cross_val_score(pipeline, x_vals_seen, y_vals,
-                                 ChainCallable(configuration['evaluation']),
-                                 cv=deepcopy(cv_iterator), n_jobs=4,
-                                 verbose=0)
+        cached_cross_val_score = mem_cache.cache(cross_val_score)
+        scores = cached_cross_val_score(pipeline, x_vals_seen, y_vals,
+                                        ChainCallable(
+                                            configuration['evaluation']),
+                                        cv = deepcopy(cv_iterator), n_jobs = 4,
+                                        verbose = 0)
 
         # todo create a mallet classifier wrapper in python that works with
         # the scikit crossvalidation stuff (has fit and predict and
@@ -304,11 +318,11 @@ if __name__ == '__main__':
 
     args = config.arg_parser.parse_args()
     logger.info('Reading configuration file from \'%s\', conf spec from \'conf/'
-        '.confrc\'' %(glob(args.configuration)))
-    conf_parser = ConfigObj(args.configuration, configspec='conf/.confrc')
+                '.confrc\'' % (glob(args.configuration)))
+    conf_parser = ConfigObj(args.configuration, configspec = 'conf/.confrc')
     validator = validate.Validator()
     result = conf_parser.validate(validator)
-    
+
     # todo add a more helpful guide to what exactly went wrong with the conf
     # object
     if not result:
