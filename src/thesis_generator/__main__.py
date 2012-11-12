@@ -11,24 +11,22 @@ from glob import glob
 import numpy as np
 import logging
 from copy import deepcopy
-
-from sklearn import cross_validation
-from sklearn.cross_validation import cross_val_score
-
 import inspect
 
 import validate
 from configobj import ConfigObj
 
+from sklearn import cross_validation
+from sklearn.cross_validation import cross_val_score
 from sklearn.pipeline import Pipeline
 from sklearn.datasets import load_files
 
 from joblib import Memory
 
 from thesis_generator import config
-
-from thesis_generator.utils import get_named_object, LeaveNothingOut,\
-    ChainCallable
+from thesis_generator.utils import (get_named_object,
+                                    LeaveNothingOut,
+                                    ChainCallable)
 
 
 logger = logging.getLogger(__name__)
@@ -50,7 +48,7 @@ def feature_extract(**kwargs):
 
     vectorizer = get_named_object(kwargs['vectorizer'])
 
-    # get the names of the arguments that the vectorizer class takes 
+    # get the names of the arguments that the vectorizer class takes
     initialize_args = inspect.getargspec(vectorizer.__init__)[0]
     call_args = {arg: val for arg, val in kwargs.items() if\
                  val != '' and arg in initialize_args}
@@ -68,16 +66,16 @@ def feature_extract(**kwargs):
             input_gen = kwargs['input_generator']
             source = kwargs['source']
             try:
-                logger.info('Retrieving input generator for name '\
+                logger.info('Retrieving input generator for name '
                             '%(input_gen)s' % locals())
 
                 generator = get_named_object(input_gen)(kwargs['source'])
                 targets = np.asarray([t for t in generator.targets()],
-                                     dtype = np.int)
+                                     dtype=np.int)
                 generator = generator.documents()
             except (ValueError, ImportError):
-                logger.info('No input generator found for name '\
-                            '\'%(input_gen)s\'. Using a file content '\
+                logger.info('No input generator found for name '
+                            '\'%(input_gen)s\'. Using a file content '
                             'generator with source \'%(source)s\'' % locals())
 
                 paths = glob(os.path.join(kwargs['source'], '*', '*'))
@@ -86,11 +84,9 @@ def feature_extract(**kwargs):
             term_freq_matrix = vectorizer.fit_transform(generator)
         except KeyError:
             raise ValueError('Can not find a name for an input generator. '
-                             'When '\
-                             'the input type for feature extraction is '
-                             'defined '\
-                             'as content, an input_generator must also be '\
-                             'defined. The defined input_generator should '\
+                             'When the input type for feature extraction is '
+                             'defined as content, an input_generator must also '
+                             'be defined. The defined input_generator should '
                              'produce raw documents.')
     elif kwargs['input'] == 'filename':
         input_files = glob(os.path.join(kwargs['source'], '*', '*'))
@@ -109,7 +105,7 @@ def feature_extract(**kwargs):
 def crossvalidate(config, data_matrix, targets):
     """Returns a list of tuples containing indices for consecutive
     crossvalidation runs.
-    
+
     Returns a list of (train_indices, test_indices) that can be used to slice
     a dataset to perform crossvalidation. The method of splitting is determined
     by what is specified in the conf file. The full dataset is provided as a
@@ -118,20 +114,20 @@ def crossvalidate(config, data_matrix, targets):
     cv_type = config['type']
     k = config['k']
 
-    if config['validation_slices'] != '' and config[
-                                             'validation_slices'] != None:
+    if (config['validation_slices'] != '' and
+        config['validation_slices'] != None):
         # the data should be treated as a stream, which means that it should not
         # be reordered and it should be split into a seen portion and an unseen
         # portion separated by a virtual 'now' point in the stream
-        validate_data = get_named_object(config['validation_slices'])(
-            data_matrix, targets)
+        validate_data = get_named_object(config['validation_slices'])
+        validate_data = validate_data(data_matrix, targets)
     else:
         validate_data = [(0, 0)]
 
-    validate_indices = reduce(lambda l, (head, tail): l + range(head, tail),
-                              validate_data, [])
+    validate_indices = reduce(lambda l, (head, tail):
+                              l + range(head, tail), validate_data, [])
 
-    mask = np.zeros(data_matrix.shape[0]) #we only mask the rows
+    mask = np.zeros(data_matrix.shape[0])  # we only mask the rows
     mask[validate_indices] = 1
 
     seen_data_mask = mask == 0
@@ -154,14 +150,14 @@ def crossvalidate(config, data_matrix, targets):
                 'crossvalidation.ratio not specified, defaulting to 0.8')
             ratio = 0.8
         iterator = cross_validation.Bootstrap(dataset_size,
-                                              n_bootstraps = int(k),
-                                              train_size = ratio)
+                                              n_bootstraps=int(k),
+                                              train_size=ratio)
     elif cv_type == 'oracle':
         iterator = LeaveNothingOut(dataset_size, dataset_size)
     else:
         raise ValueError(
-            'Unrecognised crossvalidation type \'%(cv_type)s\'. The supported '\
-            'types are \'k-fold\', \'sk-fold\', \'loo\', \'bootstrap\' and '\
+            'Unrecognised crossvalidation type \'%(cv_type)s\'. The supported '
+            'types are \'k-fold\', \'sk-fold\', \'loo\', \'bootstrap\' and '
             '\'oracle\'')
 
     return iterator, data_matrix, targets, validate_indices
@@ -196,7 +192,7 @@ def run_tasks(args, configuration):
         sys.path.append(os.path.abspath(path))
 
     # get a reference to the joblib cache object
-    mem_cache = Memory(cachedir = args.output, verbose = 1)
+    mem_cache = Memory(cachedir=args.output, verbose=1)
 
     # retrieve the actions that should be run by the framework
     actions = configuration.keys()
@@ -204,8 +200,8 @@ def run_tasks(args, configuration):
     # **********************************
     # FEATURE EXTRACTION
     # **********************************
-    if 'feature_extraction' in actions and configuration['feature_extraction'][
-                                           'run']:
+    if ('feature_extraction' in actions and
+        configuration['feature_extraction']['run']):
         # todo should figure out which values to ignore,
         # currently use all (args + section_options)
         cached_feature_extract = mem_cache.cache(feature_extract)
@@ -228,9 +224,10 @@ def run_tasks(args, configuration):
 
     # CREATE CROSSVALIDATION ITERATOR
     crossvalidate_cached = mem_cache.cache(crossvalidate)
-    cv_iterator, x_vals, y_vals, validate_indices = crossvalidate_cached(
-        configuration['crossvalidation'], x_vals,
-        y_vals)
+    cv_iterator, x_vals, y_vals, validate_indices = (
+        crossvalidate_cached(configuration['crossvalidation'],
+                             x_vals,
+                             y_vals))
 
     # Pick out the non-validation data from x_vals. This requires x_vals
     # to be cast to a format that supports slicing, such as the compressed
@@ -264,35 +261,34 @@ def run_tasks(args, configuration):
             # keyword arguments of two consecutive transformers.
 
             initialize_args = inspect.getargspec(method.__init__)[0]
-            call_args.update({'fs__%s' % arg: val for arg, val in\
-                              feature_selection.items() if\
-                              val != '' and arg in initialize_args})
+            call_args.update( {'fs__%s' % arg: val
+                              for arg, val in feature_selection.items()
+                              if val != '' and arg in initialize_args} )
+            
             pipeline_list.append(('fs', method(scoring_func)))
-
         if dimensionality_reduction['run']:
             dr_method = get_named_object(dimensionality_reduction['method'])
             initialize_args = inspect.getargspec(dr_method.__init__)[0]
-            call_args.update({'dr__%s' % arg: val for arg, val in\
-                              dimensionality_reduction.items() if\
-                              val != '' and arg in initialize_args})
+            call_args.update( {'dr__%s' % arg: val
+                              for arg, val in dimensionality_reduction.items()
+                              if val != '' and arg in initialize_args} )
             pipeline_list.append(('dr', dr_method()))
 
         # include a classifier in the pipeline regardless of whether we are
         # doing feature selection/dim. red.
         clf = get_named_object(clf_name)
         initialize_args = inspect.getargspec(clf.__init__)[0]
-        call_args.update({'clf__%s' % arg: val for arg, val in\
-                          feature_selection.items() if\
-                          val != '' and arg in initialize_args})
+        call_args.update( {'clf__%s' % arg: val
+                          for arg, val in feature_selection.items()
+                          if val != '' and arg in initialize_args} )
         pipeline_list.append(('clf', clf()))
         pipeline = Pipeline(pipeline_list).set_params(**call_args)
 
-        #pass the (feature selector + classifier) pipeline for evaluation
+        # pass the (feature selector + classifier) pipeline for evaluation
         scores = cross_val_score(pipeline, x_vals_seen, y_vals,
                                  ChainCallable(configuration['evaluation']),
-                                 cv = deepcopy(cv_iterator), n_jobs = 4,
-                                 verbose = 0)
-        print clf_name, 'scored\n', scores[:, 2]
+                                 cv=deepcopy(cv_iterator), n_jobs=4,
+                                 verbose=0)
 
         # todo create a mallet classifier wrapper in python that works with
         # the scikit crossvalidation stuff (has fit and predict and
@@ -307,13 +303,12 @@ if __name__ == '__main__':
     # logging framework
 
     args = config.arg_parser.parse_args()
-    logger.info(
-        'Reading configuration file from \'%s\', conf spec from \'conf/'
-        '.confrc\'' % (
-            glob(args.configuration)))
-    conf_parser = ConfigObj(args.configuration, configspec = 'conf/.confrc')
+    logger.info('Reading configuration file from \'%s\', conf spec from \'conf/'
+        '.confrc\'' %(glob(args.configuration)))
+    conf_parser = ConfigObj(args.configuration, configspec='conf/.confrc')
     validator = validate.Validator()
     result = conf_parser.validate(validator)
+    
     # todo add a more helpful guide to what exactly went wrong with the conf
     # object
     if not result:
