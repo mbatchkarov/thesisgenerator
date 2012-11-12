@@ -167,17 +167,13 @@ def crossvalidate(config, data_matrix, targets):
     return iterator, data_matrix, targets, validate_indices
 
 
-def build_pipeline(classifier_name, configuration):
+def _build_feature_selector(call_args, configuration, pipeline_list):
     """
-    Builds a pipeline consisting of
-        - optional feature selection
-        - optional dimensionality reduction
-        - classifier
+    If feature selection is required, this function appends a selector
+    object to pipeline_list and its configuration to configuration. Note this
+     function modifies (appends to) its input arguments
     """
     feature_selection = configuration['feature_selection']
-    dimensionality_reduction = configuration['dimensionality_reduction']
-    call_args = {}
-    pipeline_list = []
     if feature_selection['run']:
         method = get_named_object(feature_selection['method'])
         scoring_func = get_named_object(
@@ -195,6 +191,16 @@ def build_pipeline(classifier_name, configuration):
                           if val != '' and arg in initialize_args})
 
         pipeline_list.append(('fs', method(scoring_func)))
+
+
+def _build_dimensionality_reducer(call_args, configuration, pipeline_list):
+    """
+      If dimensionality reduciton is required, this function appends a reducer
+      object to pipeline_list and its configuration to configuration. Note this
+       function modifies (appends to) its input arguments
+      """
+
+    dimensionality_reduction = configuration['dimensionality_reduction']
     if dimensionality_reduction['run']:
         dr_method = get_named_object(dimensionality_reduction['method'])
         initialize_args = inspect.getargspec(dr_method.__init__)[0]
@@ -203,14 +209,31 @@ def build_pipeline(classifier_name, configuration):
                           if val != '' and arg in initialize_args})
         pipeline_list.append(('dr', dr_method()))
 
-    # include a classifier in the pipeline regardless of whether we are
-    # doing feature selection/dim. red.
+
+def _build_pipeline(classifier_name, configuration):
+    """
+    Builds a pipeline consisting of
+        - optional feature selection
+        - optional dimensionality reduction
+        - classifier
+    """
+    call_args = {}
+    pipeline_list = []
+
+    _build_feature_selector(call_args, configuration,
+                                                pipeline_list)
+    _build_dimensionality_reducer(call_args, configuration,
+                                  pipeline_list)
+    # include a classifier in the pipeline regardless of whether we are doing
+    # feature selection/dim. red. or not
+    classifiers = configuration['classifiers']
     clf = get_named_object(classifier_name)
     initialize_args = inspect.getargspec(clf.__init__)[0]
     call_args.update({'clf__%s' % arg: val
-                      for arg, val in feature_selection.items()
+                      for arg, val in classifiers.items()
                       if val != '' and arg in initialize_args})
     pipeline_list.append(('clf', clf()))
+
     pipeline = Pipeline(pipeline_list).set_params(**call_args)
     return pipeline
 
@@ -296,9 +319,7 @@ def run_tasks(args, configuration):
     for clf_name in configuration['classifiers']:
         if not configuration['classifiers'][clf_name]: continue
         # DO FEATURE SELECTION/DIMENSIONALITY REDUCTION FOR CROSSVALIDATION DATA
-
-        cached_build_pipeline = mem_cache.cache(build_pipeline)
-        pipeline = cached_build_pipeline(clf_name, configuration)
+        pipeline = _build_pipeline(clf_name, configuration)
 
         # pass the (feature selector + classifier) pipeline for evaluation
         cached_cross_val_score = mem_cache.cache(cross_val_score)
