@@ -4,16 +4,13 @@ Created on Oct 18, 2012
 
 @author: ml249
 '''
-from copy import deepcopy
-
 import os
 import sys
 import shutil
-import gzip
-import time
 from glob import glob
 import numpy as np
 import logging
+from copy import deepcopy
 
 from sklearn import cross_validation
 from sklearn.cross_validation import cross_val_score
@@ -28,8 +25,6 @@ from sklearn.datasets import load_files
 
 from joblib import Memory
 
-import preprocess
-
 from thesis_generator import config
 
 from thesis_generator.utils import get_named_object, LeaveNothingOut,\
@@ -37,32 +32,6 @@ from thesis_generator.utils import get_named_object, LeaveNothingOut,\
 
 
 logger = logging.getLogger(__name__)
-
-def _update_table(tbl, true, predicted):
-    true = int(true)
-    predicted = int(predicted)
-    if true == 1:
-        if predicted == 1: tbl['tp'] += 1
-        elif predicted == -1: tbl['fn'] += 1
-    elif true == -1:
-        if predicted == 1: tbl['fp'] += 1
-        elif predicted == -1: tbl['tn'] += 1
-    return tbl
-
-# **********************************
-# **********************************
-
-
-# **********************************
-# WRITE CONFIG TO FILE
-# **********************************
-def _write_config_file(args):
-    with open(os.path.join(args.output, 'conf.txt'), 'a+') as conf_fh:
-        conf_fh.write('***** %s *****\n********************************\n'\
-                      % (time.strftime('%Y-%b-%d %H:%M:%S')))
-        for key in vars(args):
-            conf_fh.write('%s = %s\n' % (key, vars(args)[key]))
-        conf_fh.write('************* END **************\n')
 
 # **********************************
 # FEATURE EXTRACTION / PARSE
@@ -136,48 +105,6 @@ def feature_extract(**kwargs):
             'The input type \'%s\' is not supported yet.' % kwargs['input'])
 
     return term_freq_matrix, targets
-
-# **********************************
-# SPLIT DATA
-# **********************************
-def _split_data(**kwargs):
-    raise NotImplementedError(
-        'This action has not been ported to work with scikits.')
-    if os.path.isfile(args.source):
-        in_fh = open(args.source, 'rb')
-        magic = in_fh.read(2)
-        if magic == '\x1f\x8b':
-            with gzip.open(args.source) as in_fh:
-                print 'Split data - %s' % (time.strftime('%Y-%b-%d %H:%M:%S'))
-                print '--> source file \'%s\'' % (args.source)
-                print '--> seen data %i' % (args.num_seen)
-                preprocess.split_data(in_fh, args.output, args.num_seen)
-        else:
-            raise NotImplementedError('Reading non compressed files is '\
-                                      'currently not supported.')
-    else:
-        # todo: handle the case where the source is a directory
-        raise NotImplementedError('Reading input from directories is not '\
-                                  'supported yet.')
-
-
-#def _stratify(args):
-#    raise NotImplementedError(
-#        'This action has not been ported to work with scikits.')
-#    train_in_fn = ioutil.train_fn_from_source(args.source, args.output,\
-#                                              args.num_seen,
-# stratified = False)
-#    train_out_fn = ioutil.train_fn_from_source(args.source, args.output,\
-#                                               args.num_seen,
-# stratified = True)
-#
-#    with gzip.open(train_in_fn, 'r') as input_fh,\
-#    gzip.open(train_out_fn, 'w') as output_fh:
-#        preprocess.stratify(input_fh, output_fh, args.num_seen)
-
-# **********************************
-# **********************************
-
 
 def crossvalidate(config, data_matrix, targets):
     """Returns a list of tuples containing indices for consecutive
@@ -374,26 +301,6 @@ def run_tasks(args, configuration):
         # run the scikits crossvalidation_scores function
 
         # do analysis
-
-
-#    if args.train:
-#        _train_models(args)
-
-# **********************************
-# CREATE CONFUSION MATRIX TABLES FOR
-# VARYING THRESHOLDS
-# **********************************
-#        if args.create_tables is not None:
-#            _create_tables(args)
-
-# **********************************
-# CREATE PLOTS FROM CONFUSION MATRIX
-# TABLES
-# **********************************
-#        if args.create_figures is not None:
-#            raise NotImplementedError('This action has not been ported to
-# work with scikits.')
-#            plotter.execute(args)
 
 if __name__ == '__main__':
     # initialize the package, this is currently mainly used to configure the
