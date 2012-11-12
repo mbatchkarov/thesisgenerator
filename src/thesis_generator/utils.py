@@ -117,20 +117,11 @@ class ChainCallable(object):
 
     def __call__(self, true_labels, predicted_labels):
         options = {}
-        result = []
+        result = {}
         for func_name, func in self.to_call:
             initialize_args = inspect.getargspec(func)[0]
             call_args = {arg: val for arg, val in self.config[func_name]
             .items() if  val != '' and arg in initialize_args}
             options[func_name] = call_args
-            result.append(func(true_labels, predicted_labels, **call_args))
-            #        return tuple(func(true_labels, predicted_labels,
-        #                    **options[func_name]) for func_name,
-        # func in self.to_call)
+            result[func_name.strip()]= (func(true_labels, predicted_labels, **call_args))
         return np.array(result, dtype = object)
-
-#def full_name(o):
-#    """
-#    Returns the fully quallified name of a function
-#    """
-#    return '.'.join([o.__module__, o.func_name])

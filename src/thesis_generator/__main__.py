@@ -16,6 +16,8 @@ import inspect
 import validate
 from configobj import ConfigObj
 
+import pandas as pd
+
 from sklearn import cross_validation
 from sklearn.cross_validation import cross_val_score
 from sklearn.pipeline import Pipeline
@@ -30,6 +32,7 @@ from thesis_generator.utils import (get_named_object,
 
 
 logger = logging.getLogger(__name__)
+# todo logger does nothing
 
 # **********************************
 # FEATURE EXTRACTION / PARSE
@@ -101,6 +104,7 @@ def feature_extract(**kwargs):
             'The input type \'%s\' is not supported yet.' % kwargs['input'])
 
     return term_freq_matrix, targets
+
 
 def crossvalidate(config, data_matrix, targets):
     """Returns a list of tuples containing indices for consecutive
@@ -303,6 +307,8 @@ def run_tasks(args, configuration):
                                             configuration['evaluation']),
                                         cv = deepcopy(cv_iterator), n_jobs = 4,
                                         verbose = 0)
+        df = pd.DataFrame({'cv-%d' % i: pd.Series(scores[i].tolist()) for i in
+                           range(len(scores))})
 
         # todo create a mallet classifier wrapper in python that works with
         # the scikit crossvalidation stuff (has fit and predict and
