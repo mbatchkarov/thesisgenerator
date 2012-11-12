@@ -10,6 +10,8 @@ import shutil
 from glob import glob
 import numpy as np
 import logging
+from logging import StreamHandler
+from logging.handlers import RotatingFileHandler
 from copy import deepcopy
 import inspect
 
@@ -27,9 +29,6 @@ from thesis_generator import config
 from thesis_generator.utils import (get_named_object,
                                     LeaveNothingOut,
                                     ChainCallable)
-
-
-logger = logging.getLogger(__name__)
 
 # **********************************
 # FEATURE EXTRACTION / PARSE
@@ -67,7 +66,7 @@ def feature_extract(**kwargs):
             source = kwargs['source']
             try:
                 logger.info('Retrieving input generator for name '
-                            '%(input_gen)s' % locals())
+                            '\'%(input_gen)s\'' % locals())
 
                 generator = get_named_object(input_gen)(kwargs['source'])
                 targets = np.asarray([t for t in generator.targets()],
@@ -77,7 +76,14 @@ def feature_extract(**kwargs):
                 logger.info('No input generator found for name '
                             '\'%(input_gen)s\'. Using a file content '
                             'generator with source \'%(source)s\'' % locals())
-
+                if os.path.isdir(source):
+                    raise ValueError('The provided source path (%s) has to be '
+                                     'a directory containing data in the mallet '
+                                     'format (class per directory, document '
+                                     'per file). If you intended to load the '
+                                     'contents of the file (%s) instead change '
+                                     'the input type in main.conf to \'content\'')
+                
                 paths = glob(os.path.join(kwargs['source'], '*', '*'))
                 generator = _content_generator(paths)
                 targets = targets = load_files(source).target
@@ -135,7 +141,7 @@ def crossvalidate(config, data_matrix, targets):
     targets_seen = targets[seen_data_mask]
 
     if k < 0:
-        logger.warn('crossvalidation.k not specified, defaulting to 1')
+#        logger.warn('crossvalidation.k not specified, defaulting to 1')
         k = 1
     if cv_type == 'kfold':
         iterator = cross_validation.KFold(dataset_size, int(k))
@@ -146,8 +152,8 @@ def crossvalidate(config, data_matrix, targets):
     elif cv_type == 'bootstrap':
         ratio = config['ratio']
         if k < 0:
-            logger.warn(
-                'crossvalidation.ratio not specified, defaulting to 0.8')
+#            logger.warn(
+#                'crossvalidation.ratio not specified, defaulting to 0.8')
             ratio = 0.8
         iterator = cross_validation.Bootstrap(dataset_size,
                                               n_bootstraps=int(k),
@@ -192,7 +198,7 @@ def run_tasks(args, configuration):
         sys.path.append(os.path.abspath(path))
 
     # get a reference to the joblib cache object
-    mem_cache = Memory(cachedir=args.output, verbose=1)
+    mem_cache = Memory(cachedir=args.output, verbose=0)
 
     # retrieve the actions that should be run by the framework
     actions = configuration.keys()
@@ -298,13 +304,41 @@ def run_tasks(args, configuration):
 
         # do analysis
 
-if __name__ == '__main__':
-    # initialize the package, this is currently mainly used to configure the
-    # logging framework
+def _config_logger(output_path=None):
+    logger = logging.getLogger(__name__)
+    
+    fmt = logging.Formatter(fmt=('%(asctime)s\t%(module)s.%(funcName)s '
+                                  '(line %(lineno)d)\t%(levelname)s : %(message)s'),
+                            datefmt='%d.%m.%Y %H:%M:%S')
+    
+    sh = StreamHandler()
+    sh.setLevel(logging.DEBUG)
+    sh.setFormatter(fmt)
 
+    if output_path is not None:
+        fh = RotatingFileHandler(os.path.join(output_path, 'log.txt'),
+                                                  maxBytes=int(2*10e8),
+                                                  backupCount=5)
+        fh.setLevel(logging.DEBUG)
+        fh.setFormatter(fmt)
+    
+    logger.addHandler(sh)
+    logger.addHandler(fh)
+    logger.setLevel(logging.DEBUG)
+    return logger
+
+if __name__ == '__main__':
     args = config.arg_parser.parse_args()
+    if args.log_path.startswith('./'):
+        args.log_path = os.path.join(args.output, args.log_path)
+    
+    if not os.path.exists(args.log_path):
+        os.mkdir(args.log_path)
+    
+    logger = _config_logger(args.log_path)
+    
     logger.info('Reading configuration file from \'%s\', conf spec from \'conf/'
-        '.confrc\'' %(glob(args.configuration)))
+        '.confrc\''%(glob(args.configuration)[0]))
     conf_parser = ConfigObj(args.configuration, configspec='conf/.confrc')
     validator = validate.Validator()
     result = conf_parser.validate(validator)
@@ -312,6 +346,7 @@ if __name__ == '__main__':
     # todo add a more helpful guide to what exactly went wrong with the conf
     # object
     if not result:
+        logger.warn('Invalid configuration')
         sys.exit(1)
 
     run_tasks(args, conf_parser)
