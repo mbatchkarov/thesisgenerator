@@ -36,7 +36,34 @@ from thesis_generator.utils import (get_named_object,
 # FEATURE EXTRACTION / PARSE
 # **********************************
 def feature_extract(**kwargs):
-    # todo write docstring
+    """Converts a corpus into a term frequency matrix.
+    
+    A given source corpus is converted into a term frequency matrix and
+    returned as a numpy *coo_matrix*.
+    
+    The value of the *vectorizer* field in the main configuration file is used
+    as the transformer class. This class can be anything but has to implement
+    the methods *fit*, *transform* and *fit_transform* as per scikit-learn.
+    
+    The arguments to the vectorizer can be defined in the main configuration
+    file. These will be matched to those of the *__init__* method of the
+    vectorizer class and the matching keywords are passed to the vectorizer. The
+    non-matching arguments are simply ignored.
+    
+    The *input_generator* option in the main configuration file is an optional
+    argument for *feature_extract*. It should specify the fully qualified name
+    of a generator class with two methods *documents* and *classes*. If the
+    vectorizer's *input* value 'content' the *input_generator* will be used to
+    feed the raw documents to the vectorizer.
+    
+    If the *input_generator* is not defined and the *input* field is *content*
+    the source folder specified on the command line will be used as the input.
+    The source folder should in this case contain data in the mallet format. The
+    same applies if the value of *input* is *filename*.
+    
+    See the documentation of the CountVectorizer in
+    sklearn.feature_extraction.text for details on the parameter values.    
+    """
 
     def _filename_generator(file_list):
         for f in file_list:
@@ -373,7 +400,7 @@ if __name__ == '__main__':
         args.log_path = os.path.join(args.output, args.log_path)
     
     if not os.path.exists(args.log_path):
-        os.mkdir(args.log_path)
+        os.makedirs(args.log_path)
     
     logger = _config_logger(args.log_path)
     
