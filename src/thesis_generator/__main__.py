@@ -106,7 +106,7 @@ def feature_extract(**kwargs):
                 logger.info('No input generator found for name '
                             '\'%(input_gen)s\'. Using a file content '
                             'generator with source \'%(source)s\'' % locals())
-                if os.path.isdir(source):
+                if not os.path.isdir(source):
                     raise ValueError('The provided source path (%s) has to be '
                                      'a directory containing data in the mallet '
                                      'format (class per directory, document '
