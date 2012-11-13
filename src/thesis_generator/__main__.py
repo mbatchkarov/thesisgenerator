@@ -4,6 +4,7 @@ Created on Oct 18, 2012
 
 @author: ml249
 '''
+from collections import defaultdict
 import os
 import sys
 import shutil
@@ -17,8 +18,6 @@ import inspect
 
 import validate
 from configobj import ConfigObj
-
-import pandas as pd
 
 from sklearn import cross_validation
 from sklearn.cross_validation import cross_val_score
@@ -267,7 +266,8 @@ def _build_pipeline(classifier_name, configuration):
                       if val != '' and arg in initialize_args})
     pipeline_list.append(('clf', clf()))
 
-    pipeline = Pipeline(pipeline_list).set_params(**call_args)
+    pipeline = Pipeline(pipeline_list)
+    pipeline.set_params(**call_args)
     return pipeline
 
 
@@ -348,30 +348,40 @@ def run_tasks(args, configuration):
     # y_vals is a row vector, need to transpose it to get the same shape as
     # x_vals_seen
     y_vals = y_vals[:, seen_indices].transpose()
+    scores = defaultdict(list)
 
     for clf_name in configuration['classifiers']:
         if not configuration['classifiers'][clf_name]:
             continue
+
+        #  ignore disabled classifiers
+        if not configuration['classifiers'][clf_name]['run']:
+            logger.warn('Ignoring classifier %s' % clf_name)
+            continue
+
             # DO FEATURE SELECTION/DIMENSIONALITY REDUCTION FOR CROSSVALIDATION DATA
         pipeline = _build_pipeline(clf_name, configuration)
 
         # pass the (feature selector + classifier) pipeline for evaluation
         cached_cross_val_score = mem_cache.cache(cross_val_score)
-        scores = cached_cross_val_score(pipeline, x_vals_seen, y_vals,
+        scores_this_clf = cached_cross_val_score(pipeline, x_vals_seen,
+            y_vals,
             ChainCallable(
                 configuration['evaluation']),
             cv=deepcopy(cv_iterator), n_jobs=4,
             verbose=0)
-        df = pd.DataFrame({'cv-%d' % i: pd.Series(scores[i].tolist()) for i in
-                           range(len(scores))})
+        scores[clf_name].append(scores_this_clf.tolist())
+    #        df = pd.DataFrame({'cv-%d' % i: pd.Series(scores[i].tolist()) for i in
+    #                           range(len(scores))})
+    #        dump(df, open('dataframe.txt', 'w'))
+    print scores
+    # todo create a mallet classifier wrapper in python that works with
+    # the scikit crossvalidation stuff (has fit and predict and
+    # predict_probas functions)
 
-        # todo create a mallet classifier wrapper in python that works with
-        # the scikit crossvalidation stuff (has fit and predict and
-        # predict_probas functions)
+    # run the scikits crossvalidation_scores function
 
-        # run the scikits crossvalidation_scores function
-
-        # do analysis
+    # do analysis
 
 
 def _config_logger(output_path=None):
