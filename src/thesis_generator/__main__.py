@@ -32,23 +32,24 @@ from thesis_generator.utils import (get_named_object,
                                     LeaveNothingOut,
                                     ChainCallable)
 
+
 # **********************************
 # FEATURE EXTRACTION / PARSE
 # **********************************
 def feature_extract(**kwargs):
     """Converts a corpus into a term frequency matrix.
-    
+
     A given source corpus is converted into a term frequency matrix and
     returned as a numpy *coo_matrix*.
-    
+
     The value of the *vectorizer* field in the main configuration file is used
     as the transformer class. This class can be anything but has to implement
     the methods *fit*, *transform* and *fit_transform* as per scikit-learn.
-    
+
     The arguments to the vectorizer can be defined in the main configuration
     file. These will be matched to those of the *__init__* method of the
-    vectorizer class and the matching keywords are passed to the vectorizer. The
-    non-matching arguments are simply ignored.
+    vectorizer class and the matching keywords are passed to the vectorizer.
+    The non-matching arguments are simply ignored.
     
     The *input_generator* option in the main configuration file is an optional
     argument for *feature_extract*. It should specify the fully qualified name
@@ -58,11 +59,11 @@ def feature_extract(**kwargs):
     
     If the *input_generator* is not defined and the *input* field is *content*
     the source folder specified on the command line will be used as the input.
-    The source folder should in this case contain data in the mallet format. The
-    same applies if the value of *input* is *filename*.
+    The source folder should in this case contain data in the mallet format.
+    The same applies if the value of *input* is *filename*.
     
     See the documentation of the CountVectorizer in
-    sklearn.feature_extraction.text for details on the parameter values.    
+    sklearn.feature_extraction.text for details on the parameter values.
     """
 
     def _filename_generator(file_list):
@@ -99,7 +100,7 @@ def feature_extract(**kwargs):
 
                 generator = get_named_object(input_gen)(kwargs['source'])
                 targets = np.asarray([t for t in generator.targets()],
-                                     dtype = np.int)
+                    dtype=np.int)
                 generator = generator.documents()
             except (ValueError, ImportError):
                 logger.info('No input generator found for name '
@@ -112,7 +113,7 @@ def feature_extract(**kwargs):
                                      'per file). If you intended to load the '
                                      'contents of the file (%s) instead change '
                                      'the input type in main.conf to \'content\'')
-                
+
                 paths = glob(os.path.join(kwargs['source'], '*', '*'))
                 generator = _content_generator(paths)
                 targets = targets = load_files(source).target
@@ -161,7 +162,7 @@ def crossvalidate(config, data_matrix, targets):
         validate_data = [(0, 0)]
 
     validate_indices = reduce(lambda l, (head, tail):
-                              l + range(head, tail), validate_data, [])
+    l + range(head, tail), validate_data, [])
 
     mask = np.zeros(data_matrix.shape[0])  # we only mask the rows
     mask[validate_indices] = 1
@@ -171,7 +172,7 @@ def crossvalidate(config, data_matrix, targets):
     targets_seen = targets[seen_data_mask]
 
     if k < 0:
-#        logger.warn('crossvalidation.k not specified, defaulting to 1')
+    #        logger.warn('crossvalidation.k not specified, defaulting to 1')
         k = 1
     if cv_type == 'kfold':
         iterator = cross_validation.KFold(dataset_size, int(k))
@@ -182,12 +183,12 @@ def crossvalidate(config, data_matrix, targets):
     elif cv_type == 'bootstrap':
         ratio = config['ratio']
         if k < 0:
-#            logger.warn(
-#                'crossvalidation.ratio not specified, defaulting to 0.8')
+        #            logger.warn(
+        #                'crossvalidation.ratio not specified, defaulting to 0.8')
             ratio = 0.8
         iterator = cross_validation.Bootstrap(dataset_size,
-                                              n_iter = int(k),
-                                              train_size = ratio)
+            n_iter=int(k),
+            train_size=ratio)
     elif cv_type == 'oracle':
         iterator = LeaveNothingOut(dataset_size, dataset_size)
     else:
@@ -253,9 +254,9 @@ def _build_pipeline(classifier_name, configuration):
     pipeline_list = []
 
     _build_feature_selector(call_args, configuration,
-                                                pipeline_list)
+        pipeline_list)
     _build_dimensionality_reducer(call_args, configuration,
-                                  pipeline_list)
+        pipeline_list)
     # include a classifier in the pipeline regardless of whether we are doing
     # feature selection/dim. red. or not
     classifiers = configuration['classifiers']
@@ -334,8 +335,8 @@ def run_tasks(args, configuration):
     crossvalidate_cached = mem_cache.cache(crossvalidate)
     cv_iterator, x_vals, y_vals, validate_indices = (
         crossvalidate_cached(configuration['crossvalidation'],
-                             x_vals,
-                             y_vals))
+            x_vals,
+            y_vals))
 
     # Pick out the non-validation data from x_vals. This requires x_vals
     # to be cast to a format that supports slicing, such as the compressed
@@ -349,17 +350,18 @@ def run_tasks(args, configuration):
     y_vals = y_vals[:, seen_indices].transpose()
 
     for clf_name in configuration['classifiers']:
-        if not configuration['classifiers'][clf_name]: continue
-        # DO FEATURE SELECTION/DIMENSIONALITY REDUCTION FOR CROSSVALIDATION DATA
+        if not configuration['classifiers'][clf_name]:
+            continue
+            # DO FEATURE SELECTION/DIMENSIONALITY REDUCTION FOR CROSSVALIDATION DATA
         pipeline = _build_pipeline(clf_name, configuration)
 
         # pass the (feature selector + classifier) pipeline for evaluation
         cached_cross_val_score = mem_cache.cache(cross_val_score)
         scores = cached_cross_val_score(pipeline, x_vals_seen, y_vals,
-                                        ChainCallable(
-                                            configuration['evaluation']),
-                                        cv = deepcopy(cv_iterator), n_jobs = 4,
-                                        verbose = 0)
+            ChainCallable(
+                configuration['evaluation']),
+            cv=deepcopy(cv_iterator), n_jobs=4,
+            verbose=0)
         df = pd.DataFrame({'cv-%d' % i: pd.Series(scores[i].tolist()) for i in
                            range(len(scores))})
 
@@ -371,24 +373,25 @@ def run_tasks(args, configuration):
 
         # do analysis
 
+
 def _config_logger(output_path=None):
     logger = logging.getLogger(__name__)
-    
+
     fmt = logging.Formatter(fmt=('%(asctime)s\t%(module)s.%(funcName)s '
-                                  '(line %(lineno)d)\t%(levelname)s : %(message)s'),
-                            datefmt='%d.%m.%Y %H:%M:%S')
-    
+                                 '(line %(lineno)d)\t%(levelname)s : %(message)s'),
+        datefmt='%d.%m.%Y %H:%M:%S')
+
     sh = StreamHandler()
     sh.setLevel(logging.DEBUG)
     sh.setFormatter(fmt)
 
     if output_path is not None:
         fh = RotatingFileHandler(os.path.join(output_path, 'log.txt'),
-                                                  maxBytes=int(2*10e8),
-                                                  backupCount=5)
+            maxBytes=int(2 * 10e8),
+            backupCount=5)
         fh.setLevel(logging.DEBUG)
         fh.setFormatter(fmt)
-    
+
     logger.addHandler(sh)
     logger.addHandler(fh)
     logger.setLevel(logging.DEBUG)
@@ -398,15 +401,16 @@ if __name__ == '__main__':
     args = config.arg_parser.parse_args()
     if args.log_path.startswith('./'):
         args.log_path = os.path.join(args.output, args.log_path)
-    
+
     if not os.path.exists(args.log_path):
         os.makedirs(args.log_path)
-    
+
     logger = _config_logger(args.log_path)
-    
-    logger.info('Reading configuration file from \'%s\', conf spec from \'conf/'
-        '.confrc\''%(glob(args.configuration)[0]))
-    
+
+    logger.info(
+        'Reading configuration file from \'%s\', conf spec from \'conf/'
+        '.confrc\'' % (glob(args.configuration)[0]))
+
     conf_parser = ConfigObj(args.configuration, configspec='conf/.confrc')
     validator = validate.Validator()
     result = conf_parser.validate(validator)

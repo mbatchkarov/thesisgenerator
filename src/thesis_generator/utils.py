@@ -5,7 +5,8 @@ A collection of random useful utilities
 """
 import inspect
 from itertools import combinations
-import re, numpy as np
+import re
+import numpy as np
 import gzip
 
 try:
@@ -19,7 +20,7 @@ def get_named_object(pathspec):
     """
     parts = pathspec.split('.')
     module = ".".join(parts[:-1])
-    mod = __import__(module, fromlist = parts[-1])
+    mod = __import__(module, fromlist=parts[-1])
     named_obj = getattr(mod, parts[-1])
     return named_obj
 
@@ -75,7 +76,7 @@ class LeaveNothingOut(object):
         n = self.n
         comb = combinations(range(n), n)
         for idx in comb:
-            test_index = np.zeros(n, dtype = np.bool)
+            test_index = np.zeros(n, dtype=np.bool)
             test_index[np.array(idx)] = True
             #            train_index = np.logical_not(test_index)
             train_index = test_index
@@ -123,5 +124,6 @@ class ChainCallable(object):
             call_args = {arg: val for arg, val in self.config[func_name]
             .items() if  val != '' and arg in initialize_args}
             options[func_name] = call_args
-            result[func_name.strip()]= (func(true_labels, predicted_labels, **call_args))
-        return np.array(result, dtype = object)
+            result[func_name.strip()] = (
+            func(true_labels, predicted_labels, **call_args))
+        return np.array(result, dtype=object)
