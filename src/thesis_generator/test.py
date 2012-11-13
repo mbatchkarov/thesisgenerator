@@ -33,7 +33,7 @@ def strip_features_parser(in_fh, out_fh, features):
     
     *features* should be the set of features to retain in the documents.
     """
-    nums = set(['0','1','2','3','4','5','6','7','8','9'])
+    nums = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9'}
 
     def parse_class(fh, buf=[]):
         while buf[-1] != ' ':

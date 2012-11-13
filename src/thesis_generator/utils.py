@@ -24,17 +24,17 @@ def get_named_object(pathspec):
     return named_obj
 
 
-class GorkanaXmlParser():
+class GorkanaXmlParser(object):
     def __init__(self, source):
         self._source = source
 
     def documents(self):
         with gzip.open(self._source, 'r') as _in_fh:
-            self._xml_etree = ET.iterparse(_in_fh, events = ('end',))
+            self._xml_etree = ET.iterparse(_in_fh, events=('end',))
             regex = re.compile(
                 '(?:&lt;|<)headline(?:&gt;|>)(.*)(?:&lt;|<)/headline(?:&gt;|>)')
             for _, element in self._xml_etree:
-                if element.tag == 'documents' or element.text == None: continue
+                if element.tag == 'documents' or element.text is None: continue
 
                 article_text = element.text
                 _headline = regex.findall(article_text)
@@ -45,9 +45,9 @@ class GorkanaXmlParser():
 
     def targets(self):
         with gzip.open(self._source, 'r') as _in_fh:
-            self._xml_etree = ET.iterparse(_in_fh, events = ('end',))
+            self._xml_etree = ET.iterparse(_in_fh, events=('end',))
             for _, element in self._xml_etree:
-                if element.tag == 'documents' or element.text == None: continue
+                if element.tag == 'documents' or element.text is None: continue
                 target = element.attrib['relevant'] == 'True'
                 yield target
 

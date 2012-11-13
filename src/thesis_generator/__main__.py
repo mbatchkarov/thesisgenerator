@@ -151,7 +151,7 @@ def crossvalidate(config, data_matrix, targets):
     k = config['k']
 
     if (config['validation_slices'] != '' and
-        config['validation_slices'] != None):
+        config['validation_slices'] is not None):
         # the data should be treated as a stream, which means that it should not
         # be reordered and it should be split into a seen portion and an unseen
         # portion separated by a virtual 'now' point in the stream

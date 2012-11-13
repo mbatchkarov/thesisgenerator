@@ -38,7 +38,7 @@ def _output_paths(source_file, output_dir, metric=None, fc=None, classifier=None
     
     _,cls_fn = os.path.split(model_fn)
     cls_fn,_ = os.path.splitext(cls_fn)
-    cls_fn = os.path.join(output_dir, 'classifications', '%s.predict.txt'%(cls_fn))
+    cls_fn = os.path.join(output_dir, 'classifications', '%s.predict.txt'% cls_fn)
     
     return model_fn, predict_fn, cls_fn
 
