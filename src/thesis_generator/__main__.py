@@ -265,6 +265,8 @@ def _build_pipeline(classifier_name, configuration):
                       if val != '' and arg in initialize_args})
     pipeline_list.append(('clf', clf()))
 
+    logger.info('Preprocessing pipeline is %r', pipeline_list)
+
     pipeline = Pipeline(pipeline_list)
     pipeline.set_params(**call_args)
     return pipeline
@@ -358,6 +360,7 @@ def run_tasks(args, configuration):
             logger.warn('Ignoring classifier %s' % clf_name)
             continue
 
+        logger.info('Training and evaluating %s' % clf_name)
         # DO FEATURE SELECTION/DIMENSIONALITY REDUCTION FOR CROSSVALIDATION DATA
         pipeline = _build_pipeline(clf_name, configuration)
 
@@ -379,31 +382,35 @@ def run_tasks(args, configuration):
             for metric, score in mydict.items():
                 scores.append(
                     [clf_name.split('.')[-1], metric.split('.')[-1], score])
-    analyze(scores, configuration['name'])
+    analyze(scores, args.output, configuration['name'])
 
     # todo create a mallet classifier wrapper in python that works with
     # the scikit crossvalidation stuff (has fit and predict and
     # predict_probas functions)
 
 
-def analyze(scores, name):
+def analyze(scores, output_dir, name):
     """
     Stores a csv, xls and png representation of the data set. Requires pandas
     """
 
+    logger.info("Saving results to disk")
+
     from pandas import DataFrame
     import matplotlib.pyplot as plt
+
     df = DataFrame(scores, columns=['classifier', 'metric', 'score'])
 
     # store csv for futher processing
-    df.to_csv('%s.out.csv' % name)
-    df.to_excel('%s.out.xls' % name)
+    df.to_csv(os.path.join(output_dir, '%s.out.csv' % name))
+    df.to_excel(os.path.join(output_dir, '%s.out.xls' % name))
 
     # plot results
     fig, axes = plt.subplots(nrows=1, ncols=1, figsize=(10, 8))
     df.boxplot(by=['classifier', 'metric'], ax=axes)
     fig.autofmt_xdate(rotation=45, bottom=0.5)
-    plt.savefig('%s.png' % name, format='png', dpi=150)
+    plt.savefig(os.path.join(output_dir, '%s.out.png' % name), format='png',
+        dpi=150)
 
 
 def _config_logger(output_path=None):
