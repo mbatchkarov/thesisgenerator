@@ -126,4 +126,4 @@ class ChainCallable(object):
             options[func_name] = call_args
             result[func_name.strip()] = (
             func(true_labels, predicted_labels, **call_args))
-        return np.array(result, dtype=object)
+        return result

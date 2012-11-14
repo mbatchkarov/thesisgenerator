@@ -1,3 +1,4 @@
+name=string()
 [feature_extraction]
     run=boolean(default=True)
     vectorizer=string(default="")

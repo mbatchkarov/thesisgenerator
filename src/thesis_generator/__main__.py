@@ -4,7 +4,6 @@ Created on Oct 18, 2012
 
 @author: ml249
 '''
-from collections import defaultdict
 import os
 import sys
 import shutil
@@ -348,7 +347,7 @@ def run_tasks(args, configuration):
     # y_vals is a row vector, need to transpose it to get the same shape as
     # x_vals_seen
     y_vals = y_vals[:, seen_indices].transpose()
-    scores = defaultdict(list)
+    scores = []
 
     for clf_name in configuration['classifiers']:
         if not configuration['classifiers'][clf_name]:
@@ -359,7 +358,7 @@ def run_tasks(args, configuration):
             logger.warn('Ignoring classifier %s' % clf_name)
             continue
 
-            # DO FEATURE SELECTION/DIMENSIONALITY REDUCTION FOR CROSSVALIDATION DATA
+        # DO FEATURE SELECTION/DIMENSIONALITY REDUCTION FOR CROSSVALIDATION DATA
         pipeline = _build_pipeline(clf_name, configuration)
 
         # pass the (feature selector + classifier) pipeline for evaluation
@@ -370,18 +369,41 @@ def run_tasks(args, configuration):
                 configuration['evaluation']),
             cv=deepcopy(cv_iterator), n_jobs=4,
             verbose=0)
-        scores[clf_name].append(scores_this_clf.tolist())
-    #        df = pd.DataFrame({'cv-%d' % i: pd.Series(scores[i].tolist()) for i in
-    #                           range(len(scores))})
-    #        dump(df, open('dataframe.txt', 'w'))
-    print scores
+
+        for run_number in range(len(scores_this_clf)):
+            a = scores_this_clf[run_number]
+            # If there is just one metric specified in the conf file a is a
+            # 0-D numpy array and needs to be indexed as [()]. Otherwise it
+            # is a dict
+            mydict = a[()] if hasattr(a, 'shape') and len(a.shape) < 1 else a
+            for metric, score in mydict.items():
+                scores.append(
+                    [clf_name.split('.')[-1], metric.split('.')[-1], score])
+    analyze(scores, configuration['name'])
+
     # todo create a mallet classifier wrapper in python that works with
     # the scikit crossvalidation stuff (has fit and predict and
     # predict_probas functions)
 
-    # run the scikits crossvalidation_scores function
 
-    # do analysis
+def analyze(scores, name):
+    """
+    Stores a csv, xls and png representation of the data set. Requires pandas
+    """
+
+    from pandas import DataFrame
+    import matplotlib.pyplot as plt
+    df = DataFrame(scores, columns=['classifier', 'metric', 'score'])
+
+    # store csv for futher processing
+    df.to_csv('%s.out.csv' % name)
+    df.to_excel('%s.out.xls' % name)
+
+    # plot results
+    fig, axes = plt.subplots(nrows=1, ncols=1, figsize=(10, 8))
+    df.boxplot(by=['classifier', 'metric'], ax=axes)
+    fig.autofmt_xdate(rotation=45, bottom=0.5)
+    plt.savefig('%s.png' % name, format='png', dpi=150)
 
 
 def _config_logger(output_path=None):
