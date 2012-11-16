@@ -198,17 +198,16 @@ def crossvalidate(config, data_matrix, targets):
     return iterator, data_matrix, targets, validate_indices
 
 
-def _build_feature_selector(call_args, configuration, pipeline_list):
+def _build_feature_selector(call_args, feature_selection_conf, pipeline_list):
     """
     If feature selection is required, this function appends a selector
     object to pipeline_list and its configuration to configuration. Note this
      function modifies (appends to) its input arguments
     """
-    feature_selection = configuration['feature_selection']
-    if feature_selection['run']:
-        method = get_named_object(feature_selection['method'])
+    if feature_selection_conf['run']:
+        method = get_named_object(feature_selection_conf['method'])
         scoring_func = get_named_object(
-            feature_selection['scoring_function'])
+            feature_selection_conf['scoring_function'])
 
         # the parameters for steps in the Pipeline are defined as
         # <component_name>__<arg_name> - the Pipeline (which is actually a
@@ -218,30 +217,31 @@ def _build_feature_selector(call_args, configuration, pipeline_list):
 
         initialize_args = inspect.getargspec(method.__init__)[0]
         call_args.update({'fs__%s' % arg: val
-                          for arg, val in feature_selection.items()
+                          for arg, val in feature_selection_conf.items()
                           if val != '' and arg in initialize_args})
 
         pipeline_list.append(('fs', method(scoring_func)))
 
 
-def _build_dimensionality_reducer(call_args, configuration, pipeline_list):
+def _build_dimensionality_reducer(call_args, dimensionality_reduction_conf,
+                                  pipeline_list):
     """
       If dimensionality reduciton is required, this function appends a reducer
       object to pipeline_list and its configuration to configuration. Note this
        function modifies (appends to) its input arguments
       """
 
-    dimensionality_reduction = configuration['dimensionality_reduction']
-    if dimensionality_reduction['run']:
-        dr_method = get_named_object(dimensionality_reduction['method'])
+    if dimensionality_reduction_conf['run']:
+        dr_method = get_named_object(dimensionality_reduction_conf['method'])
         initialize_args = inspect.getargspec(dr_method.__init__)[0]
         call_args.update({'dr__%s' % arg: val
-                          for arg, val in dimensionality_reduction.items()
+                          for arg, val in dimensionality_reduction_conf.items()
                           if val != '' and arg in initialize_args})
         pipeline_list.append(('dr', dr_method()))
 
 
-def _build_pipeline(classifier_name, configuration):
+def _build_pipeline(classifier_name, feature_sel_conf, dim_red_conf,
+                    classifier_conf):
     """
     Builds a pipeline consisting of
         - optional feature selection
@@ -251,17 +251,16 @@ def _build_pipeline(classifier_name, configuration):
     call_args = {}
     pipeline_list = []
 
-    _build_feature_selector(call_args, configuration,
+    _build_feature_selector(call_args, feature_sel_conf,
         pipeline_list)
-    _build_dimensionality_reducer(call_args, configuration,
+    _build_dimensionality_reducer(call_args, dim_red_conf,
         pipeline_list)
     # include a classifier in the pipeline regardless of whether we are doing
     # feature selection/dim. red. or not
-    classifiers = configuration['classifiers']
     clf = get_named_object(classifier_name)
     initialize_args = inspect.getargspec(clf.__init__)[0]
     call_args.update({'clf__%s' % arg: val
-                      for arg, val in classifiers.items()
+                      for arg, val in classifier_conf[classifier_name].items()
                       if val != '' and arg in initialize_args})
     pipeline_list.append(('clf', clf()))
 
@@ -362,7 +361,10 @@ def run_tasks(args, configuration):
 
         logger.info('Training and evaluating %s' % clf_name)
         # DO FEATURE SELECTION/DIMENSIONALITY REDUCTION FOR CROSSVALIDATION DATA
-        pipeline = _build_pipeline(clf_name, configuration)
+        pipeline = _build_pipeline(clf_name,
+            configuration['feature_selection'],
+            configuration['dimensionality_reduction'],
+            configuration['classifiers'])
 
         # pass the (feature selector + classifier) pipeline for evaluation
         cached_cross_val_score = mem_cache.cache(cross_val_score)
@@ -382,6 +384,7 @@ def run_tasks(args, configuration):
             for metric, score in mydict.items():
                 scores.append(
                     [clf_name.split('.')[-1], metric.split('.')[-1], score])
+    print scores
     analyze(scores, args.output, configuration['name'])
 
     # todo create a mallet classifier wrapper in python that works with

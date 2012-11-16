@@ -53,6 +53,7 @@ name=string()
     [[sklearn.naive_bayes.MultinomialNB]]
     	# add the MultinomialNB parameters
     	run=boolean(default=False) 
+	alpha=float()
 
     [[sklearn.neighbors.KNeighborsClassifier]]
     	run=boolean(default=False)
