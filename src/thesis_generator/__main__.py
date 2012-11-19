@@ -24,10 +24,6 @@ from sklearn.datasets import load_files
 
 from joblib import Memory
 
-from sklearn.metrics import zero_one_score
-from sklearn.cross_validation import LeaveOneOut
-from sklearn.naive_bayes import MultinomialNB
-
 from thesis_generator import config
 from thesis_generator.utils import (get_named_object,
                                     LeaveNothingOut,
@@ -80,7 +76,7 @@ def feature_extract(**kwargs):
 
     # get the names of the arguments that the vectorizer class takes
     initialize_args = inspect.getargspec(vectorizer.__init__)[0]
-    call_args = {arg: val for arg, val in kwargs.items() if\
+    call_args = {arg: val for arg, val in kwargs.items() if
                  val != '' and arg in initialize_args}
 
     # todo preprocessor needs to be expanded into a callable name
@@ -101,7 +97,7 @@ def feature_extract(**kwargs):
 
                 generator = get_named_object(input_gen)(kwargs['source'])
                 targets = np.asarray([t for t in generator.targets()],
-                    dtype=np.int)
+                                     dtype=np.int)
                 generator = generator.documents()
             except (ValueError, ImportError):
                 logger.info('No input generator found for name '
@@ -109,13 +105,17 @@ def feature_extract(**kwargs):
                             'generator with source \'%(source)s\'' % locals())
                 if not os.path.isdir(source):
                     raise ValueError('The provided source path (%s) has to be '
-                                     'a directory containing data in the mallet '
+                                     'a directory containing data in the '
+                                     'mallet '
                                      'format (class per directory, document '
                                      'per file). If you intended to load the '
-                                     'contents of the file (%s) instead change '
-                                     'the input type in main.conf to \'content\'')
+                                     'contents of the file (%s) instead '
+                                     'change '
+                                     'the input type in main.conf to '
+                                     '\'content\'')
 
-                #                paths = glob(os.path.join(kwargs['source'], '*', '*'))
+                #                paths = glob(os.path.join(kwargs['source'],
+                # '*', '*'))
                 dataset = load_files(source)
                 generator = dataset.data
                 targets = dataset.target
@@ -123,7 +123,8 @@ def feature_extract(**kwargs):
         except KeyError:
             raise ValueError('Can not find a name for an input generator. '
                              'When the input type for feature extraction is '
-                             'defined as content, an input_generator must also '
+                             'defined as content, an input_generator must '
+                             'also '
                              'be defined. The defined input_generator should '
                              'produce raw documents.')
     elif kwargs['input'] == 'filename':
@@ -140,10 +141,10 @@ def feature_extract(**kwargs):
         raise NotImplementedError(
             'The input type \'%s\' is not supported yet.' % kwargs['input'])
 
-    return term_freq_matrix, targets
+    return term_freq_matrix, targets, vectorizer.vocabulary_
 
 
-def crossvalidate(config, data_matrix, targets):
+def get_data_for_crossvalidation(config, data_matrix, targets):
     """Returns a list of tuples containing indices for consecutive
     crossvalidation runs.
 
@@ -157,7 +158,8 @@ def crossvalidate(config, data_matrix, targets):
 
     if (config['validation_slices'] != '' and
         config['validation_slices'] is not None):
-        # the data should be treated as a stream, which means that it should not
+        # the data should be treated as a stream, which means that it should
+        # not
         # be reordered and it should be split into a seen portion and an unseen
         # portion separated by a virtual 'now' point in the stream
         validate_data = get_named_object(config['validation_slices'])
@@ -166,7 +168,7 @@ def crossvalidate(config, data_matrix, targets):
         validate_data = [(0, 0)]
 
     validate_indices = reduce(lambda l, (head, tail):
-    l + range(head, tail), validate_data, [])
+                              l + range(head, tail), validate_data, [])
 
     mask = np.zeros(data_matrix.shape[0])  # we only mask the rows
     mask[validate_indices] = 1
@@ -188,11 +190,12 @@ def crossvalidate(config, data_matrix, targets):
         ratio = config['ratio']
         if k < 0:
         #            logger.warn(
-        #                'crossvalidation.ratio not specified, defaulting to 0.8')
+        #                'crossvalidation.ratio not specified,
+        # defaulting to 0.8')
             ratio = 0.8
         iterator = cross_validation.Bootstrap(dataset_size,
-            n_iter=int(k),
-            train_size=ratio)
+                                              n_iter=int(k),
+                                              train_size=ratio)
     elif cv_type == 'oracle':
         iterator = LeaveNothingOut(dataset_size, dataset_size)
     else:
@@ -258,9 +261,9 @@ def _build_pipeline(classifier_name, feature_sel_conf, dim_red_conf,
     pipeline_list = []
 
     _build_feature_selector(call_args, feature_sel_conf,
-        pipeline_list)
+                            pipeline_list)
     _build_dimensionality_reducer(call_args, dim_red_conf,
-        pipeline_list)
+                                  pipeline_list)
     # include a classifier in the pipeline regardless of whether we are doing
     # feature selection/dim. red. or not
     clf = get_named_object(classifier_name)
@@ -295,7 +298,8 @@ def run_tasks(args, configuration):
         logger.info('Creating output directory %s' % glob(args.output))
         os.makedirs(args.output)
 
-        # TODO this needs to be redone after the scikits integration is complete
+        # TODO this needs to be redone after the scikits integration is
+        # complete
     #    _write_config_file(args)
 
     # **********************************
@@ -327,7 +331,12 @@ def run_tasks(args, configuration):
         options = {}
         options.update(configuration['feature_extraction'])
         options.update(vars(args))
-        x_vals, y_vals = cached_feature_extract(**options)
+        x_vals, y_vals, vocab = cached_feature_extract(**options)
+        if args.test:
+            #  change where we read files from
+            options['source'] = args.test
+            options['vocabulary'] = vocab
+            x_test, y_test, _ = feature_extract(**options)
         del options
 
     # **********************************
@@ -337,11 +346,11 @@ def run_tasks(args, configuration):
     # iterator stays consistent across all classifiers
 
     # CREATE CROSSVALIDATION ITERATOR
-    crossvalidate_cached = mem_cache.cache(crossvalidate)
+    crossvalidate_cached = mem_cache.cache(get_data_for_crossvalidation)
     cv_iterator, x_vals, y_vals, validate_indices = (
         crossvalidate_cached(configuration['crossvalidation'],
-            x_vals,
-            y_vals))
+                             x_vals,
+                             y_vals))
 
     # Pick out the non-validation data from x_vals. This requires x_vals
     # to be cast to a format that supports slicing, such as the compressed
@@ -365,31 +374,46 @@ def run_tasks(args, configuration):
             continue
 
         logger.info('Training and evaluating %s' % clf_name)
-        # DO FEATURE SELECTION/DIMENSIONALITY REDUCTION FOR CROSSVALIDATION DATA
+        # DO FEATURE SELECTION/DIMENSIONALITY REDUCTION FOR CROSSVALIDATION
+        # DATA
         pipeline = _build_pipeline(clf_name,
-            configuration['feature_selection'],
-            configuration['dimensionality_reduction'],
-            configuration['classifiers'])
+                                   configuration['feature_selection'],
+                                   configuration['dimensionality_reduction'],
+                                   configuration['classifiers'])
 
-        # pass the (feature selector + classifier) pipeline for evaluation
-        cached_cross_val_score = mem_cache.cache(cross_val_score)
-        scores_this_clf = cached_cross_val_score(pipeline, x_vals_seen,
-            y_vals,
-            ChainCallable(
-                configuration['evaluation']),
-            cv=cv_iterator, n_jobs=10,
-            verbose=0)
-
-        for run_number in range(len(scores_this_clf)):
-            a = scores_this_clf[run_number]
-            # If there is just one metric specified in the conf file a is a
-            # 0-D numpy array and needs to be indexed as [()]. Otherwise it
-            # is a dict
-            mydict = a[()] if hasattr(a, 'shape') and len(a.shape) < 1 else a
-            for metric, score in mydict.items():
+        if args.test:
+            #  no crossvalidation, train on one set and test on the other
+            logger.info('Evaluating on test set')
+            pipeline.fit(x_vals_seen, y_vals)
+            eval = ChainCallable(configuration['evaluation'])
+            for metric, score in eval(y_test, pipeline.predict(x_test))\
+            .items():
                 scores.append(
-                    [clf_name.split('.')[-1], metric.split('.')[-1], score])
-    print scores
+                    [clf_name.split('.')[-1], metric.split('.')[-1],
+                     score])
+        else:
+            # pass the (feature selector + classifier) pipeline for evaluation
+            cached_cross_val_score = mem_cache.cache(cross_val_score)
+            scores_this_clf = cached_cross_val_score(pipeline, x_vals_seen,
+                                                     y_vals,
+                                                     ChainCallable(
+                                                         configuration[
+                                                         'evaluation']),
+                                                     cv=cv_iterator, n_jobs=10,
+                                                     verbose=0)
+
+            for run_number in range(len(scores_this_clf)):
+                a = scores_this_clf[run_number]
+                # If there is just one metric specified in the conf file a is a
+                # 0-D numpy array and needs to be indexed as [()]. Otherwise it
+                # is a dict
+                mydict = a[()] if hasattr(a, 'shape') and len(
+                    a.shape) < 1 else a
+                for metric, score in mydict.items():
+                    scores.append(
+                        [clf_name.split('.')[-1], metric.split('.')[-1],
+                         score])
+    print 'scores are', scores
     analyze(scores, args.output, configuration['name'])
 
     # todo create a mallet classifier wrapper in python that works with
@@ -418,15 +442,16 @@ def analyze(scores, output_dir, name):
     df.boxplot(by=['classifier', 'metric'], ax=axes)
     fig.autofmt_xdate(rotation=45, bottom=0.5)
     plt.savefig(os.path.join(output_dir, '%s.out.png' % name), format='png',
-        dpi=150)
+                dpi=150)
 
 
 def _config_logger(output_path=None):
     logger = logging.getLogger(__name__)
 
     fmt = logging.Formatter(fmt=('%(asctime)s\t%(module)s.%(funcName)s '
-                                 '(line %(lineno)d)\t%(levelname)s : %(message)s'),
-        datefmt='%d.%m.%Y %H:%M:%S')
+                                 '(line %(lineno)d)\t%(levelname)s : %('
+                                 'message)s'),
+                            datefmt='%d.%m.%Y %H:%M:%S')
 
     sh = StreamHandler()
     sh.setLevel(logging.DEBUG)
@@ -434,8 +459,8 @@ def _config_logger(output_path=None):
 
     if output_path is not None:
         fh = RotatingFileHandler(os.path.join(output_path, 'log.txt'),
-            maxBytes=int(2 * 10e8),
-            backupCount=5)
+                                 maxBytes=int(2 * 10e8),
+                                 backupCount=5)
         fh.setLevel(logging.DEBUG)
         fh.setFormatter(fmt)
 
