@@ -383,9 +383,10 @@ def run_tasks(args, configuration):
 
         if args.test:
             #  no crossvalidation, train on one set and test on the other
-            logger.info('Evaluating on test set')
+            logger.info('Training %r' % pipeline)
             pipeline.fit(x_vals_seen, y_vals)
             eval = ChainCallable(configuration['evaluation'])
+            logger.info('Evaluating on test set')
             for metric, score in eval(y_test, pipeline.predict(x_test))\
             .items():
                 scores.append(
