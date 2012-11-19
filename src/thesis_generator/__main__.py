@@ -12,7 +12,6 @@ import numpy as np
 import logging
 from logging import StreamHandler
 from logging.handlers import RotatingFileHandler
-from copy import deepcopy
 import inspect
 
 import validate
@@ -24,6 +23,10 @@ from sklearn.pipeline import Pipeline
 from sklearn.datasets import load_files
 
 from joblib import Memory
+
+from sklearn.metrics import zero_one_score
+from sklearn.cross_validation import LeaveOneOut
+from sklearn.naive_bayes import MultinomialNB
 
 from thesis_generator import config
 from thesis_generator.utils import (get_named_object,
@@ -112,9 +115,10 @@ def feature_extract(**kwargs):
                                      'contents of the file (%s) instead change '
                                      'the input type in main.conf to \'content\'')
 
-                paths = glob(os.path.join(kwargs['source'], '*', '*'))
-                generator = _content_generator(paths)
-                targets = targets = load_files(source).target
+                #                paths = glob(os.path.join(kwargs['source'], '*', '*'))
+                dataset = load_files(source)
+                generator = dataset.data
+                targets = dataset.target
             term_freq_matrix = vectorizer.fit_transform(generator)
         except KeyError:
             raise ValueError('Can not find a name for an input generator. '
@@ -123,10 +127,12 @@ def feature_extract(**kwargs):
                              'be defined. The defined input_generator should '
                              'produce raw documents.')
     elif kwargs['input'] == 'filename':
-        input_files = glob(os.path.join(kwargs['source'], '*', '*'))
-        targets = load_files(kwargs['source']).target
-        term_freq_matrix = vectorizer.fit_transform(
-            _filename_generator(input_files))
+        raise NotImplementedError("The order of data and targets is wrong, "
+                                  "do not use this keyword")
+    #        input_files = glob(os.path.join(kwargs['source'], '*', '*'))
+    #        targets = load_files(kwargs['source']).target
+    #        term_freq_matrix = vectorizer.fit_transform(
+    #            _filename_generator(input_files))
     elif kwargs['input'] == 'file':
         raise NotImplementedError(
             'The input type \'file\' is not supported yet.')
@@ -263,11 +269,10 @@ def _build_pipeline(classifier_name, feature_sel_conf, dim_red_conf,
                       for arg, val in classifier_conf[classifier_name].items()
                       if val != '' and arg in initialize_args})
     pipeline_list.append(('clf', clf()))
-
-    logger.info('Preprocessing pipeline is %r', pipeline_list)
-
     pipeline = Pipeline(pipeline_list)
     pipeline.set_params(**call_args)
+
+    logger.info('Preprocessing pipeline is %r', pipeline)
     return pipeline
 
 
@@ -372,7 +377,7 @@ def run_tasks(args, configuration):
             y_vals,
             ChainCallable(
                 configuration['evaluation']),
-            cv=deepcopy(cv_iterator), n_jobs=4,
+            cv=cv_iterator, n_jobs=10,
             verbose=0)
 
         for run_number in range(len(scores_this_clf)):

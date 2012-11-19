@@ -58,6 +58,13 @@ arg_parser.add_argument('configuration',
     type=str,
     metavar='CONF_FILE')
 
+arg_parser.add_argument('--test',
+    help=textwrap.dedent('''Corpus to evaluate on. If this is specified,
+    no crossvalidation will be performed. The corpus is assumed to be in
+    the same format as the one specified with -source'''),
+    type=str,
+    metavar='CONF_FILE')
+
 arg_parser.add_argument('--clean', help=textwrap.dedent('''\
                     Clean the output directory of all files before running any
                     other commands.'''),

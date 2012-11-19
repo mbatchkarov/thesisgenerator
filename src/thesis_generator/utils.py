@@ -125,5 +125,5 @@ class ChainCallable(object):
             .items() if  val != '' and arg in initialize_args}
             options[func_name] = call_args
             result[func_name.strip()] = (
-            func(true_labels, predicted_labels, **call_args))
+                func(true_labels, predicted_labels, **call_args))
         return result
