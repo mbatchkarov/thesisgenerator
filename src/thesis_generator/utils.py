@@ -113,7 +113,7 @@ class ChainCallable(object):
 
     def __init__(self, config):
         self.to_call = [(x, get_named_object(x)) for x in
-                        config.keys()]
+                        config.keys() if config[x]['run']]
         self.config = config
 
     def __call__(self, true_labels, predicted_labels):

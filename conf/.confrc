@@ -68,3 +68,9 @@ name=string()
     	
 	[[classifiers.MostCommonLabelClassifier]]
 	    run=boolean(default=False)
+	    
+[evaluation]
+	[[sklearn.metrics.f1_score]]
+        run=boolean(default=True)
+    [[sklearn.metrics.zero_one_score]]
+        run=boolean(default=True)
