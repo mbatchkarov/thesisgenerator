@@ -4,24 +4,34 @@ from sklearn.feature_extraction.text import  TfidfVectorizer
 
 __author__ = 'mmb28'
 
+# cache, to avoid re-loading all the time
+thesauri = {}
+
 def load_thesaurus(path):
     """
     Loads a Byblo-generated thesaurus form the specified file
     """
-    print 'loading thesaurus'
-    FILTERED = '___FILTERED___'.lower()
-    neighbours = defaultdict(list)
-    with open(path) as infile:
-        for line in infile:
-            tokens = line.strip().lower().split('\t')
-            if len(tokens) % 2 == 0:#must have an even number of things
-                continue
-            if tokens[0] != FILTERED:
-                neighbours[tokens[0]] = [(word, float(sim)) for (word, sim) in
-                                         iterate_nonoverlapping_pairs(tokens,
-                                                                      1)
-                                         if word != FILTERED]
-    return neighbours
+    if thesauri.has_key(path):
+        print 'Returning cached thesaurus for %s' % path
+        return thesauri[path]
+    else:
+        print 'Loading thesaurus %s from disk' % path
+        FILTERED = '___FILTERED___'.lower()
+        neighbours = defaultdict(list)
+        with open(path) as infile:
+            for line in infile:
+                tokens = line.strip().lower().split('\t')
+                if len(tokens) % 2 == 0:#must have an even number of things
+                    continue
+                if tokens[0] != FILTERED:
+                    neighbours[tokens[0]] = [(word, float(sim)) for (word, sim)
+                                             in
+                                             iterate_nonoverlapping_pairs(
+                                                 tokens,
+                                                 1)
+                                             if word != FILTERED]
+        thesauri[path] = neighbours
+        return neighbours
 
 
 def iterate_nonoverlapping_pairs(iterable, beg):
@@ -36,20 +46,17 @@ def my_feature_extractor(tokens, stop_words=None, ngram_range=(1, 1)):
     suffix features and shape features
     Based on sklearn.feature_extraction.text._word_ngrams
     """
-
-
-
-    #todo add more feature functions here
-
-    # handle stop words
-    if stop_words is not None:
-        tokens = [w for w in tokens if w not in stop_words]
-
-    last_chars = ['**suffix(%s)' % token[-1] for token in tokens]
-    shapes = ['**shape(%s)' % "".join(
-        'x' if l.islower() else '#' if l.isdigit()  else 'X' for l in token)
-              for token in
-              tokens]
+    #todo add/enable feature functions here
+    #    # handle stop words
+    #    if stop_words is not None:
+    #        tokens = [w for w in tokens if w not in stop_words]
+    #
+    #    last_chars = ['**suffix(%s)' % token[-1] for token in tokens]
+    #    shapes = ['**shape(%s)' % "".join(
+    #        'x' if l.islower() else '#' if l.isdigit()  else 'X' for l in
+    # token)
+    #              for token in
+    #              tokens]
 
     # handle token n-grams
     min_n, max_n = ngram_range
@@ -62,7 +69,7 @@ def my_feature_extractor(tokens, stop_words=None, ngram_range=(1, 1)):
             for i in xrange(n_original_tokens - n + 1):
                 tokens.append(u" ".join(original_tokens[i: i + n]))
 
-    return tokens + last_chars + shapes
+    return tokens # + last_chars + shapes
 
 
 def my_analyzer():
@@ -90,7 +97,12 @@ class ThesaurusVectorizer(TfidfVectorizer):
         extra param specifying the path the the Byblo-generated thesaurus
         """
         try:
+        #            if vocabulary:
+        #                #  we only need the thesaurus if vocabulary is
+        # fixed, i.e.
+        #                #  if this is a test run
             self._thesaurus = load_thesaurus(thesaurus)
+            self._thesaurus_source = thesaurus
             self._k = k
             self._sim_threshold = sim_threshold
             self.analyzer = analyzer
@@ -167,7 +179,6 @@ class ThesaurusVectorizer(TfidfVectorizer):
         .feature_extraction.text.CountVectorizer
         """
 
-        print "**building feature vectors"
 
         # sparse storage for document-term matrix (terminology note: term ==
         # feature)
@@ -176,16 +187,24 @@ class ThesaurusVectorizer(TfidfVectorizer):
         values = []         #values[i] = frequency(term[i]) in document[i]
 
         vocabulary = self.vocabulary_
+        num_documents = 0
+        print "Building feature vectors, current vocab size is %d" % len(
+            vocabulary)
 
         for doc_id, term_count_dict in enumerate(term_count_dicts):
+            num_documents += 1
             for document_term, count in term_count_dict.iteritems():
                 term_index_in_vocab = vocabulary.get(document_term)
-                if term_index_in_vocab is not None:                   #None
-                # if term is not in seen vocabulary
+                if term_index_in_vocab is not None:
+                #None if term is not in seen vocabulary
                     doc_id_indices.append(doc_id)
                     term_indices.append(term_index_in_vocab)
                     values.append(count)
                 else: # this feature has not been seen before, replace it
+                # the print below demonstrates that unseen words exist,
+                # i.e. vectorizer is not reducing the test set to the
+                # training vocabulary
+                # print 'Unknown token %s' % document_term
                     neighbours = self._thesaurus.get(document_term)
 
                     # if there are any neighbours filter the list of
@@ -215,10 +234,21 @@ class ThesaurusVectorizer(TfidfVectorizer):
             term_count_dict.clear()
 
         # convert the three lists above to a numpy sparse matrix
-        shape = (len(term_count_dicts), max(vocabulary.itervalues()) + 1)
+
+        # this is sometimes a generator, convert to list to use len
+        shape = (num_documents, max(vocabulary.itervalues()) + 1)
         spmatrix = sp.coo_matrix((values, (doc_id_indices, term_indices)),
                                  shape=shape, dtype=self.dtype)
         # remove frequencies if binary feature were requested
         if self.binary:
             spmatrix.data.fill(1)
+        print 'Data shape is ', spmatrix.shape
         return spmatrix
+
+    def get_params(self, deep=True):
+        out = super(ThesaurusVectorizer, self).get_params(deep)
+        out['thesaurus'] = self._thesaurus_source
+        out['sim_threshold'] = self._sim_threshold
+        out['k'] = self._k
+        return out
+

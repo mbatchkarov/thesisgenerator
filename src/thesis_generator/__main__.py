@@ -33,7 +33,7 @@ from thesis_generator.utils import (get_named_object,
 # **********************************
 # FEATURE EXTRACTION / PARSE
 # **********************************
-def feature_extract(**kwargs):
+def _get_data_iterators(**kwargs):
     """Converts a corpus into a term frequency matrix.
 
     A given source corpus is converted into a term frequency matrix and
@@ -72,21 +72,24 @@ def feature_extract(**kwargs):
             with open(f, 'rb') as fh:
                 yield fh.read()
 
-    vectorizer = get_named_object(kwargs['vectorizer'])
+            #    vectorizer = get_named_object(kwargs['vectorizer'])
+            #
+            #    # get the names of the arguments that the vectorizer class
+            # takes
+            #    initialize_args = inspect.getargspec(vectorizer.__init__)[0]
+            #    call_args = {arg: val for arg, val in kwargs.items() if
+            #                 val != '' and arg in initialize_args}
+            #
+            #    # todo preprocessor needs to be expanded into a callable name
+            #    # todo analyzer needs to be expanded into a callable name
+            #    # todo tokenizer needs to be expanded into a callable name
+            #    # todo vocabulary needs to be a complex data type - this
+            # should be
+            #    # allowed to be a file reference
+            #    # todo dtype should be expanded into a numpy type
+            #
+            #    vectorizer = vectorizer(**call_args)
 
-    # get the names of the arguments that the vectorizer class takes
-    initialize_args = inspect.getargspec(vectorizer.__init__)[0]
-    call_args = {arg: val for arg, val in kwargs.items() if
-                 val != '' and arg in initialize_args}
-
-    # todo preprocessor needs to be expanded into a callable name
-    # todo analyzer needs to be expanded into a callable name
-    # todo tokenizer needs to be expanded into a callable name
-    # todo vocabulary needs to be a complex data type - this should be
-    # allowed to be a file reference
-    # todo dtype should be expanded into a numpy type
-
-    vectorizer = vectorizer(**call_args)
     if kwargs['input'] == 'content' or kwargs['input'] == '':
         try:
             input_gen = kwargs['input_generator']
@@ -95,10 +98,11 @@ def feature_extract(**kwargs):
                 logger.info('Retrieving input generator for name '
                             '\'%(input_gen)s\'' % locals())
 
-                generator = get_named_object(input_gen)(kwargs['source'])
-                targets = np.asarray([t for t in generator.targets()],
-                                     dtype=np.int)
-                generator = generator.documents()
+                data_iterable = get_named_object(input_gen)(kwargs['source'])
+                targets_iterable = np.asarray(
+                    [t for t in data_iterable.targets()],
+                    dtype=np.int)
+                data_iterable = data_iterable.documents()
             except (ValueError, ImportError):
                 logger.info('No input generator found for name '
                             '\'%(input_gen)s\'. Using a file content '
@@ -117,9 +121,10 @@ def feature_extract(**kwargs):
                 #                paths = glob(os.path.join(kwargs['source'],
                 # '*', '*'))
                 dataset = load_files(source)
-                generator = dataset.data
-                targets = dataset.target
-            term_freq_matrix = vectorizer.fit_transform(generator)
+                data_iterable = dataset.data
+                targets_iterable = dataset.target
+            #            term_freq_matrix = vectorizer.fit_transform(
+            # data_iterable)
         except KeyError:
             raise ValueError('Can not find a name for an input generator. '
                              'When the input type for feature extraction is '
@@ -141,7 +146,7 @@ def feature_extract(**kwargs):
         raise NotImplementedError(
             'The input type \'%s\' is not supported yet.' % kwargs['input'])
 
-    return term_freq_matrix, targets, vectorizer.vocabulary_
+    return data_iterable, targets_iterable
 
 
 def get_data_for_crossvalidation(config, data_matrix, targets):
@@ -170,7 +175,7 @@ def get_data_for_crossvalidation(config, data_matrix, targets):
     validate_indices = reduce(lambda l, (head, tail):
                               l + range(head, tail), validate_data, [])
 
-    mask = np.zeros(data_matrix.shape[0])  # we only mask the rows
+    mask = np.zeros(targets.shape[0])  # we only mask the rows
     mask[validate_indices] = 1
 
     seen_data_mask = mask == 0
@@ -205,6 +210,35 @@ def get_data_for_crossvalidation(config, data_matrix, targets):
             '\'oracle\'')
 
     return iterator, data_matrix, targets, validate_indices
+
+
+def _build_vectorizer(call_args, feature_extraction_conf, pipeline_list):
+    vectorizer = get_named_object(feature_extraction_conf['vectorizer'])
+
+    # get the names of the arguments that the vectorizer class takes
+    #    initialize_args = inspect.getargspec(vectorizer.__init__)[0]
+    #    call_args = {arg: val for arg, val in feature_extraction_conf
+    # .items() if
+    #                 val != '' and arg in initialize_args}
+    #    vectorizer = vectorizer(**call_args)
+
+    # the parameters for steps in the Pipeline are defined as
+    # <component_name>__<arg_name> - the Pipeline (which is actually a
+    # BaseEstimator) takes care of passing the correct arguments down
+    # along the pipeline, provided there are no name clashes between the
+    # keyword arguments of two consecutive transformers.
+
+    initialize_args = inspect.getargspec(vectorizer.__init__)[0]
+    call_args.update({'vect__%s' % arg: val
+                      for arg, val in feature_extraction_conf.items()
+                      if val != '' and arg in initialize_args})
+
+    required_args = {}
+    required_args.update({'%s' % arg: val
+                          for arg, val in feature_extraction_conf.items()
+                          if val != '' and arg in initialize_args})
+
+    pipeline_list.append(('vect', vectorizer(**required_args)))
 
 
 def _build_feature_selector(call_args, feature_selection_conf, pipeline_list):
@@ -249,8 +283,8 @@ def _build_dimensionality_reducer(call_args, dimensionality_reduction_conf,
         pipeline_list.append(('dr', dr_method()))
 
 
-def _build_pipeline(classifier_name, feature_sel_conf, dim_red_conf,
-                    classifier_conf):
+def _build_pipeline(classifier_name, feature_extr_conf, feature_sel_conf,
+                    dim_red_conf, classifier_conf):
     """
     Builds a pipeline consisting of
         - optional feature selection
@@ -259,6 +293,9 @@ def _build_pipeline(classifier_name, feature_sel_conf, dim_red_conf,
     """
     call_args = {}
     pipeline_list = []
+
+    _build_vectorizer(call_args, feature_extr_conf,
+                      pipeline_list)
 
     _build_feature_selector(call_args, feature_sel_conf,
                             pipeline_list)
@@ -322,7 +359,7 @@ def run_tasks(args, configuration):
         configuration['feature_extraction']['run']):
         # todo should figure out which values to ignore,
         # currently use all (args + section_options)
-        cached_feature_extract = mem_cache.cache(feature_extract)
+        cached_get_data_generators = mem_cache.cache(_get_data_iterators)
 
         # create the keyword argument list the action should be run with, it is
         # very important that all relevant argument:value pairs are present
@@ -331,12 +368,13 @@ def run_tasks(args, configuration):
         options = {}
         options.update(configuration['feature_extraction'])
         options.update(vars(args))
-        x_vals, y_vals, vocab = cached_feature_extract(**options)
+        x_vals, y_vals = cached_get_data_generators(**options)
         if args.test:
             #  change where we read files from
             options['source'] = args.test
-            options['vocabulary'] = vocab
-            x_test, y_test, _ = feature_extract(**options)
+#            options['vocabulary'] = vectorizer.vocabulary_
+            print "Setting vocabulary to one seen in test set"
+            x_test, y_test = cached_get_data_generators(**options)
         del options
 
     # **********************************
@@ -355,13 +393,13 @@ def run_tasks(args, configuration):
     # Pick out the non-validation data from x_vals. This requires x_vals
     # to be cast to a format that supports slicing, such as the compressed
     # sparse row format (converting to that is also fast).
-    seen_indices = range(x_vals.shape[0])
+    seen_indices = range(y_vals.shape[0])
     seen_indices = sorted(set(seen_indices) - set(validate_indices))
-    x_vals_seen = x_vals.tocsr()[seen_indices]
+    x_vals_seen = [x_vals[index] for index in seen_indices]
 
     # y_vals is a row vector, need to transpose it to get the same shape as
     # x_vals_seen
-    y_vals = y_vals[:, seen_indices].transpose()
+    y_vals_seen = y_vals[:, seen_indices].transpose()
     scores = []
 
     for clf_name in configuration['classifiers']:
@@ -377,16 +415,20 @@ def run_tasks(args, configuration):
         # DO FEATURE SELECTION/DIMENSIONALITY REDUCTION FOR CROSSVALIDATION
         # DATA
         pipeline = _build_pipeline(clf_name,
+                                   configuration['feature_extraction'],
                                    configuration['feature_selection'],
                                    configuration['dimensionality_reduction'],
                                    configuration['classifiers'])
 
         if args.test:
             #  no crossvalidation, train on one set and test on the other
-            logger.info('Training %r' % pipeline)
-            pipeline.fit(x_vals_seen, y_vals)
+            logger.info('Training %r on data of size %r' % (pipeline,
+                                                            len(x_vals_seen)))
+            pipeline.fit(x_vals_seen, y_vals_seen)
             eval = ChainCallable(configuration['evaluation'])
-            logger.info('Evaluating on test set')
+            logger.info('Evaluating on test set of size %s' % len(x_test))
+            # Making a singleton tuple with the tuple of interest as the
+            # only item
             for metric, score in eval(y_test, pipeline.predict(x_test))\
             .items():
                 scores.append(
@@ -396,7 +438,7 @@ def run_tasks(args, configuration):
             # pass the (feature selector + classifier) pipeline for evaluation
             cached_cross_val_score = mem_cache.cache(cross_val_score)
             scores_this_clf = cached_cross_val_score(pipeline, x_vals_seen,
-                                                     y_vals,
+                                                     y_vals_seen,
                                                      ChainCallable(
                                                          configuration[
                                                          'evaluation']),
@@ -443,6 +485,7 @@ def analyze(scores, output_dir, name):
     df.boxplot(by=['classifier', 'metric'], ax=axes)
     fig.autofmt_xdate(rotation=45, bottom=0.5)
     plt.savefig(os.path.join(output_dir, '%s.out.png' % name), format='png',
+
                 dpi=150)
 
 

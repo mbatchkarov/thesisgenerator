@@ -25,6 +25,8 @@ name=string()
     vocabulary=string
     binary=boolean
 
+    constrain_vocabulary=boolean()
+
 [crossvalidation]
 	run=boolean()
 	type = option('kfold', 'skfold', 'loo', 'bootstrap', 'oracle', default = 'kfold')
