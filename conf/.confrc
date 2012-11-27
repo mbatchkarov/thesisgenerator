@@ -67,6 +67,9 @@ name=string()
     [[sklearn.svm.SVC]]
     	run=boolean(default=False)
     	kernel=option('linear','rbf', 'poly')
+
+    [[sklearn.svm.LinearSVC]]
+    	run=boolean(default=False)
     	
 	[[classifiers.MostCommonLabelClassifier]]
 	    run=boolean(default=False)

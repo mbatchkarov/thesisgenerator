@@ -386,6 +386,7 @@ def run_tasks(args, configuration):
     # x_vals_seen
     y_vals_seen = y_vals[:, seen_indices].transpose()
 
+    print "Starting training with %d documents"%len(x_vals_seen)
 
     scores = []
     for clf_name in configuration['classifiers']:
@@ -408,8 +409,7 @@ def run_tasks(args, configuration):
 
         if args.test:
             #  no crossvalidation, train on one set and test on the other
-            logger.info('Training %r on data of size %r' % (pipeline,
-                                                            len(x_vals_seen)))
+            logger.info('Training on data of size %r' % (len(x_vals_seen)))
             pipeline.fit(x_vals_seen, y_vals_seen)
             eval = ChainCallable(configuration['evaluation'])
             logger.info('Evaluating on test set of size %s' % len(x_test))

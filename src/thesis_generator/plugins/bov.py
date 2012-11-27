@@ -52,8 +52,8 @@ def my_feature_extractor(tokens, stop_words=None, ngram_range=(1, 1)):
     #todo add/enable feature functions here
     # handle stop words
     if stop_words is not None:
-        tokens = [w for w in tokens if w not in stop_words]
-        #
+        tokens = [w for w in tokens if w not in stop_words and len(w) > 3]
+
     #    last_chars = ['**suffix(%s)' % token[-1] for token in tokens]
     #    shapes = ['**shape(%s)' % "".join(
     #        'x' if l.islower() else '#' if l.isdigit()  else 'X' for l in
@@ -226,8 +226,9 @@ class ThesaurusVectorizer(TfidfVectorizer):
                                   neighbour in self.vocabulary_ and sim >
                                   self._sim_threshold] if neighbours else []
                     for neighbour, sim in neighbours:
-#                        print '***replacing %s with %s, sim = %f' % (
-#                            document_term, neighbour, sim)
+                    #                        print '***replacing %s with %s,
+                    # sim = %f' % (
+                    #                            document_term, neighbour, sim)
                         inserted_feature_id = vocabulary.get(neighbour)
                         try:
                             position_in_lists = term_indices.index(
@@ -253,7 +254,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
         # remove frequencies if binary feature were requested
         if self.binary:
             spmatrix.data.fill(1)
-        print 'Data shape is ', spmatrix.shape
+        print 'Vectorizer: Data shape is ', spmatrix.shape
         return spmatrix
 
     def get_params(self, deep=True):
