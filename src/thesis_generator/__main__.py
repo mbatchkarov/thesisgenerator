@@ -34,61 +34,35 @@ from thesis_generator.utils import (get_named_object,
 # FEATURE EXTRACTION / PARSE
 # **********************************
 def _get_data_iterators(**kwargs):
-    """Converts a corpus into a term frequency matrix.
+    """
+    Returns iterators over the text of the data.
 
-    A given source corpus is converted into a term frequency matrix and
-    returned as a numpy *coo_matrix*.
-
-    The value of the *vectorizer* field in the main configuration file is used
-    as the transformer class. This class can be anything but has to implement
-    the methods *fit*, *transform* and *fit_transform* as per scikit-learn.
-
-    The arguments to the vectorizer can be defined in the main configuration
-    file. These will be matched to those of the *__init__* method of the
-    vectorizer class and the matching keywords are passed to the vectorizer.
-    The non-matching arguments are simply ignored.
-    
-    The *input_generator* option in the main configuration file is an optional
-    argument for *feature_extract*. It should specify the fully qualified name
-    of a generator class with two methods *documents* and *classes*. If the
-    vectorizer's *input* value 'content' the *input_generator* will be used to
+    The *input_generator* option in the main configuration file is an
+    optional argument for *feature_extract*. It should specify
+    the fully qualified name of a generator class with two
+    methods *documents* and *classes*. If the vectorizer's
+    *input* value 'content' the *input_generator* will be used to
     feed the raw documents to the vectorizer.
-    
-    If the *input_generator* is not defined and the *input* field is *content*
-    the source folder specified on the command line will be used as the input.
-    The source folder should in this case contain data in the mallet format.
-    The same applies if the value of *input* is *filename*.
-    
+
+    If the *input_generator* is not defined and the *input* field is
+    *content* the source folder specified on the command line will be used
+    as the input.  The source folder should in this case contain data in the
+     mallet format. The same applies if the value of *input* is *filename*.
+
     See the documentation of the CountVectorizer in
     sklearn.feature_extraction.text for details on the parameter values.
     """
+
 
     def _filename_generator(file_list):
         for f in file_list:
             yield f
 
+
     def _content_generator(file_list):
         for f in file_list:
             with open(f, 'rb') as fh:
                 yield fh.read()
-
-            #    vectorizer = get_named_object(kwargs['vectorizer'])
-            #
-            #    # get the names of the arguments that the vectorizer class
-            # takes
-            #    initialize_args = inspect.getargspec(vectorizer.__init__)[0]
-            #    call_args = {arg: val for arg, val in kwargs.items() if
-            #                 val != '' and arg in initialize_args}
-            #
-            #    # todo preprocessor needs to be expanded into a callable name
-            #    # todo analyzer needs to be expanded into a callable name
-            #    # todo tokenizer needs to be expanded into a callable name
-            #    # todo vocabulary needs to be a complex data type - this
-            # should be
-            #    # allowed to be a file reference
-            #    # todo dtype should be expanded into a numpy type
-            #
-            #    vectorizer = vectorizer(**call_args)
 
     if kwargs['input'] == 'content' or kwargs['input'] == '':
         try:
@@ -118,13 +92,9 @@ def _get_data_iterators(**kwargs):
                                      'the input type in main.conf to '
                                      '\'content\'')
 
-                #                paths = glob(os.path.join(kwargs['source'],
-                # '*', '*'))
                 dataset = load_files(source)
                 data_iterable = dataset.data
                 targets_iterable = dataset.target
-            #            term_freq_matrix = vectorizer.fit_transform(
-            # data_iterable)
         except KeyError:
             raise ValueError('Can not find a name for an input generator. '
                              'When the input type for feature extraction is '
@@ -135,10 +105,6 @@ def _get_data_iterators(**kwargs):
     elif kwargs['input'] == 'filename':
         raise NotImplementedError("The order of data and targets is wrong, "
                                   "do not use this keyword")
-    #        input_files = glob(os.path.join(kwargs['source'], '*', '*'))
-    #        targets = load_files(kwargs['source']).target
-    #        term_freq_matrix = vectorizer.fit_transform(
-    #            _filename_generator(input_files))
     elif kwargs['input'] == 'file':
         raise NotImplementedError(
             'The input type \'file\' is not supported yet.')
@@ -149,14 +115,20 @@ def _get_data_iterators(**kwargs):
     return data_iterable, targets_iterable
 
 
-def get_data_for_crossvalidation(config, data_matrix, targets):
-    """Returns a list of tuples containing indices for consecutive
-    crossvalidation runs.
+def get_data_for_crossvalidation(config, text, targets):
+    """
+    Returns a crossvalidation iterator, which contains a list of
+    (train_indices, test_indices) that can be used to slice
+    a dataset to perform crossvalidation. Additionally,
+    returns the original data that was passed in and a mask specifying what
+    data points should be used for validation.
 
-    Returns a list of (train_indices, test_indices) that can be used to slice
-    a dataset to perform crossvalidation. The method of splitting is determined
-    by what is specified in the conf file. The full dataset is provided as a
-    parameter so that joblib can cache the call to this function
+    The method of splitting for CV is determined by what is specified in the
+    conf file. The splitting of data in train/test/validate set is not done
+    in this function- here we only return a mask for the validation data
+    and an iterator for the train/test data.
+    The full text is provided as a parameter so that joblib can cache the
+    call to this function.
     """
     cv_type = config['type']
     k = config['k']
@@ -167,23 +139,23 @@ def get_data_for_crossvalidation(config, data_matrix, targets):
         # not
         # be reordered and it should be split into a seen portion and an unseen
         # portion separated by a virtual 'now' point in the stream
-        validate_data = get_named_object(config['validation_slices'])
-        validate_data = validate_data(data_matrix, targets)
+        validation_data = get_named_object(config['validation_slices'])
+        validation_data = validation_data(text, targets)
     else:
-        validate_data = [(0, 0)]
+        validation_data = [(0, 0)]
 
-    validate_indices = reduce(lambda l, (head, tail):
-                              l + range(head, tail), validate_data, [])
+    validation_indices = reduce(lambda l, (head, tail):
+                                l + range(head, tail), validation_data, [])
 
     mask = np.zeros(targets.shape[0])  # we only mask the rows
-    mask[validate_indices] = 1
+    mask[validation_indices] = 1 # mask has 1 where the data point should be
+    # used for validation and not for training/testing
 
     seen_data_mask = mask == 0
     dataset_size = np.sum(seen_data_mask)
     targets_seen = targets[seen_data_mask]
-
     if k < 0:
-    #        logger.warn('crossvalidation.k not specified, defaulting to 1')
+        logger.warn('crossvalidation.k not specified, defaulting to 1')
         k = 1
     if cv_type == 'kfold':
         iterator = cross_validation.KFold(dataset_size, int(k))
@@ -194,9 +166,8 @@ def get_data_for_crossvalidation(config, data_matrix, targets):
     elif cv_type == 'bootstrap':
         ratio = config['ratio']
         if k < 0:
-        #            logger.warn(
-        #                'crossvalidation.ratio not specified,
-        # defaulting to 0.8')
+            logger.warn(
+                'crossvalidation.ratio not specified,defaulting to 0.8')
             ratio = 0.8
         iterator = cross_validation.Bootstrap(dataset_size,
                                               n_iter=int(k),
@@ -209,36 +180,48 @@ def get_data_for_crossvalidation(config, data_matrix, targets):
             'types are \'k-fold\', \'sk-fold\', \'loo\', \'bootstrap\' and '
             '\'oracle\'')
 
-    return iterator, data_matrix, targets, validate_indices
+    return iterator, text, targets, validation_indices
 
 
 def _build_vectorizer(call_args, feature_extraction_conf, pipeline_list):
+    """
+    Builds a vectorized that converts raw text to feature vectors. The
+    parameters for the vectorizer are specified in the *feature extraction*
+    section of the configuration file. These will be matched to those of the
+     *__init__* method of the    vectorizer class and the matching keywords
+     are passed to the vectorizer. The non-matching arguments are simply
+     ignored.
+
+     The vectorizer converts a corpus into a term frequency matrix. A given
+     source corpus is converted into a term frequency matrix and
+     returned as a numpy *coo_matrix*.The value of the *vectorizer* field
+        in the main configuration file is used as the transformer class.
+        This class
+        can be anything but has to implement the methods *fit*,
+        *transform* and *fit_transform* as per scikit-learn.
+    """
     vectorizer = get_named_object(feature_extraction_conf['vectorizer'])
 
+    # todo preprocessor needs to be expanded into a callable name
+    # todo analyzer needs to be expanded into a callable name
+    # todo tokenizer needs to be expanded into a callable name
+    # todo vocabulary needs to be a complex data type - this should be
+    # allowed to be a file reference
+    # todo dtype should be expanded into a numpy type
+
     # get the names of the arguments that the vectorizer class takes
-    #    initialize_args = inspect.getargspec(vectorizer.__init__)[0]
-    #    call_args = {arg: val for arg, val in feature_extraction_conf
-    # .items() if
-    #                 val != '' and arg in initialize_args}
-    #    vectorizer = vectorizer(**call_args)
-
-    # the parameters for steps in the Pipeline are defined as
-    # <component_name>__<arg_name> - the Pipeline (which is actually a
-    # BaseEstimator) takes care of passing the correct arguments down
-    # along the pipeline, provided there are no name clashes between the
-    # keyword arguments of two consecutive transformers.
-
+    # todo the object must only take keyword arguments
     initialize_args = inspect.getargspec(vectorizer.__init__)[0]
     call_args.update({'vect__%s' % arg: val
                       for arg, val in feature_extraction_conf.items()
                       if val != '' and arg in initialize_args})
 
-    required_args = {}
-    required_args.update({'%s' % arg: val
-                          for arg, val in feature_extraction_conf.items()
-                          if val != '' and arg in initialize_args})
+    #    required_args = {}
+    #    required_args.update({'%s' % arg: val
+    #                          for arg, val in feature_extraction_conf.items()
+    #                          if val != '' and arg in initialize_args})
 
-    pipeline_list.append(('vect', vectorizer(**required_args)))
+    pipeline_list.append(('vect', vectorizer()))
 
 
 def _build_feature_selector(call_args, feature_selection_conf, pipeline_list):
@@ -287,6 +270,7 @@ def _build_pipeline(classifier_name, feature_extr_conf, feature_sel_conf,
                     dim_red_conf, classifier_conf):
     """
     Builds a pipeline consisting of
+        - feature extractor
         - optional feature selection
         - optional dimensionality reduction
         - classifier
@@ -372,7 +356,7 @@ def run_tasks(args, configuration):
         if args.test:
             #  change where we read files from
             options['source'] = args.test
-#            options['vocabulary'] = vectorizer.vocabulary_
+            #            options['vocabulary'] = vectorizer.vocabulary_
             print "Setting vocabulary to one seen in test set"
             x_test, y_test = cached_get_data_generators(**options)
         del options
@@ -390,18 +374,20 @@ def run_tasks(args, configuration):
                              x_vals,
                              y_vals))
 
+    #todo this slicing business does not belong here,
+    # should be done in get_data_for_crossvalidation
     # Pick out the non-validation data from x_vals. This requires x_vals
     # to be cast to a format that supports slicing, such as the compressed
     # sparse row format (converting to that is also fast).
     seen_indices = range(y_vals.shape[0])
     seen_indices = sorted(set(seen_indices) - set(validate_indices))
     x_vals_seen = [x_vals[index] for index in seen_indices]
-
     # y_vals is a row vector, need to transpose it to get the same shape as
     # x_vals_seen
     y_vals_seen = y_vals[:, seen_indices].transpose()
-    scores = []
 
+
+    scores = []
     for clf_name in configuration['classifiers']:
         if not configuration['classifiers'][clf_name]:
             continue
