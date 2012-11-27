@@ -9,8 +9,11 @@ thesauri = {}
 
 def load_thesaurus(path):
     """
-    Loads a Byblo-generated thesaurus form the specified file
+    Loads a Byblo-generated thesaurus form the specified file. If the file
+    has been parsed already returns a cached version.
     """
+    if not path:
+        return None
     if thesauri.has_key(path):
         print 'Returning cached thesaurus for %s' % path
         return thesauri[path]
@@ -47,10 +50,10 @@ def my_feature_extractor(tokens, stop_words=None, ngram_range=(1, 1)):
     Based on sklearn.feature_extraction.text._word_ngrams
     """
     #todo add/enable feature functions here
-    #    # handle stop words
-    #    if stop_words is not None:
-    #        tokens = [w for w in tokens if w not in stop_words]
-    #
+    # handle stop words
+    if stop_words is not None:
+        tokens = [w for w in tokens if w not in stop_words]
+        #
     #    last_chars = ['**suffix(%s)' % token[-1] for token in tokens]
     #    shapes = ['**shape(%s)' % "".join(
     #        'x' if l.islower() else '#' if l.isdigit()  else 'X' for l in
@@ -84,9 +87,9 @@ class ThesaurusVectorizer(TfidfVectorizer):
     """
 
 
-    def __init__(self, thesaurus, k=1, sim_threshold=0.2, input='content',
-                 charset='utf-8',
-                 charset_error='strict', strip_accents=None, lowercase=True,
+    def __init__(self, thesaurus_file=None, k=1, sim_threshold=0.2,
+                 input='content', charset='utf-8', charset_error='strict',
+                 strip_accents=None, lowercase=True,
                  preprocessor=None, tokenizer=None, analyzer='better',
                  stop_words=None, token_pattern=ur"(?u)\b\w\w+\b", min_n=None,
                  max_n=None, ngram_range=(1, 1), max_df=1.0, min_df=2,
@@ -101,11 +104,9 @@ class ThesaurusVectorizer(TfidfVectorizer):
         #                #  we only need the thesaurus if vocabulary is
         # fixed, i.e.
         #                #  if this is a test run
-            self._thesaurus = load_thesaurus(thesaurus)
-            self._thesaurus_source = thesaurus
+            self.thesaurus_file = thesaurus_file
             self._k = k
             self._sim_threshold = sim_threshold
-            self.analyzer = analyzer
         except KeyError:
             pass
         super(ThesaurusVectorizer, self).__init__(input=input, charset=charset,
@@ -167,8 +168,8 @@ class ThesaurusVectorizer(TfidfVectorizer):
                 self.ngram_range)
 
         else:
-            raise ValueError('%s is not a valid tokenization scheme' %
-                             self.tokenize)
+            raise ValueError('%s is not a valid tokenization scheme/analyzer' %
+                             self.analyzer)
 
 
     def _term_count_dicts_to_matrix(self, term_count_dicts):
@@ -178,7 +179,17 @@ class ThesaurusVectorizer(TfidfVectorizer):
         Current version copied without functional modification from sklearn
         .feature_extraction.text.CountVectorizer
         """
-
+        if not hasattr(self, '_thesaurus'):
+            #thesaurus has not been parsed yet
+            if not self.thesaurus_file:
+                # no thesaurus source, fall back to super behaviour
+                print "F**k, no thesaurus!"
+                return super(ThesaurusVectorizer,
+                             self)._term_count_dicts_to_matrix(
+                    term_count_dicts)
+            else:
+                # thesaurus file specified, parse it
+                self._thesaurus = load_thesaurus(self.thesaurus_file)
 
         # sparse storage for document-term matrix (terminology note: term ==
         # feature)
@@ -215,8 +226,8 @@ class ThesaurusVectorizer(TfidfVectorizer):
                                   neighbour in self.vocabulary_ and sim >
                                   self._sim_threshold] if neighbours else []
                     for neighbour, sim in neighbours:
-                        print '***replacing %s with %s, sim = %f' % (
-                            document_term, neighbour, sim)
+#                        print '***replacing %s with %s, sim = %f' % (
+#                            document_term, neighbour, sim)
                         inserted_feature_id = vocabulary.get(neighbour)
                         try:
                             position_in_lists = term_indices.index(
@@ -247,7 +258,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
 
     def get_params(self, deep=True):
         out = super(ThesaurusVectorizer, self).get_params(deep)
-        out['thesaurus'] = self._thesaurus_source
+        out['thesaurus'] = self.thesaurus_file
         out['sim_threshold'] = self._sim_threshold
         out['k'] = self._k
         return out
