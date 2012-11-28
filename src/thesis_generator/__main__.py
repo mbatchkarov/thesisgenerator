@@ -115,7 +115,7 @@ def _get_data_iterators(**kwargs):
     return data_iterable, targets_iterable
 
 
-def get_data_for_crossvalidation(config, text, targets):
+def get_crossvalidation_iterator(config, text, targets):
     """
     Returns a crossvalidation iterator, which contains a list of
     (train_indices, test_indices) that can be used to slice
@@ -180,7 +180,7 @@ def get_data_for_crossvalidation(config, text, targets):
             'types are \'k-fold\', \'sk-fold\', \'loo\', \'bootstrap\' and '
             '\'oracle\'')
 
-    return iterator, text, targets, validation_indices
+    return iterator, validation_indices
 
 
 def _build_vectorizer(call_args, feature_extraction_conf, pipeline_list):
@@ -350,14 +350,14 @@ def run_tasks(args, configuration):
         # because joblib uses the hashed argument list to lookup cached results
         # of computations that have been executed previously
         options = {}
-        options.update(configuration['feature_extraction'])
-        options.update(vars(args))
+        options['input'] = configuration['feature_extraction']['input']
+        options['input_generator'] = configuration['feature_extraction'][
+                                     'input_generator']
+        options['source'] = args.source
         x_vals, y_vals = cached_get_data_generators(**options)
         if args.test:
             #  change where we read files from
             options['source'] = args.test
-            #            options['vocabulary'] = vectorizer.vocabulary_
-            print "Setting vocabulary to one seen in test set"
             x_test, y_test = cached_get_data_generators(**options)
         del options
 
@@ -368,11 +368,9 @@ def run_tasks(args, configuration):
     # iterator stays consistent across all classifiers
 
     # CREATE CROSSVALIDATION ITERATOR
-    crossvalidate_cached = mem_cache.cache(get_data_for_crossvalidation)
-    cv_iterator, x_vals, y_vals, validate_indices = (
-        crossvalidate_cached(configuration['crossvalidation'],
-                             x_vals,
-                             y_vals))
+    crossvalidate_cached = mem_cache.cache(get_crossvalidation_iterator)
+    cv_iterator, validate_indices = (
+        crossvalidate_cached(configuration['crossvalidation'], x_vals, y_vals))
 
     #todo this slicing business does not belong here,
     # should be done in get_data_for_crossvalidation
@@ -386,7 +384,7 @@ def run_tasks(args, configuration):
     # x_vals_seen
     y_vals_seen = y_vals[:, seen_indices].transpose()
 
-    print "Starting training with %d documents"%len(x_vals_seen)
+    print "Starting training with %d documents" % len(x_vals_seen)
 
     scores = []
     for clf_name in configuration['classifiers']:
@@ -410,7 +408,8 @@ def run_tasks(args, configuration):
         if args.test:
             #  no crossvalidation, train on one set and test on the other
             logger.info('Training on data of size %r' % (len(x_vals_seen)))
-            pipeline.fit(x_vals_seen, y_vals_seen)
+            cached_fit = mem_cache.cache(pipeline.fit)
+            cached_fit(x_vals_seen, y_vals_seen)
             eval = ChainCallable(configuration['evaluation'])
             logger.info('Evaluating on test set of size %s' % len(x_test))
             # Making a singleton tuple with the tuple of interest as the

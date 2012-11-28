@@ -15,15 +15,16 @@ class MostCommonLabelClassifier(BaseEstimator):
     def fit(self, X, y):
         c = Counter(y)
         print '************************************'
-        print 'DumbClassifier counter =%r', c
+        print 'DumbClassifier counter = %r' % c
         self._decision = c.most_common(1)[0][0]
-        print 'DumbClassifier decision =%d', self._decision
+        print 'DumbClassifier decision = %d' % self._decision
         print '************************************'
 
     def predict(self, X):
         print '************************************'
-        print 'DumbClassifier marks %d documents as class %d'%(X.shape[0],
-                                                               self._decision)
+        print 'DumbClassifier marks %d documents as class %d' % (X.shape[0],
+                                                                 self
+                                                                 ._decision)
         print '************************************'
 
         return [self._decision] * X.shape[0]
