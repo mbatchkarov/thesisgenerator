@@ -69,8 +69,8 @@ def _get_data_iterators(**kwargs):
             input_gen = kwargs['input_generator']
             source = kwargs['source']
             try:
-                logger.info('Retrieving input generator for name '
-                            '\'%(input_gen)s\'' % locals())
+                logger.debug('Retrieving input generator for name '
+                             '\'%(input_gen)s\'' % locals())
 
                 data_iterable = get_named_object(input_gen)(kwargs['source'])
                 targets_iterable = np.asarray(
@@ -78,7 +78,7 @@ def _get_data_iterators(**kwargs):
                     dtype=np.int)
                 data_iterable = data_iterable.documents()
             except (ValueError, ImportError):
-                logger.info('No input generator found for name '
+                logger.warn('No input generator found for name '
                             '\'%(input_gen)s\'. Using a file content '
                             'generator with source \'%(source)s\'' % locals())
                 if not os.path.isdir(source):
@@ -115,7 +115,7 @@ def _get_data_iterators(**kwargs):
     return data_iterable, targets_iterable
 
 
-def get_crossvalidation_iterator(config, text, targets):
+def get_crossvalidation_iterator(config, x_vals, y_vals):
     """
     Returns a crossvalidation iterator, which contains a list of
     (train_indices, test_indices) that can be used to slice
@@ -130,6 +130,7 @@ def get_crossvalidation_iterator(config, text, targets):
     The full text is provided as a parameter so that joblib can cache the
     call to this function.
     """
+    logger.info('Building crossvalidation iterator')
     cv_type = config['type']
     k = config['k']
 
@@ -140,20 +141,20 @@ def get_crossvalidation_iterator(config, text, targets):
         # be reordered and it should be split into a seen portion and an unseen
         # portion separated by a virtual 'now' point in the stream
         validation_data = get_named_object(config['validation_slices'])
-        validation_data = validation_data(text, targets)
+        validation_data = validation_data(x_vals, y_vals)
     else:
         validation_data = [(0, 0)]
 
     validation_indices = reduce(lambda l, (head, tail):
                                 l + range(head, tail), validation_data, [])
 
-    mask = np.zeros(targets.shape[0])  # we only mask the rows
+    mask = np.zeros(y_vals.shape[0])  # we only mask the rows
     mask[validation_indices] = 1 # mask has 1 where the data point should be
     # used for validation and not for training/testing
 
     seen_data_mask = mask == 0
     dataset_size = np.sum(seen_data_mask)
-    targets_seen = targets[seen_data_mask]
+    targets_seen = y_vals[seen_data_mask]
     if k < 0:
         logger.warn('crossvalidation.k not specified, defaulting to 1')
         k = 1
@@ -177,10 +178,21 @@ def get_crossvalidation_iterator(config, text, targets):
     else:
         raise ValueError(
             'Unrecognised crossvalidation type \'%(cv_type)s\'. The supported '
-            'types are \'k-fold\', \'sk-fold\', \'loo\', \'bootstrap\' and '
+            'types are \'kfold\', \'skfold\', \'loo\', \'bootstrap\' and '
             '\'oracle\'')
 
-    return iterator, validation_indices
+
+    # Pick out the non-validation data from x_vals. This requires x_vals
+    # to be cast to a format that supports slicing, such as the compressed
+    # sparse row format (converting to that is also fast).
+    seen_indices = range(targets_seen.shape[0])
+    seen_indices = sorted(set(seen_indices) - set(validation_indices))
+    x_vals = [x_vals[index] for index in seen_indices]
+    # y_vals is a row vector, need to transpose it to get the same shape as
+    # x_vals
+    y_vals = y_vals[:, seen_indices].transpose()
+
+    return iterator, validation_indices, x_vals, y_vals
 
 
 def _build_vectorizer(call_args, feature_extraction_conf, pipeline_list):
@@ -296,7 +308,7 @@ def _build_pipeline(classifier_name, feature_extr_conf, feature_sel_conf,
     pipeline = Pipeline(pipeline_list)
     pipeline.set_params(**call_args)
 
-    logger.info('Preprocessing pipeline is %r', pipeline)
+    logger.info('Preprocessing pipeline is %s', pipeline)
     return pipeline
 
 
@@ -337,7 +349,7 @@ def run_tasks(args, configuration):
     actions = configuration.keys()
 
     # **********************************
-    # FEATURE EXTRACTION
+    # LOADING RAW TEXT
     # **********************************
     if ('feature_extraction' in actions and
         configuration['feature_extraction']['run']):
@@ -354,8 +366,10 @@ def run_tasks(args, configuration):
         options['input_generator'] = configuration['feature_extraction'][
                                      'input_generator']
         options['source'] = args.source
+        logger.info('Loading data set')
         x_vals, y_vals = cached_get_data_generators(**options)
         if args.test:
+            logger.info('Loading test set')
             #  change where we read files from
             options['source'] = args.test
             x_test, y_test = cached_get_data_generators(**options)
@@ -369,22 +383,11 @@ def run_tasks(args, configuration):
 
     # CREATE CROSSVALIDATION ITERATOR
     crossvalidate_cached = mem_cache.cache(get_crossvalidation_iterator)
-    cv_iterator, validate_indices = (
-        crossvalidate_cached(configuration['crossvalidation'], x_vals, y_vals))
+    cv_iterator, validate_indices, x_vals_seen, \
+    y_vals_seen = crossvalidate_cached(
+        configuration['crossvalidation'], x_vals, y_vals)
 
-    #todo this slicing business does not belong here,
-    # should be done in get_data_for_crossvalidation
-    # Pick out the non-validation data from x_vals. This requires x_vals
-    # to be cast to a format that supports slicing, such as the compressed
-    # sparse row format (converting to that is also fast).
-    seen_indices = range(y_vals.shape[0])
-    seen_indices = sorted(set(seen_indices) - set(validate_indices))
-    x_vals_seen = [x_vals[index] for index in seen_indices]
-    # y_vals is a row vector, need to transpose it to get the same shape as
-    # x_vals_seen
-    y_vals_seen = y_vals[:, seen_indices].transpose()
-
-    print "Starting training with %d documents" % len(x_vals_seen)
+    logger.debug("Starting training with %d documents" % len(x_vals_seen))
 
     scores = []
     for clf_name in configuration['classifiers']:
@@ -396,7 +399,7 @@ def run_tasks(args, configuration):
             logger.warn('Ignoring classifier %s' % clf_name)
             continue
 
-        logger.info('Training and evaluating %s' % clf_name)
+        logger.info('Classifier: %s' % clf_name)
         # DO FEATURE SELECTION/DIMENSIONALITY REDUCTION FOR CROSSVALIDATION
         # DATA
         pipeline = _build_pipeline(clf_name,
@@ -407,11 +410,10 @@ def run_tasks(args, configuration):
 
         if args.test:
             #  no crossvalidation, train on one set and test on the other
-            logger.info('Training on data of size %r' % (len(x_vals_seen)))
+            logger.info('Evaluating on test set of size %s' % len(x_test))
             cached_fit = mem_cache.cache(pipeline.fit)
             cached_fit(x_vals_seen, y_vals_seen)
             eval = ChainCallable(configuration['evaluation'])
-            logger.info('Evaluating on test set of size %s' % len(x_test))
             # Making a singleton tuple with the tuple of interest as the
             # only item
             for metric, score in eval(y_test, pipeline.predict(x_test))\
@@ -441,7 +443,7 @@ def run_tasks(args, configuration):
                     scores.append(
                         [clf_name.split('.')[-1], metric.split('.')[-1],
                          score])
-    print 'scores are', scores
+    logger.info('Classifier scores are %s' % scores)
     analyze(scores, args.output, configuration['name'])
 
     # todo create a mallet classifier wrapper in python that works with
