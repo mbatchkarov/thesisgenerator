@@ -535,3 +535,5 @@ if __name__ == '__main__':
         sys.exit(1)
 
     run_tasks(args, conf_parser)
+    shutil.move(args.log_path, args.output)
+    shutil.copy(args.configuration, args.output)
