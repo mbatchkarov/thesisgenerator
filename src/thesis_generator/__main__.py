@@ -11,7 +11,6 @@ from glob import glob
 import numpy as np
 import logging
 from logging import StreamHandler
-from logging.handlers import RotatingFileHandler
 import inspect
 
 import validate
@@ -468,9 +467,8 @@ def _config_logger(output_path=None):
     sh.setFormatter(fmt)
 
     if output_path is not None:
-        fh = RotatingFileHandler(os.path.join(output_path, 'log.txt'),
-                                 maxBytes=int(2 * 10e8),
-                                 backupCount=5)
+        fh = logging.FileHandler(os.path.join(output_path, 'log.txt'),
+                                 mode='w')
         fh.setLevel(logging.DEBUG)
         fh.setFormatter(fmt)
 
@@ -497,7 +495,7 @@ def _prepare_output_directory():
 
         # TODO this needs to be redone after the scikits integration is
         # complete
-    #    _write_config_file(args)
+        #    _write_config_file(args)
 
 
 def _prepare_classpath():
@@ -511,8 +509,8 @@ def _prepare_classpath():
 
 if __name__ == '__main__':
     args = config.arg_parser.parse_args()
-#    if args.log_path.startswith('./'):
-#        args.log_path = os.path.join(args.output, args.log_path)
+    #    if args.log_path.startswith('./'):
+    #        args.log_path = os.path.join(args.output, args.log_path)
 
     if not os.path.exists(args.log_path):
         os.makedirs(args.log_path)
