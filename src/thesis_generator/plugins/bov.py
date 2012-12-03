@@ -41,13 +41,17 @@ def load_thesaurus(path, pos_insensitive, sim_threshold):
                     if pos_insensitive:
                         # remove PoS tag from token
                         tokens = [x.split('/')[0] for x in tokens]
-                    neighbours[tokens[0]] = [(word, float(sim)) for (word, sim)
+                    to_insert = [(word, float(sim)) for (word, sim)
                                              in
                                              iterate_nonoverlapping_pairs(
                                                  tokens, 1)
                                              if
                                              word != FILTERED and sim >
                                              sim_threshold]
+                    # the step above may filter out all neighbours of an
+                    # entry. if this happens, do not bother adding it
+                    if len(to_insert) > 0:
+                        neighbours[tokens[0]] = to_insert
         thesauri[path] = neighbours
         print 'Thesaurus contains %d entries' % len(neighbours)
         return neighbours
