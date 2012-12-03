@@ -312,6 +312,10 @@ def _build_pipeline(classifier_name, feature_extr_conf, feature_sel_conf,
     return pipeline
 
 
+def fit_pipeline(pipeline, x, y):
+    pipeline.fit(x, y)
+
+
 def run_tasks(args, configuration):
     """
     Runs all commands specified in the configuration file
@@ -383,7 +387,7 @@ def run_tasks(args, configuration):
 
     # CREATE CROSSVALIDATION ITERATOR
     crossvalidate_cached = mem_cache.cache(get_crossvalidation_iterator)
-    cv_iterator, validate_indices, x_vals_seen, \
+    cv_iterator, validate_indices, x_vals_seen,\
     y_vals_seen = crossvalidate_cached(
         configuration['crossvalidation'], x_vals, y_vals)
 
@@ -411,8 +415,8 @@ def run_tasks(args, configuration):
         if args.test:
             #  no crossvalidation, train on one set and test on the other
             logger.info('Evaluating on test set of size %s' % len(x_test))
-            cached_fit = mem_cache.cache(pipeline.fit)
-            cached_fit(x_vals_seen, y_vals_seen)
+            cached_fit = mem_cache.cache(fit_pipeline)
+            cached_fit(pipeline, x_vals_seen, y_vals_seen)
             eval = ChainCallable(configuration['evaluation'])
             # Making a singleton tuple with the tuple of interest as the
             # only item

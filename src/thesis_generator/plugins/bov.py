@@ -179,6 +179,10 @@ class ThesaurusVectorizer(TfidfVectorizer):
         Current version copied without functional modification from sklearn
         .feature_extraction.text.CountVectorizer
         """
+
+        # how many tokens are there/ are unknown/ have been replaced
+        total, unknown, replaced = 0, 0, 0
+
         if not hasattr(self, '_thesaurus'):
             #thesaurus has not been parsed yet
             if not self.thesaurus_file:
@@ -205,6 +209,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
         for doc_id, term_count_dict in enumerate(term_count_dicts):
             num_documents += 1
             for document_term, count in term_count_dict.iteritems():
+                total += 1
                 term_index_in_vocab = vocabulary.get(document_term)
                 if term_index_in_vocab is not None:
                 #None if term is not in seen vocabulary
@@ -216,6 +221,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
                 # i.e. vectorizer is not reducing the test set to the
                 # training vocabulary
                 # print 'Unknown token %s' % document_term
+                    unknown += 1
                     neighbours = self._thesaurus.get(document_term)
 
                     # if there are any neighbours filter the list of
@@ -225,6 +231,8 @@ class ThesaurusVectorizer(TfidfVectorizer):
                                   neighbours[:self._k] if
                                   neighbour in self.vocabulary_ and sim >
                                   self._sim_threshold] if neighbours else []
+                    if len(neighbours) > 0:
+                        replaced += 1
                     for neighbour, sim in neighbours:
                     #                        print '***replacing %s with %s,
                     # sim = %f' % (
@@ -255,6 +263,9 @@ class ThesaurusVectorizer(TfidfVectorizer):
         if self.binary:
             spmatrix.data.fill(1)
         print 'Vectorizer: Data shape is ', spmatrix.shape
+        print 'Vectorizer: Total: %d Unknown: %d Replaced: %d' % (total,
+                                                                  unknown,
+                                                                  replaced)
         return spmatrix
 
     def get_params(self, deep=True):
