@@ -308,7 +308,7 @@ def _build_pipeline(classifier_name, feature_extr_conf, feature_sel_conf,
     pipeline = Pipeline(pipeline_list)
     pipeline.set_params(**call_args)
 
-    #    logger.info('Preprocessing pipeline is %s', pipeline)
+    logger.debug('Preprocessing pipeline is:\n %s', pipeline)
     return pipeline
 
 

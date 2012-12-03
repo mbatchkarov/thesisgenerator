@@ -1,3 +1,5 @@
+from numpy import nonzero
+
 __author__ = 'mmb28'
 
 def inspect_thesaurus_effect(outdir, clf_name, thesaurus_file, pipeline,
@@ -22,4 +24,6 @@ def inspect_thesaurus_effect(outdir, clf_name, thesaurus_file, pipeline,
         outfile.write('%s-Thesaurus,' % clf_name)
         outfile.write(','.join([str(x) for x in predicted2.tolist()]))
         outfile.write('\n')
+        outfile.write('Decisions changed: %d' % (
+        nonzero(predicted - predicted2)[0].shape[0]))
         outfile.write('\n')

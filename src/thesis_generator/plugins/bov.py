@@ -5,6 +5,7 @@ from sklearn.feature_extraction.text import  TfidfVectorizer
 from thesis_generator import config
 from thesis_generator.__main__ import _config_logger
 
+
 def _configure_logger():
     args = config.arg_parser.parse_args()
     log_path = os.path.join(args.log_path, 'bov-vectorizer')
@@ -27,7 +28,7 @@ def load_thesaurus(path, pos_insensitive, sim_threshold):
     """
     if not path:
         return None
-    if thesauri.has_key(path):
+    if path in thesauri:
         logger.info('Returning cached thesaurus for %s' % path)
         return thesauri[path]
     else:
@@ -64,7 +65,7 @@ def load_thesaurus(path, pos_insensitive, sim_threshold):
 
 
 def iterate_nonoverlapping_pairs(iterable, beg):
-    for i in xrange(beg, len(iterable) - 1, 2): #step size 2
+    for i in xrange(beg, len(iterable) - 1, 2):  #step size 2
         yield (iterable[i], iterable[i + 1])
 
 
@@ -98,7 +99,7 @@ def my_feature_extractor(tokens, stop_words=None, ngram_range=(1, 1)):
             for i in xrange(n_original_tokens - n + 1):
                 tokens.append(u" ".join(original_tokens[i: i + n]))
 
-    return tokens # + last_chars + shapes
+    return tokens  # + last_chars + shapes
 
 
 def my_analyzer():
@@ -111,7 +112,6 @@ class ThesaurusVectorizer(TfidfVectorizer):
     A thesaurus-backed CountVectorizer that replaces unknown features with
     their k nearest neighbours in the thesaurus
     """
-
 
     def __init__(self, thesaurus_file=None, k=1, sim_threshold=0.2,
                  pos_insensitive=True,
@@ -127,10 +127,6 @@ class ThesaurusVectorizer(TfidfVectorizer):
         extra param specifying the path the the Byblo-generated thesaurus
         """
         try:
-        #            if vocabulary:
-        #                #  we only need the thesaurus if vocabulary is
-        # fixed, i.e.
-        #                #  if this is a test run
             self.thesaurus_file = thesaurus_file
             self.k = k
             self.sim_threshold = sim_threshold
@@ -215,7 +211,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
             #thesaurus has not been parsed yet
             if not self.thesaurus_file:
                 # no thesaurus source, fall back to super behaviour
-                logger.info("F**k, no thesaurus!")
+                logger.warn("F**k, no thesaurus!")
                 return super(ThesaurusVectorizer,
                              self)._term_count_dicts_to_matrix(
                     term_count_dicts)
@@ -265,7 +261,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
                     for neighbour, sim in neighbours:
                         logger.debug('Replacement. Doc %d: %s --> %s, '
                                      'sim = %f' % (
-                            doc_id, document_term, neighbour, sim))
+                                         doc_id, document_term, neighbour, sim))
                         inserted_feature_id = vocabulary.get(neighbour)
                         try:
                             position_in_lists = term_indices.index(

@@ -17,6 +17,7 @@ class MostCommonLabelClassifier(BaseEstimator):
         c = Counter(y)
         print '************************************'
         print 'DumbClassifier counter = %r' % c
+        print 'Fitting: Data shape = %s' % str(X.shape)
         self.decision = c.most_common(1)[0][0]
         print 'DumbClassifier decision = %d' % self.decision
         print '************************************'
