@@ -308,7 +308,7 @@ def _build_pipeline(classifier_name, feature_extr_conf, feature_sel_conf,
     pipeline = Pipeline(pipeline_list)
     pipeline.set_params(**call_args)
 
-#    logger.info('Preprocessing pipeline is %s', pipeline)
+    #    logger.info('Preprocessing pipeline is %s', pipeline)
     return pipeline
 
 
@@ -320,31 +320,6 @@ def run_tasks(args, configuration):
     """
     Runs all commands specified in the configuration file
     """
-
-    # **********************************
-    # CLEAN OUTPUT DIRECTORY
-    # **********************************
-    if args.clean and os.path.exists(args.output):
-        logger.info('Cleaning output directory %s' % glob(args.output))
-        shutil.rmtree(args.output)
-
-    # **********************************
-    # CREATE OUTPUT DIRECTORY
-    # **********************************
-    if not os.path.exists(args.output):
-        logger.info('Creating output directory %s' % glob(args.output))
-        os.makedirs(args.output)
-
-        # TODO this needs to be redone after the scikits integration is
-        # complete
-    #    _write_config_file(args)
-
-    # **********************************
-    # ADD classpath TO SYSTEM PATH
-    # **********************************
-    for path in args.classpath.split(os.pathsep):
-        logger.info('Adding (%s) to system path' % glob(path))
-        sys.path.append(os.path.abspath(path))
 
     # get a reference to the joblib cache object
     mem_cache = Memory(cachedir=args.output, verbose=0)
@@ -504,10 +479,40 @@ def _config_logger(output_path=None):
     logger.setLevel(logging.DEBUG)
     return logger
 
+
+def _prepare_output_directory():
+    # **********************************
+    # CLEAN OUTPUT DIRECTORY
+    # **********************************
+    if args.clean and os.path.exists(args.output):
+        logger.info('Cleaning output directory %s' % glob(args.output))
+        shutil.rmtree(args.output)
+
+    # **********************************
+    # CREATE OUTPUT DIRECTORY
+    # **********************************
+    if not os.path.exists(args.output):
+        logger.info('Creating output directory %s' % glob(args.output))
+        os.makedirs(args.output)
+
+        # TODO this needs to be redone after the scikits integration is
+        # complete
+    #    _write_config_file(args)
+
+
+def _prepare_classpath():
+    global path
+    # **********************************
+    # ADD classpath TO SYSTEM PATH
+    # **********************************
+    for path in args.classpath.split(os.pathsep):
+        logger.info('Adding (%s) to system path' % glob(path))
+        sys.path.append(os.path.abspath(path))
+
 if __name__ == '__main__':
     args = config.arg_parser.parse_args()
-    if args.log_path.startswith('./'):
-        args.log_path = os.path.join(args.output, args.log_path)
+#    if args.log_path.startswith('./'):
+#        args.log_path = os.path.join(args.output, args.log_path)
 
     if not os.path.exists(args.log_path):
         os.makedirs(args.log_path)
@@ -517,6 +522,9 @@ if __name__ == '__main__':
     logger.info(
         'Reading configuration file from \'%s\', conf spec from \'conf/'
         '.confrc\'' % (glob(args.configuration)[0]))
+
+    _prepare_output_directory()
+    _prepare_classpath()
 
     conf_parser = ConfigObj(args.configuration, configspec='conf/.confrc')
     validator = validate.Validator()
