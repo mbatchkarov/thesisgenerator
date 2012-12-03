@@ -1,11 +1,17 @@
 from collections import defaultdict
+import os
 import scipy.sparse as sp
 from sklearn.feature_extraction.text import  TfidfVectorizer
+from thesis_generator import config
+from thesis_generator.__main__ import _config_logger
 
-__author__ = 'mmb28'
+def _configure_logger():
+    args = config.arg_parser.parse_args()
+    log_path = os.path.join(args.log_path, 'bov-vectorizer')
+    if not os.path.exists(log_path):
+        os.makedirs(log_path)
+    return _config_logger(log_path)
 
-# cache, to avoid re-loading all the time
-thesauri = {}
 
 def load_thesaurus(path, pos_insensitive, sim_threshold):
     """
@@ -22,12 +28,12 @@ def load_thesaurus(path, pos_insensitive, sim_threshold):
     if not path:
         return None
     if thesauri.has_key(path):
-        print 'Returning cached thesaurus for %s' % path
+        logger.info('Returning cached thesaurus for %s' % path)
         return thesauri[path]
     else:
-        print 'Loading thesaurus %s from disk' % path
-        print 'PoS-insensitive: %r, threshold %r' % (pos_insensitive,
-                                                     sim_threshold)
+        logger.info('Loading thesaurus %s from disk' % path)
+        logger.info('PoS-insensitive: %r, threshold %r' % (pos_insensitive,
+                                                           sim_threshold))
         FILTERED = '___FILTERED___'.lower()
         neighbours = defaultdict(list)
         with open(path) as infile:
@@ -42,18 +48,18 @@ def load_thesaurus(path, pos_insensitive, sim_threshold):
                         # remove PoS tag from token
                         tokens = [x.split('/')[0] for x in tokens]
                     to_insert = [(word, float(sim)) for (word, sim)
-                                             in
-                                             iterate_nonoverlapping_pairs(
-                                                 tokens, 1)
-                                             if
-                                             word != FILTERED and sim >
-                                             sim_threshold]
+                                 in
+                                 iterate_nonoverlapping_pairs(
+                                     tokens, 1)
+                                 if
+                                 word != FILTERED and sim >
+                                 sim_threshold]
                     # the step above may filter out all neighbours of an
                     # entry. if this happens, do not bother adding it
                     if len(to_insert) > 0:
                         neighbours[tokens[0]] = to_insert
         thesauri[path] = neighbours
-        print 'Thesaurus contains %d entries' % len(neighbours)
+        logger.info('Thesaurus contains %d entries' % len(neighbours))
         return neighbours
 
 
@@ -209,7 +215,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
             #thesaurus has not been parsed yet
             if not self.thesaurus_file:
                 # no thesaurus source, fall back to super behaviour
-                print "F**k, no thesaurus!"
+                logger.info("F**k, no thesaurus!")
                 return super(ThesaurusVectorizer,
                              self)._term_count_dicts_to_matrix(
                     term_count_dicts)
@@ -227,8 +233,8 @@ class ThesaurusVectorizer(TfidfVectorizer):
 
         vocabulary = self.vocabulary_
         num_documents = 0
-        print "Building feature vectors, current vocab size is %d" % len(
-            vocabulary)
+        logger.info("Building feature vectors, current vocab size is %d" %
+                    len(vocabulary))
 
         for doc_id, term_count_dict in enumerate(term_count_dicts):
             num_documents += 1
@@ -241,10 +247,10 @@ class ThesaurusVectorizer(TfidfVectorizer):
                     term_indices.append(term_index_in_vocab)
                     values.append(count)
                 else: # this feature has not been seen before, replace it
-                # the print below demonstrates that unseen words exist,
+                # the logger.info(below demonstrates that unseen words exist,)
                 # i.e. vectorizer is not reducing the test set to the
                 # training vocabulary
-                # print 'Unknown token %s' % document_term
+                # logger.info('Unknown token %s' % document_term)
                     unknown += 1
                     neighbours = self._thesaurus.get(document_term)
 
@@ -258,7 +264,8 @@ class ThesaurusVectorizer(TfidfVectorizer):
                     if len(neighbours) > 0:
                         replaced += 1
                     for neighbour, sim in neighbours:
-                    #                        print '***replacing %s with %s,
+                    #                        logger.info('***replacing %s
+                    # with %s,)
                     # sim = %f' % (
                     #                            document_term, neighbour, sim)
                         inserted_feature_id = vocabulary.get(neighbour)
@@ -286,9 +293,16 @@ class ThesaurusVectorizer(TfidfVectorizer):
         # remove frequencies if binary feature were requested
         if self.binary:
             spmatrix.data.fill(1)
-        print 'Vectorizer: Data shape is ', spmatrix.shape
-        print 'Vectorizer: Total: %d Unknown: %d Replaced: %d' % (total,
-                                                                  unknown,
-                                                                  replaced)
+        logger.info('Vectorizer: Data shape is %s' % (str(spmatrix.shape)))
+        logger.info('Vectorizer: Total: %d Unknown: %d Replaced: %d' % (total,
+                                                                        unknown,
+
+
+                                                                        replaced))
         return spmatrix
 
+
+__author__ = 'mmb28'
+# cache, to avoid re-loading all the time
+thesauri = {}
+logger = _configure_logger()
