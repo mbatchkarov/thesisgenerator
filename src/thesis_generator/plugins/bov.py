@@ -7,10 +7,17 @@ __author__ = 'mmb28'
 # cache, to avoid re-loading all the time
 thesauri = {}
 
-def load_thesaurus(path):
+def load_thesaurus(path, pos_insensitive, sim_threshold):
     """
     Loads a Byblo-generated thesaurus form the specified file. If the file
     has been parsed already returns a cached version.
+
+    Parameters:
+    path: string, path the the Byblo-generated thesaurus
+    pos_insensitive: boolean, whether the PoS tags should be stripped from
+        entities (if they are present)
+    sim_threshold: what is the min similarity for neighbours that should be
+    loaded
     """
     if not path:
         return None
@@ -19,21 +26,30 @@ def load_thesaurus(path):
         return thesauri[path]
     else:
         print 'Loading thesaurus %s from disk' % path
+        print 'PoS-insensitive: %r, threshold %r' % (pos_insensitive,
+                                                     sim_threshold)
         FILTERED = '___FILTERED___'.lower()
         neighbours = defaultdict(list)
         with open(path) as infile:
             for line in infile:
                 tokens = line.strip().lower().split('\t')
-                if len(tokens) % 2 == 0:#must have an even number of things
+                if len(tokens) % 2 == 0:
+                #must have an odd number of things, one for the entry and
+                # pairs for (neighbour, similarity)
                     continue
                 if tokens[0] != FILTERED:
+                    if pos_insensitive:
+                        # remove PoS tag from token
+                        tokens = [x.split('/')[0] for x in tokens]
                     neighbours[tokens[0]] = [(word, float(sim)) for (word, sim)
                                              in
                                              iterate_nonoverlapping_pairs(
-                                                 tokens,
-                                                 1)
-                                             if word != FILTERED]
+                                                 tokens, 1)
+                                             if
+                                             word != FILTERED and sim >
+                                             sim_threshold]
         thesauri[path] = neighbours
+        print 'Thesaurus contains %d entries' % len(neighbours)
         return neighbours
 
 
@@ -88,6 +104,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
 
 
     def __init__(self, thesaurus_file=None, k=1, sim_threshold=0.2,
+                 pos_insensitive=True,
                  input='content', charset='utf-8', charset_error='strict',
                  strip_accents=None, lowercase=True,
                  preprocessor=None, tokenizer=None, analyzer='better',
@@ -105,8 +122,9 @@ class ThesaurusVectorizer(TfidfVectorizer):
         # fixed, i.e.
         #                #  if this is a test run
             self.thesaurus_file = thesaurus_file
-            self._k = k
-            self._sim_threshold = sim_threshold
+            self.k = k
+            self.sim_threshold = sim_threshold
+            self.pos_insensitive = pos_insensitive
         except KeyError:
             pass
         super(ThesaurusVectorizer, self).__init__(input=input, charset=charset,
@@ -193,7 +211,9 @@ class ThesaurusVectorizer(TfidfVectorizer):
                     term_count_dicts)
             else:
                 # thesaurus file specified, parse it
-                self._thesaurus = load_thesaurus(self.thesaurus_file)
+                self._thesaurus = load_thesaurus(self.thesaurus_file,
+                                                 self.pos_insensitive,
+                                                 self.sim_threshold)
 
         # sparse storage for document-term matrix (terminology note: term ==
         # feature)
@@ -228,9 +248,9 @@ class ThesaurusVectorizer(TfidfVectorizer):
                     # neighbours so that it contains only pairs where
                     # the neighbour has been seen
                     neighbours = [(neighbour, sim) for neighbour, sim in
-                                  neighbours[:self._k] if
-                                  neighbour in self.vocabulary_ and sim >
-                                  self._sim_threshold] if neighbours else []
+                                  neighbours[:self.k] if
+                                  neighbour in self.vocabulary_] if\
+                    neighbours else []
                     if len(neighbours) > 0:
                         replaced += 1
                     for neighbour, sim in neighbours:
@@ -267,11 +287,4 @@ class ThesaurusVectorizer(TfidfVectorizer):
                                                                   unknown,
                                                                   replaced)
         return spmatrix
-
-    def get_params(self, deep=True):
-        out = super(ThesaurusVectorizer, self).get_params(deep)
-        out['thesaurus'] = self.thesaurus_file
-        out['sim_threshold'] = self._sim_threshold
-        out['k'] = self._k
-        return out
 

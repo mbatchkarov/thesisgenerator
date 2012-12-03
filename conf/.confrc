@@ -5,7 +5,9 @@ name=string()
     input_generator=string(default="")
 	
 	# extra options required by the Bag-of-Vectors project Vectorizer
-    thesaurus=string
+    thesaurus_file=string
+    sim_threshold=float
+    pos_insensitive=boolean
 	    
     # The below options have defaults in the scikit Vectorizer init
     input=option('content', 'filename', 'file')
