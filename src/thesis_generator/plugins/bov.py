@@ -259,15 +259,13 @@ class ThesaurusVectorizer(TfidfVectorizer):
                     # the neighbour has been seen
                     neighbours = [(neighbour, sim) for neighbour, sim in
                                   neighbours[:self.k] if
-                                  neighbour in self.vocabulary_] if\
-                    neighbours else []
+                                  neighbour in self.vocabulary_] if neighbours else []
                     if len(neighbours) > 0:
                         replaced += 1
                     for neighbour, sim in neighbours:
-                    #                        logger.info('***replacing %s
-                    # with %s,)
-                    # sim = %f' % (
-                    #                            document_term, neighbour, sim)
+                        logger.debug('Replacement. Doc %d: %s --> %s, '
+                                     'sim = %f' % (
+                            doc_id, document_term, neighbour, sim))
                         inserted_feature_id = vocabulary.get(neighbour)
                         try:
                             position_in_lists = term_indices.index(
@@ -296,8 +294,6 @@ class ThesaurusVectorizer(TfidfVectorizer):
         logger.info('Vectorizer: Data shape is %s' % (str(spmatrix.shape)))
         logger.info('Vectorizer: Total: %d Unknown: %d Replaced: %d' % (total,
                                                                         unknown,
-
-
                                                                         replaced))
         return spmatrix
 

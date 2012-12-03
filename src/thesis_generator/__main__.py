@@ -315,6 +315,26 @@ def fit_pipeline(pipeline, x, y):
     pipeline.fit(x, y)
 
 
+def inspect_thesaurus_effect(outdir, clf_name, thesaurus_file, pipeline,
+                             predicted, x_test):
+    # remove the thesaurus
+    logger.warn('Thesaurus has been removed from pipeline, '
+                'do not use any more!!!')
+    pipeline.named_steps['vect'].thesaurus = {}
+    predicted2 = pipeline.predict(x_test)
+
+    with open('%s/before_after_%s_%s.csv' % (outdir, clf_name, thesaurus_file),
+              'w') as outfile:
+        outfile.write('DocID,')
+        outfile.write(','.join([str(x) for x in range(len(predicted))]))
+        outfile.write('\n')
+        outfile.write('ClassificationsWithThesaurus,')
+        outfile.write(','.join([str(x) for x in predicted.tolist()]))
+        outfile.write('\n')
+        outfile.write('ClassificationsWithoutThesaurus,')
+        outfile.write(','.join([str(x) for x in predicted2.tolist()]))
+
+
 def run_tasks(args, configuration):
     """
     Runs all commands specified in the configuration file
@@ -394,8 +414,14 @@ def run_tasks(args, configuration):
             eval = ChainCallable(configuration['evaluation'])
             # Making a singleton tuple with the tuple of interest as the
             # only item
-            for metric, score in eval(y_test, pipeline.predict(x_test))\
-            .items():
+            predicted = pipeline.predict(x_test)
+            if configuration['debug']:
+                inspect_thesaurus_effect(args.output, clf_name,
+                                         configuration['feature_extraction'][
+                                         'thesaurus_file'], pipeline, predicted,
+                                         x_test)
+
+            for metric, score in eval(y_test, predicted).items():
                 scores.append(
                     [clf_name.split('.')[-1], metric.split('.')[-1],
                      score])

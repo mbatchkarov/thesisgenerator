@@ -1,15 +1,12 @@
 name=string()
+debug=boolean(default=False)
+	
 [feature_extraction]
     run=boolean(default=True)
     vectorizer=string(default="")
     input_generator=string(default="")
 	
-	# extra options required by the Bag-of-Vectors project Vectorizer
-    thesaurus_file=string
-    sim_threshold=float
-    pos_insensitive=boolean
-	    
-    # The below options have defaults in the scikit Vectorizer init
+	# The below options have defaults in the scikit Vectorizer init
     input=option('content', 'filename', 'file')
     charset=string
     charset_error=string
@@ -26,9 +23,12 @@ name=string()
     max_features=integer
     vocabulary=string
     binary=boolean
-
-    constrain_vocabulary=boolean()
-
+    
+    # extra options required by the Bag-of-Vectors project Vectorizer
+    thesaurus_file=string
+    sim_threshold=float
+    pos_insensitive=boolean
+	
 [crossvalidation]
 	run=boolean()
 	type = option('kfold', 'skfold', 'loo', 'bootstrap', 'oracle', default = 'kfold')
