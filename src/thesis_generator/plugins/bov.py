@@ -1,4 +1,5 @@
 from collections import defaultdict
+from operator import itemgetter
 import os
 import scipy.sparse as sp
 from sklearn.feature_extraction.text import  TfidfVectorizer
@@ -58,7 +59,18 @@ def load_thesaurus(path, pos_insensitive, sim_threshold):
                     # the step above may filter out all neighbours of an
                     # entry. if this happens, do not bother adding it
                     if len(to_insert) > 0:
-                        neighbours[tokens[0]] = to_insert
+                        if tokens[0] in neighbours:
+                            logger.debug('Multiple entries for "%s" found'%tokens[0])
+                        neighbours[tokens[0]].extend(to_insert)
+
+        for k,v in neighbours.iteritems():
+            neighbours[k] = sorted(v, key=itemgetter(1))
+            # todo this does not remove duplicate neighbours,
+            # e.g. in thesaurus 1-1 "Jihad" has neighbours	Hamas and HAMAS,
+            # which get conflated. Also, entries HEBRON and Hebron exist,
+            # which need to be merged properly. Such events are quite
+            # infrequent- 167/5700 = 3% entries in exp1-1 collide
+
         thesauri[path] = neighbours
         logger.info('Thesaurus contains %d entries' % len(neighbours))
         return neighbours
