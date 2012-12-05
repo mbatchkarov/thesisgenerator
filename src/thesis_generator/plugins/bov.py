@@ -89,9 +89,11 @@ def my_feature_extractor(tokens, stop_words=None, ngram_range=(1, 1)):
     Based on sklearn.feature_extraction.text._word_ngrams
     """
     #todo add/enable feature functions here
-    # handle stop words
+    # handle stop words and lowercasing- this is needed because thesaurus
+    # only contains lowercase entries
     if stop_words is not None:
-        tokens = [w for w in tokens if w not in stop_words and len(w) > 3]
+        tokens = [w.lower() for w in tokens if w not in stop_words and len(w) >
+                                             3]
 
     #    last_chars = ['**suffix(%s)' % token[-1] for token in tokens]
     #    shapes = ['**shape(%s)' % "".join(
@@ -260,7 +262,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
                 # training vocabulary
                 # logger.info('Unknown token %s' % document_term)
                     unknown += 1
-                    neighbours = self._thesaurus.get(document_term)
+                    neighbours = self._thesaurus.get(document_term.lower())
 
                     # if there are any neighbours filter the list of
                     # neighbours so that it contains only pairs where
