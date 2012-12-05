@@ -25,10 +25,10 @@ from joblib import Memory
 
 from thesis_generator import config
 from thesis_generator.plugins.bov_utils import inspect_thesaurus_effect
+from thesis_generator.plugins.dumpers import PostVectorizerDumper
 from thesis_generator.utils import (get_named_object,
                                     LeaveNothingOut,
                                     ChainCallable)
-
 
 # **********************************
 # FEATURE EXTRACTION / PARSE
@@ -195,7 +195,8 @@ def get_crossvalidation_iterator(config, x_vals, y_vals):
     return iterator, validation_indices, x_vals, y_vals
 
 
-def _build_vectorizer(call_args, feature_extraction_conf, pipeline_list):
+def _build_vectorizer(call_args, feature_extraction_conf, pipeline_list,
+                      output_dir, debug):
     """
     Builds a vectorized that converts raw text to feature vectors. The
     parameters for the vectorizer are specified in the *feature extraction*
@@ -228,12 +229,17 @@ def _build_vectorizer(call_args, feature_extraction_conf, pipeline_list):
                       for arg, val in feature_extraction_conf.items()
                       if val != '' and arg in initialize_args})
 
-    #    required_args = {}
-    #    required_args.update({'%s' % arg: val
-    #                          for arg, val in feature_extraction_conf.items()
-    #                          if val != '' and arg in initialize_args})
-
     pipeline_list.append(('vect', vectorizer()))
+    call_args['vect__log_vocabulary'] = False
+
+    global postvect_dumper_added_already
+    if debug and not postvect_dumper_added_already:
+        logger.info('Will perform post-vectorizer data dump')
+        pipeline_list.append(
+            ('postVectDumper', PostVectorizerDumper(output_dir)))
+        postvect_dumper_added_already = True
+        call_args['vect__log_vocabulary'] = True # tell the vectorizer it
+        # needs to persist some information (used by the postvect dumper)
 
 
 def _build_feature_selector(call_args, feature_selection_conf, pipeline_list):
@@ -279,7 +285,7 @@ def _build_dimensionality_reducer(call_args, dimensionality_reduction_conf,
 
 
 def _build_pipeline(classifier_name, feature_extr_conf, feature_sel_conf,
-                    dim_red_conf, classifier_conf):
+                    dim_red_conf, classifier_conf, output_dir, debug):
     """
     Builds a pipeline consisting of
         - feature extractor
@@ -291,7 +297,7 @@ def _build_pipeline(classifier_name, feature_extr_conf, feature_sel_conf,
     pipeline_list = []
 
     _build_vectorizer(call_args, feature_extr_conf,
-                      pipeline_list)
+                      pipeline_list, output_dir, debug)
 
     _build_feature_selector(call_args, feature_sel_conf,
                             pipeline_list)
@@ -385,7 +391,8 @@ def run_tasks(args, configuration):
                                    configuration['feature_extraction'],
                                    configuration['feature_selection'],
                                    configuration['dimensionality_reduction'],
-                                   configuration['classifiers'])
+                                   configuration['classifiers'],
+                                   args.output, configuration['debug'])
 
         if args.test:
             #  no crossvalidation, train on one set and test on the other
@@ -491,7 +498,7 @@ def _config_logger(output_path=None):
                                  mode='w')
         fh.setLevel(logging.DEBUG)
         fh.setFormatter(fmt)
-    #        fh.addFilter(MyFilter(logging.DEBUG))
+        #        fh.addFilter(MyFilter(logging.DEBUG))
     #
     #        fh1 = logging.FileHandler(os.path.join(output_path, 'log-info.txt'),
     #                                  mode='w')
@@ -551,6 +558,7 @@ if __name__ == '__main__':
     _prepare_output_directory()
     _prepare_classpath()
 
+    postvect_dumper_added_already = False
     conf_parser = ConfigObj(args.configuration, configspec='conf/.confrc')
     validator = validate.Validator()
     result = conf_parser.validate(validator)

@@ -1,6 +1,7 @@
 from collections import defaultdict
 from operator import itemgetter
 import os
+import pickle
 import scipy.sparse as sp
 from sklearn.feature_extraction.text import  TfidfVectorizer
 from thesis_generator import config
@@ -60,10 +61,11 @@ def load_thesaurus(path, pos_insensitive, sim_threshold):
                     # entry. if this happens, do not bother adding it
                     if len(to_insert) > 0:
                         if tokens[0] in neighbours:
-                            logger.debug('Multiple entries for "%s" found'%tokens[0])
+                            logger.debug(
+                                'Multiple entries for "%s" found' % tokens[0])
                         neighbours[tokens[0]].extend(to_insert)
 
-        for k,v in neighbours.iteritems():
+        for k, v in neighbours.iteritems():
             neighbours[k] = sorted(v, key=itemgetter(1))
             # todo this does not remove duplicate neighbours,
             # e.g. in thesaurus 1-1 "Jihad" has neighbours	Hamas and HAMAS,
@@ -93,7 +95,7 @@ def my_feature_extractor(tokens, stop_words=None, ngram_range=(1, 1)):
     # only contains lowercase entries
     if stop_words is not None:
         tokens = [w.lower() for w in tokens if w not in stop_words and len(w) >
-                                             3]
+                                               3]
 
     #    last_chars = ['**suffix(%s)' % token[-1] for token in tokens]
     #    shapes = ['**shape(%s)' % "".join(
@@ -128,7 +130,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
     """
 
     def __init__(self, thesaurus_file=None, k=1, sim_threshold=0.2,
-                 pos_insensitive=True,
+                 pos_insensitive=True, log_vocabulary=False,
                  input='content', charset='utf-8', charset_error='strict',
                  strip_accents=None, lowercase=True,
                  preprocessor=None, tokenizer=None, analyzer='better',
@@ -145,6 +147,9 @@ class ThesaurusVectorizer(TfidfVectorizer):
             self.k = k
             self.sim_threshold = sim_threshold
             self.pos_insensitive = pos_insensitive
+            self.log_vocabulary = log_vocabulary # if I should log the
+            # vocabulary
+            self.log_vocabulary_already = False #have I done it already
         except KeyError:
             pass
         super(ThesaurusVectorizer, self).__init__(input=input, charset=charset,
@@ -305,6 +310,15 @@ class ThesaurusVectorizer(TfidfVectorizer):
         logger.info('Vectorizer: Total: %d Unknown: %d Replaced: %d' % (total,
                                                                         unknown,
                                                                         replaced))
+
+        # temporarily store vocabulary
+        f = './tmp_vocabulary'
+        if self.log_vocabulary and not self.log_vocabulary_already:
+            with open(f, 'w') as out:
+                print '**************** writing vocab'
+                pickle.dump(self.vocabulary_, out)
+                self.log_vocabulary_already = True
+
         return spmatrix
 
 
