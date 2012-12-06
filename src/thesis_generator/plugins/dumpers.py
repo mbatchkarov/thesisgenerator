@@ -5,7 +5,7 @@ from sklearn.base import TransformerMixin
 
 __author__ = 'mmb28'
 
-class PostVectorizerDumper(TransformerMixin):
+class DatasetDumper(TransformerMixin):
     """
     Saves the vectorized input to file for inspection
     """

@@ -25,7 +25,7 @@ from joblib import Memory
 
 from thesis_generator import config
 from thesis_generator.plugins.bov_utils import inspect_thesaurus_effect
-from thesis_generator.plugins.dumpers import PostVectorizerDumper
+from thesis_generator.plugins.dumpers import DatasetDumper
 from thesis_generator.utils import (get_named_object,
                                     LeaveNothingOut,
                                     ChainCallable)
@@ -236,10 +236,11 @@ def _build_vectorizer(call_args, feature_extraction_conf, pipeline_list,
     if debug and not postvect_dumper_added_already:
         logger.info('Will perform post-vectorizer data dump')
         pipeline_list.append(
-            ('postVectDumper', PostVectorizerDumper(output_dir)))
+            ('postVectDumper', DatasetDumper(output_dir)))
         postvect_dumper_added_already = True
         call_args['vect__log_vocabulary'] = True # tell the vectorizer it
         # needs to persist some information (used by the postvect dumper)
+        # this is needed because object in the pipeline are isolated
 
 
 def _build_feature_selector(call_args, feature_selection_conf, pipeline_list):
