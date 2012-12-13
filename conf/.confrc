@@ -26,8 +26,11 @@ debug=boolean(default=False)
     
     # extra options required by the Bag-of-Vectors project Vectorizer
     thesaurus_file=string
+    k=integer(min=0)
     sim_threshold=float
-    pos_insensitive=boolean
+    lemmatize=boolean
+    use_pos=boolean
+	coarse_pos=boolean
 	
 [crossvalidation]
 	run=boolean()

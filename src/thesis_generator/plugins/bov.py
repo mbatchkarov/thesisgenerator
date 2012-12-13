@@ -6,7 +6,7 @@ import scipy.sparse as sp
 from sklearn.feature_extraction.text import  TfidfVectorizer
 from thesis_generator import config
 from thesis_generator.__main__ import _config_logger
-
+import xml.etree.ElementTree as ET
 
 def _configure_logger():
     args = config.arg_parser.parse_args()
@@ -16,113 +16,6 @@ def _configure_logger():
     return _config_logger(log_path)
 
 
-def load_thesaurus(path, pos_insensitive, sim_threshold):
-    """
-    Loads a Byblo-generated thesaurus form the specified file. If the file
-    has been parsed already returns a cached version.
-
-    Parameters:
-    path: string, path the the Byblo-generated thesaurus
-    pos_insensitive: boolean, whether the PoS tags should be stripped from
-        entities (if they are present)
-    sim_threshold: what is the min similarity for neighbours that should be
-    loaded
-    """
-    if not path:
-        return None
-    if path in thesauri:
-        logger.info('Returning cached thesaurus for %s' % path)
-        return thesauri[path]
-    else:
-        logger.info('Loading thesaurus %s from disk' % path)
-        logger.info('PoS-insensitive: %r, threshold %r' % (pos_insensitive,
-                                                           sim_threshold))
-        FILTERED = '___FILTERED___'.lower()
-        neighbours = defaultdict(list)
-        with open(path) as infile:
-            for line in infile:
-                tokens = line.strip().lower().split('\t')
-                if len(tokens) % 2 == 0:
-                #must have an odd number of things, one for the entry and
-                # pairs for (neighbour, similarity)
-                    continue
-                if tokens[0] != FILTERED:
-                    if pos_insensitive:
-                        # remove PoS tag from token
-                        tokens = [x.split('/')[0] for x in tokens]
-                    to_insert = [(word, float(sim)) for (word, sim)
-                                 in
-                                 iterate_nonoverlapping_pairs(
-                                     tokens, 1)
-                                 if
-                                 word != FILTERED and sim >
-                                 sim_threshold]
-                    # the step above may filter out all neighbours of an
-                    # entry. if this happens, do not bother adding it
-                    if len(to_insert) > 0:
-                        if tokens[0] in neighbours:
-                            logger.debug(
-                                'Multiple entries for "%s" found' % tokens[0])
-                        neighbours[tokens[0]].extend(to_insert)
-
-        for k, v in neighbours.iteritems():
-            neighbours[k] = sorted(v, key=itemgetter(1))
-            # todo this does not remove duplicate neighbours,
-            # e.g. in thesaurus 1-1 "Jihad" has neighbours	Hamas and HAMAS,
-            # which get conflated. Also, entries HEBRON and Hebron exist,
-            # which need to be merged properly. Such events are quite
-            # infrequent- 167/5700 = 3% entries in exp1-1 collide
-
-        thesauri[path] = neighbours
-        logger.info('Thesaurus contains %d entries' % len(neighbours))
-        return neighbours
-
-
-def iterate_nonoverlapping_pairs(iterable, beg):
-    for i in xrange(beg, len(iterable) - 1, 2):  #step size 2
-        yield (iterable[i], iterable[i + 1])
-
-
-def my_feature_extractor(tokens, stop_words=None, ngram_range=(1, 1)):
-    """
-    Turn a document( a list of tokens) into a sequence of features. These
-    include n-grams after stop words filtering,
-    suffix features and shape features
-    Based on sklearn.feature_extraction.text._word_ngrams
-    """
-    #todo add/enable feature functions here
-    # handle stop words and lowercasing- this is needed because thesaurus
-    # only contains lowercase entries
-    if stop_words is not None:
-        tokens = [w.lower() for w in tokens if w not in stop_words and len(w) >
-                                               3]
-
-    #    last_chars = ['**suffix(%s)' % token[-1] for token in tokens]
-    #    shapes = ['**shape(%s)' % "".join(
-    #        'x' if l.islower() else '#' if l.isdigit()  else 'X' for l in
-    # token)
-    #              for token in
-    #              tokens]
-
-    # handle token n-grams
-    min_n, max_n = ngram_range
-    if max_n != 1:
-        original_tokens = tokens
-        tokens = []
-        n_original_tokens = len(original_tokens)
-        for n in xrange(min_n,
-                        min(max_n + 1, n_original_tokens + 1)):
-            for i in xrange(n_original_tokens - n + 1):
-                tokens.append(u" ".join(original_tokens[i: i + n]))
-
-    return tokens  # + last_chars + shapes
-
-
-def my_analyzer():
-    return lambda doc: my_feature_extractor(
-        doc, None, None)
-
-
 class ThesaurusVectorizer(TfidfVectorizer):
     """
     A thesaurus-backed CountVectorizer that replaces unknown features with
@@ -130,9 +23,9 @@ class ThesaurusVectorizer(TfidfVectorizer):
     """
 
     def __init__(self, thesaurus_file=None, k=1, sim_threshold=0.2,
-                 pos_insensitive=True, log_vocabulary=False,
+                 lemmatize=False, log_vocabulary=False, coarse_pos=True,
                  input='content', charset='utf-8', charset_error='strict',
-                 strip_accents=None, lowercase=True,
+                 strip_accents=None, lowercase=True, use_pos=False,
                  preprocessor=None, tokenizer=None, analyzer='better',
                  stop_words=None, token_pattern=ur"(?u)\b\w\w+\b", min_n=None,
                  max_n=None, ngram_range=(1, 1), max_df=1.0, min_df=2,
@@ -146,8 +39,10 @@ class ThesaurusVectorizer(TfidfVectorizer):
             self.thesaurus_file = thesaurus_file
             self.k = k
             self.sim_threshold = sim_threshold
-            self.pos_insensitive = pos_insensitive
             self.log_vocabulary = log_vocabulary # if I should log the
+            self.lemmatize = lemmatize
+            self.use_pos = use_pos
+            self.coarse_pos = coarse_pos
             # vocabulary
             self.log_vocabulary_already = False #have I done it already
         except KeyError:
@@ -173,6 +68,126 @@ class ThesaurusVectorizer(TfidfVectorizer):
                                                   smooth_idf=True,
                                                   sublinear_tf=False
         )
+
+    def load_thesaurus(self):
+        """
+        Loads a Byblo-generated thesaurus form the specified file. If the file
+        has been parsed already returns a cached version.
+
+        Parameters:
+        path: string, path the the Byblo-generated thesaurus
+        pos_insensitive: boolean, whether the PoS tags should be stripped from
+            entities (if they are present)
+        sim_threshold: what is the min similarity for neighbours that should be
+        loaded
+        """
+        path = self.thesaurus_file
+        if not path:
+            return None
+        if path in thesauri:
+            logger.info('Returning cached thesaurus for %s' % path)
+            return thesauri[path]
+        else:
+            logger.info('Loading thesaurus %s from disk' % path)
+            logger.info(
+                'PoS: %r, coarse: %r, threshold %r' % (self.use_pos,
+                                                       self.coarse_pos,
+                                                       self.sim_threshold))
+            FILTERED = '___FILTERED___'.lower()
+            neighbours = defaultdict(list)
+            with open(path) as infile:
+                for line in infile:
+                    tokens = line.strip().split('\t')
+                    if len(tokens) % 2 == 0:
+                    #must have an odd number of things, one for the entry and
+                    # pairs for (neighbour, similarity)
+                        continue
+                    if tokens[0] != FILTERED:
+                        indices = range(1, len(tokens), 2)
+                        indices.insert(0,0)
+                        for i in indices:# go over words
+                            s = tokens[i].split('/')
+                            if not self.use_pos:
+                                s = s[:-1]    # remove PoS tag from token
+                            if self.lowercase:
+                                s[0] = s[0].lower()
+                            tokens[i] = '/'.join(s)
+
+                        to_insert = [(word, float(sim)) for (word, sim)
+                                     in
+                                     self.iterate_nonoverlapping_pairs(
+                                         tokens, 1)
+                                     if
+                                     word != FILTERED and sim >
+                                     self.sim_threshold]
+                        # the step above may filter out all neighbours of an
+                        # entry. if this happens, do not bother adding it
+                        if len(to_insert) > 0:
+                            if tokens[0] in neighbours:
+                                logger.debug(
+                                    'Multiple entries for "%s" found' %
+                                    tokens[0])
+                            neighbours[tokens[0]].extend(to_insert)
+
+            for k, v in neighbours.iteritems():
+                neighbours[k] = sorted(v, key=itemgetter(1))
+                # todo this does not remove duplicate neighbours,
+                # e.g. in thesaurus 1-1 "Jihad" has neighbours	Hamas and HAMAS,
+                # which get conflated. Also, entries HEBRON and Hebron exist,
+                # which need to be merged properly. Such events are quite
+                # infrequent- 167/5700 = 3% entries in exp1-1 collide
+
+            thesauri[path] = neighbours
+            logger.info('Thesaurus contains %d entries' % len(neighbours))
+            return neighbours
+
+
+    def iterate_nonoverlapping_pairs(self, iterable, beg):
+        for i in xrange(beg, len(iterable) - 1, 2):  #step size 2
+            yield (iterable[i], iterable[i + 1])
+
+
+    def my_feature_extractor(self, tokens, stop_words=None,
+                             ngram_range=(1, 1), lemmatize=False):
+        """
+        Turn a document( a list of tokens) into a sequence of features. These
+        include n-grams after stop words filtering,
+        suffix features and shape features
+        Based on sklearn.feature_extraction.text._word_ngrams
+        """
+
+        #todo add/enable feature functions here
+        # handle stop words and lowercasing- this is needed because thesaurus
+        # only contains lowercase entries
+        if stop_words is not None:
+            tokens = [w.lower() for w in tokens if
+                      w not in stop_words and len(w) >
+                      3]
+
+        #    last_chars = ['**suffix(%s)' % token[-1] for token in tokens]
+        #    shapes = ['**shape(%s)' % "".join(
+        #        'x' if l.islower() else '#' if l.isdigit()  else 'X' for l in
+        # token)
+        #              for token in
+        #              tokens]
+
+        # handle token n-grams
+        min_n, max_n = ngram_range
+        if max_n != 1:
+            original_tokens = tokens
+            tokens = []
+            n_original_tokens = len(original_tokens)
+            for n in xrange(min_n,
+                            min(max_n + 1, n_original_tokens + 1)):
+                for i in xrange(n_original_tokens - n + 1):
+                    tokens.append(u" ".join(original_tokens[i: i + n]))
+
+        return tokens  # + last_chars + shapes
+
+
+    def my_analyzer(self):
+        return lambda doc: self.my_feature_extractor(
+            doc, None, None)
 
     def build_analyzer(self):
         """
@@ -204,11 +219,11 @@ class ThesaurusVectorizer(TfidfVectorizer):
 
         elif self.analyzer == 'better':
             stop_words = self.get_stop_words()
-            tokenize = self.build_tokenizer()
+            tokenize = self.xml_tokenizer
 
-            return lambda doc: my_feature_extractor(
+            return lambda doc: self.my_feature_extractor(
                 tokenize(preprocess(self.decode(doc))), stop_words,
-                self.ngram_range)
+                self.ngram_range, lemmatize=self.lemmatize)
 
         else:
             raise ValueError('%s is not a valid tokenization scheme/analyzer' %
@@ -236,9 +251,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
                     term_count_dicts)
             else:
                 # thesaurus file specified, parse it
-                self._thesaurus = load_thesaurus(self.thesaurus_file,
-                                                 self.pos_insensitive,
-                                                 self.sim_threshold)
+                self._thesaurus = self.load_thesaurus()
 
         # sparse storage for document-term matrix (terminology note: term ==
         # feature)
@@ -321,8 +334,76 @@ class ThesaurusVectorizer(TfidfVectorizer):
 
         return spmatrix
 
+    def xml_tokenizer(self, doc):
+        tree = ET.fromstring(doc.encode("utf8"))
+        tokens = [x.text for x in tree.iter('lemma')] if self.lemmatize else\
+        [x.text for x in tree.iter('word')]
+
+        if self.lowercase:
+            tokens = [x.lower() for x in tokens]
+        if self.use_pos:
+            pos_tags = [x.text.upper() for x in tree.iter('pos')]
+            if self.coarse_pos:
+                pos_tags = self.coarsify(pos_tags)
+            for i in range(len(pos_tags)):
+                tokens[i] = '/'.join([tokens[i], pos_tags[i]])
+
+
+
+        # if nothing else is specified, just return the words
+        return tokens
+
+    def coarsify(self, pos_tags):
+        return [pos_coarsification_map[x.upper()] for x in pos_tags]
+
 
 __author__ = 'mmb28'
 # cache, to avoid re-loading all the time
 thesauri = {}
+corenlp = None
 logger = _configure_logger()
+
+# copied from feature extraction toolkit
+pos_coarsification_map = defaultdict(lambda: "UNK")
+pos_coarsification_map.update({
+    "JJ": "J",
+    "JJN": "J",
+    "JJS": "J",
+    "JJR": "J",
+
+    "VB": "V",
+    "VBD": "V",
+    "VBG": "V",
+    "VBN": "V",
+    "VBP": "V",
+    "VBZ": "V",
+
+    "NN": "N",
+    "NNS": "N",
+    "NNP": "N",
+    "NPS": "N",
+    "NP": "N",
+
+    "RB": "RB",
+    "RBR": "RB",
+    "RBS": "RB",
+
+    "DT": "DET",
+    "WDT": "DET",
+
+    "IN": "CONJ",
+    "CC": "CONJ",
+
+    "PRP": "PRON",
+    "PRP$": "PRON",
+    "WP": "PRON",
+    "WP$": "PRON",
+
+    ".": "PUNCT",
+    ":": "PUNCT",
+    ":": "PUNCT",
+    "": "PUNCT",
+    "'": "PUNCT",
+    "\"": "PUNCT",
+    "'": "PUNCT",
+})
