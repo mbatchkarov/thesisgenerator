@@ -57,17 +57,17 @@ def compare_thesauri(prefix, names):
     with open('/usr/share/dict/words', 'r') as infile:
         words = [line.lower().strip() for line in infile]
 
-    print words
     with open('thesauri-comparison.csv', 'w') as outfile:
         entries = [x for x in entries]
         while done < min(50, len(entries)):
             word = random.choice(entries)
             if word.lower().split('/')[0] not in words:
                 continue
-            print word
+            print 'Selecting ',word
             for th, name in zip(thesauri, names):
                 neigh = th[word]
-                outfile.write('%s, %s, ' % ('%s...%s'%(name[:8],name[-8:]), word))
+                outfile.write(
+                    '%s, %s,' % ('%s...%s' % (name[:8], name[-8:]), word))
                 outfile.write(','.join([x[0] for x in neigh[:20]]))
                 outfile.write('\n')
             outfile.write('===\n')
@@ -151,16 +151,16 @@ if __name__ == '__main__':
 #        '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/thesisgenerator/sample-data/web2',
 #        '/Volumes/LocalScratchHD/LocalHome/Downloads/stanford-corenlp-full-2012-11-12')
 
-#    compare_thesauri('/Volumes/LocalScratchHD/LocalHome/Desktop/bov', [
-#        #        'exp6-11a.sims.neighbours.strings',
-#        #        'exp6-12a.sims.neighbours.strings',
-#        'exp6-13a.sims.neighbours.strings',
-#        'exp6-1a.sims.neighbours.strings'
-#    ])
+    compare_thesauri('/Volumes/LocalScratchHD/LocalHome/Desktop/bov', [
+        'exp6-11a.sims.neighbours.strings',
+        'exp6-12a.sims.neighbours.strings',
+        'exp6-13a.sims.neighbours.strings',
+        'exp6-1a.sims.neighbours.strings'
+    ])
+
+#    new_file = convert_old_byblo_format_to_new(
+#        '/Volumes/LocalScratchHD/LocalHome/Desktop/thesauri_from_jack/medtest-tb-pho-no-nl-cw-55.pairs-lin.neighs-100nn')
+#    compare_thesauri(None, [new_file])
 
 #    unindex_thesauri('/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/Byblo-2.1.0',
 #        ['/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/Byblo-2.1.0/output'])
-
-    new_file = convert_old_byblo_format_to_new(
-        '/Volumes/LocalScratchHD/LocalHome/Desktop/thesauri_from_jack/medtest-tb-pho-no-nl-cw-55.pairs-lin.neighs-100nn')
-    compare_thesauri(None, [new_file])
