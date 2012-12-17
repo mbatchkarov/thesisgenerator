@@ -103,15 +103,15 @@ class ThesaurusVectorizer(TfidfVectorizer):
                     # pairs for (neighbour, similarity)
                         continue
                     if tokens[0] != FILTERED:
-                        indices = range(1, len(tokens), 2)
-                        indices.insert(0,0)
-                        for i in indices:# go over words
-                            s = tokens[i].split('/')
-                            if not self.use_pos:
-                                s = s[:-1]    # remove PoS tag from token
-                            if self.lowercase:
-                                s[0] = s[0].lower()
-                            tokens[i] = '/'.join(s)
+#                        indices = range(1, len(tokens), 2)
+#                        indices.insert(0,0)
+#                        for i in indices:# go over words
+#                            s = tokens[i].split('/')
+#                            if not self.use_pos:
+#                                s = s[:-1]    # remove PoS tag from token
+#                            if self.lowercase:
+#                                s[0] = s[0].lower()
+#                            tokens[i] = '/'.join(s)
 
                         to_insert = [(word, float(sim)) for (word, sim)
                                      in
@@ -129,8 +129,9 @@ class ThesaurusVectorizer(TfidfVectorizer):
                                     tokens[0])
                             neighbours[tokens[0]].extend(to_insert)
 
-            for k, v in neighbours.iteritems():
-                neighbours[k] = sorted(v, key=itemgetter(1))
+# note- do not attempt to lowercase if the thesaurus has not already been
+# lowercased- may result in multiple neighbour lists for the same entry
+
                 # todo this does not remove duplicate neighbours,
                 # e.g. in thesaurus 1-1 "Jihad" has neighbours	Hamas and HAMAS,
                 # which get conflated. Also, entries HEBRON and Hebron exist,
@@ -335,6 +336,10 @@ class ThesaurusVectorizer(TfidfVectorizer):
         return spmatrix
 
     def xml_tokenizer(self, doc):
+        """
+        Tokenizes a Stanford Core NLP processed document by parsing the XML and
+        extracting tokens and their lemmas, with optional lowercasing
+        """
         tree = ET.fromstring(doc.encode("utf8"))
         tokens = [x.text for x in tree.iter('lemma')] if self.lemmatize else\
         [x.text for x in tree.iter('word')]
