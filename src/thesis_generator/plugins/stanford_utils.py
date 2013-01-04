@@ -1,13 +1,10 @@
 import glob
-import concurrent
-from concurrent.futures import ThreadPoolExecutor as Pool
 from operator import itemgetter
 import random
 import shutil
 import subprocess
 import os
 import tempfile
-from thesis_generator.plugins.bov import ThesaurusVectorizer
 
 __author__ = 'mmb28'
 
@@ -20,6 +17,8 @@ def stanford_process_path(path, stanfor_dir, num_processes=1):
 
     Paths must not contain training slashes
     """
+    import concurrent
+    from concurrent.futures import ThreadPoolExecutor as Pool
 
     def chunks(l, n):
         """Splits the list l into n equal chunks"""
@@ -73,6 +72,7 @@ def compare_thesauri(prefix, names):
     Names = names of files in that directory
     If prefix is None, the names are assumed to be absolute
     """
+    from thesis_generator.plugins.bov import ThesaurusVectorizer
     thesauri = []
     vect = ThesaurusVectorizer(use_pos=True, sim_threshold=0)
     for name in names:
@@ -112,6 +112,7 @@ def unindex_thesauri(byblo_path, thesauri_paths):
     Iterable over Path to Byblo output directories
     """
     from iterpipes import  cmd, run
+    from thesis_generator.plugins.bov import ThesaurusVectorizer
 
     os.chdir(byblo_path)
 
@@ -181,7 +182,7 @@ def convert_old_byblo_format_to_new(filename):
 
 if __name__ == '__main__':
     stanford_process_path(
-        '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/thesisgenerator/sample-data/web2',
+        '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/thesisgenerator/sample-data/wiki',
         '/Volumes/LocalScratchHD/LocalHome/Downloads/stanford-corenlp-full-2012-11-12',
         2)
 
