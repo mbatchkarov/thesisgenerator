@@ -1,20 +1,44 @@
 import glob
+import concurrent
+from concurrent.futures import ThreadPoolExecutor as Pool
 from operator import itemgetter
 import random
+import shutil
 import subprocess
 import os
+import tempfile
 from thesis_generator.plugins.bov import ThesaurusVectorizer
 
 __author__ = 'mmb28'
 
-def stanford_process_path(path, stanfor_dir):
+def stanford_process_path(path, stanfor_dir, num_processes=1):
     """
     Puts the specified directory (in mallet format, class per subdirectory,
     depth = 1) through the stanford pipeline 'tokenize,ssplit,pos,lemma'
     Output XML that needs to be parsed.
+    Stanford CoreNLP is run in num_processes independent JVMs
 
     Paths must not contain training slashes
     """
+
+    def chunks(l, n):
+        """Splits the list l into n equal chunks"""
+        return [l[i:i + n] for i in range(0, len(l), n)]
+
+    def do_work(input, output):
+        """
+        Runs the specified input dir through stanford core nlp and outputs
+        to output dir. The input dir is ***deleted***.
+        """
+        cmd = ['./corenlp.sh', '-annotators', 'tokenize,ssplit,pos,lemma,parse',
+               '-file', input, '-outputDirectory', output]
+
+        print 'Running ', cmd
+        process = subprocess.Popen(cmd)
+        process.wait()
+        shutil.rmtree(input)
+        return process.returncode == 0
+
     outputdir = '%s-tagged' % path
     if not os.path.exists(outputdir):
         os.mkdir(outputdir)
@@ -22,16 +46,25 @@ def stanford_process_path(path, stanfor_dir):
     os.chdir(stanfor_dir)
     subdirs = os.listdir(path)
     for subdir in subdirs:
-        outSubDir = os.path.join(outputdir, subdir)
-        if not os.path.exists(outSubDir):
-            os.mkdir(outSubDir)
-        cmd = ['./corenlp.sh', '-annotators', 'tokenize,ssplit,pos,lemma,ner',
-               '-file', os.path.join(path, subdir), '-outputDirectory',
-               outSubDir]
+        out_subdir = os.path.join(outputdir, subdir)
+        in_subdir = os.path.join(path, subdir)
+        if not os.path.exists(out_subdir):
+            os.mkdir(out_subdir)
 
-        print 'Running ', cmd
-        process = subprocess.Popen(cmd)
-        process.wait()
+        with Pool(max_workers=num_processes) as pool:
+            futures_to_input_dir = {}
+            for files in chunks(os.listdir(in_subdir), num_processes):
+                temp = tempfile.mkdtemp()
+                for f in files:
+                    shutil.copy(os.path.join(in_subdir, f), temp)
+                print 'doing work'
+                futures_to_input_dir[pool.submit(do_work, temp, out_subdir)] = temp
+            for future in concurrent.futures.as_completed(futures_to_input_dir):
+                temp_dir = futures_to_input_dir[future]
+                try:
+                    print 'Success:', future.result()
+                except Exception as exc:
+                    print('%r generated an exception: %s' % (temp_dir, exc))
 
 
 def compare_thesauri(prefix, names):
@@ -63,7 +96,7 @@ def compare_thesauri(prefix, names):
             word = random.choice(entries)
             if word.lower().split('/')[0] not in words:
                 continue
-            print 'Selecting ',word
+            print 'Selecting ', word
             for th, name in zip(thesauri, names):
                 neigh = th[word]
                 outfile.write(
@@ -147,16 +180,17 @@ def convert_old_byblo_format_to_new(filename):
 
 
 if __name__ == '__main__':
-#    stanford_process_path(
-#        '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/thesisgenerator/sample-data/web2',
-#        '/Volumes/LocalScratchHD/LocalHome/Downloads/stanford-corenlp-full-2012-11-12')
+    stanford_process_path(
+        '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/thesisgenerator/sample-data/web2',
+        '/Volumes/LocalScratchHD/LocalHome/Downloads/stanford-corenlp-full-2012-11-12',
+        2)
 
-    compare_thesauri('/Volumes/LocalScratchHD/LocalHome/Desktop/bov', [
-        'exp6-11a.sims.neighbours.strings',
-        'exp6-12a.sims.neighbours.strings',
-        'exp6-13a.sims.neighbours.strings',
-        'exp6-1a.sims.neighbours.strings'
-    ])
+#    compare_thesauri('/Volumes/LocalScratchHD/LocalHome/Desktop/bov', [
+#        'exp6-11a.sims.neighbours.strings',
+#        'exp6-12a.sims.neighbours.strings',
+#        'exp6-13a.sims.neighbours.strings',
+#        'exp6-1a.sims.neighbours.strings'
+#    ])
 
 #    new_file = convert_old_byblo_format_to_new(
 #        '/Volumes/LocalScratchHD/LocalHome/Desktop/thesauri_from_jack/medtest-tb-pho-no-nl-cw-55.pairs-lin.neighs-100nn')
