@@ -1,201 +1,357 @@
-import glob
-from operator import itemgetter
-import random
-import shutil
+import os, sys
 import subprocess
-import os
-import tempfile
+import traceback
+import datetime as dt
+from concurrent.futures import ProcessPoolExecutor, as_completed
+import xml.etree.cElementTree as ET
 
-__author__ = 'mmb28'
+################
+#
+# Utilities
+#
+################
+def current_time(): #for reporting purposes.
+    return dt.datetime.ctime(dt.datetime.now())
 
-def stanford_process_path(path, stanfor_dir, num_processes=1):
-    """
-    Puts the specified directory (in mallet format, class per subdirectory,
-    depth = 1) through the stanford pipeline 'tokenize,ssplit,pos,lemma'
-    Output XML that needs to be parsed.
-    Stanford CoreNLP is run in num_processes independent JVMs
 
-    Paths must not contain training slashes
-    """
-    import concurrent
-    from concurrent.futures import ThreadPoolExecutor as Pool
+def _make_filelist_and_create_files(data_dir, filelistpath, output_dir):
+    '''
+    1. Create a list of files in a directory to be processed, which
+       can be passed to stanford's "filelist" input argument.
+    2. Pre-create each output file in an attempt to avoid cluster
+       problems.
+    '''
+    with open(filelistpath, 'w') as filelist:
+        for filename in os.listdir(data_dir):
+            if not filename.startswith("."):
+                filepath = os.path.join(data_dir, filename)
+                filelist.write("%s\n" % filepath)
+                with open(os.path.join(output_dir, filename + ".tagged"),
+                          'w'): pass
 
-    def chunks(l, n):
-        """Splits the list l into n equal chunks"""
-        return [l[i:i + n] for i in range(0, len(l), n)]
 
-    def do_work(input, output):
-        """
-        Runs the specified input dir through stanford core nlp and outputs
-        to output dir. The input dir is ***deleted***.
-        """
-        cmd = ['./corenlp.sh', '-annotators', 'tokenize,ssplit,pos,lemma,parse',
-               '-file', input, '-outputDirectory', output]
+class Logger(object):
+    '''Use for program-wide printing to logfile.'''
 
-        print 'Running ', cmd
-        process = subprocess.Popen(cmd)
-        process.wait()
-        shutil.rmtree(input)
-        return process.returncode == 0
+    def __init__(self):
+        self.log = ""
 
-    outputdir = '%s-tagged' % path
-    if not os.path.exists(outputdir):
-        os.mkdir(outputdir)
+    def flush(self):
+        sys.stdout.flush()
+        if self.log:
+            self.log.flush()
 
-    os.chdir(stanfor_dir)
-    subdirs = os.listdir(path)
-    for subdir in subdirs:
-        out_subdir = os.path.join(outputdir, subdir)
-        in_subdir = os.path.join(path, subdir)
-        if not os.path.exists(out_subdir):
-            os.mkdir(out_subdir)
+    def set_log(self, path):
+        if path: self.log = open(path, 'a')
 
-        with Pool(max_workers=num_processes) as pool:
-            futures_to_input_dir = {}
-            for files in chunks(os.listdir(in_subdir), num_processes):
-                temp = tempfile.mkdtemp()
-                for f in files:
-                    shutil.copy(os.path.join(in_subdir, f), temp)
-                print 'doing work'
-                futures_to_input_dir[pool.submit(do_work, temp, out_subdir)] = temp
-            for future in concurrent.futures.as_completed(futures_to_input_dir):
-                temp_dir = futures_to_input_dir[future]
+    def print_info(self, info, flush=True, printstdin=True):
+        if self.log:
+            self.log.write(info + "\n")
+        if printstdin: print info
+        if flush: self.flush()
+
+##########
+#
+# Create a logger
+#
+##########     
+logger = Logger()
+
+
+#####################
+#
+# Process raw text through stanford pipeline
+#
+#####################
+def run_stanford_pipeline(data_dir, stanford_dir, java_threads=2, filelistdir=""):
+    '''
+    Process directory of text using stanford core nlp
+    suite. Perform:
+        - Tokenisation
+        - Sentence segmentation
+        - PoS tagging
+        - Lemmatisation
+
+    Output XML to "*data_dir*-tagged"
+    '''
+    if not all([data_dir, stanford_dir]):
+        raise ValueError("ERROR: Must specify path to data and stanford tools.")
+
+    #Create output directory
+    output_dir = "%s-tagged" % data_dir
+    try:
+        os.mkdir(output_dir)
+    except OSError: pass #Directory already exists
+
+    #Change working directory to stanford tools
+    os.chdir(stanford_dir)
+
+    logger.print_info("<%s> Beginning stanford pipeline..." % current_time())
+
+    for data_sub_dir in [name for name in os.listdir(data_dir) if
+                         not name.startswith(".")]:
+        #Setup output subdirectory
+        output_sub_dir = os.path.join(output_dir, data_sub_dir)
+        input_sub_dir = os.path.join(data_dir, data_sub_dir)
+        try:
+            os.mkdir(output_sub_dir)
+        except OSError: pass #Directory already exists
+
+        #Create list of files to be processed.
+        filelist = os.path.join(filelistdir if filelistdir else stanford_dir,
+                                "%s-filelist.txt" % data_sub_dir)
+        _make_filelist_and_create_files(input_sub_dir, filelist, output_sub_dir)
+
+        logger.print_info("<%s> Beginning stanford processing: %s" % (
+            current_time(), input_sub_dir))
+
+        #Construct stanford java command.
+        stanford_cmd = ['./corenlp.sh', '-annotators',
+                        'tokenize,ssplit,pos,lemma',
+                        # '-file', input_sub_dir, '-outputDirectory', output_sub_dir,
+                        '-filelist', filelist, '-outputDirectory',
+                        output_sub_dir,
+                        '-threads', str(java_threads), '-outputFormat', 'xml',
+                        '-outputExtension', '.tagged']
+
+        logger.print_info("Running: \n" + str(stanford_cmd))
+
+        #Run stanford script, block until complete.
+        subprocess.call(stanford_cmd)
+
+        logger.print_info("<%s> Stanford complete for path: %s" % (
+            current_time(), output_sub_dir))
+
+    logger.print_info("<%s> All stanford complete." % current_time())
+
+    return output_dir
+
+##################
+#
+#  Formatting to CoNLL from XML format
+#
+##################
+def process_corpora_from_xml(path_to_corpora, processes=1):
+    '''
+    Given a directory of corpora, where each corpus is a
+    directory of xml files produced by stanford_pipeline,
+    convert text to CoNLL-style formatting:
+        ID    FORM    LEMMA    POS
+    Jobs are run in parallel.
+    '''
+    logger.print_info("<%s> Starting XML conversion..." % current_time())
+    for data_sub_dir in os.listdir(path_to_corpora):
+        _process_xml_to_conll(os.path.join(path_to_corpora, data_sub_dir),
+                             processes)
+
+
+def _process_xml_to_conll(path_to_data, processes=1):
+    '''
+    Given a directory of XML documents from stanford's output,
+    convert them to CoNLL style sentences. Jobs run in parallel.
+    '''
+    logger.print_info("<%s> Beginning formatting to CoNLL: %s" % (
+        current_time(), path_to_data))
+    jobs = {}
+    with ProcessPoolExecutor(max_workers=processes) as executor:
+        for data_file in os.listdir(path_to_data):
+            if not (data_file.startswith(".") or data_file.endswith(".conll")):
+                input_path = os.path.join(path_to_data, data_file)
+                jobs[executor.submit(_process_single_xml_to_conll,
+                                     input_path)] = data_file
+        for job in as_completed(jobs):
+            try:
+                job.result() #Propagates any exceptions.
+            except Exception as e:
+                logger.print_info(
+                    " Exception during formatting: %s" % jobs[job])
+                logger.print_info(
+                    ''.join(traceback.format_exception(*sys.exc_info())),
+                    printstdin=False)
+                raise
+            logger.print_info(" Formatting complete: %s" % jobs[job])
+    logger.print_info("<%s> All formatting complete." % current_time())
+
+
+def _process_single_xml_to_conll(path_to_file):
+    '''
+    Convert a single file from XML to CoNLL style.
+    '''
+    with open(path_to_file + ".conll", 'w') as outfile:
+        #Create iterator over XML elements, don't store whole tree
+        xmltree = ET.iterparse(path_to_file, events=("end",))
+        for _, element in xmltree:
+            if element.tag == "sentence": #If we've read an entire sentence
+                i = 1
+                #Output CoNLL style
+                for word, lemma, pos in zip(element.findall(".//word"),
+                                            element.findall(".//lemma"),
+                                            element.findall(".//POS")):
+                    outfile.write("%s\t%s\t%s\t%s\n" % (
+                        i, word.text.encode('utf8'), lemma.text.encode('utf8'),
+                        pos.text))
+                    i += 1
+                outfile.write("\n")
+                #Clear this section of the XML tree
+                element.clear()
+
+####################
+#
+#  Dependency Parsing
+#
+####################
+def dependency_parse_directory(data_dir, parser_project_path, liblinear_path,
+                               processes=20):
+    '''Dependency parse conll style data, in several simultaneous processes.'''
+
+    #Add to python path location of dependency parser and liblinear
+    sys.path.append(os.path.join(parser_project_path, "src"))
+    sys.path.append(liblinear_path)
+
+    def chunks(items, no_of_chunks):
+        '''Split *items* into a number (no_of_chunks) of equal chunks.'''
+        chunksize = (len(items) + no_of_chunks // 2) // no_of_chunks
+        return (items[i:i + chunksize] for i in xrange(0, len(items),
+                                                       chunksize))
+
+    #Create output directory
+    output_dir = "%s-parsed" % data_dir
+    try:
+        os.mkdir(output_dir)
+    except OSError: pass #Directory already exists
+
+    logger.print_info("<%s> Beginning dependency parsing..." % current_time())
+
+    for data_sub_dir in [path for path in os.listdir(data_dir) if
+                         not path.startswith('.')]:
+        output_sub_dir = os.path.join(output_dir, data_sub_dir)
+        input_sub_dir = os.path.join(data_dir, data_sub_dir)
+        #Create output corpus directory
+        try:
+            os.mkdir(output_sub_dir)
+        except OSError: pass #directory already exists
+
+        logger.print_info("<%s> Parsing: %s" % (current_time(), input_sub_dir))
+
+        #Create a number (processes) of individual processes for executing parsers.
+        with ProcessPoolExecutor(max_workers=processes) as executor:
+            jobs = {} #Keep record of jobs and their input
+            #Split data into chunks, submit a parsing job for each chunk
+            for files in chunks([name for name in os.listdir(input_sub_dir) if
+                                 not name.startswith('.') and name.endswith(
+                                     ".conll")], processes):
+                jobs[executor.submit(run_parser, input_sub_dir, files,
+                                     output_sub_dir,
+                                     parser_project_path)] = files
+                #As each job completes, check for success, print details of input
+            for job in as_completed(jobs.keys()):
                 try:
-                    print 'Success:', future.result()
+                    pfiles, info = job.result()
+                    logger.print_info(
+                        " Success. Files processed: \n-- %s" % "\n-- ".join(
+                            pfiles))
+                    logger.print_info(info)
                 except Exception as exc:
-                    print('%r generated an exception: %s' % (temp_dir, exc))
+                    logger.print_info(
+                        " Exception encountered in: \n-- %s" % "\n-- ".join(
+                            jobs[job]))
+                    logger.print_info(
+                        ''.join(traceback.format_exception(*sys.exc_info())),
+                        printstdin=False)
+                    raise
+
+    logger.print_info("<%s> Parsing Complete." % current_time())
 
 
-def compare_thesauri(prefix, names):
-    """
-    Prefix = directory where all thesauri are located
-    Names = names of files in that directory
-    If prefix is None, the names are assumed to be absolute
-    """
-    from thesis_generator.plugins.bov import ThesaurusVectorizer
-    thesauri = []
-    vect = ThesaurusVectorizer(use_pos=True, sim_threshold=0)
-    for name in names:
-        vect.thesaurus_file = os.path.join(prefix, name) if prefix else name
-        thesauri.append(vect.load_thesaurus())
-    sizes = [len(x) for x in thesauri]
-    smallest_th = thesauri[sizes.index(min(sizes))]
-    print 'sizes: ', sizes
+def run_parser(input_dir, input_files, output_dir, parser_project_path):
+    '''Create a parser and parse a list of files'''
+    from parsing.parsing_functions import DependencyParser
 
-    done = 0
-    entries = {x for x in smallest_th.keys()}
-    for th in thesauri:
-        entries = entries.intersection(th.keys())
+    start = dt.datetime.now()
+    input_filepaths = [os.path.join(input_dir, name) for name in input_files]
+    output_filepaths = [os.path.join(output_dir, name + ".parsed") for name in
+                        input_files]
+    dp = DependencyParser() #Shit just got real
+    dp.parse_file_list(input_filepaths,
+                       output_filepaths,
+                       os.path.join(parser_project_path, "examples",
+                                    "model_files", "penn-stanford-index"),
+                       os.path.join(parser_project_path, "examples",
+                                    "model_files", "penn-stanford-model"),
+                       format_file=os.path.join(parser_project_path, "examples",
+                                                "feature_extraction_toolkit_type.txt")
+    )
+    info = " %s file(s) processed, time taken: %s" % (
+        len(input_files), dt.datetime.now() - start)
+    return input_files, info
 
-    with open('/usr/share/dict/words', 'r') as infile:
-        words = [line.lower().strip() for line in infile]
+#############
+#
+# Cleaning up
+#
+############
+def remove_temp_files(path_to_corpora):
+    '''Remove XML versions of processed data'''
+    logger.print_info("<%s> Removing XML files..." % current_time())
+    for data_sub_dir in os.listdir(path_to_corpora):
+        dir_path = os.path.join(path_to_corpora, data_sub_dir)
+        if not data_sub_dir.startswith(".") and os.path.isdir(dir_path):
+            for filename in os.listdir(dir_path):
+                if not filename.startswith(".") and not filename.endswith(
+                    "conll"):
+                    os.remove(os.path.join(dir_path, filename))
+    logger.print_info("<%s> XML files removed." % current_time())
 
-    with open('thesauri-comparison.csv', 'w') as outfile:
-        entries = [x for x in entries]
-        while done < min(50, len(entries)):
-            word = random.choice(entries)
-            if word.lower().split('/')[0] not in words:
-                continue
-            print 'Selecting ', word
-            for th, name in zip(thesauri, names):
-                neigh = th[word]
-                outfile.write(
-                    '%s, %s,' % ('%s...%s' % (name[:8], name[-8:]), word))
-                outfile.write(','.join([x[0] for x in neigh[:20]]))
-                outfile.write('\n')
-            outfile.write('===\n')
-            done += 1
+###################
+#
+# Methods of invocation
+#
+##################
+def execute_pipeline(path_to_corpora, #Required for all
+                     path_to_stanford="", #Required for stanford pipeline
+                     path_to_filelistdir="", #optional
+                     path_to_depparser="", #Required for dependency parsing
+                     log="", #optional
+                     path_to_liblinear="", #Required if liblinear not in path
+                     run=frozenset(["stanford", "formatting", "parsing"]),
+                     stanford_java_threads=40,
+                     formatting_python_processes=40,
+                     parsing_python_processes=40
+):
+    logger.set_log(log)
 
+    if "stanford" in run:
+        if not path_to_stanford: raise ValueError("Specify path to stanford")
+        run_stanford_pipeline(path_to_corpora, path_to_stanford,
+                          stanford_java_threads, path_to_filelistdir)
 
-def unindex_thesauri(byblo_path, thesauri_paths):
-    """
-    Iterable over Path to Byblo output directories
-    """
-    from iterpipes import  cmd, run
-    from thesis_generator.plugins.bov import ThesaurusVectorizer
+    tagged_path = path_to_corpora + "-tagged"
 
-    os.chdir(byblo_path)
+    if "formatting" in run:
+        process_corpora_from_xml(tagged_path, formatting_python_processes)
 
-    for path in thesauri_paths:
-        exp_name = os.path.commonprefix(glob.glob(os.path.join(path, '*')))[:-1]
-        # glob with ignore the .DS_Store file on OSX
-        exp_name = os.path.join(path, exp_name)
-        print 'Thesaurus name is ', exp_name
-        unindex_cmd = cmd(
-            './tools.sh unindex-events -i {}.events -o '
-            '{}.events.strings -Xe {}.entry-index -Xf {}.feature-index -et JDBM',
-            exp_name, exp_name, exp_name, exp_name)
-        out = run(unindex_cmd)
-        print "***Byblo deindex output***"
-        print [x for x in out]
-        print "***End Byblo output***"
+    if "parsing" in run:
+        if not path_to_depparser: raise ValueError(
+            "Specify path to dependency parser")
+        dependency_parse_directory(tagged_path, path_to_depparser,
+                                   path_to_liblinear, parsing_python_processes)
 
-        features = {}
-        # reuse thesaurus loading code to load feature file, format is the same
-        vect = ThesaurusVectorizer(use_pos=True, sim_threshold=0, k=9999999999)
-        vect.thesaurus_file = '%s.events.strings' % exp_name
-        features[path] = vect.load_thesaurus()
+    if "cleanup" in run:
+        remove_temp_files(tagged_path)
 
-        # get features of 2 words which I know are neighbours sorted by frequency
-        # todo words must be chosen at random from thesaurus
-        feature_set1 = set(map(itemgetter(0), features[path]['Andres/NNP']))
-        feature_set2 = set(map(itemgetter(0), features[path]['president/NN']))
-        shared_features = feature_set1 | feature_set2
+    logger.print_info("Pipeline finished")
 
-        important_features1 = [x for x in features[path]['Andres/NNP'] if
-                               x[0] in shared_features]
-        important_features2 = [x for x in features[path]['president/NN'] if
-                               x[0] in shared_features]
+if __name__ == "__main__":
+    '''
+    Email Andy or Miro for a copy of the readme for this script
+    '''
 
-        print 'Andres/NNP: ', important_features1
-        print 'president/NN: ', important_features2
+    #Pipeline examples:
+#    run = set("stanford formatting parsing cleanup".split())
+    run = set("stanford".split())
 
-        print 'hi'
-
-
-def convert_old_byblo_format_to_new(filename):
-    new_lines = []
-    with open(filename, 'r') as infile:
-        curr_token = None
-        curr_line = None
-        for no, line in enumerate(infile):
-            line = line.strip()
-            token, neigh, sim = line.split('\t')
-            if not curr_token:
-                curr_token = token
-                curr_line = line + '\t'
-            else:
-                if curr_token == token:
-                    curr_line += '%s\t%s\t' % (neigh, sim)
-                else:
-                    curr_token = token
-                    new_lines.append(curr_line)
-                    curr_line = line + '\t'
-
-    new_file = '%s-new' % filename
-    with open(new_file, 'w') as outfile:
-        for line in new_lines:
-            outfile.write(line.strip())
-            outfile.write('\n')
-    return new_file
-
-
-if __name__ == '__main__':
-    stanford_process_path(
-        '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/thesisgenerator/sample-data/wiki',
-        '/Volumes/LocalScratchHD/LocalHome/Downloads/stanford-corenlp-full-2012-11-12',
-        2)
-
-#    compare_thesauri('/Volumes/LocalScratchHD/LocalHome/Desktop/bov', [
-#        'exp6-11a.sims.neighbours.strings',
-#        'exp6-12a.sims.neighbours.strings',
-#        'exp6-13a.sims.neighbours.strings',
-#        'exp6-1a.sims.neighbours.strings'
-#    ])
-
-#    new_file = convert_old_byblo_format_to_new(
-#        '/Volumes/LocalScratchHD/LocalHome/Desktop/thesauri_from_jack/medtest-tb-pho-no-nl-cw-55.pairs-lin.neighs-100nn')
-#    compare_thesauri(None, [new_file])
-
-#    unindex_thesauri('/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/Byblo-2.1.0',
-#        ['/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/Byblo-2.1.0/output'])
+    #Fill arguments below, for example:
+    execute_pipeline('/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/thesisgenerator/sample-data/wiki',
+                     path_to_stanford='/Volumes/LocalScratchHD/LocalHome/Downloads/stanford-corenlp-full-2012-11-12',
+                     stanford_java_threads=8,
+                     run=run)
