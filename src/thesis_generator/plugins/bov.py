@@ -2,17 +2,22 @@ from collections import defaultdict
 from operator import itemgetter
 import os
 import pickle
+import tempfile
 import scipy.sparse as sp
 from sklearn.feature_extraction.text import  TfidfVectorizer
+import sys
 from thesis_generator import config
 from thesis_generator.__main__ import _config_logger
 import xml.etree.ElementTree as ET
 
 def _configure_logger():
-    args = config.arg_parser.parse_args()
-    log_path = os.path.join(args.log_path, 'bov-vectorizer')
-    if not os.path.exists(log_path):
-        os.makedirs(log_path)
+    if len(sys.argv) > 1:
+        args = config.arg_parser.parse_args()
+        log_path = os.path.join(args.log_path, 'bov-vectorizer')
+        if not os.path.exists(log_path):
+            os.makedirs(log_path)
+    else:
+        log_path = tempfile.mkdtemp()
     return _config_logger(log_path)
 
 
@@ -365,7 +370,6 @@ class ThesaurusVectorizer(TfidfVectorizer):
 __author__ = 'mmb28'
 # cache, to avoid re-loading all the time
 thesauri = {}
-corenlp = None
 logger = _configure_logger()
 
 # copied from feature extraction toolkit
