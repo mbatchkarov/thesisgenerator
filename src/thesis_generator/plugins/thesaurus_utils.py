@@ -1,9 +1,6 @@
 import glob
-from operator import itemgetter
 import os
 import random
-import numpy
-from scipy.stats import kendalltau
 
 __author__ = 'mmb28'
 
@@ -75,7 +72,8 @@ def unindex_thesauri(byblo_path, thesauri_paths):
     Unindexes the entries and events files of all provided thesauri
     Parameters:
     byblo_path: Where the Byblo distribution is. Must contain tools.sh
-    thesauri_paths: Iterable over Path to Byblo output directories
+    thesauri_paths: Iterable over Path to Byblo output directories. All
+    directories are assumed to ONLY contain Byblo output files
     """
     from iterpipes import  cmd, run
     from thesis_generator.plugins.bov import ThesaurusVectorizer
@@ -137,6 +135,51 @@ def unindex_thesauri(byblo_path, thesauri_paths):
 #        print 'hi'
 
 
+def postfilter_thesauri(thesauri_paths, lower, upper=None):
+    """
+    Removes from a thesaurus entries whose frequency falls outside a specified
+     interval. The interval is specified by a two iterables of lower and upper
+     bounds, i.e. lower[i] to upper[i], inclusive. If upper is not provided,
+      sys.maxint is used
+
+    Things to watch for:
+    - thesaurus must have been unindexed already
+    - some entries will have neighbours which are not entries, e.g. we may have
+    "car: bike, petrol, gas", but no entry for "petrol"
+
+    Parameters:
+    thesauri_paths: byblo-produced output directly, must not contain other files
+    lower: iterable overs integer. minimum thresholds
+    lower: iterable overs integer. maximum thresholds
+    """
+    import sys
+    if lower and not upper:
+        upper = [sys.maxint]*len(lower)
+    if len(lower) != len(upper):
+        raise ValueError("Provide the same number of lower and upper bounds")
+
+    for path in thesauri_paths:
+        exp_name = os.path.commonprefix(glob.glob(os.path.join(path, '*')))
+        # glob with ignore the .DS_Store file on OSX
+        print 'Thesaurus name is ', exp_name
+
+        #read the entry frequency file- thesaurus must have been unindexed already
+        with open(exp_name+'entries.strings', 'r') as fd:
+            tokens = [line.strip().split('\t') for line in fd]
+            frequency = {key:int(value) for key,value in tokens}
+
+        for low,high in zip(lower, upper):
+            print 'range %d-%d'%(low, high)
+            with open('%sfef%dsims.neighbours.strings'%(exp_name, low), 'w') as outfile:
+                with open(exp_name+'sims.neighbours.strings', 'r') as infile:
+                    for line in infile:
+                        entry = line.split('\t')[0]
+                        if low <= frequency[entry] <= high:
+                            outfile.write(line)
+
+
+
+
 def convert_old_byblo_format_to_new(filename):
     new_lines = []
     with open(filename, 'r') as infile:
@@ -176,5 +219,8 @@ if __name__ == '__main__':
 #        '/Volumes/LocalScratchHD/LocalHome/Desktop/thesauri_from_jack/medtest-tb-pho-no-nl-cw-55.pairs-lin.neighs-100nn')
 #    compare_thesauri(None, [new_file])
 
+    thesauri = ['/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/Byblo-2.1.0/sample-output']
     unindex_thesauri('/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/Byblo-2.1.0',
-        ['/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/Byblo-2.1.0/sample-output'])
+        thesauri)
+
+    postfilter_thesauri(thesauri, range(10,100,10))
