@@ -21,7 +21,7 @@ def compare_thesauri(prefix, names):
     vect = ThesaurusVectorizer(use_pos=True, sim_threshold=0)
     for name in names:
         vect.thesaurus_file = os.path.join(prefix, name) if prefix else name
-        thesauri.append(vect.load_thesaurus())
+        thesauri.append(vect.load_thesauri())
     sizes = [len(x) for x in thesauri]
     smallest_th = thesauri[sizes.index(min(sizes))]
     print 'sizes: ', sizes
@@ -86,9 +86,7 @@ def unindex_thesauri(byblo_path, thesauri_paths):
         commands = []
 
         # events after filtering
-        commands.append(cmd(
-            './tools.sh unindex-events -i {}events.filtered -o {}events.strings -Xe {}entry-index -Xf {}feature-index -et JDBM',
-            exp_name, exp_name, exp_name, exp_name))
+        commands.append(cmd('./tools.sh unindex-events -i {}events.filtered -o {}events.strings -Xe {}entry-index -Xf {}feature-index -et JDBM', exp_name, exp_name, exp_name, exp_name))
         # events before filtering
         commands.append(cmd(
             './tools.sh unindex-events -i {}events -o {}events-unfiltered.strings -Xe {}entry-index -Xf {}feature-index -et JDBM',
@@ -226,10 +224,15 @@ if __name__ == '__main__':
     #    compare_thesauri(None, [new_file])
 
     thesauri = [
-        '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/Byblo-2.1.0/sample-output']
+        '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/Byblo-2.1.0/sample-output',
+        '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/Byblo-2.1.0/sample-output',
+        '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/Byblo-2.1.0/sample-output'
+        ]
+#    thesauri = ['/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/Byblo-2.1.0/exp6-%d%s/'%(x,y) for x,y in product([11],'b')]
 
-    unindex_thesauri(
-        '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/Byblo-2.1.0',
-        thesauri)
+    for x in thesauri:
+        unindex_thesauri(
+            '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/Byblo-2.1.0',
+            [x])
 
-    postfilter_thesauri(thesauri, range(10, 100, 10))
+        postfilter_thesauri([x], range(10, 100, 10))

@@ -27,7 +27,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
     their k nearest neighbours in the thesaurus
     """
 
-    def __init__(self, thesaurus_file=None, k=1, sim_threshold=0.2,
+    def __init__(self, thesaurus_files=None, k=1, sim_threshold=0.2,
                  lemmatize=False, log_vocabulary=False, coarse_pos=True,
                  input='content', charset='utf-8', charset_error='strict',
                  strip_accents=None, lowercase=True, use_pos=False,
@@ -41,7 +41,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
         extra param specifying the path the the Byblo-generated thesaurus
         """
         try:
-            self.thesaurus_file = thesaurus_file
+            self.thesaurus_files = thesaurus_files
             self.k = k
             self.sim_threshold = sim_threshold
             self.log_vocabulary = log_vocabulary # if I should log the
@@ -74,78 +74,82 @@ class ThesaurusVectorizer(TfidfVectorizer):
                                                   sublinear_tf=False
         )
 
-    def load_thesaurus(self):
+    def load_thesauri(self):
         """
-        Loads a Byblo-generated thesaurus form the specified file. If the file
-        has been parsed already returns a cached version.
+        Loads a set Byblo-generated thesaurus form the specified file and returns
+        their union. If any of the files has been parsed already a cached version
+        is used.
 
         Parameters:
-        path: string, path the the Byblo-generated thesaurus
-        pos_insensitive: boolean, whether the PoS tags should be stripped from
+        self.thesaurus_files: string, path the the Byblo-generated thesaurus
+        self.pos_insensitive: boolean, whether the PoS tags should be stripped from
             entities (if they are present)
-        sim_threshold: what is the min similarity for neighbours that should be
+        self.sim_threshold: what is the min similarity for neighbours that should be
         loaded
         """
-        path = self.thesaurus_file
-        if not path:
+        if not self.thesaurus_files:
             return None
-        if path in thesauri:
-            logger.info('Returning cached thesaurus for %s' % path)
-            return thesauri[path]
-        else:
-            logger.info('Loading thesaurus %s from disk' % path)
-            logger.info(
-                'PoS: %r, coarse: %r, threshold %r' % (self.use_pos,
-                                                       self.coarse_pos,
-                                                       self.sim_threshold))
-            FILTERED = '___FILTERED___'.lower()
-            neighbours = defaultdict(list)
-            with open(path) as infile:
-                for line in infile:
-                    tokens = line.strip().split('\t')
-                    if len(tokens) % 2 == 0:
-                    #must have an odd number of things, one for the entry and
-                    # pairs for (neighbour, similarity)
-                        continue
-                    if tokens[0] != FILTERED:
-#                        indices = range(1, len(tokens), 2)
-#                        indices.insert(0,0)
-#                        for i in indices:# go over words
-#                            s = tokens[i].split('/')
-#                            if not self.use_pos:
-#                                s = s[:-1]    # remove PoS tag from token
-#                            if self.lowercase:
-#                                s[0] = s[0].lower()
-#                            tokens[i] = '/'.join(s)
 
-                        to_insert = [(word, float(sim)) for (word, sim)
-                                     in
-                                     self.iterate_nonoverlapping_pairs(
-                                         tokens, 1)
-                                     if
-                                     word != FILTERED and sim >
-                                     self.sim_threshold]
-                        # the step above may filter out all neighbours of an
-                        # entry. if this happens, do not bother adding it
-                        if len(to_insert) > 0:
-                            if tokens[0] in neighbours:
-                                logger.debug(
-                                    'Multiple entries for "%s" found' %
-                                    tokens[0])
-                            neighbours[tokens[0]].extend(to_insert)
+        result = {}
+        for path in self.thesaurus_files:
+            if path in preloaded_thesauri:
+                logger.info('Returning cached thesaurus for %s' % path)
+                result.update(preloaded_thesauri[path])
+            else:
+                logger.info('Loading thesaurus %s from disk' % path)
+                logger.info(
+                    'PoS: %r, coarse: %r, threshold %r' % (self.use_pos,
+                                                           self.coarse_pos,
+                                                           self.sim_threshold))
+                FILTERED = '___FILTERED___'.lower()
+                curr_thesaurus = defaultdict(list)
+                with open(path) as infile:
+                    for line in infile:
+                        tokens = line.strip().split('\t')
+                        if len(tokens) % 2 == 0:
+                        #must have an odd number of things, one for the entry and
+                        # pairs for (neighbour, similarity)
+                            continue
+                        if tokens[0] != FILTERED:
+    #                        indices = range(1, len(tokens), 2)
+    #                        indices.insert(0,0)
+    #                        for i in indices:# go over words
+    #                            s = tokens[i].split('/')
+    #                            if not self.use_pos:
+    #                                s = s[:-1]    # remove PoS tag from token
+    #                            if self.lowercase:
+    #                                s[0] = s[0].lower()
+    #                            tokens[i] = '/'.join(s)
 
-# note- do not attempt to lowercase if the thesaurus has not already been
-# lowercased- may result in multiple neighbour lists for the same entry
+                            to_insert = [(word, float(sim)) for (word, sim)
+                                         in
+                                         self.iterate_nonoverlapping_pairs(
+                                             tokens, 1)
+                                         if
+                                         word != FILTERED and sim >
+                                         self.sim_threshold]
+                            # the step above may filter out all neighbours of an
+                            # entry. if this happens, do not bother adding it
+                            if len(to_insert) > 0:
+                                if tokens[0] in curr_thesaurus:
+                                    logger.debug(
+                                        'Multiple entries for "%s" found' %
+                                        tokens[0])
+                                curr_thesaurus[tokens[0]].extend(to_insert)
 
-                # todo this does not remove duplicate neighbours,
-                # e.g. in thesaurus 1-1 "Jihad" has neighbours	Hamas and HAMAS,
-                # which get conflated. Also, entries HEBRON and Hebron exist,
-                # which need to be merged properly. Such events are quite
-                # infrequent- 167/5700 = 3% entries in exp1-1 collide
+                # note- do not attempt to lowercase if the thesaurus has not already been
+                # lowercased- may result in multiple neighbour lists for the same entry
 
-            thesauri[path] = neighbours
-            logger.info('Thesaurus contains %d entries' % len(neighbours))
-            return neighbours
+                    # todo this does not remove duplicate neighbours,
+                    # e.g. in thesaurus 1-1 "Jihad" has neighbours	Hamas and HAMAS,
+                    # which get conflated. Also, entries HEBRON and Hebron exist,
+                    # which need to be merged properly. Such events are quite
+                    # infrequent- 167/5700 = 3% entries in exp1-1 collide
+
+                preloaded_thesauri[path] = curr_thesaurus
+                result.update(curr_thesaurus)
+        logger.info('Thesaurus contains %d entries' % len(result))
+        return result
 
 
     def iterate_nonoverlapping_pairs(self, iterable, beg):
@@ -249,7 +253,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
 
         if not hasattr(self, '_thesaurus'):
             #thesaurus has not been parsed yet
-            if not self.thesaurus_file:
+            if not self.thesaurus_files:
                 # no thesaurus source, fall back to super behaviour
                 logger.warn("F**k, no thesaurus!")
                 return super(ThesaurusVectorizer,
@@ -257,7 +261,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
                     term_count_dicts)
             else:
                 # thesaurus file specified, parse it
-                self._thesaurus = self.load_thesaurus()
+                self._thesaurus = self.load_thesauri()
 
         # sparse storage for document-term matrix (terminology note: term ==
         # feature)
@@ -369,7 +373,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
 
 __author__ = 'mmb28'
 # cache, to avoid re-loading all the time
-thesauri = {}
+preloaded_thesauri = {}
 logger = _configure_logger()
 
 # copied from feature extraction toolkit
