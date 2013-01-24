@@ -1,3 +1,4 @@
+from collections import Counter
 import glob
 import os
 import random
@@ -30,21 +31,21 @@ def compare_thesauri(prefix, names):
     for th in thesauri:
         entries = entries.intersection(th.keys())
 
-#    # compute agreement between thesauri
-#    agg = numpy.zeros((len(thesauri), len(thesauri)))
-#    hits = 0
-#    for e in entries:
-#        for id1, th1 in enumerate(thesauri):
-#            for id2, th2 in enumerate(thesauri):
-#                neigh1 = [x[0] for x in th1[e]]
-#                neigh2 = [x[0] for x in th2[e]]
-#                shared_neigh = set(neigh1).intersection(set(neigh2))
-#                ranks1 = [rank for rank, x in enumerate(th1[e]) if x[0] in shared_neigh]
-#                ranks2 = [rank for rank, x in enumerate(th2[e]) if x[0] in shared_neigh]
-#                tau, p_value = kendalltau(ranks1, ranks2)
-#                agg[id1,id2] += tau
-#                hits += 1
-#    print agg/float(hits)
+    #    # compute agreement between thesauri
+    #    agg = numpy.zeros((len(thesauri), len(thesauri)))
+    #    hits = 0
+    #    for e in entries:
+    #        for id1, th1 in enumerate(thesauri):
+    #            for id2, th2 in enumerate(thesauri):
+    #                neigh1 = [x[0] for x in th1[e]]
+    #                neigh2 = [x[0] for x in th2[e]]
+    #                shared_neigh = set(neigh1).intersection(set(neigh2))
+    #                ranks1 = [rank for rank, x in enumerate(th1[e]) if x[0] in shared_neigh]
+    #                ranks2 = [rank for rank, x in enumerate(th2[e]) if x[0] in shared_neigh]
+    #                tau, p_value = kendalltau(ranks1, ranks2)
+    #                agg[id1,id2] += tau
+    #                hits += 1
+    #    print agg/float(hits)
 
     #get a sample of all thesauri for visual inspection
     with open('/usr/share/dict/words', 'r') as infile:
@@ -76,33 +77,29 @@ def unindex_thesauri(byblo_path, thesauri_paths):
     directories are assumed to ONLY contain Byblo output files
     """
     from iterpipes import  cmd, run
-    from thesis_generator.plugins.bov import ThesaurusVectorizer
 
     os.chdir(byblo_path)
 
     for path in thesauri_paths:
-        exp_name = os.path.commonprefix(glob.glob(os.path.join(path, '*')))[:-1]
-        # glob with ignore the .DS_Store file on OSX
-        exp_name = os.path.join(path, exp_name)
-        print 'Thesaurus name is ', exp_name
+        exp_name = most_likely_experiment_name(path)
 
         commands = []
 
         # events after filtering
         commands.append(cmd(
-            './tools.sh unindex-events -i {}.events.filtered -o {}.events.strings -Xe {}.entry-index -Xf {}.feature-index -et JDBM',
+            './tools.sh unindex-events -i {}events.filtered -o {}events.strings -Xe {}entry-index -Xf {}feature-index -et JDBM',
             exp_name, exp_name, exp_name, exp_name))
         # events before filtering
         commands.append(cmd(
-            './tools.sh unindex-events -i {}.events -o {}.events-unfiltered.strings -Xe {}.entry-index -Xf {}.feature-index -et JDBM',
+            './tools.sh unindex-events -i {}events -o {}events-unfiltered.strings -Xe {}entry-index -Xf {}feature-index -et JDBM',
             exp_name, exp_name, exp_name, exp_name))
         # entries after filtering
         commands.append(cmd(
-            './tools.sh unindex-entries -i {}.entries.filtered -o {}.entries.strings -Xe {}.entry-index -Xf {}.feature-index -et JDBM',
+            './tools.sh unindex-entries -i {}entries.filtered -o {}entries.strings -Xe {}entry-index -Xf {}feature-index -et JDBM',
             exp_name, exp_name, exp_name, exp_name))
         # entries before filtering
         commands.append(cmd(
-            './tools.sh unindex-entries -i {}.entries -o {}.entries-unfiltered.strings -Xe {}.entry-index -Xf {}.feature-index -et JDBM',
+            './tools.sh unindex-entries -i {}entries -o {}entries-unfiltered.strings -Xe {}entry-index -Xf {}feature-index -et JDBM',
             exp_name, exp_name, exp_name, exp_name))
 
         for cmd in commands:
@@ -135,6 +132,17 @@ def unindex_thesauri(byblo_path, thesauri_paths):
 #        print 'hi'
 
 
+def most_likely_experiment_name(path):
+    files = glob.glob(os.path.join(path, '*'))
+
+    samples = [random.sample(files, 3) for i in range(100)]
+    prefixes = map(os.path.commonprefix, samples)
+    exp_name = Counter(prefixes).most_common(1)[0][0]
+    # glob with ignore the .DS_Store file on OSX
+    print 'Thesaurus name is ', exp_name
+    return exp_name
+
+
 def postfilter_thesauri(thesauri_paths, lower, upper=None):
     """
     Removes from a thesaurus entries whose frequency falls outside a specified
@@ -153,31 +161,29 @@ def postfilter_thesauri(thesauri_paths, lower, upper=None):
     lower: iterable overs integer. maximum thresholds
     """
     import sys
+
     if lower and not upper:
-        upper = [sys.maxint]*len(lower)
+        upper = [sys.maxint] * len(lower)
     if len(lower) != len(upper):
         raise ValueError("Provide the same number of lower and upper bounds")
 
     for path in thesauri_paths:
-        exp_name = os.path.commonprefix(glob.glob(os.path.join(path, '*')))
-        # glob with ignore the .DS_Store file on OSX
-        print 'Thesaurus name is ', exp_name
+        exp_name = most_likely_experiment_name(path)
 
         #read the entry frequency file- thesaurus must have been unindexed already
-        with open(exp_name+'entries.strings', 'r') as fd:
+        with open(exp_name + 'entries.strings', 'r') as fd:
             tokens = [line.strip().split('\t') for line in fd]
-            frequency = {key:int(value) for key,value in tokens}
+            frequency = {key: int(value) for key, value in tokens}
 
-        for low,high in zip(lower, upper):
-            print 'range %d-%d'%(low, high)
-            with open('%sfef%dsims.neighbours.strings'%(exp_name, low), 'w') as outfile:
-                with open(exp_name+'sims.neighbours.strings', 'r') as infile:
+        for low, high in zip(lower, upper):
+            print 'range %d-%d' % (low, high)
+            with open('%sfef%dsims.neighbours.strings' % (exp_name, low),
+                      'w') as outfile:
+                with open(exp_name + 'sims.neighbours.strings', 'r') as infile:
                     for line in infile:
                         entry = line.split('\t')[0]
                         if low <= frequency[entry] <= high:
                             outfile.write(line)
-
-
 
 
 def convert_old_byblo_format_to_new(filename):
@@ -209,18 +215,21 @@ def convert_old_byblo_format_to_new(filename):
 if __name__ == '__main__':
 #    pass
     print 'hi'
-#    compare_thesauri('/Volumes/LocalScratchHD/LocalHome/Desktop/bov', [
-#        'exp6-11a.strings',
-#        'exp6-12a.strings',
-#        'exp6-13a.strings',
-#    ])
+    #    compare_thesauri('/Volumes/LocalScratchHD/LocalHome/Desktop/bov', [
+    #        'exp6-11a.strings',
+    #        'exp6-12a.strings',
+    #        'exp6-13a.strings',
+    #    ])
 
-#    new_file = convert_old_byblo_format_to_new(
-#        '/Volumes/LocalScratchHD/LocalHome/Desktop/thesauri_from_jack/medtest-tb-pho-no-nl-cw-55.pairs-lin.neighs-100nn')
-#    compare_thesauri(None, [new_file])
+    #    new_file = convert_old_byblo_format_to_new(
+    #        '/Volumes/LocalScratchHD/LocalHome/Desktop/thesauri_from_jack/medtest-tb-pho-no-nl-cw-55.pairs-lin.neighs-100nn')
+    #    compare_thesauri(None, [new_file])
 
-    thesauri = ['/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/Byblo-2.1.0/sample-output']
-    unindex_thesauri('/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/Byblo-2.1.0',
+    thesauri = [
+        '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/Byblo-2.1.0/sample-output']
+
+    unindex_thesauri(
+        '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/Byblo-2.1.0',
         thesauri)
 
-    postfilter_thesauri(thesauri, range(10,100,10))
+    postfilter_thesauri(thesauri, range(10, 100, 10))
