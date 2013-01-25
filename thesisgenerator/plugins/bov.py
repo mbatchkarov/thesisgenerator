@@ -1,13 +1,12 @@
 from collections import defaultdict
-from operator import itemgetter
 import os
 import pickle
 import tempfile
 import scipy.sparse as sp
 from sklearn.feature_extraction.text import  TfidfVectorizer
 import sys
-from thesis_generator import config
-from thesis_generator.__main__ import _config_logger
+from thesisgenerator import config
+from thesisgenerator.__main__ import _config_logger
 
 def _configure_logger():
     if len(sys.argv) > 1:
@@ -358,7 +357,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
             log.warn('cElementTree not available')
             import xml.etree.ElementTree as ET
 
-        tree = ET.fromstring(doc)#.encode("utf8")
+        tree = ET.fromstring(doc.encode("utf8"))
         tokens = []
         for element in tree.findall('.//token'):
             if self.lemmatize:

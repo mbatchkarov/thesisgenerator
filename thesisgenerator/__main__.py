@@ -27,8 +27,8 @@ import config
 from plugins.bov_utils import inspect_thesaurus_effect
 from plugins.dumpers import DatasetDumper
 from utils import (get_named_object,
-                                    LeaveNothingOut,
-                                    ChainCallable)
+                   LeaveNothingOut,
+                   ChainCallable)
 
 # **********************************
 # FEATURE EXTRACTION / PARSE
@@ -146,8 +146,8 @@ def get_crossvalidation_iterator(config, x_vals, y_vals):
     else:
         validation_data = [(0, 0)]
 
-    validation_indices = reduce(lambda l, (head, tail):
-                                l + range(head, tail), validation_data, [])
+    validation_indices = reduce(lambda l, (head, tail): l + range(head, tail),
+                                validation_data, [])
 
     mask = np.zeros(y_vals.shape[0])  # we only mask the rows
     mask[validation_indices] = 1 # mask has 1 where the data point should be
@@ -568,7 +568,7 @@ if __name__ == '__main__':
         sys.exit(1)
 
     run_tasks(args, conf_parser)
-#    shutil.move(args.log_path, args.output)
+    #    shutil.move(args.log_path, args.output)
     shutil.copy(args.configuration, args.output)
 
 
