@@ -50,7 +50,8 @@ class ThesaurusVectorizer(TfidfVectorizer):
             self.log_vocabulary_already = False #have I done it already
         except KeyError:
             pass
-        super(ThesaurusVectorizer, self).__init__(input=input, charset=charset,
+        super(ThesaurusVectorizer, self).__init__(input=input,
+                                                  charset=charset,
                                                   charset_error=charset_error,
                                                   strip_accents=strip_accents,
                                                   lowercase=lowercase,
@@ -62,14 +63,16 @@ class ThesaurusVectorizer(TfidfVectorizer):
                                                   min_n=min_n,
                                                   max_n=max_n,
                                                   ngram_range=ngram_range,
-                                                  max_df=max_df, min_df=min_df,
+                                                  max_df=max_df,
+                                                  min_df=min_df,
                                                   max_features=max_features,
                                                   vocabulary=vocabulary,
-                                                  binary=False,
-                                                  dtype=long, norm='l2',
-                                                  use_idf=True,
-                                                  smooth_idf=True,
-                                                  sublinear_tf=False
+                                                  use_idf=use_idf,
+                                                  smooth_idf=smooth_idf,
+                                                  sublinear_tf=sublinear_tf,
+                                                  binary=binary,
+                                                  norm=norm,
+                                                  dtype=dtype
         )
 
     def load_thesauri(self):
