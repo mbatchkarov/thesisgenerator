@@ -1,6 +1,7 @@
 name=string()
 debug=boolean(default=False)
-	
+joblib_caching=boolean(default=False)
+
 [feature_extraction]
     run=boolean(default=True)
     vectorizer=string(default="")
@@ -25,7 +26,7 @@ debug=boolean(default=False)
     binary=boolean
     
     # extra options required by the Bag-of-Vectors project Vectorizer
-    thesaurus_file=string
+    thesaurus_files=list
     k=integer(min=0)
     sim_threshold=float
     lemmatize=boolean

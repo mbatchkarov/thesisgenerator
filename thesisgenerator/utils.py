@@ -3,11 +3,13 @@
 """
 A collection of random useful utilities
 """
+import fileinput
 import inspect
 from itertools import combinations
 import re
 import numpy as np
 import gzip
+import sys
 
 try:
     from xml.etree import cElementTree as ET
@@ -23,6 +25,12 @@ def get_named_object(pathspec):
     mod = __import__(module, fromlist=parts[-1])
     named_obj = getattr(mod, parts[-1])
     return named_obj
+
+
+def replace_in_file(file, search_exp, replace_exp):
+   for line in fileinput.input(file, inplace=1):
+       line = re.sub(search_exp, replace_exp, line)
+       sys.stdout.write(line)
 
 
 class GorkanaXmlParser(object):

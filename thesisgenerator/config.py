@@ -11,9 +11,8 @@ import textwrap
 # SETUP ARGUMENTS PARSER
 # **********************************
 
-arg_parser = argparse.ArgumentParser(usage='%(prog)s SOURCE_CORPUS '\
-                                           'OUTPUT_DIR CONF_FILE [-cp CLASSPATH]'\
-                                           '[--clean][--crossvalidate METHOD][-k]',
+arg_parser = argparse.ArgumentParser(usage='%(prog)s CONF_FILE [-cp CLASSPATH]'\
+                                           '[--clean] [--classpath] [--log-path] [--version]',
     formatter_class=argparse.RawTextHelpFormatter,
     description=textwrap.dedent('''\
                      Classifier experimentation framework
@@ -31,37 +30,11 @@ arg_parser = argparse.ArgumentParser(usage='%(prog)s SOURCE_CORPUS '\
                      -----------------------------------------------------------
                                      '''))
 
-arg_parser.add_argument('source',
-    help=textwrap.dedent('''\
-                        Input file or directory for raw data when performing the
-                        data split. When performing feature selection or
-                        classifier training evaluation the file name(s) in this
-                        variable are used to find the intermediary that contain
-                        train/test data.'''),
-    type=str,
-    metavar='INPUT_DIR/FILE')
-
-arg_parser.add_argument('output',
-    help=textwrap.dedent('''\
-                        Output directory. All the output from a group a group of
-                        experiments will be written to the specified directory.
-                        A predetermined file and directory hiearchy will be
-                        created.'''),
-    type=str,
-    metavar='OUTPUT_DIR')
-
 arg_parser.add_argument('configuration',
     help=textwrap.dedent('''\
                         A configuration file to read the processing steps that
                         should be performed by the framework and settings for
                         those steps.'''),
-    type=str,
-    metavar='CONF_FILE')
-
-arg_parser.add_argument('--test',
-    help=textwrap.dedent('''Corpus to evaluate on. If this is specified,
-    no crossvalidation will be performed. The corpus is assumed to be in
-    the same format as the one specified with -source'''),
     type=str,
     metavar='CONF_FILE')
 

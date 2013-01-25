@@ -24,7 +24,6 @@ from sklearn.datasets import load_files
 from joblib import Memory
 
 import config
-from plugins.bov_utils import inspect_thesaurus_effect
 from plugins.dumpers import DatasetDumper
 from utils import (get_named_object,
                    LeaveNothingOut,
@@ -320,13 +319,18 @@ def _build_pipeline(classifier_name, feature_extr_conf, feature_sel_conf,
     return pipeline
 
 
-def run_tasks(args, configuration):
+def run_tasks(configuration):
     """
     Runs all commands specified in the configuration file
     """
 
-    # get a reference to the joblib cache object
-    mem_cache = Memory(cachedir=args.output, verbose=0)
+    # get a reference to the joblib cache object, if caching is not disabled
+    # else build a dummy object which just returns its arguments unchanged
+    if(configuration['joblib_caching']):
+        mem_cache = Memory(cachedir=configuration['output_dir'], verbose=0)
+    else:
+        op = type("JoblibDummy", (object,), {"cache": lambda self, x: x})
+        mem_cache = op()
 
     # retrieve the actions that should be run by the framework
     actions = configuration.keys()
@@ -348,13 +352,13 @@ def run_tasks(args, configuration):
         options['input'] = configuration['feature_extraction']['input']
         options['input_generator'] = configuration['feature_extraction'][
                                      'input_generator']
-        options['source'] = args.source
+        options['source'] = configuration['training_data']
         log.info('Loading raw training set')
         x_vals, y_vals = cached_get_data_generators(**options)
-        if args.test:
+        if configuration['test_data']:
             log.info('Loading raw test set')
             #  change where we read files from
-            options['source'] = args.test
+            options['source'] = configuration['test_data']
             x_test, y_test = cached_get_data_generators(**options)
         del options
 
@@ -388,9 +392,10 @@ def run_tasks(args, configuration):
                                    configuration['feature_selection'],
                                    configuration['dimensionality_reduction'],
                                    configuration['classifiers'],
-                                   args.output, configuration['debug'])
+                                   configuration['output_dir'],
+                                   configuration['debug'])
 
-        if args.test:
+        if configuration['test_data']:
             #  no crossvalidation, train on one set and test on the other
             log.info('Fitting pipeline for %s' % clf_name)
             pipeline.fit(x_vals_seen, y_vals_seen)
@@ -401,8 +406,9 @@ def run_tasks(args, configuration):
             predicted = pipeline.predict(x_test)
             if configuration['debug'] and 'thesaurus' in\
                configuration['feature_extraction']['vectorizer'].lower():
+                from plugins.bov_utils import inspect_thesaurus_effect
                 log.info('Dumping debug information')
-                inspect_thesaurus_effect(args.output, clf_name,
+                inspect_thesaurus_effect(configuration['output_dir'], clf_name,
                                          configuration['feature_extraction'][
                                          'thesaurus_file'], pipeline, predicted,
                                          x_test)
@@ -435,7 +441,7 @@ def run_tasks(args, configuration):
                         [clf_name.split('.')[-1], metric.split('.')[-1],
                          score])
     log.info('Classifier scores are %s' % scores)
-    analyze(scores, args.output, configuration['name'])
+    return 0, analyze(scores, configuration['output_dir'], configuration['name'])
 
     # todo create a mallet classifier wrapper in python that works with
     # the scikit crossvalidation stuff (has fit and predict and
@@ -447,7 +453,7 @@ def analyze(scores, output_dir, name):
     Stores a csv, xls and png representation of the data set. Requires pandas
     """
 
-    log.info("Analysing results and saving to disk")
+    log.info("Analysing results and saving to %s" % output_dir)
 
     from pandas import DataFrame
     import matplotlib.pyplot as plt
@@ -455,7 +461,8 @@ def analyze(scores, output_dir, name):
     df = DataFrame(scores, columns=['classifier', 'metric', 'score'])
 
     # store csv for futher processing
-    df.to_csv(os.path.join(output_dir, '%s.out.csv' % name))
+    csv = os.path.join(output_dir, '%s.out.csv' % name)
+    df.to_csv(csv)
     df.to_excel(os.path.join(output_dir, '%s.out.xls' % name))
 
     # plot results
@@ -463,8 +470,9 @@ def analyze(scores, output_dir, name):
     df.boxplot(by=['classifier', 'metric'], ax=axes)
     fig.autofmt_xdate(rotation=45, bottom=0.5)
     plt.savefig(os.path.join(output_dir, '%s.out.png' % name), format='png',
-
                 dpi=150)
+
+    return csv
 
 
 def _config_logger(output_path=None):
@@ -510,66 +518,66 @@ def _config_logger(output_path=None):
     return logger
 
 
-def _prepare_output_directory():
+def _prepare_output_directory(clean, output):
     # **********************************
     # CLEAN OUTPUT DIRECTORY
     # **********************************
-    if args.clean and os.path.exists(args.output):
-        log.info('Cleaning output directory %s' % glob(args.output))
-        shutil.rmtree(args.output)
+    if clean and os.path.exists(output):
+        log.info('Cleaning output directory %s' % glob(output))
+        shutil.rmtree(output)
 
     # **********************************
     # CREATE OUTPUT DIRECTORY
     # **********************************
-    if not os.path.exists(args.output):
-        log.info('Creating output directory %s' % glob(args.output))
-        os.makedirs(args.output)
-
-        # TODO this needs to be redone after the scikits integration is
-        # complete
-        #    _write_config_file(args)
+    if not os.path.exists(output):
+        log.info('Creating output directory %s' % glob(output))
+        os.makedirs(output)
 
 
-def _prepare_classpath():
-    global path
+def _prepare_classpath(classpath):
     # **********************************
     # ADD classpath TO SYSTEM PATH
     # **********************************
-    for path in args.classpath.split(os.pathsep):
+    for path in classpath.split(os.pathsep):
         log.info('Adding (%s) to system path' % glob(path))
         sys.path.append(os.path.abspath(path))
 
-if __name__ == '__main__':
-    args = config.arg_parser.parse_args()
-    #    if args.log_path.startswith('./'):
-    #        args.log_path = os.path.join(args.output, args.log_path)
 
-    if not os.path.exists(args.log_path):
-        os.makedirs(args.log_path)
-
-    log = _config_logger(args.log_path)
-
+def go(conf_file, log_path, classpath='', clean=False):
+    global log, postvect_dumper_added_already
+    if not os.path.exists(log_path):
+        os.makedirs(log_path)
+    log = _config_logger(log_path)
     log.info(
         'Reading configuration file from \'%s\', conf spec from \'conf/'
-        '.confrc\'' % (glob(args.configuration)[0]))
-
-    _prepare_output_directory()
-    _prepare_classpath()
-
+        '.confrc\'' % (glob(conf_file)[0]))
     postvect_dumper_added_already = False
-    conf_parser = ConfigObj(args.configuration, configspec='conf/.confrc')
+    config = ConfigObj(conf_file, configspec='conf/.confrc')
     validator = validate.Validator()
-    result = conf_parser.validate(validator)
-
+    result = config.validate(validator)
     # todo add a more helpful guide to what exactly went wrong with the conf
     # object
     if not result:
         log.warn('Invalid configuration')
         sys.exit(1)
+    output = config['output_dir']
+    _prepare_output_directory(clean, output)
+    _prepare_classpath(classpath)
+    status, msg = run_tasks(config)
+    shutil.copy(conf_file, output)
+    return status, msg
 
-    run_tasks(args, conf_parser)
-    #    shutil.move(args.log_path, args.output)
-    shutil.copy(args.configuration, args.output)
+#    shutil.move(log_path, output)
+
+if __name__ == '__main__':
+    args = config.arg_parser.parse_args()
+    log_path = args.log_path
+    configuration = args.configuration
+    classpath = args.classpath
+    clean = args.clean
+
+    print go(configuration, log_path, classpath, clean)
+
 
 
     # runs a full pipeline in-process for profiling purposes
