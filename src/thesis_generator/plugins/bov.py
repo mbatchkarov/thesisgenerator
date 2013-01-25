@@ -8,7 +8,6 @@ from sklearn.feature_extraction.text import  TfidfVectorizer
 import sys
 from thesis_generator import config
 from thesis_generator.__main__ import _config_logger
-import xml.etree.ElementTree as ET
 
 def _configure_logger():
     if len(sys.argv) > 1:
@@ -93,11 +92,11 @@ class ThesaurusVectorizer(TfidfVectorizer):
         result = {}
         for path in self.thesaurus_files:
             if path in preloaded_thesauri:
-                logger.info('Returning cached thesaurus for %s' % path)
+                log.debug('Returning cached thesaurus for %s' % path)
                 result.update(preloaded_thesauri[path])
             else:
-                logger.info('Loading thesaurus %s from disk' % path)
-                logger.info(
+                log.debug('Loading thesaurus %s from disk' % path)
+                log.debug(
                     'PoS: %r, coarse: %r, threshold %r' % (self.use_pos,
                                                            self.coarse_pos,
                                                            self.sim_threshold))
@@ -132,7 +131,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
                             # entry. if this happens, do not bother adding it
                             if len(to_insert) > 0:
                                 if tokens[0] in curr_thesaurus:
-                                    logger.debug(
+                                    log.debug(
                                         'Multiple entries for "%s" found' %
                                         tokens[0])
                                 curr_thesaurus[tokens[0]].extend(to_insert)
@@ -148,7 +147,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
 
                 preloaded_thesauri[path] = curr_thesaurus
                 result.update(curr_thesaurus)
-        logger.info('Thesaurus contains %d entries' % len(result))
+        log.debug('Thesaurus contains %d entries' % len(result))
         return result
 
 
@@ -191,7 +190,6 @@ class ThesaurusVectorizer(TfidfVectorizer):
                             min(max_n + 1, n_original_tokens + 1)):
                 for i in xrange(n_original_tokens - n + 1):
                     tokens.append(u" ".join(original_tokens[i: i + n]))
-
         return tokens  # + last_chars + shapes
 
 
@@ -208,6 +206,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
         invokes self.my_feature_extractor, a more general function than
         CountVectorizer._word_ngrams()
         """
+        log.info('Building and starting analysis (tokenize, stopw, feature extract')
         if hasattr(self.analyzer, '__call__'):
             return self.analyzer
 
@@ -247,7 +246,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
         Current version copied without functional modification from sklearn
         .feature_extraction.text.CountVectorizer
         """
-
+        log.info('Converting features to vectors (with thesaurus lookup)')
         # how many tokens are there/ are unknown/ have been replaced
         total, unknown, replaced = 0, 0, 0
 
@@ -255,7 +254,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
             #thesaurus has not been parsed yet
             if not self.thesaurus_files:
                 # no thesaurus source, fall back to super behaviour
-                logger.warn("F**k, no thesaurus!")
+                log.warn("F**k, no thesaurus!")
                 return super(ThesaurusVectorizer,
                              self)._term_count_dicts_to_matrix(
                     term_count_dicts)
@@ -271,7 +270,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
 
         vocabulary = self.vocabulary_
         num_documents = 0
-        logger.info("Building feature vectors, current vocab size is %d" %
+        log.debug("Building feature vectors, current vocab size is %d" %
                     len(vocabulary))
 
         for doc_id, term_count_dict in enumerate(term_count_dicts):
@@ -284,6 +283,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
                     doc_id_indices.append(doc_id)
                     term_indices.append(term_index_in_vocab)
                     values.append(count)
+
                 else: # this feature has not been seen before, replace it
                 # the logger.info(below demonstrates that unseen words exist,)
                 # i.e. vectorizer is not reducing the test set to the
@@ -301,7 +301,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
                     if len(neighbours) > 0:
                         replaced += 1
                     for neighbour, sim in neighbours:
-                        logger.debug('Replacement. Doc %d: %s --> %s, '
+                        log.debug('Replacement. Doc %d: %s --> %s, '
                                      'sim = %f' % (
                                          doc_id, document_term, neighbour, sim))
                         inserted_feature_id = vocabulary.get(neighbour)
@@ -329,8 +329,8 @@ class ThesaurusVectorizer(TfidfVectorizer):
         # remove frequencies if binary feature were requested
         if self.binary:
             spmatrix.data.fill(1)
-        logger.info('Vectorizer: Data shape is %s' % (str(spmatrix.shape)))
-        logger.info('Vectorizer: Total: %d Unknown: %d Replaced: %d' % (total,
+        log.debug('Vectorizer: Data shape is %s' % (str(spmatrix.shape)))
+        log.debug('Vectorizer: Total: %d Unknown: %d Replaced: %d' % (total,
                                                                         unknown,
                                                                         replaced))
 
@@ -338,9 +338,11 @@ class ThesaurusVectorizer(TfidfVectorizer):
         f = './tmp_vocabulary'
         if self.log_vocabulary and not self.log_vocabulary_already:
             with open(f, 'w') as out:
-                print '**************** writing vocab'
+                log.info('Writing debug info')
                 pickle.dump(self.vocabulary_, out)
                 self.log_vocabulary_already = True
+
+        log.info('Done converting features to vectors')
 
         return spmatrix
 
@@ -349,32 +351,35 @@ class ThesaurusVectorizer(TfidfVectorizer):
         Tokenizes a Stanford Core NLP processed document by parsing the XML and
         extracting tokens and their lemmas, with optional lowercasing
         """
-        tree = ET.fromstring(doc.encode("utf8"))
-        tokens = [x.text for x in tree.iter('lemma')] if self.lemmatize else\
-        [x.text for x in tree.iter('word')]
 
-        if self.lowercase:
-            tokens = [x.lower() for x in tokens]
-        if self.use_pos:
-            pos_tags = [x.text.upper() for x in tree.iter('pos')]
-            if self.coarse_pos:
-                pos_tags = self.coarsify(pos_tags)
-            for i in range(len(pos_tags)):
-                tokens[i] = '/'.join([tokens[i], pos_tags[i]])
+        try:
+            import xml.etree.cElementTree as ET
+        except ImportError:
+            log.warn('cElementTree not available')
+            import xml.etree.ElementTree as ET
 
+        tree = ET.fromstring(doc)#.encode("utf8")
+        tokens = []
+        for element in tree.findall('.//token'):
+            if self.lemmatize:
+                txt = element.find('lemma').text
+            else:
+                txt = element.find('word').text
 
+            if self.lowercase: txt = txt.lower()
 
-        # if nothing else is specified, just return the words
+            if self.use_pos:
+                pos = element.find('pos').text
+                if self.coarse_pos: pos = pos_coarsification_map[pos.upper()]
+                txt = '%s/%s'%(txt, pos)
+
+            tokens.append(txt)
+
         return tokens
 
-    def coarsify(self, pos_tags):
-        return [pos_coarsification_map[x.upper()] for x in pos_tags]
-
-
-__author__ = 'mmb28'
 # cache, to avoid re-loading all the time
 preloaded_thesauri = {}
-logger = _configure_logger()
+log = _configure_logger()
 
 # copied from feature extraction toolkit
 pos_coarsification_map = defaultdict(lambda: "UNK")

@@ -69,8 +69,8 @@ def _get_data_iterators(**kwargs):
             input_gen = kwargs['input_generator']
             source = kwargs['source']
             try:
-                logger.debug('Retrieving input generator for name '
-                             '\'%(input_gen)s\'' % locals())
+                log.debug('Retrieving input generator for name '
+                          '\'%(input_gen)s\'' % locals())
 
                 data_iterable = get_named_object(input_gen)(kwargs['source'])
                 targets_iterable = np.asarray(
@@ -78,9 +78,9 @@ def _get_data_iterators(**kwargs):
                     dtype=np.int)
                 data_iterable = data_iterable.documents()
             except (ValueError, ImportError):
-                logger.warn('No input generator found for name '
-                            '\'%(input_gen)s\'. Using a file content '
-                            'generator with source \'%(source)s\'' % locals())
+                log.warn('No input generator found for name '
+                         '\'%(input_gen)s\'. Using a file content '
+                         'generator with source \'%(source)s\'' % locals())
                 if not os.path.isdir(source):
                     raise ValueError('The provided source path (%s) has to be '
                                      'a directory containing data in the '
@@ -130,7 +130,7 @@ def get_crossvalidation_iterator(config, x_vals, y_vals):
     The full text is provided as a parameter so that joblib can cache the
     call to this function.
     """
-    logger.info('Building crossvalidation iterator')
+    log.info('Building crossvalidation iterator')
     cv_type = config['type']
     k = config['k']
 
@@ -156,7 +156,7 @@ def get_crossvalidation_iterator(config, x_vals, y_vals):
     dataset_size = np.sum(seen_data_mask)
     targets_seen = y_vals[seen_data_mask]
     if k < 0:
-        logger.warn('crossvalidation.k not specified, defaulting to 1')
+        log.warn('crossvalidation.k not specified, defaulting to 1')
         k = 1
     if cv_type == 'kfold':
         iterator = cross_validation.KFold(dataset_size, int(k))
@@ -167,7 +167,7 @@ def get_crossvalidation_iterator(config, x_vals, y_vals):
     elif cv_type == 'bootstrap':
         ratio = config['ratio']
         if k < 0:
-            logger.warn(
+            log.warn(
                 'crossvalidation.ratio not specified,defaulting to 0.8')
             ratio = 0.8
         iterator = cross_validation.Bootstrap(dataset_size,
@@ -234,7 +234,7 @@ def _build_vectorizer(call_args, feature_extraction_conf, pipeline_list,
 
     global postvect_dumper_added_already
     if debug and not postvect_dumper_added_already:
-        logger.info('Will perform post-vectorizer data dump')
+        log.info('Will perform post-vectorizer data dump')
         pipeline_list.append(
             ('postVectDumper', DatasetDumper(output_dir)))
         postvect_dumper_added_already = True
@@ -315,12 +315,8 @@ def _build_pipeline(classifier_name, feature_extr_conf, feature_sel_conf,
     pipeline = Pipeline(pipeline_list)
     pipeline.set_params(**call_args)
 
-    logger.debug('Preprocessing pipeline is:\n %s', pipeline)
+    log.debug('Pipeline is:\n %s', pipeline)
     return pipeline
-
-
-def fit_pipeline(pipeline, x, y):
-    pipeline.fit(x, y)
 
 
 def run_tasks(args, configuration):
@@ -352,10 +348,10 @@ def run_tasks(args, configuration):
         options['input_generator'] = configuration['feature_extraction'][
                                      'input_generator']
         options['source'] = args.source
-        logger.info('Loading data set')
+        log.info('Loading raw training set')
         x_vals, y_vals = cached_get_data_generators(**options)
         if args.test:
-            logger.info('Loading test set')
+            log.info('Loading raw test set')
             #  change where we read files from
             options['source'] = args.test
             x_test, y_test = cached_get_data_generators(**options)
@@ -373,8 +369,7 @@ def run_tasks(args, configuration):
     y_vals_seen = crossvalidate_cached(
         configuration['crossvalidation'], x_vals, y_vals)
 
-    logger.debug("Starting training with %d documents" % len(x_vals_seen))
-
+    #    log.debug("Starting training with %d documents" % len(x_vals_seen))
     scores = []
     for clf_name in configuration['classifiers']:
         if not configuration['classifiers'][clf_name]:
@@ -382,12 +377,11 @@ def run_tasks(args, configuration):
 
         #  ignore disabled classifiers
         if not configuration['classifiers'][clf_name]['run']:
-            logger.warn('Ignoring classifier %s' % clf_name)
+            log.warn('Ignoring classifier %s' % clf_name)
             continue
 
-        logger.info('Classifier: %s' % clf_name)
-        # DO FEATURE SELECTION/DIMENSIONALITY REDUCTION FOR CROSSVALIDATION
-        # DATA
+        log.info('------------------------------------------------------------')
+        log.info('Building pipeline')
         pipeline = _build_pipeline(clf_name,
                                    configuration['feature_extraction'],
                                    configuration['feature_selection'],
@@ -397,15 +391,16 @@ def run_tasks(args, configuration):
 
         if args.test:
             #  no crossvalidation, train on one set and test on the other
-            logger.info('Evaluating on test set of size %s' % len(x_test))
-            cached_fit = mem_cache.cache(fit_pipeline)
-            cached_fit(pipeline, x_vals_seen, y_vals_seen)
+            log.info('Fitting pipeline for %s' % clf_name)
+            pipeline.fit(x_vals_seen, y_vals_seen)
             eval = ChainCallable(configuration['evaluation'])
             # Making a singleton tuple with the tuple of interest as the
             # only item
+            log.info('Evaluating on test set of size %s' % len(x_test))
             predicted = pipeline.predict(x_test)
             if configuration['debug'] and 'thesaurus' in\
                configuration['feature_extraction']['vectorizer'].lower():
+                log.info('Dumping debug information')
                 inspect_thesaurus_effect(args.output, clf_name,
                                          configuration['feature_extraction'][
                                          'thesaurus_file'], pipeline, predicted,
@@ -417,6 +412,7 @@ def run_tasks(args, configuration):
                      score])
         else:
             # pass the (feature selector + classifier) pipeline for evaluation
+            log.info('Fitting pipeline for %s' % clf_name)
             cached_cross_val_score = mem_cache.cache(cross_val_score)
             scores_this_clf = cached_cross_val_score(pipeline, x_vals_seen,
                                                      y_vals_seen,
@@ -437,7 +433,7 @@ def run_tasks(args, configuration):
                     scores.append(
                         [clf_name.split('.')[-1], metric.split('.')[-1],
                          score])
-    logger.info('Classifier scores are %s' % scores)
+    log.info('Classifier scores are %s' % scores)
     analyze(scores, args.output, configuration['name'])
 
     # todo create a mallet classifier wrapper in python that works with
@@ -450,7 +446,7 @@ def analyze(scores, output_dir, name):
     Stores a csv, xls and png representation of the data set. Requires pandas
     """
 
-    logger.info("Saving results to disk")
+    log.info("Analysing results and saving to disk")
 
     from pandas import DataFrame
     import matplotlib.pyplot as plt
@@ -518,14 +514,14 @@ def _prepare_output_directory():
     # CLEAN OUTPUT DIRECTORY
     # **********************************
     if args.clean and os.path.exists(args.output):
-        logger.info('Cleaning output directory %s' % glob(args.output))
+        log.info('Cleaning output directory %s' % glob(args.output))
         shutil.rmtree(args.output)
 
     # **********************************
     # CREATE OUTPUT DIRECTORY
     # **********************************
     if not os.path.exists(args.output):
-        logger.info('Creating output directory %s' % glob(args.output))
+        log.info('Creating output directory %s' % glob(args.output))
         os.makedirs(args.output)
 
         # TODO this needs to be redone after the scikits integration is
@@ -539,7 +535,7 @@ def _prepare_classpath():
     # ADD classpath TO SYSTEM PATH
     # **********************************
     for path in args.classpath.split(os.pathsep):
-        logger.info('Adding (%s) to system path' % glob(path))
+        log.info('Adding (%s) to system path' % glob(path))
         sys.path.append(os.path.abspath(path))
 
 if __name__ == '__main__':
@@ -550,9 +546,9 @@ if __name__ == '__main__':
     if not os.path.exists(args.log_path):
         os.makedirs(args.log_path)
 
-    logger = _config_logger(args.log_path)
+    log = _config_logger(args.log_path)
 
-    logger.info(
+    log.info(
         'Reading configuration file from \'%s\', conf spec from \'conf/'
         '.confrc\'' % (glob(args.configuration)[0]))
 
@@ -567,9 +563,30 @@ if __name__ == '__main__':
     # todo add a more helpful guide to what exactly went wrong with the conf
     # object
     if not result:
-        logger.warn('Invalid configuration')
+        log.warn('Invalid configuration')
         sys.exit(1)
 
     run_tasks(args, conf_parser)
     shutil.move(args.log_path, args.output)
     shutil.copy(args.configuration, args.output)
+
+
+    # runs a full pipeline in-process for profiling purposes
+#    from thesis_generator.plugins.bov import ThesaurusVectorizer
+#    options = {}
+#    options['input'] = conf_parser['feature_extraction']['input']
+#    options['input_generator'] = conf_parser['feature_extraction'][
+#                                 'input_generator']
+#    options['source'] = args.source
+#    log.info('Loading raw training set')
+#    x_vals, y_vals = _get_data_iterators(**options)
+#    if args.test:
+#        log.info('Loading raw test set')
+#        #  change where we read files from
+#        options['source'] = args.test
+#        x_test, y_test = _get_data_iterators(**options)
+#    del options
+#
+#    v = ThesaurusVectorizer(conf_parser['feature_extraction']['thesaurus_files'])
+#    t = v.load_thesauri()
+#    v.fit(x_vals)
