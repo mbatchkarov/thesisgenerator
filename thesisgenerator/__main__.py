@@ -397,12 +397,12 @@ def run_tasks(configuration):
 
         if configuration['test_data']:
             #  no crossvalidation, train on one set and test on the other
-            log.info('Fitting pipeline for %s' % clf_name)
+            log.info('***Fitting pipeline for %s' % clf_name)
             pipeline.fit(x_vals_seen, y_vals_seen)
             eval = ChainCallable(configuration['evaluation'])
             # Making a singleton tuple with the tuple of interest as the
             # only item
-            log.info('Evaluating on test set of size %s' % len(x_test))
+            log.info('***Evaluating on test set of size %s' % len(x_test))
             predicted = pipeline.predict(x_test)
             if configuration['debug'] and 'thesaurus' in\
                configuration['feature_extraction']['vectorizer'].lower():
@@ -419,7 +419,7 @@ def run_tasks(configuration):
                      score])
         else:
             # pass the (feature selector + classifier) pipeline for evaluation
-            log.info('Fitting pipeline for %s' % clf_name)
+            log.info('***Fitting pipeline for %s' % clf_name)
             cached_cross_val_score = mem_cache.cache(cross_val_score)
             scores_this_clf = cached_cross_val_score(pipeline, x_vals_seen,
                                                      y_vals_seen,

@@ -339,7 +339,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
         if self.binary:
             spmatrix.data.fill(1)
         log.debug('Vectorizer: Data shape is %s' % (str(spmatrix.shape)))
-        log.debug('Vectorizer: Total: %d Unknown: %d Replaced: %d' % (total,
+        log.info('Vectorizer: Total: %d Unknown: %d Replaced: %d' % (total,
                                                                       unknown,
                                                                       replaced))
 
