@@ -5,8 +5,20 @@ import traceback
 from concurrent.futures import as_completed
 from numpy import nonzero
 import sys
-from thesisgenerator.__main__ import go
-from thesisgenerator.utils import replace_in_file
+
+
+try:
+    from thesisgenerator.__main__ import go
+    from thesisgenerator.utils import replace_in_file
+except ImportError:
+# if one tries to run this script from the main project directory the
+# thesisgenerator package would not be on the path, add it and try again
+    sys.path.append('../../')
+    sys.path.append('../')
+    sys.path.append('./')
+    sys.path.append('./thesisgenerator')
+    from thesisgenerator.__main__ import go
+    from thesisgenerator.utils import replace_in_file
 
 __author__ = 'mmb28'
 
@@ -45,6 +57,9 @@ def _do_single_thesaurus(conf_file, id, t, test_data, train_data):
     new_conf_file = os.path.join(name, 'run%d%s' % (id, ext))
     log_file = os.path.join(name, '%d.log' % (id))
     shutil.copy(conf_file, new_conf_file)
+    configspec_file = os.path.join(os.path.dirname(conf_file), '.confrc')
+    shutil.copy(configspec_file, name)
+
     replace_in_file(new_conf_file, 'name=.*', 'name=run%d' % id)
     replace_in_file(new_conf_file, 'training_data=.*',
                     'training_data=%s' % train_data)

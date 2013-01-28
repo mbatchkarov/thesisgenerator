@@ -548,11 +548,12 @@ def go(conf_file, log_path, classpath='', clean=False):
     if not os.path.exists(log_path):
         os.makedirs(log_path)
     log = _config_logger(log_path)
+    configspec_file = os.path.join(os.path.dirname(conf_file), '.confrc')
     log.info(
-        'Reading configuration file from \'%s\', conf spec from \'conf/'
-        '.confrc\'' % (glob(conf_file)[0]))
+        'Reading configuration file from \'%s\', conf spec from \'%s\''
+        % (glob(conf_file)[0], configspec_file))
     postvect_dumper_added_already = False
-    config = ConfigObj(conf_file, configspec='conf/.confrc')
+    config = ConfigObj(conf_file, configspec=configspec_file)
     validator = validate.Validator()
     result = config.validate(validator)
     # todo add a more helpful guide to what exactly went wrong with the conf
