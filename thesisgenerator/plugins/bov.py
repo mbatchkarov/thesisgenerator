@@ -3,7 +3,7 @@ import os
 import pickle
 import tempfile
 import scipy.sparse as sp
-from sklearn.feature_extraction.text import  TfidfVectorizer
+from sklearn.feature_extraction.text import TfidfVectorizer
 import sys
 from thesisgenerator import config
 from thesisgenerator.__main__ import _config_logger
@@ -83,7 +83,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
 
         Parameters:
         self.thesaurus_files: string, path the the Byblo-generated thesaurus
-        self.pos_insensitive: boolean, whether the PoS tags should be stripped from
+        self.use_pos: boolean, whether the PoS tags should be stripped from
             entities (if they are present)
         self.sim_threshold: what is the min similarity for neighbours that should be
         loaded
@@ -99,9 +99,11 @@ class ThesaurusVectorizer(TfidfVectorizer):
             else:
                 log.debug('Loading thesaurus %s from disk' % path)
                 log.debug(
-                    'PoS: %r, coarse: %r, threshold %r' % (self.use_pos,
-                                                           self.coarse_pos,
-                                                           self.sim_threshold))
+                    'PoS: %r, coarse: %r, threshold %r, k=%r' %
+                    (self.use_pos,
+                     self.coarse_pos,
+                     self.sim_threshold,
+                     self.k))
                 FILTERED = '___FILTERED___'.lower()
                 curr_thesaurus = defaultdict(list)
                 with open(path) as infile:
@@ -112,20 +114,20 @@ class ThesaurusVectorizer(TfidfVectorizer):
                         # pairs for (neighbour, similarity)
                             continue
                         if tokens[0] != FILTERED:
-    #                        indices = range(1, len(tokens), 2)
-    #                        indices.insert(0,0)
-    #                        for i in indices:# go over words
+                        #                        indices = range(1, len(tokens), 2)
+                        #                        indices.insert(0,0)
+                        #                        for i in indices:# go over words
     #                            s = tokens[i].split('/')
-    #                            if not self.use_pos:
-    #                                s = s[:-1]    # remove PoS tag from token
-    #                            if self.lowercase:
-    #                                s[0] = s[0].lower()
-    #                            tokens[i] = '/'.join(s)
+                        #                            if not self.use_pos:
+                        #                                s = s[:-1]    # remove PoS tag from token
+                        #                            if self.lowercase:
+                        #                                s[0] = s[0].lower()
+                        #                            tokens[i] = '/'.join(s)
 
                             to_insert = [(word, float(sim)) for (word, sim)
                                          in
                                          self.iterate_nonoverlapping_pairs(
-                                             tokens, 1)
+                                             tokens, 1, self.k)
                                          if
                                          word != FILTERED and sim >
                                          self.sim_threshold]
@@ -138,23 +140,24 @@ class ThesaurusVectorizer(TfidfVectorizer):
                                         tokens[0])
                                 curr_thesaurus[tokens[0]].extend(to_insert)
 
-                # note- do not attempt to lowercase if the thesaurus has not already been
-                # lowercased- may result in multiple neighbour lists for the same entry
+                                # note- do not attempt to lowercase if the thesaurus has not already been
+                                # lowercased- may result in multiple neighbour lists for the same entry
 
-                    # todo this does not remove duplicate neighbours,
-                    # e.g. in thesaurus 1-1 "Jihad" has neighbours	Hamas and HAMAS,
-                    # which get conflated. Also, entries HEBRON and Hebron exist,
-                    # which need to be merged properly. Such events are quite
-                    # infrequent- 167/5700 = 3% entries in exp1-1 collide
+                                # todo this does not remove duplicate neighbours,
+                                # e.g. in thesaurus 1-1 "Jihad" has neighbours	Hamas and HAMAS,
+                                # which get conflated. Also, entries HEBRON and Hebron exist,
+                                # which need to be merged properly. Such events are quite
+                                # infrequent- 167/5700 = 3% entries in exp1-1 collide
 
                 preloaded_thesauri[path] = curr_thesaurus
                 result.update(curr_thesaurus)
         log.debug('Thesaurus contains %d entries' % len(result))
+        log.debug('Thesaurus sample %r' % result.items()[:2])
         return result
 
 
-    def iterate_nonoverlapping_pairs(self, iterable, beg):
-        for i in xrange(beg, len(iterable) - 1, 2):  #step size 2
+    def iterate_nonoverlapping_pairs(self, iterable, beg, end):
+        for i in xrange(beg, min(len(iterable) - 1, 2 * end), 2):  #step size 2
             yield (iterable[i], iterable[i + 1])
 
 
@@ -208,7 +211,8 @@ class ThesaurusVectorizer(TfidfVectorizer):
         invokes self.my_feature_extractor, a more general function than
         CountVectorizer._word_ngrams()
         """
-        log.info('Building and starting analysis (tokenize, stopw, feature extract')
+        log.info(
+            'Building and starting analysis (tokenize, stopw, feature extract')
         if hasattr(self.analyzer, '__call__'):
             return self.analyzer
 
@@ -273,7 +277,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
         vocabulary = self.vocabulary_
         num_documents = 0
         log.debug("Building feature vectors, current vocab size is %d" %
-                    len(vocabulary))
+                  len(vocabulary))
 
         for doc_id, term_count_dict in enumerate(term_count_dicts):
             num_documents += 1
@@ -286,13 +290,16 @@ class ThesaurusVectorizer(TfidfVectorizer):
                     term_indices.append(term_index_in_vocab)
                     values.append(count)
 
-                else: # this feature has not been seen before, replace it
+                else:
+                # this feature has not been seen before, replace it
                 # the logger.info(below demonstrates that unseen words exist,)
                 # i.e. vectorizer is not reducing the test set to the
                 # training vocabulary
-                # logger.info('Unknown token %s' % document_term)
                     unknown += 1
-                    neighbours = self._thesaurus.get(document_term.lower())
+                    log.debug(
+                        'Unknown token in doc %d: %s' % (doc_id, document_term))
+
+                    neighbours = self._thesaurus.get(document_term)
 
                     # if there are any neighbours filter the list of
                     # neighbours so that it contains only pairs where
@@ -304,8 +311,8 @@ class ThesaurusVectorizer(TfidfVectorizer):
                         replaced += 1
                     for neighbour, sim in neighbours:
                         log.debug('Replacement. Doc %d: %s --> %s, '
-                                     'sim = %f' % (
-                                         doc_id, document_term, neighbour, sim))
+                                  'sim = %f' % (
+                                      doc_id, document_term, neighbour, sim))
                         inserted_feature_id = vocabulary.get(neighbour)
                         try:
                             position_in_lists = term_indices.index(
@@ -333,8 +340,8 @@ class ThesaurusVectorizer(TfidfVectorizer):
             spmatrix.data.fill(1)
         log.debug('Vectorizer: Data shape is %s' % (str(spmatrix.shape)))
         log.debug('Vectorizer: Total: %d Unknown: %d Replaced: %d' % (total,
-                                                                        unknown,
-                                                                        replaced))
+                                                                      unknown,
+                                                                      replaced))
 
         # temporarily store vocabulary
         f = './tmp_vocabulary'
@@ -373,7 +380,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
             if self.use_pos:
                 pos = element.find('pos').text
                 if self.coarse_pos: pos = pos_coarsification_map[pos.upper()]
-                txt = '%s/%s'%(txt, pos)
+                txt = '%s/%s' % (txt, pos)
 
             tokens.append(txt)
 

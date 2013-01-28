@@ -577,7 +577,7 @@ if __name__ == '__main__':
     classpath = args.classpath
     clean = args.clean
 
-    print go(configuration, log_path, classpath, clean)
+    go(configuration, log_path, classpath, clean)
 
 
 
