@@ -78,8 +78,8 @@ def _do_single_thesaurus(conf_file, id, t, test_data, train_data):
 def evaluate_thesauri(pattern, conf_file, train_data='sample-data/web-tagged',
                       test_data='sample-data/web2-tagged', pool_size=1):
     from concurrent.futures import ProcessPoolExecutor
-
     thesauri = glob.glob(pattern)
+    print 'Classifying with thesauri %s'%thesauri
     #Create a number (processes) of individual processes for executing parsers.
     with ProcessPoolExecutor(max_workers=pool_size) as executor:
         jobs = {} #Keep record of jobs and their input
@@ -103,11 +103,12 @@ def evaluate_thesauri(pattern, conf_file, train_data='sample-data/web-tagged',
                 raise exc
 
 
-def summarize_results(log_dir, output_dir):
+def consolidate_results(log_dir, output_dir):
     """
 
     A single thesaurus must be used in each experiment
     """
+    print 'Consolidating results'
     c = csv.writer(open("summary.csv", "w"))
     c.writerow(['ID', 'corpus', 'features', 'pos', 'fef', 'classifier', 'th_size', 'vocab_size', 'unknown', 'replaced',
                 'accuracy'])
@@ -118,8 +119,7 @@ def summarize_results(log_dir, output_dir):
     experiments = glob.glob('*.conf')
     for exp in experiments:
         id = re.findall(r'[a-zA-Z]*([0-9]+).conf', exp)[0]
-        log_file = os.path.join(log_dir, '%s.log' % id, 'log.txt')
-        # log_file_grepped = os.path.join(log_dir,'%s.log'%id, 'log_grepped.txt')
+        log_file = os.path.join(log_dir, 'logs', 'run%s.log' % id)
         out = run(cmd('grep --max-count=2 Total {}', log_file))
         info = [x.strip() for x in out]
         info = info[0].split('\n')[1]
@@ -162,12 +162,29 @@ def summarize_results(log_dir, output_dir):
             continue #file is missing
 
 if __name__ == '__main__':
-    evaluate_thesauri(
-        '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/Byblo-2.1.0/exp6-11*/*sims.neighbours.strings',
-        '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/thesisgenerator/conf/main.conf',
-        pool_size=5)
 
-    # summarize_results(
-    #     '/Volumes/LocalScratchHD/LocalHome/Desktop/bov/conf/main-variants/',
-    #     '/Volumes/LocalScratchHD/LocalHome/Desktop/bov/output/'
+    # on local machine
+    # evaluate_thesauri(
+    #     '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/Byblo-2.1.0/exp6-11*/*sims.neighbours.strings',
+    #     '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/thesisgenerator/conf/main.conf',
+    #     pool_size=10)
+
+    # on cluster
+    evaluate_thesauri(
+        '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/exp6-*/*sims.neighbours.strings',
+        '/mnt/lustre/scratch/inf/mmb28/thesisgenerator/conf/main.conf',
+        train_data='/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data/reuters21578/r8train-tagged',
+        test_data='/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data/reuters21578/r8test-tagged',
+        pool_size=30)
+
+    # on local machine
+    # consolidate_results(
+    #     '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/thesisgenerator/conf/main-variants/',
+    #     '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/thesisgenerator/conf/output/',
     # )
+
+    # on cluster
+    consolidate_results(
+        '/mnt/lustre/scratch/inf/mmb28/thesisgenerator/conf/main-variants/',
+        '/mnt/lustre/scratch/inf/mmb28/thesisgenerator/conf/output/',
+    )
