@@ -1,10 +1,13 @@
+import csv
 import glob
 import os
+import re
 import shutil
 import traceback
+import sys
+
 from concurrent.futures import as_completed
 from numpy import nonzero
-import sys
 
 
 try:
@@ -21,6 +24,7 @@ except ImportError:
     from thesisgenerator.utils import replace_in_file
 
 __author__ = 'mmb28'
+
 
 def inspect_thesaurus_effect(outdir, clf_name, thesaurus_file, pipeline,
                              predicted, x_test):
@@ -55,7 +59,7 @@ def _do_single_thesaurus(conf_file, id, t, test_data, train_data):
     if not os.path.exists(name):
         os.mkdir(name)
     new_conf_file = os.path.join(name, 'run%d%s' % (id, ext))
-    log_file = os.path.join(name, '%d.log' % (id))
+    log_file = os.path.join(name, 'logs')
     shutil.copy(conf_file, new_conf_file)
     configspec_file = os.path.join(os.path.dirname(conf_file), '.confrc')
     shutil.copy(configspec_file, name)
@@ -76,7 +80,6 @@ def evaluate_thesauri(pattern, conf_file, train_data='sample-data/web-tagged',
     from concurrent.futures import ProcessPoolExecutor
 
     thesauri = glob.glob(pattern)
-
     #Create a number (processes) of individual processes for executing parsers.
     with ProcessPoolExecutor(max_workers=pool_size) as executor:
         jobs = {} #Keep record of jobs and their input
@@ -93,14 +96,78 @@ def evaluate_thesauri(pattern, conf_file, train_data='sample-data/web-tagged',
                 status, outfile = job.result()
                 print("Success. Files produced: %s" % outfile)
             except Exception as exc:
-                print(
-                    " Exception encountered in: \n-- %s" % "\n-- ".join(
-                        jobs[job]))
+                # print(
+                #     " Exception encountered in: \n-- %s" % "\n-- ".join(
+                #         jobs[job]))
                 print(''.join(traceback.format_exception(*sys.exc_info())))
                 raise exc
 
+
+def summarize_results(log_dir, output_dir):
+    """
+
+    A single thesaurus must be used in each experiment
+    """
+    c = csv.writer(open("summary.csv", "w"))
+    c.writerow(['ID', 'corpus', 'features', 'pos', 'fef', 'classifier', 'th_size', 'vocab_size', 'unknown', 'replaced',
+                'accuracy'])
+
+    os.chdir(log_dir)
+    from iterpipes import cmd, run
+
+    experiments = glob.glob('*.conf')
+    for exp in experiments:
+        id = re.findall(r'[a-zA-Z]*([0-9]+).conf', exp)[0]
+        log_file = os.path.join(log_dir, '%s.log' % id, 'log.txt')
+        # log_file_grepped = os.path.join(log_dir,'%s.log'%id, 'log_grepped.txt')
+        out = run(cmd('grep --max-count=2 Total {}', log_file))
+        info = [x.strip() for x in out]
+        info = info[0].split('\n')[1]
+
+        # token statistics in labelled corpus
+        total = int(re.findall('Total: ([0-9]+)', info)[0])
+        unk = int(re.findall('Unknown: ([0-9]+)', info)[0])
+        repl = int(re.findall('Replaced: ([0-9]+)', info)[0])
+        # print id, total, unk, repl
+
+        out = run(cmd('grep --max-count=1 "Thesaurus contains" {}', log_file))
+        info = [x.strip() for x in out]
+        th_size = re.findall("Thesaurus contains ([0-9]+)", info[0])[0]
+
+        conf_file = os.path.join(log_dir, 'run%d.conf' % int(id))
+        out = run(cmd('grep --max-count=1 thesaurus_files {}', conf_file))
+        out = [x.strip() for x in out]
+        thesauri = out[0].split('=')[1]
+        thesauri = os.sep.join(thesauri.split(os.sep)[-2:])
+        # thesauri is something like "exp6-11a/exp6.sims.neighbours.strings,"
+
+        corpus = re.findall('exp([0-9]+)', thesauri)[0]
+        features = re.findall('-([0-9]+)', thesauri)[0]
+        pos = re.findall('-[0-9]+(.*)/', thesauri)[0]
+        try:
+            fef = re.findall('fef([0-9]+)', thesauri)[0]
+        except IndexError:
+            # 'fef' isn't in thesaurus name, i.e. has not been postfiltered
+            fef = 0
+
+
+        output_file = os.path.join(output_dir, 'run%d.out.csv' % int(id))
+        try:
+            reader = csv.reader(open(output_file, 'r'))
+            header = reader.next()
+            for row in reader:
+                _, classifier, metric, score = row
+                c.writerow([id, corpus, features, pos, fef, classifier, th_size, total, unk, repl, score])
+        except IOError:
+            continue #file is missing
+
 if __name__ == '__main__':
     evaluate_thesauri(
-        '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/Byblo-2.1.0/exp6-*d/*90sims.neighbours.strings',
+        '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/Byblo-2.1.0/exp6-11*/*sims.neighbours.strings',
         '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/thesisgenerator/conf/main.conf',
-        pool_size=4)
+        pool_size=5)
+
+    # summarize_results(
+    #     '/Volumes/LocalScratchHD/LocalHome/Desktop/bov/conf/main-variants/',
+    #     '/Volumes/LocalScratchHD/LocalHome/Desktop/bov/output/'
+    # )
