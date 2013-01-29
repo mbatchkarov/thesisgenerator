@@ -28,9 +28,12 @@ def get_named_object(pathspec):
 
 
 def replace_in_file(file, search_exp, replace_exp):
-   for line in fileinput.input(file, inplace=1):
-       line = re.sub(search_exp, replace_exp, line)
-       sys.stdout.write(line)
+    fh = fileinput.input(file, inplace=1)
+    for line in fh:
+        line = re.sub(search_exp, replace_exp, line)
+        sys.stdout.write(line)
+    fh.close()
+
 
 
 class GorkanaXmlParser(object):

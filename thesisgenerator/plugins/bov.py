@@ -1,22 +1,8 @@
 from collections import defaultdict
-import os
+import logging
 import pickle
-import tempfile
 import scipy.sparse as sp
 from sklearn.feature_extraction.text import TfidfVectorizer
-import sys
-from thesisgenerator import config
-from thesisgenerator.__main__ import _config_logger
-
-def _configure_logger():
-    if len(sys.argv) > 1:
-        args = config.arg_parser.parse_args()
-        log_path = os.path.join(args.log_path, 'bov-vectorizer')
-        if not os.path.exists(log_path):
-            os.makedirs(log_path)
-    else:
-        log_path = tempfile.mkdtemp()
-    return _config_logger(log_path)
 
 
 class ThesaurusVectorizer(TfidfVectorizer):
@@ -92,67 +78,57 @@ class ThesaurusVectorizer(TfidfVectorizer):
             return None
 
         result = {}
+        logging.getLogger('root').debug(self.thesaurus_files)
         for path in self.thesaurus_files:
-            if path in preloaded_thesauri:
-                log.debug('Returning cached thesaurus for %s' % path)
-                result.update(preloaded_thesauri[path])
-            else:
-                log.debug('Loading thesaurus %s from disk' % path)
-                log.debug(
-                    'PoS: %r, coarse: %r, threshold %r, k=%r' %
-                    (self.use_pos,
-                     self.coarse_pos,
-                     self.sim_threshold,
-                     self.k))
-                FILTERED = '___FILTERED___'.lower()
-                curr_thesaurus = defaultdict(list)
-                with open(path) as infile:
-                    for line in infile:
-                        tokens = line.strip().split('\t')
-                        if len(tokens) % 2 == 0:
-                        #must have an odd number of things, one for the entry and
-                        # pairs for (neighbour, similarity)
-                            continue
-                        if tokens[0] != FILTERED:
-                        #                        indices = range(1, len(tokens), 2)
-                        #                        indices.insert(0,0)
-                        #                        for i in indices:# go over words
-    #                            s = tokens[i].split('/')
-                        #                            if not self.use_pos:
-                        #                                s = s[:-1]    # remove PoS tag from token
-                        #                            if self.lowercase:
-                        #                                s[0] = s[0].lower()
-                        #                            tokens[i] = '/'.join(s)
+            logging.getLogger('root').debug('Loading thesaurus %s from disk' % path)
+            logging.getLogger('root').debug(
+                'PoS: %r, coarse: %r, threshold %r, k=%r' %
+                (self.use_pos,
+                 self.coarse_pos,
+                 self.sim_threshold,
+                 self.k))
+            FILTERED = '___FILTERED___'.lower()
+            curr_thesaurus = defaultdict(list)
+            with open(path) as infile:
+                for line in infile:
+                    tokens = line.strip().split('\t')
+                    if len(tokens) % 2 == 0:
+                    #must have an odd number of things, one for the entry and
+                    # pairs for (neighbour, similarity)
+                        continue
+                    if tokens[0] != FILTERED:
+                    #                        indices = range(1, len(tokens), 2)
+                    #                        indices.insert(0,0)
+                    #                        for i in indices:# go over words
+#                            s = tokens[i].split('/')
+                    #                            if not self.use_pos:
+                    #                                s = s[:-1]    # remove PoS tag from token
+                    #                            if self.lowercase:
+                    #                                s[0] = s[0].lower()
+                    #                            tokens[i] = '/'.join(s)
 
-                            to_insert = [(word, float(sim)) for (word, sim)
-                                         in
-                                         self.iterate_nonoverlapping_pairs(
-                                             tokens, 1, self.k)
-                                         if
-                                         word != FILTERED and sim >
-                                         self.sim_threshold]
-                            # the step above may filter out all neighbours of an
-                            # entry. if this happens, do not bother adding it
-                            if len(to_insert) > 0:
-                                if tokens[0] in curr_thesaurus:
-                                    log.debug(
-                                        'Multiple entries for "%s" found' %
-                                        tokens[0])
-                                curr_thesaurus[tokens[0]].extend(to_insert)
+                        to_insert = [(word, float(sim)) for (word, sim)
+                                     in
+                                     self.iterate_nonoverlapping_pairs(
+                                         tokens, 1, self.k)
+                                     if
+                                     word != FILTERED and sim >
+                                     self.sim_threshold]
+                        # the step above may filter out all neighbours of an
+                        # entry. if this happens, do not bother adding it
+                        if len(to_insert) > 0:
+                            if tokens[0] in curr_thesaurus:
+                                logging.getLogger('root').debug(
+                                    'Multiple entries for "%s" found' %
+                                    tokens[0])
+                            curr_thesaurus[tokens[0]].extend(to_insert)
 
-                                # note- do not attempt to lowercase if the thesaurus has not already been
-                                # lowercased- may result in multiple neighbour lists for the same entry
+# note- do not attempt to lowercase if the thesaurus has not already been
+# lowercased- may result in multiple neighbour lists for the same entry
+            result.update(curr_thesaurus)
 
-                                # todo this does not remove duplicate neighbours,
-                                # e.g. in thesaurus 1-1 "Jihad" has neighbours	Hamas and HAMAS,
-                                # which get conflated. Also, entries HEBRON and Hebron exist,
-                                # which need to be merged properly. Such events are quite
-                                # infrequent- 167/5700 = 3% entries in exp1-1 collide
-
-                preloaded_thesauri[path] = curr_thesaurus
-                result.update(curr_thesaurus)
-        log.debug('Thesaurus contains %d entries' % len(result))
-        log.debug('Thesaurus sample %r' % result.items()[:2])
+        logging.getLogger('root').debug('Thesaurus contains %d entries' % len(result))
+        logging.getLogger('root').debug('Thesaurus sample %r' % result.items()[:2])
         return result
 
 
@@ -162,7 +138,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
 
 
     def my_feature_extractor(self, tokens, stop_words=None,
-                             ngram_range=(1, 1), lemmatize=False):
+                             ngram_range=(1, 1)):
         """
         Turn a document( a list of tokens) into a sequence of features. These
         include n-grams after stop words filtering,
@@ -211,7 +187,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
         invokes self.my_feature_extractor, a more general function than
         CountVectorizer._word_ngrams()
         """
-        log.info(
+        logging.getLogger('root').info(
             'Building and starting analysis (tokenize, stopw, feature extract')
         if hasattr(self.analyzer, '__call__'):
             return self.analyzer
@@ -238,7 +214,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
 
             return lambda doc: self.my_feature_extractor(
                 tokenize(preprocess(self.decode(doc))), stop_words,
-                self.ngram_range, lemmatize=self.lemmatize)
+                self.ngram_range)
 
         else:
             raise ValueError('%s is not a valid tokenization scheme/analyzer' %
@@ -252,7 +228,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
         Current version copied without functional modification from sklearn
         .feature_extraction.text.CountVectorizer
         """
-        log.info('Converting features to vectors (with thesaurus lookup)')
+        logging.getLogger('root').info('Converting features to vectors (with thesaurus lookup)')
         # how many tokens are there/ are unknown/ have been replaced
         total, unknown, replaced = 0, 0, 0
 
@@ -260,10 +236,10 @@ class ThesaurusVectorizer(TfidfVectorizer):
             #thesaurus has not been parsed yet
             if not self.thesaurus_files:
                 # no thesaurus source, fall back to super behaviour
-                log.warn("F**k, no thesaurus!")
+                logging.getLogger('root').warn("F**k, no thesaurus!")
                 return super(ThesaurusVectorizer,
                              self)._term_count_dicts_to_matrix(
-                    term_count_dicts)
+                                                        term_count_dicts)
             else:
                 # thesaurus file specified, parse it
                 self._thesaurus = self.load_thesauri()
@@ -276,7 +252,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
 
         vocabulary = self.vocabulary_
         num_documents = 0
-        log.debug("Building feature vectors, current vocab size is %d" %
+        logging.getLogger('root').debug("Building feature vectors, current vocab size is %d" %
                   len(vocabulary))
 
         for doc_id, term_count_dict in enumerate(term_count_dicts):
@@ -296,7 +272,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
                 # i.e. vectorizer is not reducing the test set to the
                 # training vocabulary
                     unknown += 1
-                    log.debug(
+                    logging.getLogger('root').debug(
                         'Unknown token in doc %d: %s' % (doc_id, document_term))
 
                     neighbours = self._thesaurus.get(document_term)
@@ -310,7 +286,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
                     if len(neighbours) > 0:
                         replaced += 1
                     for neighbour, sim in neighbours:
-                        log.debug('Replacement. Doc %d: %s --> %s, '
+                        logging.getLogger('root').debug('Replacement. Doc %d: %s --> %s, '
                                   'sim = %f' % (
                                       doc_id, document_term, neighbour, sim))
                         inserted_feature_id = vocabulary.get(neighbour)
@@ -338,8 +314,8 @@ class ThesaurusVectorizer(TfidfVectorizer):
         # remove frequencies if binary feature were requested
         if self.binary:
             spmatrix.data.fill(1)
-        log.debug('Vectorizer: Data shape is %s' % (str(spmatrix.shape)))
-        log.info('Vectorizer: Total: %d Unknown: %d Replaced: %d' % (total,
+        logging.getLogger('root').debug('Vectorizer: Data shape is %s' % (str(spmatrix.shape)))
+        logging.getLogger('root').info('Vectorizer: Total: %d Unknown: %d Replaced: %d' % (total,
                                                                       unknown,
                                                                       replaced))
 
@@ -347,11 +323,11 @@ class ThesaurusVectorizer(TfidfVectorizer):
         f = './tmp_vocabulary'
         if self.log_vocabulary and not self.log_vocabulary_already:
             with open(f, 'w') as out:
-                log.info('Writing debug info')
+                logging.getLogger('root').info('Writing debug info')
                 pickle.dump(self.vocabulary_, out)
                 self.log_vocabulary_already = True
 
-        log.info('Done converting features to vectors')
+        logging.getLogger('root').info('Done converting features to vectors')
 
         return spmatrix
 
@@ -364,7 +340,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
         try:
             import xml.etree.cElementTree as ET
         except ImportError:
-            log.warn('cElementTree not available')
+            logging.getLogger('root').warn('cElementTree not available')
             import xml.etree.ElementTree as ET
 
         tree = ET.fromstring(doc.encode("utf8"))
@@ -385,10 +361,6 @@ class ThesaurusVectorizer(TfidfVectorizer):
             tokens.append(txt)
 
         return tokens
-
-# cache, to avoid re-loading all the time
-preloaded_thesauri = {}
-log = _configure_logger()
 
 # copied from feature extraction toolkit
 pos_coarsification_map = defaultdict(lambda: "UNK")

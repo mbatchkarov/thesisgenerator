@@ -8,19 +8,18 @@ import os
 import sys
 import shutil
 from glob import glob
-import numpy as np
 import logging
 from logging import StreamHandler
 import inspect
+from time import sleep
 
+import numpy as np
 import validate
 from configobj import ConfigObj
-
 from sklearn import cross_validation
 from sklearn.cross_validation import cross_val_score
 from sklearn.pipeline import Pipeline
 from sklearn.datasets import load_files
-
 from joblib import Memory
 
 import config
@@ -28,6 +27,7 @@ from plugins.dumpers import DatasetDumper
 from utils import (get_named_object,
                    LeaveNothingOut,
                    ChainCallable)
+
 
 # **********************************
 # FEATURE EXTRACTION / PARSE
@@ -69,7 +69,7 @@ def _get_data_iterators(**kwargs):
             input_gen = kwargs['input_generator']
             source = kwargs['source']
             try:
-                log.debug('Retrieving input generator for name '
+                logging.getLogger('root').debug('Retrieving input generator for name '
                           '\'%(input_gen)s\'' % locals())
 
                 data_iterable = get_named_object(input_gen)(kwargs['source'])
@@ -78,7 +78,7 @@ def _get_data_iterators(**kwargs):
                     dtype=np.int)
                 data_iterable = data_iterable.documents()
             except (ValueError, ImportError):
-                log.warn('No input generator found for name '
+                logging.getLogger('root').warn('No input generator found for name '
                          '\'%(input_gen)s\'. Using a file content '
                          'generator with source \'%(source)s\'' % locals())
                 if not os.path.isdir(source):
@@ -130,7 +130,7 @@ def get_crossvalidation_iterator(config, x_vals, y_vals):
     The full text is provided as a parameter so that joblib can cache the
     call to this function.
     """
-    log.info('Building crossvalidation iterator')
+    logging.getLogger('root').info('Building crossvalidation iterator')
     cv_type = config['type']
     k = config['k']
 
@@ -156,7 +156,7 @@ def get_crossvalidation_iterator(config, x_vals, y_vals):
     dataset_size = np.sum(seen_data_mask)
     targets_seen = y_vals[seen_data_mask]
     if k < 0:
-        log.warn('crossvalidation.k not specified, defaulting to 1')
+        logging.getLogger('root').warn('crossvalidation.k not specified, defaulting to 1')
         k = 1
     if cv_type == 'kfold':
         iterator = cross_validation.KFold(dataset_size, int(k))
@@ -167,7 +167,7 @@ def get_crossvalidation_iterator(config, x_vals, y_vals):
     elif cv_type == 'bootstrap':
         ratio = config['ratio']
         if k < 0:
-            log.warn(
+            logging.getLogger('root').warn(
                 'crossvalidation.ratio not specified,defaulting to 0.8')
             ratio = 0.8
         iterator = cross_validation.Bootstrap(dataset_size,
@@ -234,7 +234,7 @@ def _build_vectorizer(call_args, feature_extraction_conf, pipeline_list,
 
     global postvect_dumper_added_already
     if debug and not postvect_dumper_added_already:
-        log.info('Will perform post-vectorizer data dump')
+        logging.getLogger('root').info('Will perform post-vectorizer data dump')
         pipeline_list.append(
             ('postVectDumper', DatasetDumper(output_dir)))
         postvect_dumper_added_already = True
@@ -315,7 +315,7 @@ def _build_pipeline(classifier_name, feature_extr_conf, feature_sel_conf,
     pipeline = Pipeline(pipeline_list)
     pipeline.set_params(**call_args)
 
-    log.debug('Pipeline is:\n %s', pipeline)
+    logging.getLogger('root').debug('Pipeline is:\n %s', pipeline)
     return pipeline
 
 
@@ -323,10 +323,10 @@ def run_tasks(configuration):
     """
     Runs all commands specified in the configuration file
     """
-
+    logging.getLogger('root').info('running tasks')
     # get a reference to the joblib cache object, if caching is not disabled
     # else build a dummy object which just returns its arguments unchanged
-    if(configuration['joblib_caching']):
+    if (configuration['joblib_caching']):
         mem_cache = Memory(cachedir=configuration['output_dir'], verbose=0)
     else:
         op = type("JoblibDummy", (object,), {"cache": lambda self, x: x})
@@ -353,10 +353,10 @@ def run_tasks(configuration):
         options['input_generator'] = configuration['feature_extraction'][
                                      'input_generator']
         options['source'] = configuration['training_data']
-        log.info('Loading raw training set')
+        logging.getLogger('root').info('Loading raw training set')
         x_vals, y_vals = cached_get_data_generators(**options)
         if configuration['test_data']:
-            log.info('Loading raw test set')
+            logging.getLogger('root').info('Loading raw test set')
             #  change where we read files from
             options['source'] = configuration['test_data']
             x_test, y_test = cached_get_data_generators(**options)
@@ -382,11 +382,11 @@ def run_tasks(configuration):
 
         #  ignore disabled classifiers
         if not configuration['classifiers'][clf_name]['run']:
-            log.warn('Ignoring classifier %s' % clf_name)
+            logging.getLogger('root').warn('Ignoring classifier %s' % clf_name)
             continue
 
-        log.info('------------------------------------------------------------')
-        log.info('Building pipeline')
+        logging.getLogger('root').info('------------------------------------------------------------')
+        logging.getLogger('root').info('Building pipeline')
         pipeline = _build_pipeline(clf_name,
                                    configuration['feature_extraction'],
                                    configuration['feature_selection'],
@@ -397,17 +397,18 @@ def run_tasks(configuration):
 
         if configuration['test_data']:
             #  no crossvalidation, train on one set and test on the other
-            log.info('***Fitting pipeline for %s' % clf_name)
+            logging.getLogger('root').info('***Fitting pipeline for %s' % clf_name)
             pipeline.fit(x_vals_seen, y_vals_seen)
             eval = ChainCallable(configuration['evaluation'])
             # Making a singleton tuple with the tuple of interest as the
             # only item
-            log.info('***Evaluating on test set of size %s' % len(x_test))
+            logging.getLogger('root').info('***Evaluating on test set of size %s' % len(x_test))
             predicted = pipeline.predict(x_test)
             if configuration['debug'] and 'thesaurus' in\
                configuration['feature_extraction']['vectorizer'].lower():
                 from plugins.bov_utils import inspect_thesaurus_effect
-                log.info('Dumping debug information')
+
+                logging.getLogger('root').info('Dumping debug information')
                 inspect_thesaurus_effect(configuration['output_dir'], clf_name,
                                          configuration['feature_extraction'][
                                          'thesaurus_file'], pipeline, predicted,
@@ -419,7 +420,7 @@ def run_tasks(configuration):
                      score])
         else:
             # pass the (feature selector + classifier) pipeline for evaluation
-            log.info('***Fitting pipeline for %s' % clf_name)
+            logging.getLogger('root').info('***Fitting pipeline for %s' % clf_name)
             cached_cross_val_score = mem_cache.cache(cross_val_score)
             scores_this_clf = cached_cross_val_score(pipeline, x_vals_seen,
                                                      y_vals_seen,
@@ -440,8 +441,9 @@ def run_tasks(configuration):
                     scores.append(
                         [clf_name.split('.')[-1], metric.split('.')[-1],
                          score])
-    log.info('Classifier scores are %s' % scores)
-    return 0, analyze(scores, configuration['output_dir'], configuration['name'])
+    logging.getLogger('root').info('Classifier scores are %s' % scores)
+    return 0, analyze(scores, configuration['output_dir'],
+                      configuration['name'])
 
     # todo create a mallet classifier wrapper in python that works with
     # the scikit crossvalidation stuff (has fit and predict and
@@ -453,31 +455,44 @@ def analyze(scores, output_dir, name):
     Stores a csv, xls and png representation of the data set. Requires pandas
     """
 
-    log.info("Analysing results and saving to %s" % output_dir)
+    logging.getLogger('root').info("Analysing results and saving to %s" % output_dir)
 
     from pandas import DataFrame
-    import matplotlib.pyplot as plt
 
     df = DataFrame(scores, columns=['classifier', 'metric', 'score'])
 
     # store csv for futher processing
     csv = os.path.join(output_dir, '%s.out.csv' % name)
     df.to_csv(csv)
-    df.to_excel(os.path.join(output_dir, '%s.out.xls' % name))
+    # df.to_excel(os.path.join(output_dir, '%s.out.xls' % name))
 
     # plot results
-    fig, axes = plt.subplots(nrows=1, ncols=1, figsize=(10, 8))
-    df.boxplot(by=['classifier', 'metric'], ax=axes)
-    fig.autofmt_xdate(rotation=45, bottom=0.5)
-    plt.savefig(os.path.join(output_dir, '%s.out.png' % name), format='png',
-                dpi=150)
+    # fig, axes = plt.subplots(nrows=1, ncols=1, figsize=(10, 8))
+    # df.boxplot(by=['classifier', 'metric'], ax=axes)
+    # fig.autofmt_xdate(rotation=45, bottom=0.5)
+    # plt.savefig(os.path.join(output_dir, '%s.out.png' % name), format='png',
+    #             dpi=150)
 
     return csv
 
 
-def _config_logger(output_path=None):
-    logger = logging.getLogger(__name__)
+def _config_logger(output_path=None, name='log.txt'):
+    print '*** Configuring logger'
+    newly_created_logger = logging.getLogger('root')
 
+    # for parallelisation purposes we need to remove all the handlers that were
+    # possibly added to the root logger OF THE PROCESS on previous runs,
+    # otherwise logs will get mangled between different runs
+    # print newly_created_logger.handlers
+    # for some reason removing them once doesn't seem to be enough sometimes
+    for i in range(5):
+        for handler in newly_created_logger.handlers:
+            newly_created_logger.removeHandler(handler)
+        sleep(0.1)
+    print 'Handlers are', newly_created_logger.handlers
+    assert len(newly_created_logger.handlers) == 0
+
+    print newly_created_logger.handlers
     fmt = logging.Formatter(fmt=('%(asctime)s\t%(module)s.%(funcName)s '
                                  '(line %(lineno)d)\t%(levelname)s : %('
                                  'message)s'),
@@ -486,6 +501,7 @@ def _config_logger(output_path=None):
     sh = StreamHandler()
     sh.setLevel(logging.INFO)
     sh.setFormatter(fmt)
+    newly_created_logger.addHandler(sh)
 
     class MyFilter(object):
         """
@@ -500,22 +516,22 @@ def _config_logger(output_path=None):
             return logRecord.levelno <= self.__level
 
     if output_path is not None:
-        fh = logging.FileHandler(os.path.join(output_path, 'log.txt'),
-                                 mode='w')
+        log_file = os.path.join(output_path, '%s.log' % name)
+        fh = logging.FileHandler(log_file, mode='w')
+        print 'Log file is %s' % log_file
         fh.setLevel(logging.DEBUG)
         fh.setFormatter(fmt)
         #        fh.addFilter(MyFilter(logging.DEBUG))
-    #
-    #        fh1 = logging.FileHandler(os.path.join(output_path, 'log-info.txt'),
-    #                                  mode='w')
-    #        fh1.setLevel(logging.INFO)
-    #        fh1.setFormatter(fmt)
+        #   fh1 = logging.FileHandler(os.path.join(output_path, 'log-info.txt'),
+        #                                  mode='w')
+        #        fh1.setLevel(logging.INFO)
+        #        fh1.setFormatter(fmt)
+        newly_created_logger.addHandler(fh)
 
-    logger.addHandler(sh)
-    logger.addHandler(fh)
-    #    logger.addHandler(fh1)
-    logger.setLevel(logging.DEBUG)
-    return logger
+    newly_created_logger.setLevel(logging.DEBUG)
+    return newly_created_logger
+    # else:
+    #     return log
 
 
 def _prepare_output_directory(clean, output):
@@ -523,14 +539,14 @@ def _prepare_output_directory(clean, output):
     # CLEAN OUTPUT DIRECTORY
     # **********************************
     if clean and os.path.exists(output):
-        log.info('Cleaning output directory %s' % glob(output))
+        logging.getLogger('root').info('Cleaning output directory %s' % glob(output))
         shutil.rmtree(output)
 
     # **********************************
     # CREATE OUTPUT DIRECTORY
     # **********************************
     if not os.path.exists(output):
-        log.info('Creating output directory %s' % glob(output))
+        logging.getLogger('root').info('Creating output directory %s' % glob(output))
         os.makedirs(output)
 
 
@@ -539,28 +555,27 @@ def _prepare_classpath(classpath):
     # ADD classpath TO SYSTEM PATH
     # **********************************
     for path in classpath.split(os.pathsep):
-        log.info('Adding (%s) to system path' % glob(path))
+        logging.getLogger('root').info('Adding (%s) to system path' % glob(path))
         sys.path.append(os.path.abspath(path))
 
 
-def go(conf_file, log_path, classpath='', clean=False):
-    global log, postvect_dumper_added_already
-    if not os.path.exists(log_path):
-        os.makedirs(log_path)
-    log = _config_logger(log_path)
+def go(conf_file, log_dir, classpath='', clean=False):
+    if not os.path.exists(log_dir):
+        os.makedirs(log_dir)
     configspec_file = os.path.join(os.path.dirname(conf_file), '.confrc')
-    log.info(
-        'Reading configuration file from \'%s\', conf spec from \'%s\''
-        % (glob(conf_file)[0], configspec_file))
-    postvect_dumper_added_already = False
     config = ConfigObj(conf_file, configspec=configspec_file)
     validator = validate.Validator()
     result = config.validate(validator)
     # todo add a more helpful guide to what exactly went wrong with the conf
     # object
     if not result:
-        log.warn('Invalid configuration')
+        print 'Invalid configuration'
         sys.exit(1)
+    log = _config_logger(log_dir, config['name'])
+    log.info(
+        'Reading configuration file from \'%s\', conf spec from \'%s\''
+        % (glob(conf_file)[0], configspec_file))
+
     output = config['output_dir']
     _prepare_output_directory(clean, output)
     _prepare_classpath(classpath)
@@ -568,16 +583,17 @@ def go(conf_file, log_path, classpath='', clean=False):
     shutil.copy(conf_file, output)
     return status, msg
 
-#    shutil.move(log_path, output)
+
+postvect_dumper_added_already = False
 
 if __name__ == '__main__':
     args = config.arg_parser.parse_args()
-    log_path = args.log_path
+    log_dir = args.log_path
     configuration = args.configuration
     classpath = args.classpath
     clean = args.clean
 
-    go(configuration, log_path, classpath, clean)
+    go(configuration, log_dir, classpath, clean)
 
 
 
