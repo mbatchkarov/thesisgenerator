@@ -232,8 +232,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
                 # no thesaurus source, fall back to super behaviour
                 logging.getLogger('root').warn("F**k, no thesaurus!")
                 return super(ThesaurusVectorizer,
-                             self)._term_count_dicts_to_matrix(
-                    term_count_dicts)
+                             self)._term_count_dicts_to_matrix(term_count_dicts)
             else:
                 # thesaurus file specified, parse it
                 self._thesaurus = self.load_thesauri()

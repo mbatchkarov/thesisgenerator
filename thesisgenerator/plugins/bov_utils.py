@@ -3,6 +3,7 @@ import glob
 import os
 import re
 import shutil
+from subprocess import CalledProcessError
 import traceback
 import sys
 
@@ -103,63 +104,74 @@ def evaluate_thesauri(pattern, conf_file, train_data='sample-data/web-tagged',
                 raise exc
 
 
-def consolidate_results(log_dir, output_dir):
+def consolidate_results(conf_dir, log_dir, output_dir):
     """
 
     A single thesaurus must be used in each experiment
     """
     print 'Consolidating results'
     c = csv.writer(open("summary.csv", "w"))
-    c.writerow(['ID', 'corpus', 'features', 'pos', 'fef', 'classifier', 'th_size', 'vocab_size', 'unknown', 'replaced',
-                'accuracy'])
+    c.writerow(['ID', 'corpus', 'features', 'pos', 'fef', 'classifier',
+                'th_size', 'vocab_size', 'unknown', 'found', 'replaced',
+                'metric', 'score'])
 
-    os.chdir(log_dir)
+    os.chdir(conf_dir)
     from iterpipes import cmd, run
 
     experiments = glob.glob('*.conf')
-    for exp in experiments:
-        id = re.findall(r'[a-zA-Z]*([0-9]+).conf', exp)[0]
-        log_file = os.path.join(log_dir, 'logs', 'run%s.log' % id)
-        out = run(cmd('grep --max-count=2 Total {}', log_file))
-        info = [x.strip() for x in out]
-        info = info[0].split('\n')[1]
+    for conf_file in experiments:
+        out = run(cmd('grep --max-count=1 name= {}', conf_file))
+        exp_name = [x.strip() for x in out]
+        exp_name = str(exp_name[0]).split('=')[1]
 
-        # token statistics in labelled corpus
-        total = int(re.findall('Total: ([0-9]+)', info)[0])
-        unk = int(re.findall('Unknown: ([0-9]+)', info)[0])
-        repl = int(re.findall('Replaced: ([0-9]+)', info)[0])
-        # print id, total, unk, repl
-
-        out = run(cmd('grep --max-count=1 "Thesaurus contains" {}', log_file))
-        info = [x.strip() for x in out]
-        th_size = re.findall("Thesaurus contains ([0-9]+)", info[0])[0]
-
-        conf_file = os.path.join(log_dir, 'run%d.conf' % int(id))
-        out = run(cmd('grep --max-count=1 thesaurus_files {}', conf_file))
-        out = [x.strip() for x in out]
-        thesauri = out[0].split('=')[1]
-        thesauri = os.sep.join(thesauri.split(os.sep)[-2:])
-        # thesauri is something like "exp6-11a/exp6.sims.neighbours.strings,"
-
-        corpus = re.findall('exp([0-9]+)', thesauri)[0]
-        features = re.findall('-([0-9]+)', thesauri)[0]
-        pos = re.findall('-[0-9]+(.*)/', thesauri)[0]
+        log_file = os.path.join(log_dir, '%s.log' % exp_name)
+        out = run(cmd('grep --max-count=2 Total: {}', log_file))
         try:
-            fef = re.findall('fef([0-9]+)', thesauri)[0]
-        except IndexError:
-            # 'fef' isn't in thesaurus name, i.e. has not been postfiltered
-            fef = 0
+            info = [x.strip() for x in out]
+            info = info[0].split('\n')[1]
 
+            # token statistics in labelled corpus
+            total = int(re.findall('Total: ([0-9]+)', info)[0])
+            unk = int(re.findall('Unknown: ([0-9]+)', info)[0])
+            found = int(re.findall('Found: ([0-9]+)', info)[0])
+            repl = int(re.findall('Replaced: ([0-9]+)', info)[0])
+            # print id, total, unk, repl
 
-        output_file = os.path.join(output_dir, 'run%d.out.csv' % int(id))
+            out = run(cmd('grep --max-count=1 "Thesaurus contains" {}', log_file))
+            info = [x.strip() for x in out]
+            th_size = re.findall("Thesaurus contains ([0-9]+)", info[0])[0]
+
+            abs_conf_file = os.path.join(conf_dir, '%s' % conf_file)
+            out = run(cmd('grep --max-count=1 thesaurus_files {}', abs_conf_file))
+            out = [x.strip() for x in out]
+            thesauri = out[0].split('=')[1]
+            thesauri = os.sep.join(thesauri.split(os.sep)[-2:])
+            # thesauri is something like "exp6-11a/exp6.sims.neighbours.strings,"
+
+            corpus = re.findall('exp([0-9]+)', thesauri)[0]
+            features = re.findall('-([0-9]+)', thesauri)[0]
+            pos = re.findall('-[0-9]+(.)\..*', thesauri)[0]
+            try:
+                fef = re.findall('fef([0-9]+)', thesauri)[0]
+            except IndexError:
+                # 'fef' isn't in thesaurus name, i.e. has not been postfiltered
+                fef = 0
+        except CalledProcessError:
+            # log file does not contain thesaurus replacement stats because
+            # no thesaurus was used
+            total, unk, found, repl, th_size = -1, -1, -1, -1, -1
+            corpus, pos, features, fef = -1, -1, -1, -1
+
+        output_file = os.path.join(output_dir, '%s.out.csv' % exp_name)
         try:
             reader = csv.reader(open(output_file, 'r'))
-            header = reader.next()
+            _ = reader.next() # skip over header
             for row in reader:
                 _, classifier, metric, score = row
-                c.writerow([id, corpus, features, pos, fef, classifier, th_size, total, unk, repl, score])
+                c.writerow([exp_name, corpus, features, pos, fef, classifier,
+                            th_size, total, unk,  found, repl, metric, score])
         except IOError:
-            continue #file is missing
+            continue    # file is missing
 
 if __name__ == '__main__':
 
@@ -170,21 +182,23 @@ if __name__ == '__main__':
     #     pool_size=10)
 
     # on cluster
-    evaluate_thesauri(
-        '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/exp6-*/*sims.neighbours.strings',
-        '/mnt/lustre/scratch/inf/mmb28/thesisgenerator/conf/main.conf',
-        train_data='/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data/reuters21578/r8train-tagged',
-        test_data='/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data/reuters21578/r8test-tagged',
-        pool_size=30)
+    # evaluate_thesauri(
+    #     '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/exp6-*/*sims.neighbours.strings',
+    #     '/mnt/lustre/scratch/inf/mmb28/thesisgenerator/conf/main.conf',
+    #     train_data='/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data/reuters21578/r8train-tagged',
+    #     test_data='/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data/reuters21578/r8test-tagged',
+    #     pool_size=30)
 
     # on local machine
-    # consolidate_results(
-    #     '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/thesisgenerator/conf/main-variants/',
-    #     '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/thesisgenerator/conf/output/',
-    # )
+    consolidate_results(
+        '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/thesisgenerator/conf/featureselection',
+        '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/thesisgenerator/conf/featureselection/logs/',
+        '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/thesisgenerator/conf/featureselection/output/',
+    )
 
     # on cluster
-    consolidate_results(
-        '/mnt/lustre/scratch/inf/mmb28/thesisgenerator/conf/main-variants/',
-        '/mnt/lustre/scratch/inf/mmb28/thesisgenerator/conf/output/',
-    )
+    # consolidate_results(
+    #     '/mnt/lustre/scratch/inf/mmb28/thesisgenerator/conf/main-variants/',
+    #     '/mnt/lustre/scratch/inf/mmb28/thesisgenerator/conf/main-variants/logs/',
+    #     '/mnt/lustre/scratch/inf/mmb28/thesisgenerator/conf/output/',
+    # )
