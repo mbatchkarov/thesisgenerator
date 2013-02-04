@@ -80,7 +80,8 @@ class ThesaurusVectorizer(TfidfVectorizer):
         result = {}
         logging.getLogger('root').debug(self.thesaurus_files)
         for path in self.thesaurus_files:
-            logging.getLogger('root').debug('Loading thesaurus %s from disk' % path)
+            logging.getLogger('root').debug(
+                'Loading thesaurus %s from disk' % path)
             logging.getLogger('root').debug(
                 'PoS: %r, coarse: %r, threshold %r, k=%r' %
                 (self.use_pos,
@@ -97,17 +98,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
                     # pairs for (neighbour, similarity)
                         continue
                     if tokens[0] != FILTERED:
-                    #                        indices = range(1, len(tokens), 2)
-                    #                        indices.insert(0,0)
-                    #                        for i in indices:# go over words
-#                            s = tokens[i].split('/')
-                    #                            if not self.use_pos:
-                    #                                s = s[:-1]    # remove PoS tag from token
-                    #                            if self.lowercase:
-                    #                                s[0] = s[0].lower()
-                    #                            tokens[i] = '/'.join(s)
-
-                        to_insert = [(word, float(sim)) for (word, sim)
+                        to_insert = [(word.lower(), float(sim)) for (word, sim)
                                      in
                                      self.iterate_nonoverlapping_pairs(
                                          tokens, 1, self.k)
@@ -121,14 +112,16 @@ class ThesaurusVectorizer(TfidfVectorizer):
                                 logging.getLogger('root').debug(
                                     'Multiple entries for "%s" found' %
                                     tokens[0])
-                            curr_thesaurus[tokens[0]].extend(to_insert)
+                            curr_thesaurus[tokens[0].lower()].extend(to_insert)
 
-# note- do not attempt to lowercase if the thesaurus has not already been
-# lowercased- may result in multiple neighbour lists for the same entry
+                        # note- do not attempt to lowercase if the thesaurus has not already been
+                        # lowercased- may result in multiple neighbour lists for the same entry
             result.update(curr_thesaurus)
 
-        logging.getLogger('root').debug('Thesaurus contains %d entries' % len(result))
-        logging.getLogger('root').debug('Thesaurus sample %r' % result.items()[:2])
+        logging.getLogger('root').info(
+            'Thesaurus contains %d entries' % len(result))
+        logging.getLogger('root').debug(
+            'Thesaurus sample %r' % result.items()[:2])
         return result
 
 
@@ -228,9 +221,10 @@ class ThesaurusVectorizer(TfidfVectorizer):
         Current version copied without functional modification from sklearn
         .feature_extraction.text.CountVectorizer
         """
-        logging.getLogger('root').info('Converting features to vectors (with thesaurus lookup)')
+        logging.getLogger('root').info(
+            'Converting features to vectors (with thesaurus lookup)')
         # how many tokens are there/ are unknown/ have been replaced
-        total, unknown, replaced = 0, 0, 0
+        total, unknown, found, replaced = 0, 0, 0, 0
 
         if not hasattr(self, '_thesaurus'):
             #thesaurus has not been parsed yet
@@ -239,7 +233,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
                 logging.getLogger('root').warn("F**k, no thesaurus!")
                 return super(ThesaurusVectorizer,
                              self)._term_count_dicts_to_matrix(
-                                                        term_count_dicts)
+                    term_count_dicts)
             else:
                 # thesaurus file specified, parse it
                 self._thesaurus = self.load_thesauri()
@@ -252,8 +246,9 @@ class ThesaurusVectorizer(TfidfVectorizer):
 
         vocabulary = self.vocabulary_
         num_documents = 0
-        logging.getLogger('root').debug("Building feature vectors, current vocab size is %d" %
-                  len(vocabulary))
+        logging.getLogger('root').debug(
+            "Building feature vectors, current vocab size is %d" %
+            len(vocabulary))
 
         for doc_id, term_count_dict in enumerate(term_count_dicts):
             num_documents += 1
@@ -280,15 +275,20 @@ class ThesaurusVectorizer(TfidfVectorizer):
                     # if there are any neighbours filter the list of
                     # neighbours so that it contains only pairs where
                     # the neighbour has been seen
+                    if neighbours:
+                        found += 1
+                        logging.getLogger('root').debug('Found thesaurus entry '
+                                                        'for %s' % document_term)
                     neighbours = [(neighbour, sim) for neighbour, sim in
                                   neighbours[:self.k] if
                                   neighbour in self.vocabulary_] if neighbours else []
                     if len(neighbours) > 0:
                         replaced += 1
                     for neighbour, sim in neighbours:
-                        logging.getLogger('root').debug('Replacement. Doc %d: %s --> %s, '
-                                  'sim = %f' % (
-                                      doc_id, document_term, neighbour, sim))
+                        logging.getLogger('root').debug(
+                            'Replacement. Doc %d: %s --> %s, '
+                            'sim = %f' % (
+                                doc_id, document_term, neighbour, sim))
                         inserted_feature_id = vocabulary.get(neighbour)
                         try:
                             position_in_lists = term_indices.index(
@@ -314,10 +314,13 @@ class ThesaurusVectorizer(TfidfVectorizer):
         # remove frequencies if binary feature were requested
         if self.binary:
             spmatrix.data.fill(1)
-        logging.getLogger('root').debug('Vectorizer: Data shape is %s' % (str(spmatrix.shape)))
-        logging.getLogger('root').info('Vectorizer: Total: %d Unknown: %d Replaced: %d' % (total,
-                                                                      unknown,
-                                                                      replaced))
+        logging.getLogger('root').debug(
+            'Vectorizer: Data shape is %s' % (str(spmatrix.shape)))
+        logging.getLogger('root').info('Vectorizer: Total: %d Unknown: %d '
+                                       'Found: %d Replaced: %d' % (total,
+                                                                   unknown,
+                                                                   found,
+                                                                   replaced))
 
         # temporarily store vocabulary
         f = './tmp_vocabulary'
@@ -343,22 +346,28 @@ class ThesaurusVectorizer(TfidfVectorizer):
             logging.getLogger('root').warn('cElementTree not available')
             import xml.etree.ElementTree as ET
 
-        tree = ET.fromstring(doc.encode("utf8"))
-        tokens = []
-        for element in tree.findall('.//token'):
-            if self.lemmatize:
-                txt = element.find('lemma').text
-            else:
-                txt = element.find('word').text
+        try:
+            tree = ET.fromstring(doc.encode("utf8"))
+            tokens = []
+            for element in tree.findall('.//token'):
+                if self.lemmatize:
+                    txt = element.find('lemma').text
+                else:
+                    txt = element.find('word').text
 
-            if self.lowercase: txt = txt.lower()
+                if self.lowercase: txt = txt.lower()
 
-            if self.use_pos:
-                pos = element.find('pos').text
-                if self.coarse_pos: pos = pos_coarsification_map[pos.upper()]
-                txt = '%s/%s' % (txt, pos)
+                if self.use_pos:
+                    pos = element.find('pos').text.upper()
+                    if self.coarse_pos: pos = pos_coarsification_map[pos.upper()]
+                    txt = '%s/%s' % (txt, pos)
 
-            tokens.append(txt)
+                tokens.append(txt)
+        except ET.ParseError:
+            print doc # todo this error should be fixed
+            tokens = []
+            # import sys
+            # sys.exit(1)
 
         return tokens
 

@@ -81,7 +81,17 @@ joblib_caching=boolean(default=False)
 	    run=boolean(default=False)
 	    
 [evaluation]
-    [[sklearn.metrics.f1_score]]
+    [[sklearn.metrics.precision_score]]
         run=boolean(default=False)
+        average=string
+	
+	[[sklearn.metrics.recall_score]]
+		run=boolean(default=False)
+        average=string
+	
+	[[sklearn.metrics.f1_score]]
+		run=boolean(default=False)
+        average=string
+
     [[sklearn.metrics.accuracy_score]]
         run=boolean(default=False)
