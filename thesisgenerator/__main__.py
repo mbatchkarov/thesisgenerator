@@ -53,11 +53,9 @@ def _get_data_iterators(**kwargs):
     sklearn.feature_extraction.text for details on the parameter values.
     """
 
-
     def _filename_generator(file_list):
         for f in file_list:
             yield f
-
 
     def _content_generator(file_list):
         for f in file_list:
@@ -477,7 +475,6 @@ def analyze(scores, output_dir, name):
 
 
 def _config_logger(output_path=None, name='log.txt'):
-    print '*** Configuring logger'
     newly_created_logger = logging.getLogger('root')
 
     # for parallelisation purposes we need to remove all the handlers that were
@@ -489,7 +486,6 @@ def _config_logger(output_path=None, name='log.txt'):
         for handler in newly_created_logger.handlers:
             newly_created_logger.removeHandler(handler)
         sleep(0.1)
-    print 'Handlers are', newly_created_logger.handlers
     assert len(newly_created_logger.handlers) == 0
 
     print newly_created_logger.handlers
@@ -518,7 +514,6 @@ def _config_logger(output_path=None, name='log.txt'):
     if output_path is not None:
         log_file = os.path.join(output_path, '%s.log' % name)
         fh = logging.FileHandler(log_file, mode='w')
-        print 'Log file is %s' % log_file
         fh.setLevel(logging.DEBUG)
         fh.setFormatter(fmt)
         #        fh.addFilter(MyFilter(logging.DEBUG))

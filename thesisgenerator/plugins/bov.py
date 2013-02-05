@@ -1,4 +1,5 @@
 from collections import defaultdict
+import locale
 import logging
 import pickle
 import scipy.sparse as sp
@@ -34,6 +35,9 @@ class ThesaurusVectorizer(TfidfVectorizer):
             self.coarse_pos = coarse_pos
             # vocabulary
             self.log_vocabulary_already = False #have I done it already
+
+            # for parsing integers with comma for thousands separator
+            locale.setlocale(locale.LC_ALL, 'en_US')
         except KeyError:
             pass
         super(ThesaurusVectorizer, self).__init__(input=input,
@@ -224,7 +228,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
         logging.getLogger('root').info(
             'Converting features to vectors (with thesaurus lookup)')
         # how many tokens are there/ are unknown/ have been replaced
-        total, unknown, found, replaced = 0, 0, 0, 0
+        num_tokens, unknown, found, replaced = 0, 0, 0, 0
 
         if not hasattr(self, '_thesaurus'):
             #thesaurus has not been parsed yet
@@ -249,10 +253,12 @@ class ThesaurusVectorizer(TfidfVectorizer):
             "Building feature vectors, current vocab size is %d" %
             len(vocabulary))
 
+        types = set()
         for doc_id, term_count_dict in enumerate(term_count_dicts):
             num_documents += 1
             for document_term, count in term_count_dict.iteritems():
-                total += 1
+                types.add(document_term)
+                num_tokens += 1
                 term_index_in_vocab = vocabulary.get(document_term)
                 if term_index_in_vocab is not None:
                 #None if term is not in seen vocabulary
@@ -315,11 +321,13 @@ class ThesaurusVectorizer(TfidfVectorizer):
             spmatrix.data.fill(1)
         logging.getLogger('root').debug(
             'Vectorizer: Data shape is %s' % (str(spmatrix.shape)))
-        logging.getLogger('root').info('Vectorizer: Total: %d Unknown: %d '
-                                       'Found: %d Replaced: %d' % (total,
-                                                                   unknown,
-                                                                   found,
-                                                                   replaced))
+        logging.getLogger('root').info('Vectorizer: Total tokens: %d '
+                               'Total types: %d, Unknown: %d '
+                               'Found: %d Replaced: %d' % (num_tokens,
+                                                       len(types),
+                                                       unknown,
+                                                       found,
+                                                       replaced))
 
         # temporarily store vocabulary
         f = './tmp_vocabulary'
@@ -354,21 +362,54 @@ class ThesaurusVectorizer(TfidfVectorizer):
                 else:
                     txt = element.find('word').text
 
-                if self.lowercase: txt = txt.lower()
+                if self.lowercase:
+                    txt = txt.lower()
 
+                am_i_a_number = is_number(txt)
+
+                pos = element.find('pos').text.upper()
                 if self.use_pos:
-                    pos = element.find('pos').text.upper()
                     if self.coarse_pos: pos = pos_coarsification_map[pos.upper()]
                     txt = '%s/%s' % (txt, pos)
 
-                tokens.append(txt)
+                if pos == 'PUNCT':
+                    tokens.append('__PUNCT__')
+                elif  am_i_a_number:
+                    tokens.append('__NUM__')
+                else:
+                    tokens.append(txt)
         except ET.ParseError:
-            print doc # todo this error should be fixed
-            tokens = []
-            # import sys
-            # sys.exit(1)
-
+            pass
+            # on OSX the .DS_Store file is passed in, if it exists
+            # just ignore it
         return tokens
+
+
+def is_number(s):
+    """
+    Checks if the given string is an int or a float. Numbers with thousands
+    separators (e.g. "1,000.12") are also recognised. Returns true of the string
+    contains only digits and punctuation, e.g. 12/23
+    """
+    try:
+        float(s)
+        is_float=True
+    except ValueError:
+        is_float = False
+
+    try:
+        locale.atof(s)
+        is_int = True
+    except ValueError:
+        is_int=False
+
+    is_only_digits_or_punct = True
+    for ch in s:
+        if ch.isalpha():
+            is_only_digits_or_punct = False
+            break
+
+    return is_float or is_int or is_only_digits_or_punct
 
 # copied from feature extraction toolkit
 pos_coarsification_map = defaultdict(lambda: "UNK")
@@ -413,4 +454,6 @@ pos_coarsification_map.update({
     "'": "PUNCT",
     "\"": "PUNCT",
     "'": "PUNCT",
+    "-LRB-": "PUNCT",
+    "-RRB-": "PUNCT",
 })
