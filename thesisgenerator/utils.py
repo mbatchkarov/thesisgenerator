@@ -6,6 +6,8 @@ A collection of random useful utilities
 import fileinput
 import inspect
 from itertools import combinations
+import logging
+import random
 import re
 import gzip
 import sys
@@ -47,7 +49,8 @@ class GorkanaXmlParser(object):
             regex = re.compile(
                 '(?:&lt;|<)headline(?:&gt;|>)(.*)(?:&lt;|<)/headline(?:&gt;|>)')
             for _, element in self._xml_etree:
-                if element.tag == 'documents' or element.text is None: continue
+                if element.tag == 'documents' or element.text is None:
+                    continue
 
                 article_text = element.text
                 _headline = regex.findall(article_text)
@@ -60,7 +63,8 @@ class GorkanaXmlParser(object):
         with gzip.open(self._source, 'r') as _in_fh:
             self._xml_etree = ET.iterparse(_in_fh, events=('end',))
             for _, element in self._xml_etree:
-                if element.tag == 'documents' or element.text is None: continue
+                if element.tag == 'documents' or element.text is None:
+                    continue
                 target = element.attrib['relevant'] == 'True'
                 yield target
 
@@ -98,8 +102,9 @@ class LeaveNothingOut(object):
                 test_index = ind[test_index]
             yield train_index, test_index
 
+
 class PredefinedIndicesIterator(object):
-    """A modified version of sklearn.cross_validation.LeavePOut which returns
+    """A scikits-compliant crossvalidation iterator which returns
     a single pair of pre-defined train-test indices. To be used when the test
      set is known in advance
     """
@@ -111,6 +116,33 @@ class PredefinedIndicesIterator(object):
     def __iter__(self):
         yield self.train, self.test
         raise StopIteration
+
+
+class SubsamplingPredefinedIndicesIterator(object):
+    """
+    An
+    """
+
+    def __init__(self, train, test, max_iterations, sample_size):
+        self.train = train
+        self.test = test
+        self.max_iterations = max_iterations
+        self.sample_size = sample_size
+        logging.getLogger('root').info('Will do %d runs, '
+                                       'for each sampling %s documents from a '
+                                       'training set of size %d' % (
+                                           max_iterations,
+                                           sample_size,
+                                           len(train)))
+
+
+    def __iter__(self):
+        for i in range(self.max_iterations):
+            yield random.sample(self.train, self.sample_size), self.test
+        raise StopIteration
+
+    def __len__(self):
+        return self.max_iterations
 
 
 class ChainCallable(object):
@@ -148,7 +180,7 @@ class ChainCallable(object):
         for func_name, func in self.to_call:
             initialize_args = inspect.getargspec(func)[0]
             call_args = {arg: val for arg, val in self.config[func_name].
-                         items() if val != '' and arg in initialize_args}
+            items() if val != '' and arg in initialize_args}
             options[func_name] = call_args
             result[func_name.strip()] = (
                 func(true_labels, predicted_labels, **call_args))

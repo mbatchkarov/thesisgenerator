@@ -27,7 +27,7 @@ import config
 from plugins.dumpers import DatasetDumper
 from utils import (get_named_object,
                    LeaveNothingOut,
-                   ChainCallable, PredefinedIndicesIterator)
+                   ChainCallable, PredefinedIndicesIterator, SubsamplingPredefinedIndicesIterator)
 
 
 # **********************************
@@ -152,9 +152,14 @@ def get_crossvalidation_iterator(config, x_vals, y_vals, x_test=None,
 
     if x_test is not None and y_test is not None:
         logging.getLogger('root').warn('You have requested test set to be '
-                                       'used for evaluation. Forcing cv_type '
-                                       '== \'test_set\'')
-        cv_type == 'test_set'
+                                       'used for evaluation.')
+        if cv_type != 'test_set' and cv_type != 'subsampled_test_set':
+            logging.getLogger('root').error('Wrong crossvalidation type. '
+                                            'Only test_set or '
+                                            'subsampled_test_set are '
+                                            'permitted with a test set')
+            sys.exit(1)
+
         train_indices = range(len(x_vals))
         test_indices = range(len(x_vals), len(x_vals) + len(x_test))
         x_vals.extend(x_test)
@@ -190,11 +195,15 @@ def get_crossvalidation_iterator(config, x_vals, y_vals, x_test=None,
         iterator = LeaveNothingOut(dataset_size, dataset_size)
     elif cv_type == 'test_set' and x_test is not None and y_test is not None:
         iterator = PredefinedIndicesIterator(train_indices, test_indices)
+    elif cv_type == 'subsampled_test_set' and x_test is not None and y_test is not None:
+        iterator = SubsamplingPredefinedIndicesIterator(train_indices,
+                                                        test_indices, int(k),
+                                                        config['sample_size'])
     else:
         raise ValueError(
             'Unrecognised crossvalidation type \'%(cv_type)s\'. The supported '
             'types are \'kfold\', \'skfold\', \'loo\', \'bootstrap\', '
-            '\'test_set\' and \'oracle\'')
+            '\'test_set\', \'subsampled_test_set\' and \'oracle\'')
 
 
     # Pick out the non-validation data from x_vals. This requires x_vals
@@ -389,7 +398,9 @@ def run_tasks(configuration):
         crossvalidate_cached(
             configuration['crossvalidation'], x_vals, y_vals, x_test, y_test)
 
-    #    log.debug("Starting training with %d documents" % len(x_vals_seen))
+    del x_vals
+    del y_vals # only the non-validation data should be used from now on
+
     scores = []
     for clf_name in configuration['classifiers']:
         if not configuration['classifiers'][clf_name]:
@@ -419,7 +430,7 @@ def run_tasks(configuration):
             cached_cross_val_score(pipeline, x_vals_seen, y_vals_seen,
                                    ChainCallable(
                                        configuration['evaluation']),
-                                   cv=cv_iterator, n_jobs=10,
+                                   cv=cv_iterator, n_jobs=5,
                                    verbose=0)
 
         for run_number in range(len(scores_this_clf)):

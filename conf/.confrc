@@ -38,6 +38,7 @@ joblib_caching=boolean(default=False)
 	type = option('kfold', 'skfold', 'loo', 'bootstrap', 'oracle', default = 'kfold')
 	k=integer(min=1,max=100,default=1)
 	ratio=float()
+    sample_size=integer()
 	
 [split_data]
     run=boolean()
