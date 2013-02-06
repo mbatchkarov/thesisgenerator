@@ -14,6 +14,7 @@ import inspect
 from time import sleep
 
 import numpy as np
+from numpy.ma import hstack
 import validate
 from configobj import ConfigObj
 from sklearn import cross_validation
@@ -26,7 +27,7 @@ import config
 from plugins.dumpers import DatasetDumper
 from utils import (get_named_object,
                    LeaveNothingOut,
-                   ChainCallable)
+                   ChainCallable, PredefinedIndicesIterator)
 
 
 # **********************************
@@ -115,7 +116,8 @@ def _get_data_iterators(**kwargs):
     return data_iterable, targets_iterable
 
 
-def get_crossvalidation_iterator(config, x_vals, y_vals):
+def get_crossvalidation_iterator(config, x_vals, y_vals, x_test=None,
+                                 y_test=None):
     """
     Returns a crossvalidation iterator, which contains a list of
     (train_indices, test_indices) that can be used to slice
@@ -148,6 +150,16 @@ def get_crossvalidation_iterator(config, x_vals, y_vals):
     validation_indices = reduce(lambda l, (head, tail): l + range(head, tail),
                                 validation_data, [])
 
+    if x_test is not None and y_test is not None:
+        logging.getLogger('root').warn('You have requested test set to be '
+                                       'used for evaluation. Forcing cv_type '
+                                       '== \'test_set\'')
+        cv_type == 'test_set'
+        train_indices = range(len(x_vals))
+        test_indices = range(len(x_vals), len(x_vals) + len(x_test))
+        x_vals.extend(x_test)
+        y_vals = hstack([y_vals, y_test])
+
     mask = np.zeros(y_vals.shape[0])  # we only mask the rows
     mask[validation_indices] = 1 # mask has 1 where the data point should be
     # used for validation and not for training/testing
@@ -176,11 +188,13 @@ def get_crossvalidation_iterator(config, x_vals, y_vals):
                                               train_size=ratio)
     elif cv_type == 'oracle':
         iterator = LeaveNothingOut(dataset_size, dataset_size)
+    elif cv_type == 'test_set' and x_test is not None and y_test is not None:
+        iterator = PredefinedIndicesIterator(train_indices, test_indices)
     else:
         raise ValueError(
             'Unrecognised crossvalidation type \'%(cv_type)s\'. The supported '
-            'types are \'kfold\', \'skfold\', \'loo\', \'bootstrap\' and '
-            '\'oracle\'')
+            'types are \'kfold\', \'skfold\', \'loo\', \'bootstrap\', '
+            '\'test_set\' and \'oracle\'')
 
 
     # Pick out the non-validation data from x_vals. This requires x_vals
@@ -327,7 +341,7 @@ def run_tasks(configuration):
     logging.getLogger('root').info('running tasks')
     # get a reference to the joblib cache object, if caching is not disabled
     # else build a dummy object which just returns its arguments unchanged
-    if (configuration['joblib_caching']):
+    if configuration['joblib_caching']:
         mem_cache = Memory(cachedir=configuration['output_dir'], verbose=0)
     else:
         op = type("JoblibDummy", (object,), {"cache": lambda self, x: x})
@@ -371,9 +385,9 @@ def run_tasks(configuration):
 
     # CREATE CROSSVALIDATION ITERATOR
     crossvalidate_cached = mem_cache.cache(get_crossvalidation_iterator)
-    cv_iterator, validate_indices, x_vals_seen, \
-    y_vals_seen = crossvalidate_cached(
-        configuration['crossvalidation'], x_vals, y_vals)
+    cv_iterator, validate_indices, x_vals_seen, y_vals_seen = \
+        crossvalidate_cached(
+            configuration['crossvalidation'], x_vals, y_vals, x_test, y_test)
 
     #    log.debug("Starting training with %d documents" % len(x_vals_seen))
     scores = []
@@ -397,67 +411,36 @@ def run_tasks(configuration):
                                    configuration['output_dir'],
                                    configuration['debug'])
 
-        if configuration['test_data']:
-            #  no crossvalidation, train on one set and test on the other
-            logging.getLogger('root').info(
-                '***Fitting pipeline for %s' % clf_name)
-            pipeline.fit(x_vals_seen, y_vals_seen)
-            eval = ChainCallable(configuration['evaluation'])
-            # Making a singleton tuple with the tuple of interest as the
-            # only item
-            logging.getLogger('root').info(
-                '***Evaluating on test set of size %s' % len(x_test))
-            predicted = pipeline.predict(x_test)
-            if configuration['debug'] and 'thesaurus' in \
-                    configuration['feature_extraction']['vectorizer'].lower():
-                from plugins.bov_utils import inspect_thesaurus_effect
+        # pass the (feature selector + classifier) pipeline for evaluation
+        logging.getLogger('root').info(
+            '***Fitting pipeline for %s' % clf_name)
+        cached_cross_val_score = mem_cache.cache(cross_val_score)
+        scores_this_clf = \
+            cached_cross_val_score(pipeline, x_vals_seen, y_vals_seen,
+                                   ChainCallable(
+                                       configuration['evaluation']),
+                                   cv=cv_iterator, n_jobs=10,
+                                   verbose=0)
 
-                logging.getLogger('root').info('Dumping debug information')
-                inspect_thesaurus_effect(configuration['output_dir'], clf_name,
-                                         configuration['feature_extraction'][
-                                             'thesaurus_file'], pipeline,
-                                         predicted,
-                                         x_test)
-
-            for metric, score in eval(y_test, predicted).items():
+        for run_number in range(len(scores_this_clf)):
+            a = scores_this_clf[run_number]
+            # If there is just one metric specified in the conf file a is a
+            # 0-D numpy array and needs to be indexed as [()]. Otherwise it
+            # is a dict
+            mydict = a[()] if hasattr(a, 'shape') and len(
+                a.shape) < 1 else a
+            for metric, score in mydict.items():
                 scores.append(
                     [clf_name.split('.')[-1], metric.split('.')[-1],
                      score])
-        else:
-            # pass the (feature selector + classifier) pipeline for evaluation
-            logging.getLogger('root').info(
-                '***Fitting pipeline for %s' % clf_name)
-            cached_cross_val_score = mem_cache.cache(cross_val_score)
-            scores_this_clf = \
-                cached_cross_val_score(pipeline, x_vals_seen, y_vals_seen,
-                                       ChainCallable(
-                                           configuration['evaluation']),
-                                       cv=cv_iterator, n_jobs=10,
-                                       verbose=0)
-
-            for run_number in range(len(scores_this_clf)):
-                a = scores_this_clf[run_number]
-                # If there is just one metric specified in the conf file a is a
-                # 0-D numpy array and needs to be indexed as [()]. Otherwise it
-                # is a dict
-                mydict = a[()] if hasattr(a, 'shape') and len(
-                    a.shape) < 1 else a
-                for metric, score in mydict.items():
-                    scores.append(
-                        [clf_name.split('.')[-1], metric.split('.')[-1],
-                         score])
     logging.getLogger('root').info('Classifier scores are %s' % scores)
     return 0, analyze(scores, configuration['output_dir'],
                       configuration['name'])
 
-    # todo create a mallet classifier wrapper in python that works with
-    # the scikit crossvalidation stuff (has fit and predict and
-    # predict_probas functions)
-
 
 def analyze(scores, output_dir, name):
     """
-    Stores a csv, xls and png representation of the data set. Requires pandas
+    Stores a csv and xls representation of the data set. Requires pandas
     """
 
     logging.getLogger('root').info(
@@ -474,7 +457,7 @@ def analyze(scores, output_dir, name):
         else:
             # the value is a list, e.g. per-class precision/recall/F1
             for id, val in enumerate(vals):
-                cleaned_scores.append([clf, '%s-class%d'%(metric, id), val])
+                cleaned_scores.append([clf, '%s-class%d' % (metric, id), val])
 
     df = DataFrame(cleaned_scores, columns=['classifier', 'metric', 'score'])
 
@@ -482,13 +465,6 @@ def analyze(scores, output_dir, name):
     csv = os.path.join(output_dir, '%s.out.csv' % name)
     df.to_csv(csv)
     # df.to_excel(os.path.join(output_dir, '%s.out.xls' % name))
-
-    # plot results
-    # fig, axes = plt.subplots(nrows=1, ncols=1, figsize=(10, 8))
-    # df.boxplot(by=['classifier', 'metric'], ax=axes)
-    # fig.autofmt_xdate(rotation=45, bottom=0.5)
-    # plt.savefig(os.path.join(output_dir, '%s.out.png' % name), format='png',
-    #             dpi=150)
 
     return csv
 

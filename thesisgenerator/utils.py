@@ -98,6 +98,20 @@ class LeaveNothingOut(object):
                 test_index = ind[test_index]
             yield train_index, test_index
 
+class PredefinedIndicesIterator(object):
+    """A modified version of sklearn.cross_validation.LeavePOut which returns
+    a single pair of pre-defined train-test indices. To be used when the test
+     set is known in advance
+    """
+
+    def __init__(self, train, test):
+        self.train = train
+        self.test = test
+
+    def __iter__(self):
+        yield self.train, self.test
+        raise StopIteration
+
 
 class ChainCallable(object):
     """
