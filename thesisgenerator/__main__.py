@@ -67,8 +67,9 @@ def _get_data_iterators(**kwargs):
             input_gen = kwargs['input_generator']
             source = kwargs['source']
             try:
-                logging.getLogger('root').debug('Retrieving input generator for name '
-                          '\'%(input_gen)s\'' % locals())
+                logging.getLogger('root').debug(
+                    'Retrieving input generator for name '
+                    '\'%(input_gen)s\'' % locals())
 
                 data_iterable = get_named_object(input_gen)(kwargs['source'])
                 targets_iterable = np.asarray(
@@ -76,9 +77,10 @@ def _get_data_iterators(**kwargs):
                     dtype=np.int)
                 data_iterable = data_iterable.documents()
             except (ValueError, ImportError):
-                logging.getLogger('root').warn('No input generator found for name '
-                         '\'%(input_gen)s\'. Using a file content '
-                         'generator with source \'%(source)s\'' % locals())
+                logging.getLogger('root').warn(
+                    'No input generator found for name '
+                    '\'%(input_gen)s\'. Using a file content '
+                    'generator with source \'%(source)s\'' % locals())
                 if not os.path.isdir(source):
                     raise ValueError('The provided source path (%s) has to be '
                                      'a directory containing data in the '
@@ -133,7 +135,7 @@ def get_crossvalidation_iterator(config, x_vals, y_vals):
     k = config['k']
 
     if (config['validation_slices'] != '' and
-        config['validation_slices'] is not None):
+                config['validation_slices'] is not None):
         # the data should be treated as a stream, which means that it should
         # not
         # be reordered and it should be split into a seen portion and an unseen
@@ -154,7 +156,8 @@ def get_crossvalidation_iterator(config, x_vals, y_vals):
     dataset_size = np.sum(seen_data_mask)
     targets_seen = y_vals[seen_data_mask]
     if k < 0:
-        logging.getLogger('root').warn('crossvalidation.k not specified, defaulting to 1')
+        logging.getLogger('root').warn(
+            'crossvalidation.k not specified, defaulting to 1')
         k = 1
     if cv_type == 'kfold':
         iterator = cross_validation.KFold(dataset_size, int(k))
@@ -337,7 +340,7 @@ def run_tasks(configuration):
     # LOADING RAW TEXT
     # **********************************
     if ('feature_extraction' in actions and
-        configuration['feature_extraction']['run']):
+            configuration['feature_extraction']['run']):
         # todo should figure out which values to ignore,
         # currently use all (args + section_options)
         cached_get_data_generators = mem_cache.cache(_get_data_iterators)
@@ -349,7 +352,7 @@ def run_tasks(configuration):
         options = {}
         options['input'] = configuration['feature_extraction']['input']
         options['input_generator'] = configuration['feature_extraction'][
-                                     'input_generator']
+            'input_generator']
         options['source'] = configuration['training_data']
         logging.getLogger('root').info('Loading raw training set')
         x_vals, y_vals = cached_get_data_generators(**options)
@@ -368,7 +371,7 @@ def run_tasks(configuration):
 
     # CREATE CROSSVALIDATION ITERATOR
     crossvalidate_cached = mem_cache.cache(get_crossvalidation_iterator)
-    cv_iterator, validate_indices, x_vals_seen,\
+    cv_iterator, validate_indices, x_vals_seen, \
     y_vals_seen = crossvalidate_cached(
         configuration['crossvalidation'], x_vals, y_vals)
 
@@ -383,7 +386,8 @@ def run_tasks(configuration):
             logging.getLogger('root').warn('Ignoring classifier %s' % clf_name)
             continue
 
-        logging.getLogger('root').info('------------------------------------------------------------')
+        logging.getLogger('root').info(
+            '------------------------------------------------------------')
         logging.getLogger('root').info('Building pipeline')
         pipeline = _build_pipeline(clf_name,
                                    configuration['feature_extraction'],
@@ -395,21 +399,24 @@ def run_tasks(configuration):
 
         if configuration['test_data']:
             #  no crossvalidation, train on one set and test on the other
-            logging.getLogger('root').info('***Fitting pipeline for %s' % clf_name)
+            logging.getLogger('root').info(
+                '***Fitting pipeline for %s' % clf_name)
             pipeline.fit(x_vals_seen, y_vals_seen)
             eval = ChainCallable(configuration['evaluation'])
             # Making a singleton tuple with the tuple of interest as the
             # only item
-            logging.getLogger('root').info('***Evaluating on test set of size %s' % len(x_test))
+            logging.getLogger('root').info(
+                '***Evaluating on test set of size %s' % len(x_test))
             predicted = pipeline.predict(x_test)
-            if configuration['debug'] and 'thesaurus' in\
-               configuration['feature_extraction']['vectorizer'].lower():
+            if configuration['debug'] and 'thesaurus' in \
+                    configuration['feature_extraction']['vectorizer'].lower():
                 from plugins.bov_utils import inspect_thesaurus_effect
 
                 logging.getLogger('root').info('Dumping debug information')
                 inspect_thesaurus_effect(configuration['output_dir'], clf_name,
                                          configuration['feature_extraction'][
-                                         'thesaurus_file'], pipeline, predicted,
+                                             'thesaurus_file'], pipeline,
+                                         predicted,
                                          x_test)
 
             for metric, score in eval(y_test, predicted).items():
@@ -418,15 +425,15 @@ def run_tasks(configuration):
                      score])
         else:
             # pass the (feature selector + classifier) pipeline for evaluation
-            logging.getLogger('root').info('***Fitting pipeline for %s' % clf_name)
+            logging.getLogger('root').info(
+                '***Fitting pipeline for %s' % clf_name)
             cached_cross_val_score = mem_cache.cache(cross_val_score)
-            scores_this_clf = cached_cross_val_score(pipeline, x_vals_seen,
-                                                     y_vals_seen,
-                                                     ChainCallable(
-                                                         configuration[
-                                                         'evaluation']),
-                                                     cv=cv_iterator, n_jobs=10,
-                                                     verbose=0)
+            scores_this_clf = \
+                cached_cross_val_score(pipeline, x_vals_seen, y_vals_seen,
+                                       ChainCallable(
+                                           configuration['evaluation']),
+                                       cv=cv_iterator, n_jobs=10,
+                                       verbose=0)
 
             for run_number in range(len(scores_this_clf)):
                 a = scores_this_clf[run_number]
@@ -453,11 +460,23 @@ def analyze(scores, output_dir, name):
     Stores a csv, xls and png representation of the data set. Requires pandas
     """
 
-    logging.getLogger('root').info("Analysing results and saving to %s" % output_dir)
+    logging.getLogger('root').info(
+        "Analysing results and saving to %s" % output_dir)
 
     from pandas import DataFrame
 
-    df = DataFrame(scores, columns=['classifier', 'metric', 'score'])
+    cleaned_scores = []
+    for result in scores:
+        clf, metric, vals = result
+        if len(result[2].shape) < 1:
+            # the value is a scalar, let it be
+            cleaned_scores.append(result)
+        else:
+            # the value is a list, e.g. per-class precision/recall/F1
+            for id, val in enumerate(vals):
+                cleaned_scores.append([clf, '%s-class%d'%(metric, id), val])
+
+    df = DataFrame(cleaned_scores, columns=['classifier', 'metric', 'score'])
 
     # store csv for futher processing
     csv = os.path.join(output_dir, '%s.out.csv' % name)
@@ -534,14 +553,16 @@ def _prepare_output_directory(clean, output):
     # CLEAN OUTPUT DIRECTORY
     # **********************************
     if clean and os.path.exists(output):
-        logging.getLogger('root').info('Cleaning output directory %s' % glob(output))
+        logging.getLogger('root').info(
+            'Cleaning output directory %s' % glob(output))
         shutil.rmtree(output)
 
     # **********************************
     # CREATE OUTPUT DIRECTORY
     # **********************************
     if not os.path.exists(output):
-        logging.getLogger('root').info('Creating output directory %s' % glob(output))
+        logging.getLogger('root').info(
+            'Creating output directory %s' % glob(output))
         os.makedirs(output)
 
 
@@ -550,7 +571,8 @@ def _prepare_classpath(classpath):
     # ADD classpath TO SYSTEM PATH
     # **********************************
     for path in classpath.split(os.pathsep):
-        logging.getLogger('root').info('Adding (%s) to system path' % glob(path))
+        logging.getLogger('root').info(
+            'Adding (%s) to system path' % glob(path))
         sys.path.append(os.path.abspath(path))
 
 

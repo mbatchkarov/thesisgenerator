@@ -7,9 +7,11 @@ import fileinput
 import inspect
 from itertools import combinations
 import re
-import numpy as np
 import gzip
 import sys
+
+import numpy as np
+
 
 try:
     from xml.etree import cElementTree as ET
@@ -33,7 +35,6 @@ def replace_in_file(file, search_exp, replace_exp):
         line = re.sub(search_exp, replace_exp, line)
         sys.stdout.write(line)
     fh.close()
-
 
 
 class GorkanaXmlParser(object):
@@ -132,8 +133,8 @@ class ChainCallable(object):
         result = {}
         for func_name, func in self.to_call:
             initialize_args = inspect.getargspec(func)[0]
-            call_args = {arg: val for arg, val in self.config[func_name]
-            .items() if  val != '' and arg in initialize_args}
+            call_args = {arg: val for arg, val in self.config[func_name].
+                         items() if val != '' and arg in initialize_args}
             options[func_name] = call_args
             result[func_name.strip()] = (
                 func(true_labels, predicted_labels, **call_args))

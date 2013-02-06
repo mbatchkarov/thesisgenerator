@@ -8,6 +8,7 @@ import sys
 import math
 import random
 import numpy as np
+from sklearn.metrics import f1_score, precision_score, recall_score
 
 
 _min_float = sys.float_info.min
@@ -283,3 +284,26 @@ def _ltqnorm(p):
     return (((((a[0] * r + a[1]) * r + a[2]) * r + a[3]) * r + a[4]) * r + a[
                                                                            5]) * q /\
            (((((b[0] * r + b[1]) * r + b[2]) * r + b[3]) * r + b[4]) * r + 1)
+
+def macroavg_f1(y_true, y_pred):
+    return f1_score(y_true, y_pred, average='macro')
+
+
+def macroavg_prec(y_true, y_pred):
+    return precision_score(y_true, y_pred, average='macro')
+
+
+def macroavg_rec(y_true, y_pred):
+    return recall_score(y_true, y_pred, average='macro')
+
+
+def microavg_f1(y_true, y_pred):
+    return f1_score(y_true, y_pred, average='micro')
+
+
+def microavg_prec(y_true, y_pred):
+    return precision_score(y_true, y_pred, average='micro')
+
+
+def microavg_rec(y_true, y_pred):
+    return recall_score(y_true, y_pred, average='micro')

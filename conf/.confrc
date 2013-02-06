@@ -83,15 +83,35 @@ joblib_caching=boolean(default=False)
 [evaluation]
     [[sklearn.metrics.precision_score]]
         run=boolean(default=False)
-        average=string
+		average=option('micro', 'macro', 'weighted', default=None)
 	
 	[[sklearn.metrics.recall_score]]
 		run=boolean(default=False)
-        average=string
+		average=option('micro', 'macro', 'weighted', default=None)
 	
 	[[sklearn.metrics.f1_score]]
 		run=boolean(default=False)
-        average=string
+        average=option('micro', 'macro', 'weighted', default=None)
 
+	[[thesisgenerator.metrics.macroavg_prec]]
+    	run=boolean
+	
+	[[thesisgenerator.metrics.macroavg_rec]]
+    	run=boolean
+	
+	[[thesisgenerator.metrics.macroavg_f1]]
+    	run=boolean
+
+    [[thesisgenerator.metrics.microavg_prec]]
+    	run=boolean
+	
+	[[thesisgenerator.metrics.microavg_rec]]
+    	run=boolean
+	
+	[[thesisgenerator.metrics.microavg_f1]]
+    	run=boolean
+    	
     [[sklearn.metrics.accuracy_score]]
         run=boolean(default=False)
+        
+        

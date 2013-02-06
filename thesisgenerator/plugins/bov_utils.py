@@ -155,17 +155,20 @@ def consolidate_results(conf_dir, log_dir, output_dir):
             thesauri = out[0].split('=')[1]
             thesauri = os.sep.join(thesauri.split(os.sep)[-2:])
             # thesauri is something like "exp6-11a/exp6.sims.neighbours.strings,"
-
-            corpus = re.findall('exp([0-9]+)', thesauri)[0]
-            features = re.findall('-([0-9]+)', thesauri)[0]
-            pos = re.findall('-[0-9]+(.)\..*', thesauri)[0]
-            try:
-                fef = re.findall('fef([0-9]+)', thesauri)[0]
-            except IndexError:
+            if thesauri:
+                corpus = re.findall('exp([0-9]+)', thesauri)[0]
+                features = re.findall('-([0-9]+)', thesauri)[0]
+                pos = re.findall('-[0-9]+(.)\..*', thesauri)[0]
+                try:
+                    fef = re.findall('fef([0-9]+)', thesauri)[0]
+                except IndexError:
                 # 'fef' isn't in thesaurus name, i.e. has not been postfiltered
-                fef = 0
-                print 'WARNING: thesaurus file name %s does not contain ' \
-                      'explicit fef information' % thesauri
+                    fef = 0
+                    print 'WARNING: thesaurus file name %s does not contain ' \
+                          'explicit fef information' % thesauri
+            else:
+                # a thesaurus was not used
+                corpus, features, pos, fef = -1, -1, -1, -1
         except CalledProcessError:
             # log file does not contain thesaurus replacement stats because
             # no thesaurus was used
@@ -207,7 +210,7 @@ if __name__ == '__main__':
 
     # on local machine
     consolidate_results(
-        '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/thesisgenerator/conf/featureselection',
+        '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/thesisgenerator/conf/',
         '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/thesisgenerator/conf/logs/',
         '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/thesisgenerator/conf/output/',
     )
