@@ -79,8 +79,9 @@ def _do_single_thesaurus(conf_file, id, t, test_data, train_data):
 def evaluate_thesauri(pattern, conf_file, train_data='sample-data/web-tagged',
                       test_data='sample-data/web2-tagged', pool_size=1):
     from concurrent.futures import ProcessPoolExecutor
+
     thesauri = glob.glob(pattern)
-    print 'Classifying with thesauri %s'%thesauri
+    print 'Classifying with thesauri %s' % thesauri
     #Create a number (processes) of individual processes for executing parsers.
     with ProcessPoolExecutor(max_workers=pool_size) as executor:
         jobs = {} #Keep record of jobs and their input
@@ -106,14 +107,15 @@ def evaluate_thesauri(pattern, conf_file, train_data='sample-data/web-tagged',
 
 def consolidate_results(conf_dir, log_dir, output_dir):
     """
-
+    Consolidates the results of a series of experiment to ./summary.csv
     A single thesaurus must be used in each experiment
     """
     print 'Consolidating results'
     c = csv.writer(open("summary.csv", "w"))
     c.writerow(['ID', 'corpus', 'features', 'pos', 'fef', 'classifier',
-                'th_size', 'vocab_size', 'unknown', 'found', 'replaced',
-                'metric', 'score'])
+                'th_size', 'total_tok', 'unknown_tok', 'found_tok',
+                'replaced_tok', 'total_typ', 'unknown_typ', 'found_typ',
+                'replaced_typ', 'metric', 'score'])
 
     os.chdir(conf_dir)
     from iterpipes import cmd, run
@@ -125,24 +127,30 @@ def consolidate_results(conf_dir, log_dir, output_dir):
         exp_name = str(exp_name[0]).split('=')[1]
 
         log_file = os.path.join(log_dir, '%s.log' % exp_name)
-        out = run(cmd('grep --max-count=2 Total: {}', log_file))
+        out = run(cmd('grep --max-count=2 Total\ types: {}', log_file))
         try:
             info = [x.strip() for x in out]
             info = info[0].split('\n')[1]
 
             # token statistics in labelled corpus
-            total = int(re.findall('Total: ([0-9]+)', info)[0])
-            unk = int(re.findall('Unknown: ([0-9]+)', info)[0])
-            found = int(re.findall('Found: ([0-9]+)', info)[0])
-            repl = int(re.findall('Replaced: ([0-9]+)', info)[0])
-            # print id, total, unk, repl
+            total_tok = int(re.findall('Total tokens: ([0-9]+)', info)[0])
+            unk_tok = int(re.findall('Unknown tokens: ([0-9]+)', info)[0])
+            found_tok = int(re.findall('Found tokens: ([0-9]+)', info)[0])
+            repl_tok = int(re.findall('Replaced tokens: ([0-9]+)', info)[0])
 
-            out = run(cmd('grep --max-count=1 "Thesaurus contains" {}', log_file))
+            total_ty = int(re.findall('Total types: ([0-9]+)', info)[0])
+            unk_ty = int(re.findall('Unknown types: ([0-9]+)', info)[0])
+            found_ty = int(re.findall('Found types: ([0-9]+)', info)[0])
+            repl_ty = int(re.findall('Replaced types: ([0-9]+)', info)[0])
+
+            out = run(
+                cmd('grep --max-count=1 "Thesaurus contains" {}', log_file))
             info = [x.strip() for x in out]
             th_size = re.findall("Thesaurus contains ([0-9]+)", info[0])[0]
 
             abs_conf_file = os.path.join(conf_dir, '%s' % conf_file)
-            out = run(cmd('grep --max-count=1 thesaurus_files {}', abs_conf_file))
+            out = run(
+                cmd('grep --max-count=1 thesaurus_files {}', abs_conf_file))
             out = [x.strip() for x in out]
             thesauri = out[0].split('=')[1]
             thesauri = os.sep.join(thesauri.split(os.sep)[-2:])
@@ -156,10 +164,15 @@ def consolidate_results(conf_dir, log_dir, output_dir):
             except IndexError:
                 # 'fef' isn't in thesaurus name, i.e. has not been postfiltered
                 fef = 0
+                print 'WARNING: thesaurus file name %s does not contain ' \
+                      'explicit fef information' % thesauri
         except CalledProcessError:
             # log file does not contain thesaurus replacement stats because
             # no thesaurus was used
-            total, unk, found, repl, th_size = -1, -1, -1, -1, -1
+            print 'WARNING: log file %s does not contain thesaurus ' \
+                  'information' % log_file
+            total_tok, unk_tok, found_tok, repl_tok, th_size = -1, -1, -1, -1, -1
+            total_ty, unk_ty, found_ty, repl_ty = -1, -1, -1, -1
             corpus, pos, features, fef = -1, -1, -1, -1
 
         output_file = os.path.join(output_dir, '%s.out.csv' % exp_name)
@@ -169,12 +182,15 @@ def consolidate_results(conf_dir, log_dir, output_dir):
             for row in reader:
                 _, classifier, metric, score = row
                 c.writerow([exp_name, corpus, features, pos, fef, classifier,
-                            th_size, total, unk,  found, repl, metric, score])
+                            th_size, total_tok, unk_tok, found_tok, repl_tok,
+                            total_ty, unk_ty, found_ty, repl_ty, metric,
+                            score])
         except IOError:
+            print 'WARNING: %s is missing' % output_file
             continue    # file is missing
 
-if __name__ == '__main__':
 
+if __name__ == '__main__':
     # on local machine
     # evaluate_thesauri(
     #     '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/Byblo-2.1.0/exp6-11*/*sims.neighbours.strings',
@@ -192,8 +208,8 @@ if __name__ == '__main__':
     # on local machine
     consolidate_results(
         '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/thesisgenerator/conf/featureselection',
-        '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/thesisgenerator/conf/featureselection/logs/',
-        '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/thesisgenerator/conf/featureselection/output/',
+        '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/thesisgenerator/conf/logs/',
+        '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/thesisgenerator/conf/output/',
     )
 
     # on cluster
