@@ -118,8 +118,8 @@ class ThesaurusVectorizer(TfidfVectorizer):
                                     tokens[0])
                             curr_thesaurus[tokens[0].lower()].extend(to_insert)
 
-                        # note- do not attempt to lowercase if the thesaurus has not already been
-                        # lowercased- may result in multiple neighbour lists for the same entry
+                            # note- do not attempt to lowercase if the thesaurus has not already been
+                            # lowercased- may result in multiple neighbour lists for the same entry
             result.update(curr_thesaurus)
 
         logging.getLogger('root').info(
@@ -227,8 +227,6 @@ class ThesaurusVectorizer(TfidfVectorizer):
         """
         logging.getLogger('root').info(
             'Converting features to vectors (with thesaurus lookup)')
-        # how many tokens are there/ are unknown/ have been replaced
-        num_tokens, unknown, found, replaced = 0, 0, 0, 0
 
         if not hasattr(self, '_thesaurus'):
             #thesaurus has not been parsed yet
@@ -253,11 +251,16 @@ class ThesaurusVectorizer(TfidfVectorizer):
             "Building feature vectors, current vocab size is %d" %
             len(vocabulary))
 
-        types = set()
+        # how many tokens are there/ are unknown/ have been replaced
+        num_tokens, unknown_tokens, found_tokens, replaced_tokens = 0, 0, 0, 0
+        all_types = set()
+        unknown_types = set()
+        found_types = set()
+        replaced_types = set()
         for doc_id, term_count_dict in enumerate(term_count_dicts):
             num_documents += 1
             for document_term, count in term_count_dict.iteritems():
-                types.add(document_term)
+                all_types.add(document_term)
                 num_tokens += 1
                 term_index_in_vocab = vocabulary.get(document_term)
                 if term_index_in_vocab is not None:
@@ -271,7 +274,8 @@ class ThesaurusVectorizer(TfidfVectorizer):
                 # the logger.info(below demonstrates that unseen words exist,)
                 # i.e. vectorizer is not reducing the test set to the
                 # training vocabulary
-                    unknown += 1
+                    unknown_tokens += 1
+                    unknown_types.add(document_term)
                     logging.getLogger('root').debug(
                         'Unknown token in doc %d: %s' % (doc_id, document_term))
 
@@ -281,14 +285,16 @@ class ThesaurusVectorizer(TfidfVectorizer):
                     # neighbours so that it contains only pairs where
                     # the neighbour has been seen
                     if neighbours:
-                        found += 1
+                        found_tokens += 1
+                        found_types.add(document_term)
                         logging.getLogger('root').debug('Found thesaurus entry '
                                                         'for %s' % document_term)
                     neighbours = [(neighbour, sim) for neighbour, sim in
                                   neighbours[:self.k] if
                                   neighbour in self.vocabulary_] if neighbours else []
                     if len(neighbours) > 0:
-                        replaced += 1
+                        replaced_tokens += 1
+                        replaced_types.add(document_term)
                     for neighbour, sim in neighbours:
                         logging.getLogger('root').debug(
                             'Replacement. Doc %d: %s --> %s, '
@@ -321,13 +327,13 @@ class ThesaurusVectorizer(TfidfVectorizer):
             spmatrix.data.fill(1)
         logging.getLogger('root').debug(
             'Vectorizer: Data shape is %s' % (str(spmatrix.shape)))
-        logging.getLogger('root').info('Vectorizer: Total tokens: %d '
-                               'Total types: %d, Unknown: %d '
-                               'Found: %d Replaced: %d' % (num_tokens,
-                                                       len(types),
-                                                       unknown,
-                                                       found,
-                                                       replaced))
+        logging.getLogger('root').info(
+            'Vectorizer: Total tokens: %d, Unknown tokens: %d,  Found tokens: %d,'
+            ' Replaced tokens: %d, Total types: %d, Unknown types: %d,  '
+            'Found types: %d, Replaced types: %d' % (
+                num_tokens, unknown_tokens, found_tokens, replaced_tokens,
+                len(all_types), len(unknown_types), len(found_types),
+                len(replaced_types)))
 
         # temporarily store vocabulary
         f = './tmp_vocabulary'
@@ -369,12 +375,13 @@ class ThesaurusVectorizer(TfidfVectorizer):
 
                 pos = element.find('pos').text.upper()
                 if self.use_pos:
-                    if self.coarse_pos: pos = pos_coarsification_map[pos.upper()]
+                    if self.coarse_pos: pos = pos_coarsification_map[
+                        pos.upper()]
                     txt = '%s/%s' % (txt, pos)
 
                 if pos == 'PUNCT':
                     tokens.append('__PUNCT__')
-                elif  am_i_a_number:
+                elif am_i_a_number:
                     tokens.append('__NUM__')
                 else:
                     tokens.append(txt)
@@ -393,7 +400,7 @@ def is_number(s):
     """
     try:
         float(s)
-        is_float=True
+        is_float = True
     except ValueError:
         is_float = False
 
@@ -401,7 +408,7 @@ def is_number(s):
         locale.atof(s)
         is_int = True
     except ValueError:
-        is_int=False
+        is_int = False
 
     is_only_digits_or_punct = True
     for ch in s:
