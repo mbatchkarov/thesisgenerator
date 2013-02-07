@@ -94,6 +94,8 @@ def _get_data_iterators(**kwargs):
                                      '\'content\'')
 
                 dataset = load_files(source)
+                logging.getLogger('root').info('Targets are: %s' % dataset.
+                target_names)
                 data_iterable = dataset.data
                 targets_iterable = dataset.target
         except KeyError:
@@ -148,7 +150,7 @@ def get_crossvalidation_iterator(config, x_vals, y_vals, x_test=None,
         validation_data = [(0, 0)]
 
     validation_indices = reduce(lambda l, (head, tail): l + range(head, tail),
-                                validation_data, [])
+        validation_data, [])
 
     if x_test is not None and y_test is not None:
         logging.getLogger('root').warn('You have requested test set to be '
@@ -189,16 +191,16 @@ def get_crossvalidation_iterator(config, x_vals, y_vals, x_test=None,
                 'crossvalidation.ratio not specified,defaulting to 0.8')
             ratio = 0.8
         iterator = cross_validation.Bootstrap(dataset_size,
-                                              n_iter=int(k),
-                                              train_size=ratio)
+            n_iter=int(k),
+            train_size=ratio)
     elif cv_type == 'oracle':
         iterator = LeaveNothingOut(dataset_size, dataset_size)
     elif cv_type == 'test_set' and x_test is not None and y_test is not None:
         iterator = PredefinedIndicesIterator(train_indices, test_indices)
     elif cv_type == 'subsampled_test_set' and x_test is not None and y_test is not None:
         iterator = SubsamplingPredefinedIndicesIterator(train_indices,
-                                                        test_indices, int(k),
-                                                        config['sample_size'])
+            test_indices, int(k),
+            config['sample_size'])
     else:
         raise ValueError(
             'Unrecognised crossvalidation type \'%(cv_type)s\'. The supported '
@@ -322,12 +324,12 @@ def _build_pipeline(classifier_name, feature_extr_conf, feature_sel_conf,
     pipeline_list = []
 
     _build_vectorizer(call_args, feature_extr_conf,
-                      pipeline_list, output_dir, debug)
+        pipeline_list, output_dir, debug)
 
     _build_feature_selector(call_args, feature_sel_conf,
-                            pipeline_list)
+        pipeline_list)
     _build_dimensionality_reducer(call_args, dim_red_conf,
-                                  pipeline_list)
+        pipeline_list)
     # include a classifier in the pipeline regardless of whether we are doing
     # feature selection/dim. red. or not
     clf = get_named_object(classifier_name)
@@ -415,12 +417,12 @@ def run_tasks(configuration):
             '------------------------------------------------------------')
         logging.getLogger('root').info('Building pipeline')
         pipeline = _build_pipeline(clf_name,
-                                   configuration['feature_extraction'],
-                                   configuration['feature_selection'],
-                                   configuration['dimensionality_reduction'],
-                                   configuration['classifiers'],
-                                   configuration['output_dir'],
-                                   configuration['debug'])
+            configuration['feature_extraction'],
+            configuration['feature_selection'],
+            configuration['dimensionality_reduction'],
+            configuration['classifiers'],
+            configuration['output_dir'],
+            configuration['debug'])
 
         # pass the (feature selector + classifier) pipeline for evaluation
         logging.getLogger('root').info(
@@ -428,10 +430,10 @@ def run_tasks(configuration):
         cached_cross_val_score = mem_cache.cache(cross_val_score)
         scores_this_clf = \
             cached_cross_val_score(pipeline, x_vals_seen, y_vals_seen,
-                                   ChainCallable(
-                                       configuration['evaluation']),
-                                   cv=cv_iterator, n_jobs=5,
-                                   verbose=0)
+                ChainCallable(
+                    configuration['evaluation']),
+                cv=cv_iterator, n_jobs=5,
+                verbose=0)
 
         for run_number in range(len(scores_this_clf)):
             a = scores_this_clf[run_number]
@@ -446,7 +448,7 @@ def run_tasks(configuration):
                      score])
     logging.getLogger('root').info('Classifier scores are %s' % scores)
     return 0, analyze(scores, configuration['output_dir'],
-                      configuration['name'])
+        configuration['name'])
 
 
 def analyze(scores, output_dir, name):
@@ -471,10 +473,14 @@ def analyze(scores, output_dir, name):
                 cleaned_scores.append([clf, '%s-class%d' % (metric, id), val])
 
     df = DataFrame(cleaned_scores, columns=['classifier', 'metric', 'score'])
+    grouped = df.groupby(['classifier', 'metric'])
+    from numpy import mean, std
+
+    res = grouped['score'].aggregate({'score_mean': mean, 'score_std': std})
 
     # store csv for futher processing
     csv = os.path.join(output_dir, '%s.out.csv' % name)
-    df.to_csv(csv)
+    res.to_csv(csv)
     # df.to_excel(os.path.join(output_dir, '%s.out.xls' % name))
 
     return csv
@@ -498,7 +504,7 @@ def _config_logger(output_path=None, name='log.txt'):
     fmt = logging.Formatter(fmt=('%(asctime)s\t%(module)s.%(funcName)s '
                                  '(line %(lineno)d)\t%(levelname)s : %('
                                  'message)s'),
-                            datefmt='%d.%m.%Y %H:%M:%S')
+        datefmt='%d.%m.%Y %H:%M:%S')
 
     sh = StreamHandler()
     sh.setLevel(logging.INFO)
