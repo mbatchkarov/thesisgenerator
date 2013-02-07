@@ -470,6 +470,7 @@ def analyze(scores, output_dir, name):
         else:
             # the value is a list, e.g. per-class precision/recall/F1
             for id, val in enumerate(vals):
+                # todo verify the correct class id is inserted here
                 cleaned_scores.append([clf, '%s-class%d' % (metric, id), val])
 
     df = DataFrame(cleaned_scores, columns=['classifier', 'metric', 'score'])

@@ -1,5 +1,6 @@
 import csv
 import glob
+from itertools import chain
 import os
 import re
 import shutil
@@ -40,7 +41,7 @@ def inspect_thesaurus_effect(outdir, clf_name, thesaurus_file, pipeline,
     predicted2 = pipeline.predict(x_test)
 
     with open('%s/before_after_%s.csv' % (outdir, thesaurus_file),
-        'a') as outfile:
+            'a') as outfile:
         outfile.write('DocID,')
         outfile.write(','.join([str(x) for x in range(len(predicted))]))
         outfile.write('\n')
@@ -55,45 +56,91 @@ def inspect_thesaurus_effect(outdir, clf_name, thesaurus_file, pipeline,
         outfile.write('\n')
 
 
-def _eval_single_thesaurus(conf_file, id, t, test_data, train_data):
-    name, ext = os.path.splitext(conf_file)
+def _write_exp1_conf_file(base_conf_file, exp_id, run_id, thes):
+    """
+    Create a bunch of copies of the base conf file and in the new one modifies
+    the experiment name and the (SINGLE) thesaurus used
+    """
+    log_file, new_conf_file = _prepare_conf_files(base_conf_file, exp_id,
+        run_id)
+
+    replace_in_file(new_conf_file, 'name=.*', 'name=exp%d-%d' % (exp_id,
+                                                                 run_id))
+
+    # it is important that the list of thesaurus files in the conf file ends with a comma
+    replace_in_file(new_conf_file, 'thesaurus_files=.*',
+        'thesaurus_files=%s,' % thes)
+    return new_conf_file, log_file
+
+
+def _exp1_file_iterator(pattern, base_conf_file):
+    """
+    Generates a conf file for each thesaurus file matching the provided glob
+    pattern. Each conf file is a single classification run
+    """
+    thesauri = glob.glob(pattern)
+
+    for id, t in enumerate(thesauri):
+        new_conf_file, log_file = _write_exp1_conf_file(base_conf_file, id, t)
+        yield new_conf_file, log_file
+    raise StopIteration
+
+
+def _prepare_conf_files(base_conf_file, exp_id, run_id):
+    """
+    Takes a conf files and moves it to a subdirectory to be modified later.
+    Also creates a log file for the classification run that will be run with
+    the newly created conf file
+     Parameter id identifies the clone and distinguishes it from other clones
+    """
+    name, ext = os.path.splitext(base_conf_file)
     name = '%s-variants' % name
     if not os.path.exists(name):
         os.mkdir(name)
-    new_conf_file = os.path.join(name, 'run%d%s' % (id, ext))
-    log_file = os.path.join(name, 'logs')
-    shutil.copy(conf_file, new_conf_file)
-    configspec_file = os.path.join(os.path.dirname(conf_file), '.confrc')
+    new_conf_file = os.path.join(name, 'exp%d-%d%s' % (exp_id, run_id, ext))
+    log_file = os.path.join(name, '..', 'logs')
+    shutil.copy(base_conf_file, new_conf_file)
+    configspec_file = os.path.join(os.path.dirname(base_conf_file), '.confrc')
     shutil.copy(configspec_file, name)
-
-    replace_in_file(new_conf_file, 'name=.*', 'name=run%d' % id)
-    replace_in_file(new_conf_file, 'training_data=.*',
-        'training_data=%s' % train_data)
-    replace_in_file(new_conf_file, 'test_data=.*',
-        'test_data=%s' % test_data)
-    # it is important that the list of thesaurus files in the conf file ends with a comma
-    replace_in_file(new_conf_file, 'thesaurus_files=.*',
-        'thesaurus_files=%s,' % t)
-    return go(new_conf_file, log_file)
+    return log_file, new_conf_file
 
 
-def evaluate_thesauri(pattern, conf_file, train_data='sample-data/web-tagged',
-                      test_data='sample-data/web2-tagged', pool_size=1):
+def _write_exp2_3_conf_file(base_conf_file, exp_id, run_id, sample_size):
+    """
+    Prepares conf files for exp2 by altering the sample size parameter in the
+     provided base conf file
+    """
+    log_file, new_conf_file = _prepare_conf_files(base_conf_file, exp_id,
+        run_id)
+
+    replace_in_file(new_conf_file, 'name=.*',
+        'name=exp%d-%d' % (exp_id, run_id))
+    replace_in_file(new_conf_file, 'sample_size=.*',
+        'sample_size=%s' % sample_size)
+    return new_conf_file, log_file
+
+
+def _exp2and3_file_iterator(sizes, exp_id, conf_file):
+    for id, size in enumerate(sizes):
+        new_conf_file, log_file = _write_exp2_3_conf_file(conf_file, exp_id, id,
+            size)
+        yield new_conf_file, log_file
+    raise StopIteration
+
+
+def evaluate_thesauri(file_iterator, pool_size=1):
     from concurrent.futures import ProcessPoolExecutor
 
-    thesauri = glob.glob(pattern)
-    print 'Classifying with thesauri %s' % thesauri
     #Create a number (processes) of individual processes for executing parsers.
     with ProcessPoolExecutor(max_workers=pool_size) as executor:
-        jobs = {} #Keep record of jobs and their input
+        jobs = {}   # Keep record of jobs and their input
         id = 1
-        for t in thesauri:
-            future = executor.submit(_eval_single_thesaurus, conf_file, id, t,
-                test_data, train_data)
+        for new_conf_file, log_file in file_iterator:
+            future = executor.submit(go, new_conf_file, log_file)
             jobs[future] = id
             id += 1
 
-        #As each job completes, check for success, print details of input
+        # As each job completes, check for success, print details of input
         for job in as_completed(jobs.keys()):
             try:
                 status, outfile = job.result()
@@ -117,7 +164,7 @@ def _infer_thesaurus_name(conf_dir, conf_file, corpus, features, fef, pos):
     if thesauri:
         corpus = re.findall('exp([0-9]+)', thesauri)[0]
         features = re.findall('-([0-9]+)', thesauri)[0]
-        pos = re.findall('-[0-9]+(.)\..*', thesauri)[0]
+        pos = re.findall('-[0-9]+(.)', thesauri)[0]
         try:
             fef = re.findall('fef([0-9]+)', thesauri)[0]
         except IndexError:
@@ -173,17 +220,6 @@ def consolidate_results(conf_dir, log_dir, output_dir):
     A single thesaurus must be used in each experiment
     """
     print 'Consolidating results'
-    c = csv.writer(open("summary.csv", "w"))
-    c.writerow(['name', 'corpus', 'features', 'pos', 'fef', 'classifier',
-                'th_size', 'total_tok',
-                'unknown_tok_mean', 'unknown_tok_std',
-                'found_tok_mean', 'found_tok_std',
-                'replaced_tok_mean', 'replaced_tok_std',
-                'total_typ',
-                'unknown_typ_mean', 'unknown_typ_std',
-                'found_typ_mean', 'found_typ_std',
-                'replaced_typ_mean', 'replaced_typ_std',
-                'metric', 'score_mean', 'score_std'])
     os.chdir(conf_dir)
 
     experiments = glob.glob('*.conf')
@@ -241,6 +277,17 @@ def consolidate_results(conf_dir, log_dir, output_dir):
         def my_std(x):
             return std(x) if x else -1
 
+        c = csv.writer(open("%s-summary.csv" % exp_name, "w"))
+        c.writerow(['name', 'corpus', 'features', 'pos', 'fef', 'classifier',
+                    'th_size', 'total_tok',
+                    'unknown_tok_mean', 'unknown_tok_std',
+                    'found_tok_mean', 'found_tok_std',
+                    'replaced_tok_mean', 'replaced_tok_std',
+                    'total_typ',
+                    'unknown_typ_mean', 'unknown_typ_std',
+                    'found_typ_mean', 'found_typ_std',
+                    'replaced_typ_mean', 'replaced_typ_std',
+                    'metric', 'score_mean', 'score_std'])
         # find out the classifier score from the final csv file
         output_file = os.path.join(output_dir, '%s.out.csv' % exp_name)
         try:
@@ -270,30 +317,57 @@ def consolidate_results(conf_dir, log_dir, output_dir):
 
 
 if __name__ == '__main__':
+
+    # ----------- EXPERIMENT 1 -----------
     # on local machine
-    # evaluate_thesauri(
-    #     '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/Byblo-2.1.0/exp6-11*/*sims.neighbours.strings',
-    #     '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/thesisgenerator/conf/main.conf',
-    #     pool_size=10)
+    it1 = _exp1_file_iterator(
+        '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/Byblo-2.1.0/exp6-1*/*sims.neighbours.strings',
+        '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/thesisgenerator/conf/exp1/exp1_base.conf'
+    )
+    evaluate_thesauri(it1, pool_size=10)
+
+    consolidate_results(
+        '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/thesisgenerator/conf/exp1/exp1_base-variants',
+        '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/thesisgenerator/conf/exp1/logs/',
+        '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/thesisgenerator/conf/exp1/output/',
+    )
 
     # on cluster
     # evaluate_thesauri(
     #     '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/exp6-*/*sims.neighbours.strings',
-    #     '/mnt/lustre/scratch/inf/mmb28/thesisgenerator/conf/main.conf',
+    #     '/mnt/lustre/scratch/inf/mmb28/thesisgenerator/conf/exp1/exp1_base.conf',
     #     train_data='/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data/reuters21578/r8train-tagged',
     #     test_data='/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data/reuters21578/r8test-tagged',
     #     pool_size=30)
-
-    # on local machine
-    consolidate_results(
-        '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/thesisgenerator/conf/',
-        '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/thesisgenerator/conf/logs/',
-        '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/thesisgenerator/conf/output/',
-    )
-
-    # on cluster
+    #
     # consolidate_results(
-    #     '/mnt/lustre/scratch/inf/mmb28/thesisgenerator/conf/main-variants/',
-    #     '/mnt/lustre/scratch/inf/mmb28/thesisgenerator/conf/main-variants/logs/',
-    #     '/mnt/lustre/scratch/inf/mmb28/thesisgenerator/conf/output/',
+    #     '/mnt/lustre/scratch/inf/mmb28/thesisgenerator/conf/exp1/exp1_base-variants',
+    #     '/mnt/lustre/scratch/inf/mmb28/thesisgenerator/conf/exp1/logs/',
+    #     '/mnt/lustre/scratch/inf/mmb28/thesisgenerator/conf/exp1/output/',
+    # )
+
+    # ----------- EXPERIMENTS 2 and 3 -----------
+    # on local machine
+    sizes = chain([1, 5], range(10, 60, 10), range(100, 1001, 100), range(1500,
+        5001, 500), [5494]) # last value is the total number of documents
+    it2 = _exp2and3_file_iterator(sizes, 2,
+        '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/thesisgenerator/conf/exp2/exp2_base.conf'
+    )
+    evaluate_thesauri(it2, pool_size=10)
+
+    it3 = _exp2and3_file_iterator(sizes, 3,
+        '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/thesisgenerator/conf/exp3/exp3_base.conf'
+    )
+    evaluate_thesauri(it3, pool_size=10)
+
+    # consolidate_results(
+    #     '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/thesisgenerator/conf/exp2/exp2_base-variants',
+    #     '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/thesisgenerator/conf/exp2/logs/',
+    #     '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/thesisgenerator/conf/exp2/output/',
+    # )
+    #
+    # consolidate_results(
+    #     '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/thesisgenerator/conf/exp3/exp3_base-variants',
+    #     '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/thesisgenerator/conf/exp3/logs/',
+    #     '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/thesisgenerator/conf/exp3/output/',
     # )
