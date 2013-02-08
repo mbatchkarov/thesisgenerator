@@ -317,56 +317,35 @@ def consolidate_results(conf_dir, log_dir, output_dir):
 
 if __name__ == '__main__':
 
-    # ----------- EXPERIMENT 1 -----------
     # on local machine
-    it1 = _exp1_file_iterator(
-        '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/Byblo-2.1.0/exp6-1*/*sims.neighbours.strings',
-        '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/thesisgenerator/conf/exp1/exp1_base.conf'
-    )
-    evaluate_thesauri(it1, pool_size=10)
-
-    consolidate_results(
-        '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/thesisgenerator/conf/exp1/exp1_base-variants',
-        '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/thesisgenerator/conf/exp1/logs/',
-        '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/thesisgenerator/conf/exp1/output/',
-    )
+    prefix = '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/thesisgenerator'
+    pattern = '%s/../Byblo-2.1.0/exp6-1*/*sims.neighbours.strings' % (prefix)
+    num_workers = 10
 
     # on cluster
-    # evaluate_thesauri(
-    #     '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/exp6-*/*sims.neighbours.strings',
-    #     '/mnt/lustre/scratch/inf/mmb28/thesisgenerator/conf/exp1/exp1_base.conf',
-    #     train_data='/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data/reuters21578/r8train-tagged',
-    #     test_data='/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data/reuters21578/r8test-tagged',
-    #     pool_size=30)
-    #
-    # consolidate_results(
-    #     '/mnt/lustre/scratch/inf/mmb28/thesisgenerator/conf/exp1/exp1_base-variants',
-    #     '/mnt/lustre/scratch/inf/mmb28/thesisgenerator/conf/exp1/logs/',
-    #     '/mnt/lustre/scratch/inf/mmb28/thesisgenerator/conf/exp1/output/',
-    # )
+    prefix = '/mnt/lustre/scratch/inf/mmb28/thesisgenerator'
+    pattern = '%s/../FeatureExtrationToolkit/exp6-1*/*sims.neighbours' \
+              '.strings' % prefix
+    num_workers = 30
+
+    # ----------- EXPERIMENT 1 -----------
+    it1 = _exp1_file_iterator(pattern, '%s/conf/exp1/exp1_base.conf' % prefix)
+    evaluate_thesauri(it1, pool_size=num_workers)
 
     # ----------- EXPERIMENTS 2 and 3 -----------
-    # on local machine
     sizes = chain([1, 5], range(10, 60, 10), range(100, 1001, 100), range(1500,
         5001, 500), [5494]) # last value is the total number of documents
-    it2 = _exp2and3_file_iterator(sizes, 2,
-        '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/thesisgenerator/conf/exp2/exp2_base.conf'
-    )
-    evaluate_thesauri(it2, pool_size=10)
 
-    it3 = _exp2and3_file_iterator(sizes, 3,
-        '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/thesisgenerator/conf/exp3/exp3_base.conf'
-    )
-    evaluate_thesauri(it3, pool_size=10)
+    for i in range(2, 4):
+        it2 = _exp2and3_file_iterator(sizes, i,
+            '%s/conf/exp%d/exp%d_base.conf' % (prefix, i, i)
+        )
+        evaluate_thesauri(it2, pool_size=num_workers)
 
-    # consolidate_results(
-    #     '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/thesisgenerator/conf/exp2/exp2_base-variants',
-    #     '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/thesisgenerator/conf/exp2/logs/',
-    #     '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/thesisgenerator/conf/exp2/output/',
-    # )
-    #
-    # consolidate_results(
-    #     '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/thesisgenerator/conf/exp3/exp3_base-variants',
-    #     '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/thesisgenerator/conf/exp3/logs/',
-    #     '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/thesisgenerator/conf/exp3/output/',
-    # )
+    # ----------- CONSOLIDATION -----------
+    for i in range(1, 4):
+        consolidate_results(
+            '%s/conf/exp%d/exp%d_base-variants' % (prefix, i, i),
+            '%s/conf/exp%d/logs/' % (prefix, i),
+            '%s/conf/exp%d/output/' % (prefix, i),
+        )
