@@ -56,16 +56,15 @@ def inspect_thesaurus_effect(outdir, clf_name, thesaurus_file, pipeline,
         outfile.write('\n')
 
 
-def _write_exp1_conf_file(base_conf_file, exp_id, run_id, thes):
+def _write_exp1_conf_file(base_conf_file, run_id, thes):
     """
     Create a bunch of copies of the base conf file and in the new one modifies
     the experiment name and the (SINGLE) thesaurus used
     """
-    log_file, new_conf_file = _prepare_conf_files(base_conf_file, exp_id,
+    log_file, new_conf_file = _prepare_conf_files(base_conf_file, 1,
         run_id)
 
-    replace_in_file(new_conf_file, 'name=.*', 'name=exp%d-%d' % (exp_id,
-                                                                 run_id))
+    replace_in_file(new_conf_file, 'name=.*', 'name=exp%d-%d' % (1, run_id))
 
     # it is important that the list of thesaurus files in the conf file ends with a comma
     replace_in_file(new_conf_file, 'thesaurus_files=.*',
@@ -221,6 +220,17 @@ def consolidate_results(conf_dir, log_dir, output_dir):
     """
     print 'Consolidating results'
     os.chdir(conf_dir)
+    c = csv.writer(open("summary.csv", "w"))
+    c.writerow(['name', 'corpus', 'features', 'pos', 'fef', 'classifier',
+                'th_size', 'total_tok',
+                'unknown_tok_mean', 'unknown_tok_std',
+                'found_tok_mean', 'found_tok_std',
+                'replaced_tok_mean', 'replaced_tok_std',
+                'total_typ',
+                'unknown_typ_mean', 'unknown_typ_std',
+                'found_typ_mean', 'found_typ_std',
+                'replaced_typ_mean', 'replaced_typ_std',
+                'metric', 'score_mean', 'score_std'])
 
     experiments = glob.glob('*.conf')
     for conf_file in experiments:
@@ -277,17 +287,6 @@ def consolidate_results(conf_dir, log_dir, output_dir):
         def my_std(x):
             return std(x) if x else -1
 
-        c = csv.writer(open("%s-summary.csv" % exp_name, "w"))
-        c.writerow(['name', 'corpus', 'features', 'pos', 'fef', 'classifier',
-                    'th_size', 'total_tok',
-                    'unknown_tok_mean', 'unknown_tok_std',
-                    'found_tok_mean', 'found_tok_std',
-                    'replaced_tok_mean', 'replaced_tok_std',
-                    'total_typ',
-                    'unknown_typ_mean', 'unknown_typ_std',
-                    'found_typ_mean', 'found_typ_std',
-                    'replaced_typ_mean', 'replaced_typ_std',
-                    'metric', 'score_mean', 'score_std'])
         # find out the classifier score from the final csv file
         output_file = os.path.join(output_dir, '%s.out.csv' % exp_name)
         try:
