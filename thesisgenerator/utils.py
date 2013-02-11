@@ -141,9 +141,9 @@ class SubsamplingPredefinedIndicesIterator(object):
             try:
                 yield random.sample(self.train, self.sample_size), self.test
             except ValueError, e:
-                logging.getLogger('root').critical('Sample size is %d, '
-                                                   'population size is %d. '
-                                                   'This is the %d-th '
+                logging.getLogger('root').critical('Sample size is %r, '
+                                                   'population size is %r. '
+                                                   'This is the %r-th '
                                                    'iteration'%(
                     self.sample_size, len(self.train), i))
                 raise e
