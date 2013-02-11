@@ -138,7 +138,15 @@ class SubsamplingPredefinedIndicesIterator(object):
 
     def __iter__(self):
         for i in range(self.max_iterations):
-            yield random.sample(self.train, self.sample_size), self.test
+            try:
+                yield random.sample(self.train, self.sample_size), self.test
+            except ValueError, e:
+                logging.getLogger('root').critical('Sample size is %d, '
+                                                   'population size is %d. '
+                                                   'This is the %d-th '
+                                                   'iteration'%(
+                    self.sample_size, len(self.train), i))
+                raise e
         raise StopIteration
 
     def __len__(self):
