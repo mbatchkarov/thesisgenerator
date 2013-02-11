@@ -5,11 +5,9 @@ import os
 import re
 import shutil
 from subprocess import CalledProcessError
-import traceback
 import sys
 from iterpipes import cmd, run
 
-from concurrent.futures import as_completed
 from numpy import nonzero
 
 
@@ -128,28 +126,10 @@ def _exp2and3_file_iterator(sizes, exp_id, conf_file):
 
 
 def evaluate_thesauri(file_iterator, pool_size=1):
-    from concurrent.futures import ProcessPoolExecutor
+    from joblib import Parallel, delayed
 
-    #Create a number (processes) of individual processes for executing parsers.
-    with ProcessPoolExecutor(max_workers=pool_size) as executor:
-        jobs = {}   # Keep record of jobs and their input
-        id = 1
-        for new_conf_file, log_file in file_iterator:
-            future = executor.submit(go, new_conf_file, log_file)
-            jobs[future] = id
-            id += 1
-
-        # As each job completes, check for success, print details of input
-        for job in as_completed(jobs.keys()):
-            try:
-                status, outfile = job.result()
-                print("Success. Files produced: %s" % outfile)
-            except Exception as exc:
-                # print(
-                #     " Exception encountered in: \n-- %s" % "\n-- ".join(
-                #         jobs[job]))
-                print(''.join(traceback.format_exception(*sys.exc_info())))
-                raise exc
+    Parallel(n_jobs=pool_size)(delayed(go)(new_conf_file, log_file) for
+        new_conf_file, log_file in file_iterator)
 
 
 def _infer_thesaurus_name(conf_dir, conf_file, corpus, features, fef, pos):
@@ -334,7 +314,7 @@ if __name__ == '__main__':
 
     # ----------- EXPERIMENTS 2 and 3 -----------
     sizes = chain([1, 5], range(10, 60, 10), range(100, 1001, 100), range(1500,
-        5001, 500), [5494]) # last value is the total number of documents
+        500, 500)) # last value is the total number of documents
 
     for i in range(2, 4):
         it2 = _exp2and3_file_iterator(sizes, i,
