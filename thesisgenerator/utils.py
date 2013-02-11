@@ -127,7 +127,7 @@ class SubsamplingPredefinedIndicesIterator(object):
         self.train = train
         self.test = test
         self.max_iterations = max_iterations
-        self.sample_size = sample_size
+        self.sample_size = int(sample_size)
         logging.getLogger('root').info('Will do %d runs, '
                                        'for each sampling %s documents from a '
                                        'training set of size %d' % (
