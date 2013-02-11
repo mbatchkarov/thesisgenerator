@@ -376,8 +376,11 @@ def run_tasks(configuration):
         # of computations that have been executed previously
         options = {}
         options['input'] = configuration['feature_extraction']['input']
-        options['input_generator'] = configuration['feature_extraction'][
-            'input_generator']
+        try:
+            options['input_generator'] = configuration['feature_extraction'][
+                'input_generator']
+        except KeyError:
+            options['input_generator'] = ''
         options['source'] = configuration['training_data']
         logging.getLogger('root').info('Loading raw training set')
         x_vals, y_vals = cached_get_data_generators(**options)
