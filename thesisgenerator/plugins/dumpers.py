@@ -1,9 +1,10 @@
-import codecs
+import csv
 import os
 import pickle
 from sklearn.base import TransformerMixin
 
 __author__ = 'mmb28'
+
 
 class DatasetDumper(TransformerMixin):
     """
@@ -20,19 +21,20 @@ class DatasetDumper(TransformerMixin):
             print '*********** deleting pickled vocab file'
 
         new_file = self.prefix + 'PostVectorizerDump.csv'
-        with codecs.open(new_file,
-                         encoding='utf-8', mode='w') as out:
-            inverse_vocab = {index: word for (word, index) in
-                             vocabulary_.iteritems()}
-            out.write('id,')
-            out.write(u','.join(
-                [inverse_vocab[i] for i in range(len(inverse_vocab))]))
-            out.write('\n')
-            for i in range(X.shape[0]):
-                out.write('%d,'%i)
-                out.write(','.join(['%1.2f'%x for x in X[i,:]
-                                                       .todense().tolist()[0]]))
-                out.write('\n')
+        c = csv.writer(open(new_file, "w"))
+
+        inverse_vocab = {index: word for (word, index) in
+                         vocabulary_.iteritems()}
+
+        v = [inverse_vocab[i] for i in range(len(inverse_vocab))]
+        c.writerow(['id'] + ['target'] + v)
+        from pandas import DataFrame
+        rows = []
+        for i in range(X.shape[0]):
+            vals = ['%1.2f' % x for x in X[i, :].todense().tolist()[0]]
+            c.writerow([i] + [y[i]] + vals)
+            rows.append([i] + [y[i]] + vals)
+        df = DataFrame(rows, columns=['id'] + ['target'] + v)
         return self
 
     def transform(self, X):
