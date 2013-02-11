@@ -432,7 +432,7 @@ def run_tasks(configuration):
             cached_cross_val_score(pipeline, x_vals_seen, y_vals_seen,
                 ChainCallable(
                     configuration['evaluation']),
-                cv=cv_iterator, n_jobs=5,
+                cv=cv_iterator, n_jobs=1,
                 verbose=0)
 
         for run_number in range(len(scores_this_clf)):
