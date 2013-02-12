@@ -129,17 +129,17 @@ class SubsamplingPredefinedIndicesIterator(object):
         self.max_iterations = max_iterations
         self.sample_size = int(sample_size)
         logging.getLogger('root').info('Will do %d runs, '
-                                       'for each sampling %s documents from a '
+                                       'for each sampling %d documents from a '
                                        'training set of size %d' % (
-                                           max_iterations,
-                                           sample_size,
-                                           len(train)))
+                                           self.max_iterations,
+                                           self.sample_size,
+                                           len(self.train)))
 
 
     def __iter__(self):
         for i in range(self.max_iterations):
             try:
-                yield random.sample(self.train, self.sample_size), self.test
+                yield random.sample(self.train, int(self.sample_size)), self.test
             except ValueError, e:
                 logging.getLogger('root').critical('Sample size is %r, '
                                                    'population size is %r. '
