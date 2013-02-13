@@ -250,13 +250,17 @@ def consolidate_results(conf_dir, log_dir, output_dir):
                 fef, pos)
 
         # get label names from log file
-        out = run(cmd('grep Targets\ are: {}', log_file))
-        info = [x.strip() for x in out]
-        lines = info[0].split('\n')[0]
-        targets = re.findall('Targets\ are: (.*)', lines)[0]
-        import ast
+        try:
+            out = run(cmd('grep Targets\ are: {}', log_file))
+            info = [x.strip() for x in out]
+            lines = info[0].split('\n')[0]
+            targets = re.findall('Targets\ are: (.*)', lines)[0]
+            import ast
 
-        targets = ast.literal_eval(targets)
+            targets = ast.literal_eval(targets)
+        except CalledProcessError:
+            print 'ERROR: no targets present in %s' % conf_file
+            continue
 
         from numpy import mean, std
 
