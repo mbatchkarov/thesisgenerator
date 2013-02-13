@@ -102,24 +102,23 @@ def _prepare_conf_files(base_conf_file, exp_id, run_id):
     return log_file, new_conf_file
 
 
-def _write_exp2_3_conf_file(base_conf_file, exp_id, run_id, sample_size):
+def _write_exp2_3_conf_file(base_conf_file, run_id, sample_size):
     """
     Prepares conf files for exp2 by altering the sample size parameter in the
      provided base conf file
     """
-    log_file, new_conf_file = _prepare_conf_files(base_conf_file, exp_id,
-        run_id)
+    log_file, new_conf_file = _prepare_conf_files(base_conf_file, 2, run_id)
 
     replace_in_file(new_conf_file, 'name=.*',
-        'name=exp%d-%d' % (exp_id, run_id))
+        'name=exp%d-%d' % (2, run_id))
     replace_in_file(new_conf_file, 'sample_size=.*',
         'sample_size=%s' % sample_size)
     return new_conf_file, log_file
 
 
-def _exp2and3_file_iterator(sizes, exp_id, conf_file):
+def _exp2and3_file_iterator(sizes, conf_file):
     for id, size in enumerate(sizes):
-        new_conf_file, log_file = _write_exp2_3_conf_file(conf_file, exp_id, id,
+        new_conf_file, log_file = _write_exp2_3_conf_file(conf_file, id,
             size)
         yield new_conf_file, log_file
     raise StopIteration
@@ -300,30 +299,28 @@ if __name__ == '__main__':
     # on local machine
     prefix = '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/thesisgenerator'
     pattern = '%s/../Byblo-2.1.0/exp6-1*/*sims.neighbours.strings' % (prefix)
-    num_workers = 10
+    num_workers = 4
 
     # on cluster
-    prefix = '/mnt/lustre/scratch/inf/mmb28/thesisgenerator'
-    pattern = '%s/../FeatureExtrationToolkit/exp6-1*/*sims.neighbours' \
-              '.strings' % prefix
-    num_workers = 30
+    # prefix = '/mnt/lustre/scratch/inf/mmb28/thesisgenerator'
+    # pattern = '%s/../FeatureExtrationToolkit/exp6-1*/*sims.neighbours' \
+    #           '.strings' % prefix
+    # num_workers = 30
 
     # ----------- EXPERIMENT 1 -----------
-    it1 = _exp1_file_iterator(pattern, '%s/conf/exp1/exp1_base.conf' % prefix)
-    evaluate_thesauri(it1, pool_size=num_workers)
+    # it1 = _exp1_file_iterator(pattern, '%s/conf/exp1/exp1_base.conf' % prefix)
+    # evaluate_thesauri(it1, pool_size=num_workers)
 
-    # ----------- EXPERIMENTS 2 and 3 -----------
-    sizes = chain([50], range(100, 1001, 100), range(1500,
-        500, 500)) # last value is the total number of documents
-
-    for i in range(2, 4):
-        it2 = _exp2and3_file_iterator(sizes, i,
-            '%s/conf/exp%d/exp%d_base.conf' % (prefix, i, i)
-        )
-        evaluate_thesauri(it2, pool_size=num_workers)
+    # ----------- EXPERIMENT 2 -----------
+    sizes = chain([50], range(100, 1001, 100), range(1500, 500, 500))
+    # last value is the total number of documents
+    it2 = _exp2and3_file_iterator(sizes,
+        '%s/conf/exp2/exp2_base.conf' % (prefix)
+    )
+    evaluate_thesauri(it2, pool_size=num_workers)
 
     # ----------- CONSOLIDATION -----------
-    for i in range(1, 4):
+    for i in range(1, 3):
         consolidate_results(
             '%s/conf/exp%d/exp%d_base-variants' % (prefix, i, i),
             '%s/conf/exp%d/logs/' % (prefix, i),
