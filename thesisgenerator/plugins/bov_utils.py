@@ -235,11 +235,12 @@ def consolidate_results(conf_dir, log_dir, output_dir):
                   'information' % log_file
             thesaurus_info_present = False
 
-        out = run(cmd('grep -P -oh for each sampling [0-9]+ {}', log_file))
+        out = run(cmd('grep -P -oh for\ each\ sampling\ [0-9]+ {}', log_file))
         thesaurus_info_present = True
         try:
             info = [x.strip() for x in out]
-            lines = info[0].split('\n')
+            sample_size = int(info[0].split()[-1])
+
         except CalledProcessError:
             print "WARNING: training data size not  present in log file %s" % \
                   log_file
