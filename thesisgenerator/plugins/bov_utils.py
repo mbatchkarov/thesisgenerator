@@ -200,8 +200,8 @@ def consolidate_results(conf_dir, log_dir, output_dir):
     print 'Consolidating results'
     os.chdir(conf_dir)
     c = csv.writer(open("summary.csv", "w"))
-    c.writerow(['name', 'corpus', 'features', 'pos', 'fef', 'classifier',
-                'th_size', 'total_tok',
+    c.writerow(['name', 'sample_size', 'corpus', 'features', 'pos', 'fef',
+                'classifier', 'th_size', 'total_tok',
                 'unknown_tok_mean', 'unknown_tok_std',
                 'found_tok_mean', 'found_tok_std',
                 'replaced_tok_mean', 'replaced_tok_std',
@@ -234,6 +234,15 @@ def consolidate_results(conf_dir, log_dir, output_dir):
             print 'WARNING: log file %s does not contain thesaurus ' \
                   'information' % log_file
             thesaurus_info_present = False
+
+        out = run(cmd('grep -P -oh for each sampling [0-9]+ {}', log_file))
+        thesaurus_info_present = True
+        try:
+            info = [x.strip() for x in out]
+            lines = info[0].split('\n')
+        except CalledProcessError:
+            print "WARNING: training data size not  present in log file %s" % \
+                  log_file
 
         if thesaurus_info_present:
             # find out how many unknown tokens, etc there were from log file
@@ -283,7 +292,8 @@ def consolidate_results(conf_dir, log_dir, output_dir):
                         '-%s' % targets[int(num[0])], metric)
 
                 c.writerow(
-                    [exp_name, corpus, features, pos, fef, classifier,
+                    [exp_name, sample_size, corpus, features, pos, fef,
+                     classifier,
                      int(my_mean(th_size)), int(my_mean(total_tok)),
                      int(my_mean(unk_tok)), int(my_std(unk_tok)),
                      int(my_mean(found_tok)), int(my_std(found_tok)),
@@ -321,7 +331,7 @@ if __name__ == '__main__':
     it2 = _exp2and3_file_iterator(sizes,
         '%s/conf/exp2/exp2_base.conf' % (prefix)
     )
-    evaluate_thesauri(it2, pool_size=num_workers)
+    # evaluate_thesauri(it2, pool_size=num_workers)
 
     # ----------- CONSOLIDATION -----------
     for i in range(1, 3):
