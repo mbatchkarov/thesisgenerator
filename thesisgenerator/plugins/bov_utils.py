@@ -102,24 +102,26 @@ def _prepare_conf_files(base_conf_file, exp_id, run_id):
     return log_file, new_conf_file
 
 
-def _write_exp2_3_conf_file(base_conf_file, run_id, sample_size):
+def _write_exp2_5_conf_file(base_conf_file, exp_id, run_id, sample_size):
     """
     Prepares conf files for exp2 by altering the sample size parameter in the
      provided base conf file
     """
-    log_file, new_conf_file = _prepare_conf_files(base_conf_file, 2, run_id)
+    log_file, new_conf_file = _prepare_conf_files(base_conf_file, exp_id,
+        run_id)
 
     replace_in_file(new_conf_file, 'name=.*',
-        'name=exp%d-%d' % (2, run_id))
+        'name=exp%d-%d' % (exp_id, run_id))
     replace_in_file(new_conf_file, 'sample_size=.*',
         'sample_size=%s' % sample_size)
     return new_conf_file, log_file
 
 
-def _exp2and3_file_iterator(sizes, conf_file):
+def _exp2and5_file_iterator(sizes, exp_id, conf_file):
     for id, size in enumerate(sizes):
-        new_conf_file, log_file = _write_exp2_3_conf_file(conf_file, id,
-            size)
+        new_conf_file, log_file = _write_exp2_5_conf_file(conf_file, exp_id,
+            id, size)
+        print 'Yielding %s' % new_conf_file
         yield new_conf_file, log_file
     raise StopIteration
 
@@ -328,13 +330,14 @@ if __name__ == '__main__':
     # ----------- EXPERIMENT 2 -----------
     sizes = chain([50], range(100, 1001, 100), range(1500, 500, 500))
     # last value is the total number of documents
-    it2 = _exp2and3_file_iterator(sizes,
-        '%s/conf/exp2/exp2_base.conf' % (prefix)
-    )
-    # evaluate_thesauri(it2, pool_size=num_workers)
+    for i in [5]:
+        it2 = _exp2and5_file_iterator(sizes, i,
+            '%s/conf/exp%d/exp%d_base.conf' % (prefix, i, i)
+        )
+        evaluate_thesauri(it2, pool_size=num_workers)
 
     # ----------- CONSOLIDATION -----------
-    for i in range(1, 3):
+    for i in [5]:
         consolidate_results(
             '%s/conf/exp%d/exp%d_base-variants' % (prefix, i, i),
             '%s/conf/exp%d/logs/' % (prefix, i),

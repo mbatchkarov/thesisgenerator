@@ -114,6 +114,12 @@ class PredefinedIndicesIterator(object):
         self.test = test
 
     def __iter__(self):
+        logging.getLogger('root').info('Yielding a training set of '
+                                       'size %d and a test set of '
+                                       'size %d' %
+                                       (len(self.train),
+                                        len(self.test)))
+
         yield self.train, self.test
         raise StopIteration
 
@@ -139,7 +145,13 @@ class SubsamplingPredefinedIndicesIterator(object):
     def __iter__(self):
         for i in range(self.max_iterations):
             try:
-                yield random.sample(self.train, int(self.sample_size)), self.test
+                logging.getLogger('root').info('Yielding a training set of '
+                                               'size %d and a test set of '
+                                               'size %d'%
+                                               (self.sample_size,
+                                                len(self.test)))
+                yield random.sample(self.train, int(self.sample_size)), \
+                      self.test
             except ValueError, e:
                 logging.getLogger('root').critical('Sample size is %r, '
                                                    'population size is %r. '
