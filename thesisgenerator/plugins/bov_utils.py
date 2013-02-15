@@ -195,6 +195,25 @@ def _extract_thesausus_coverage_info(found_tok, found_ty, lines, log_file,
     return th_size
 
 
+def _pos_statistics(input_file):
+    regex1 = re.compile(".*Unknown token.*/(.*)")
+    regex2 = re.compile(".*Found thesaurus entry.*/(.*)")
+    unknown_pos, found_pos = [], []
+    with open(input_file) as infile:
+        for line in infile:
+            matches = regex1.findall(line)
+            if matches:
+                unknown_pos.append(matches[0])
+
+            matches = regex2.findall(line)
+            if matches:
+                found_pos.append(matches[0])
+
+    from collections import Counter
+
+    return Counter(unknown_pos), Counter(found_pos)
+
+
 def consolidate_results(conf_dir, log_dir, output_dir):
     """
     Consolidates the results of a series of experiment to ./summary.csv
@@ -216,6 +235,7 @@ def consolidate_results(conf_dir, log_dir, output_dir):
                 'metric', 'score_mean', 'score_std'])
 
     experiments = glob.glob('*.conf')
+    unknown_pos_stats, found_pos_stats  = {}, {}
     for conf_file in experiments:
         out = run(cmd('grep --max-count=1 name= {}', conf_file))
         exp_name = [x.strip() for x in out]
@@ -293,6 +313,9 @@ def consolidate_results(conf_dir, log_dir, output_dir):
         def my_std(x):
             return std(x) if x else -1
 
+        s = int(my_mean(data_shape_x))
+        unknown_pos_stats[s], found_pos_stats[s] = _pos_statistics(log_file)
+
         # find out the classifier score from the final csv file
         output_file = os.path.join(output_dir, '%s.out.csv' % exp_name)
         try:
@@ -306,7 +329,7 @@ def consolidate_results(conf_dir, log_dir, output_dir):
                         '-%s' % targets[int(num[0])], metric)
 
                 c.writerow(
-                    [exp_name, my_mean(data_shape_x),
+                    [exp_name, int(my_mean(data_shape_x)),
                      int(my_mean(data_shape_y)), int(my_std(data_shape_y)),
                      corpus, features, pos, fef, classifier,
                      int(my_mean(th_size)), int(my_mean(total_tok)),
@@ -321,6 +344,11 @@ def consolidate_results(conf_dir, log_dir, output_dir):
         except IOError:
             print 'WARNING: %s is missing' % output_file
             continue    # file is missing
+    from pandas import DataFrame
+    df = DataFrame(unknown_pos_stats).T
+    df.to_csv('unknown_token_stats.csv')
+    df = DataFrame(found_pos_stats).T
+    df.to_csv('found_token_stats.csv')
 
 
 if __name__ == '__main__':
