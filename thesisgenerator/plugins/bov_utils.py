@@ -9,6 +9,7 @@ import sys
 from iterpipes import cmd, run
 
 from numpy import nonzero
+import numpy
 
 
 try:
@@ -202,7 +203,8 @@ def consolidate_results(conf_dir, log_dir, output_dir):
     print 'Consolidating results'
     os.chdir(conf_dir)
     c = csv.writer(open("summary.csv", "w"))
-    c.writerow(['name', 'sample_size', 'corpus', 'features', 'pos', 'fef',
+    c.writerow(['name', 'sample_size', 'train_voc_mean', 'train_voc_std',
+                'corpus', 'features', 'pos', 'fef',
                 'classifier', 'th_size', 'total_tok',
                 'unknown_tok_mean', 'unknown_tok_std',
                 'found_tok_mean', 'found_tok_std',
@@ -222,7 +224,8 @@ def consolidate_results(conf_dir, log_dir, output_dir):
         # find out thesaurus information
         total_tok, unk_tok, found_tok, repl_tok, th_size = [], [], [], [], -1
         total_ty, unk_ty, found_ty, repl_ty = [], [], [], []
-        corpus, pos, features, fef, sample_size = -1, -1, -1, -1, -1
+        corpus, pos, features, fef = -1, -1, -1, -1
+        data_shape_x, data_shape_y = [], []
 
         log_file = os.path.join(log_dir, '%s.log' % exp_name)
         out = run(cmd('grep Total\ types: {}', log_file))
@@ -237,10 +240,19 @@ def consolidate_results(conf_dir, log_dir, output_dir):
                   'information' % log_file
             thesaurus_info_present = False
 
-        out = run(cmd('grep -P -oh for\ each\ sampling\ [0-9]+ {}', log_file))
+        out = run(cmd('grep Data\ shape\ is {}', log_file))
         try:
             info = [x.strip() for x in out]
-            sample_size = int(info[0].split()[-1])
+            sizes = info[0].split('\n')
+            import ast
+
+            sizes = [ast.literal_eval(x) for x in
+                     re.findall('\([0-9]+, [0-9]+\)',
+                         ' '.join(sizes))]
+            sizes = numpy.array(sizes)[range(0, len(sizes), 2)]
+            for x in sizes:
+                data_shape_x.append(x[0])
+                data_shape_y.append(x[1])
 
         except CalledProcessError:
             print "WARNING: training data size not  present in log file %s" % \
@@ -294,8 +306,9 @@ def consolidate_results(conf_dir, log_dir, output_dir):
                         '-%s' % targets[int(num[0])], metric)
 
                 c.writerow(
-                    [exp_name, sample_size, corpus, features, pos, fef,
-                     classifier,
+                    [exp_name, my_mean(data_shape_x),
+                     int(my_mean(data_shape_y)), int(my_std(data_shape_y)),
+                     corpus, features, pos, fef, classifier,
                      int(my_mean(th_size)), int(my_mean(total_tok)),
                      int(my_mean(unk_tok)), int(my_std(unk_tok)),
                      int(my_mean(found_tok)), int(my_std(found_tok)),
