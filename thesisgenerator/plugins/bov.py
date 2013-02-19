@@ -27,8 +27,8 @@ class ThesaurusVectorizer(TfidfVectorizer):
         """
         try:
             self.thesaurus_files = thesaurus_files
-            self.k = k
-            self.sim_threshold = sim_threshold
+            self.k = int(k)
+            self.sim_threshold = float(sim_threshold)
             self.log_vocabulary = log_vocabulary # if I should log the
             self.lemmatize = lemmatize
             self.use_pos = use_pos

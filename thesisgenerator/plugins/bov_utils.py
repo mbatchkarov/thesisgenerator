@@ -369,7 +369,7 @@ if __name__ == '__main__':
     # evaluate_thesauri(it1, pool_size=num_workers)
 
     # ----------- EXPERIMENT 2 -----------
-    sizes = chain([50], range(100, 1001, 100), range(1500, 500, 500))
+    sizes = chain([50], range(100, 1001, 100), range(1500, 5000, 500))
     # last value is the total number of documents
     for i in [6]:
         it2 = _exp2and5and6_file_iterator(sizes, i,
