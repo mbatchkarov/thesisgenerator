@@ -102,7 +102,7 @@ def _prepare_conf_files(base_conf_file, exp_id, run_id):
     return log_file, new_conf_file
 
 
-def _write_exp2_5_6_conf_file(base_conf_file, exp_id, run_id, sample_size):
+def _write_exp2_5_6_7_8_conf_file(base_conf_file, exp_id, run_id, sample_size):
     """
     Prepares conf files for exp2 by altering the sample size parameter in the
      provided base conf file
@@ -117,9 +117,9 @@ def _write_exp2_5_6_conf_file(base_conf_file, exp_id, run_id, sample_size):
     return new_conf_file, log_file
 
 
-def _exp2and5and6_file_iterator(sizes, exp_id, conf_file):
+def _exp2_5_6_7_8_file_iterator(sizes, exp_id, conf_file):
     for id, size in enumerate(sizes):
-        new_conf_file, log_file = _write_exp2_5_6_conf_file(conf_file, exp_id,
+        new_conf_file, log_file = _write_exp2_5_6_7_8_conf_file(conf_file, exp_id,
             id, size)
         print 'Yielding %s' % new_conf_file
         yield new_conf_file, log_file
@@ -353,7 +353,7 @@ if __name__ == '__main__':
     sizes = chain([50], range(100, 1001, 100), range(1500, 5000, 500))
     # last value is the total number of documents
     for i in [2]:
-        it2 = _exp2and5and6_file_iterator(sizes, i,
+        it2 = _exp2_5_6_7_8_file_iterator(sizes, i,
             '%s/conf/exp%d/exp%d_base.conf' % (prefix, i, i)
         )
         # evaluate_thesauri(it2, pool_size=num_workers)
