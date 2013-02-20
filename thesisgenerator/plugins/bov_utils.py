@@ -1,15 +1,14 @@
 import csv
 import glob
-from itertools import chain
 import os
 import re
 import shutil
-from subprocess import CalledProcessError
 import sys
-from iterpipes import cmd, run
+import ast
+from itertools import chain
 
-from numpy import nonzero
 import numpy
+from numpy import nonzero
 
 
 try:
@@ -134,22 +133,19 @@ def evaluate_thesauri(file_iterator, pool_size=1):
         new_conf_file, log_file in file_iterator)
 
 
-def _infer_thesaurus_name(conf_dir, conf_file, corpus, features, fef, pos):
-    abs_conf_file = os.path.join(conf_dir, '%s' % conf_file)
-    out = run(
-        cmd('grep --max-count=1 thesaurus_files {}', abs_conf_file))
-    out = [x.strip() for x in out]
-    thesauri = out[0].split('=')[1]
-    thesauri = os.sep.join(thesauri.split(os.sep)[-2:])
-    # thesauri is something like "exp6-11a/exp6.sims.neighbours.strings,"
+def _infer_thesaurus_name(conf_txt):
+    thesauri = ''.join(re.findall('thesaurus_files\s*=([\w-]+)', conf_txt))
     if thesauri:
+    # thesauri = thesauri[0].split('=')[1]
+    # thesauri = [x for x in thesauri.split(',') if x]
+    # thesauri = os.sep.join(thesauri.split(os.sep)[-2:])
+    # thesauri is something like "exp6-11a/exp6.sims.neighbours.strings,"
         corpus = re.findall('exp([0-9]+)', thesauri)[0]
-        features = re.findall('-([0-9]+)', thesauri)[0]
-        pos = re.findall('-[0-9]+(.)', thesauri)[0]
-        try:
-            fef = re.findall('fef([0-9]+)', thesauri)[0]
-        except IndexError:
+        features = (re.findall('-([0-9]+)', thesauri))[0]
+        pos = (re.findall('-[0-9]+(.)', thesauri))[0]
+        fef = re.findall('fef([0-9]+)', thesauri)
         # 'fef' isn't in thesaurus name, i.e. has not been postfiltered
+        if not fef:
             fef = 0
             print 'WARNING: thesaurus file name %s does not contain ' \
                   'explicit fef information' % thesauri
@@ -160,39 +156,40 @@ def _infer_thesaurus_name(conf_dir, conf_file, corpus, features, fef, pos):
     return corpus, features, fef, pos
 
 
-def _extract_thesausus_coverage_info(found_tok, found_ty, lines, log_file,
-                                     repl_tok, repl_ty, th_size, total_tok,
-                                     total_ty, unk_tok, unk_ty):
-    for line in lines:
-        # token statistics in labelled corpus
-        unk_tok_this_line = int(re.findall('Unknown tokens: ([0-9]+)',
-            line)[0])
-        if unk_tok_this_line > 0:
-            #to tell train-time messages from test-time ones
-            unk_tok.append(unk_tok_this_line)
-            total_tok.append(
-                int(re.findall('Total tokens: ([0-9]+)', line)[0]))
-            found_tok.append(
-                int(re.findall('Found tokens: ([0-9]+)', line)[0]))
-            repl_tok.append(
-                int(re.findall('Replaced tokens: ([0-9]+)', line)[0]))
+def _extract_thesausus_coverage_info(log_txt):
+    # token statistics in labelled corpus
 
-            total_ty.append(
-                int(re.findall('Total types: ([0-9]+)', line)[0]))
-            unk_ty.append(
-                int(re.findall('Unknown types: ([0-9]+)', line)[0]))
-            found_ty.append(
-                int(re.findall('Found types: ([0-9]+)', line)[0]))
-            repl_ty.append(
-                int(re.findall('Replaced types: ([0-9]+)', line)[0]))
+    def every_other(iterable):
+        """Returns every other element in a iterable in a silly way"""
+        return numpy.array(iterable)[range(0, len(iterable), 2)]
+
+    unk_tok = [int(x) for x in every_other(
+        re.findall('Unknown tokens: ([0-9]+)', log_txt))]
+
+    total_tok = [int(x) for x in every_other(
+        re.findall('Total tokens: ([0-9]+)', log_txt))]
+    found_tok = [int(x) for x in every_other(
+        re.findall('Found tokens: ([0-9]+)', log_txt))]
+
+    repl_tok = [int(x) for x in every_other(
+        re.findall('Replaced tokens: ([0-9]+)', log_txt))]
+
+    total_ty = [int(x) for x in every_other(
+        re.findall('Total types: ([0-9]+)', log_txt))]
+
+    unk_ty = [int(x) for x in every_other(
+        re.findall('Unknown types: ([0-9]+)', log_txt))]
+    found_ty = [int(x) for x in every_other(
+        re.findall('Found types: ([0-9]+)', log_txt))]
+    repl_ty = [int(x) for x in every_other(
+        re.findall('Replaced types: ([0-9]+)', log_txt))]
 
     # find out how large the thesaurus was from log file
-    if unk_tok_this_line > 0:
-        out = run(
-            cmd('grep --max-count=1 "Thesaurus contains" {}', log_file))
-        line = [x.strip() for x in out]
-        th_size = int(re.findall("Thesaurus contains ([0-9]+)", line[0])[0])
-    return th_size
+    th_size = re.findall("Thesaurus contains ([0-9]+)", log_txt)
+    th_size = int(th_size[0]) if th_size else -1
+
+    return total_tok, total_ty, unk_tok, unk_ty, found_tok, found_ty, \
+           repl_tok, repl_ty, th_size
 
 
 def _pos_statistics(input_file):
@@ -219,7 +216,7 @@ def consolidate_results(conf_dir, log_dir, output_dir):
     Consolidates the results of a series of experiment to ./summary.csv
     A single thesaurus must be used in each experiment
     """
-    print 'Consolidating results'
+    print 'Consolidating results from %s' % conf_dir
     os.chdir(conf_dir)
     c = csv.writer(open("summary.csv", "w"))
     c.writerow(['name', 'sample_size', 'train_voc_mean', 'train_voc_std',
@@ -235,83 +232,65 @@ def consolidate_results(conf_dir, log_dir, output_dir):
                 'metric', 'score_mean', 'score_std'])
 
     experiments = glob.glob('*.conf')
-    unknown_pos_stats, found_pos_stats  = {}, {}
+    unknown_pos_stats, found_pos_stats = {}, {}
     for conf_file in experiments:
-        out = run(cmd('grep --max-count=1 name= {}', conf_file))
-        exp_name = [x.strip() for x in out]
-        exp_name = str(exp_name[0]).split('=')[1]
+        with open(conf_file) as infile:
+            conf_txt = ''.join(infile.readlines())
+        exp_name = re.findall('name=(.*)', conf_txt)[0]
 
         # find out thesaurus information
-        total_tok, unk_tok, found_tok, repl_tok, th_size = [], [], [], [], -1
-        total_ty, unk_ty, found_ty, repl_ty = [], [], [], []
-        corpus, pos, features, fef = -1, -1, -1, -1
         data_shape_x, data_shape_y = [], []
-
         log_file = os.path.join(log_dir, '%s.log' % exp_name)
-        out = run(cmd('grep Total\ types: {}', log_file))
-        thesaurus_info_present = True
-        try:
-            info = [x.strip() for x in out]
-            lines = info[0].split('\n')
-        except CalledProcessError:
-            # log file does not contain thesaurus replacement stats because
-            # no thesaurus was used
+
+        with open(log_file) as infile:
+            log_txt = ''.join(infile.readlines())
+
+        lines = re.findall('Total types:', log_txt)
+        if not lines:
             print 'WARNING: log file %s does not contain thesaurus ' \
                   'information' % log_file
-            thesaurus_info_present = False
 
-        out = run(cmd('grep Data\ shape\ is {}', log_file))
-        try:
-            info = [x.strip() for x in out]
-            sizes = info[0].split('\n')
-            import ast
+        sizes = re.findall('Data shape is (\(.*\))', log_txt)
+        sizes = [ast.literal_eval(x) for x in sizes]
+        # skip the information about the test set
+        sizes = numpy.array(sizes)[range(0, len(sizes), 2)]
+        for x in sizes:
+            data_shape_x.append(x[0])
+            data_shape_y.append(x[1])
 
-            sizes = [ast.literal_eval(x) for x in
-                     re.findall('\([0-9]+, [0-9]+\)',
-                         ' '.join(sizes))]
-            sizes = numpy.array(sizes)[range(0, len(sizes), 2)]
-            for x in sizes:
-                data_shape_x.append(x[0])
-                data_shape_y.append(x[1])
-
-        except CalledProcessError:
-            print "WARNING: training data size not  present in log file %s" % \
+        if not data_shape_x:
+            print "WARNING: training data size not  present in log file %s, " \
+                  "trying the other way" \
+                  "" % \
                   log_file
+            # try the other way of getting the sample size
+            try:
+                x = re.findall('for each sampling (\d+) documents', log_txt)
+                data_shape_x.append(int(x[0]))
+            except Exception:
+                print "ERROR: that failed too, returning -1"
+                data_shape_x.append(-1)
 
-        if thesaurus_info_present:
-            # find out how many unknown tokens, etc there were from log file
-            th_size = _extract_thesausus_coverage_info(found_tok, found_ty,
-                lines, log_file,
-                repl_tok, repl_ty,
-                th_size, total_tok,
-                total_ty, unk_tok,
-                unk_ty)
-            # find out the name of the thesaurus(es) from the conf file
-            corpus, features, fef, pos = _infer_thesaurus_name(conf_dir,
-                conf_file,
-                corpus, features,
-                fef, pos)
+
+        # find out how many unknown tokens, etc there were from log file
+        total_tok, total_ty, unk_tok, unk_ty, found_tok, found_ty, repl_tok, \
+        repl_ty, th_size = _extract_thesausus_coverage_info(log_txt)
+
+        # find out the name of the thesaurus(es) from the conf file
+        corpus, features, fef, pos = _infer_thesaurus_name(conf_txt)
 
         # get label names from log file
-        try:
-            out = run(cmd('grep Targets\ are: {}', log_file))
-            info = [x.strip() for x in out]
-            lines = info[0].split('\n')[0]
-            targets = re.findall('Targets\ are: (.*)', lines)[0]
-            import ast
-
-            targets = ast.literal_eval(targets)
-        except CalledProcessError:
+        targets = re.findall('Targets are: (.*)', log_txt)[0]
+        targets = ast.literal_eval(targets)
+        if not targets:
             print 'ERROR: no targets present in %s' % conf_file
             continue
 
-        from numpy import mean, std
-
         def my_mean(x):
-            return mean(x) if x else -1
+            return numpy.mean(x) if x else -1
 
         def my_std(x):
-            return std(x) if x else -1
+            return numpy.std(x) if x else -1
 
         s = int(my_mean(data_shape_x))
         unknown_pos_stats[s], found_pos_stats[s] = _pos_statistics(log_file)
@@ -344,7 +323,9 @@ def consolidate_results(conf_dir, log_dir, output_dir):
         except IOError:
             print 'WARNING: %s is missing' % output_file
             continue    # file is missing
+
     from pandas import DataFrame
+
     df = DataFrame(unknown_pos_stats).T
     df.to_csv('unknown_token_stats.csv')
     df = DataFrame(found_pos_stats).T
@@ -371,14 +352,14 @@ if __name__ == '__main__':
     # ----------- EXPERIMENT 2 -----------
     sizes = chain([50], range(100, 1001, 100), range(1500, 5000, 500))
     # last value is the total number of documents
-    for i in [6]:
+    for i in [2]:
         it2 = _exp2and5and6_file_iterator(sizes, i,
             '%s/conf/exp%d/exp%d_base.conf' % (prefix, i, i)
         )
-        evaluate_thesauri(it2, pool_size=num_workers)
+        # evaluate_thesauri(it2, pool_size=num_workers)
 
     # ----------- CONSOLIDATION -----------
-    for i in [6]:
+    for i in [2, 3]:
         consolidate_results(
             '%s/conf/exp%d/exp%d_base-variants' % (prefix, i, i),
             '%s/conf/exp%d/logs/' % (prefix, i),
