@@ -278,9 +278,11 @@ def consolidate_results(conf_dir, log_dir, output_dir):
         corpus, features, fef, pos = _infer_thesaurus_name(conf_txt)
 
         # get label names from log file
-        targets = re.findall('Targets are: (.*)', log_txt)[0]
-        targets = ast.literal_eval(targets)
-        if not targets:
+        targets = re.findall('Targets are: (.*)', log_txt)
+        if targets:
+            targets = targets[0]
+            targets = ast.literal_eval(targets)
+        else:
             print 'ERROR: no targets present in %s' % conf_file
             continue
 
