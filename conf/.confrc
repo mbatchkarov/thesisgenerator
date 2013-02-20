@@ -32,6 +32,7 @@ joblib_caching=boolean(default=False)
     lemmatize=boolean
     use_pos=boolean
 	coarse_pos=boolean
+	normalise_entities=boolean
 	
 [crossvalidation]
 	run=boolean()

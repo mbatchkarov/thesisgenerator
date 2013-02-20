@@ -13,6 +13,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
     """
 
     def __init__(self, thesaurus_files=None, k=1, sim_threshold=0.2,
+                 normalise_entities=False,
                  lemmatize=False, log_vocabulary=False, coarse_pos=True,
                  input='content', charset='utf-8', charset_error='strict',
                  strip_accents=None, lowercase=True, use_pos=False,
@@ -26,6 +27,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
         extra param specifying the path the the Byblo-generated thesaurus
         """
         try:
+            self.normalise_entities = bool(normalise_entities)
             self.thesaurus_files = thesaurus_files
             self.k = int(k)
             self.sim_threshold = float(sim_threshold)
@@ -41,28 +43,28 @@ class ThesaurusVectorizer(TfidfVectorizer):
         except KeyError:
             pass
         super(ThesaurusVectorizer, self).__init__(input=input,
-                                                  charset=charset,
-                                                  charset_error=charset_error,
-                                                  strip_accents=strip_accents,
-                                                  lowercase=lowercase,
-                                                  preprocessor=preprocessor,
-                                                  tokenizer=tokenizer,
-                                                  analyzer=analyzer,
-                                                  stop_words=stop_words,
-                                                  token_pattern=token_pattern,
-                                                  min_n=min_n,
-                                                  max_n=max_n,
-                                                  ngram_range=ngram_range,
-                                                  max_df=max_df,
-                                                  min_df=min_df,
-                                                  max_features=max_features,
-                                                  vocabulary=vocabulary,
-                                                  use_idf=use_idf,
-                                                  smooth_idf=smooth_idf,
-                                                  sublinear_tf=sublinear_tf,
-                                                  binary=binary,
-                                                  norm=norm,
-                                                  dtype=dtype
+            charset=charset,
+            charset_error=charset_error,
+            strip_accents=strip_accents,
+            lowercase=lowercase,
+            preprocessor=preprocessor,
+            tokenizer=tokenizer,
+            analyzer=analyzer,
+            stop_words=stop_words,
+            token_pattern=token_pattern,
+            min_n=min_n,
+            max_n=max_n,
+            ngram_range=ngram_range,
+            max_df=max_df,
+            min_df=min_df,
+            max_features=max_features,
+            vocabulary=vocabulary,
+            use_idf=use_idf,
+            smooth_idf=smooth_idf,
+            sublinear_tf=sublinear_tf,
+            binary=binary,
+            norm=norm,
+            dtype=dtype
         )
 
     def load_thesauri(self):
@@ -165,7 +167,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
             tokens = []
             n_original_tokens = len(original_tokens)
             for n in xrange(min_n,
-                            min(max_n + 1, n_original_tokens + 1)):
+                    min(max_n + 1, n_original_tokens + 1)):
                 for i in xrange(n_original_tokens - n + 1):
                     tokens.append(u" ".join(original_tokens[i: i + n]))
         return tokens  # + last_chars + shapes
@@ -234,7 +236,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
                 # no thesaurus source, fall back to super behaviour
                 logging.getLogger('root').warn("F**k, no thesaurus!")
                 return super(ThesaurusVectorizer,
-                             self)._term_count_dicts_to_matrix(term_count_dicts)
+                    self)._term_count_dicts_to_matrix(term_count_dicts)
             else:
                 # thesaurus file specified, parse it
                 self._thesaurus = self.load_thesauri()
@@ -321,7 +323,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
         # this is sometimes a generator, convert to list to use len
         shape = (num_documents, max(vocabulary.itervalues()) + 1)
         spmatrix = sp.coo_matrix((values, (doc_id_indices, term_indices)),
-                                 shape=shape, dtype=self.dtype)
+            shape=shape, dtype=self.dtype)
         # remove frequencies if binary feature were requested
         if self.binary:
             spmatrix.data.fill(1)
@@ -351,6 +353,9 @@ class ThesaurusVectorizer(TfidfVectorizer):
         """
         Tokenizes a Stanford Core NLP processed document by parsing the XML and
         extracting tokens and their lemmas, with optional lowercasing
+        If requested, the named entities will be replaced with the respective
+         type, e.g. PERSON or ORG, otherwise numbers and punctuation will be
+         canonicalised
         """
 
         try:
@@ -371,20 +376,37 @@ class ThesaurusVectorizer(TfidfVectorizer):
                 if self.lowercase:
                     txt = txt.lower()
 
+                # check if the token is a number before things have been done
+                #  to it
                 am_i_a_number = is_number(txt)
 
                 pos = element.find('pos').text.upper()
                 if self.use_pos:
-                    if self.coarse_pos: pos = pos_coarsification_map[
-                        pos.upper()]
+                    if self.coarse_pos:
+                        pos = pos_coarsification_map[
+                            pos.upper()]
                     txt = '%s/%s' % (txt, pos)
 
+                if self.normalise_entities:
+                    try:
+                        iob_tag = element.find('ner').text.upper()
+                    except AttributeError:
+                        logging.getLogger('root').error(
+                            'You have requested named entity normalisation,'
+                            ' but the input data is not annotated for '
+                            'entities')
+                        raise ValueError('Data not annotated for named '
+                                         'entities')
+
+                    if iob_tag != 'O':
+                        txt = '__NER-%s__' % iob_tag
+
                 if pos == 'PUNCT':
-                    tokens.append('__PUNCT__')
+                    txt = '__PUNCT__'
                 elif am_i_a_number:
-                    tokens.append('__NUM__')
-                else:
-                    tokens.append(txt)
+                    txt = '__NUMBER__'
+                tokens.append(txt)
+
         except ET.ParseError:
             pass
             # on OSX the .DS_Store file is passed in, if it exists
