@@ -6,13 +6,11 @@ import re
 import shutil
 import sys
 import ast
-
+from itertools import chain
 import numpy
 from numpy import nonzero
-from thesisgenerator.__main__ import go, _get_data_iterators, parse_config_file
-
-
 try:
+    from thesisgenerator.__main__ import go, _get_data_iterators, parse_config_file
     from thesisgenerator.utils import replace_in_file
 except ImportError:
 # if one tries to run this script from the main project directory the
@@ -21,7 +19,7 @@ except ImportError:
     sys.path.append('../')
     sys.path.append('./')
     sys.path.append('./thesisgenerator')
-    from thesisgenerator.__main__ import go
+    from thesisgenerator.__main__ import go, _get_data_iterators, parse_config_file
     from thesisgenerator.utils import replace_in_file
 
 __author__ = 'mmb28'
@@ -353,20 +351,19 @@ if __name__ == '__main__':
     num_workers = 1
 
     # on cluster
-    # prefix = '/mnt/lustre/scratch/inf/mmb28/thesisgenerator'
-    # pattern = '%s/../FeatureExtrationToolkit/exp6-1*/*sims.neighbours' \
-    #           '.strings' % prefix
-    # num_workers = 30
+    prefix = '/mnt/lustre/scratch/inf/mmb28/thesisgenerator'
+    pattern = '%s/../FeatureExtrationToolkit/exp6-1*/*sims.neighbours' \
+              '.strings' % prefix
+    num_workers = 30
 
     # ----------- EXPERIMENT 1 -----------
     # it1 = _exp1_file_iterator(pattern, '%s/conf/exp1/exp1_base.conf' % prefix)
     # evaluate_thesauri(it1, pool_size=num_workers)
 
     # ----------- EXPERIMENT 2 -----------
-    # sizes = chain(range(10, 50, 10), range(50, 500, 50))
-    sizes = [20, 30]
+    sizes = chain(range(100, 1000, 100), range(1000, 5000, 500))
     # last value is the total number of documents
-    for i in [9]:
+    for i in [2,5,8]:
         base_conf_file = '%s/conf/exp%d/exp%d_base.conf' % (prefix, i, i)
         it2 = _exp2_5_6_7_8_file_iterator(sizes, i,
             base_conf_file
@@ -374,7 +371,7 @@ if __name__ == '__main__':
         evaluate_thesauri(base_conf_file, it2, pool_size=num_workers)
 
     # ----------- CONSOLIDATION -----------
-    for i in [9]:
+    for i in [2,5,8]:
         consolidate_results(
             '%s/conf/exp%d/exp%d_base-variants' % (prefix, i, i),
             '%s/conf/exp%d/logs/' % (prefix, i),
