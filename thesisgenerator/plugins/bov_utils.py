@@ -301,15 +301,6 @@ def consolidate_results(conf_dir, log_dir, output_dir,
         # find out the name of the thesaurus(es) from the conf file
         corpus, features, fef, pos = _infer_thesaurus_name(conf_txt)
 
-        # get label names from log file
-        targets = re.findall('Targets are: (.*)', log_txt)
-        if targets:
-            targets = targets[0]
-            targets = ast.literal_eval(targets)
-        else:
-            print 'ERROR: no targets present in %s' % conf_file
-            continue
-
         def my_mean(x):
             return numpy.mean(x) if x else -1
 
@@ -327,10 +318,6 @@ def consolidate_results(conf_dir, log_dir, output_dir,
             _ = reader.next()   # skip over header
             for row in reader:
                 classifier, metric, score_my_mean, score_my_std = row
-                num = re.findall('class([0-9]+)', metric)
-                if num:
-                    metric = re.sub('class([0-9]+)',
-                        '-%s' % targets[int(num[0])], metric)
 
                 c.writerow(
                     [exp_name, int(my_mean(data_shape_x)),
