@@ -5,6 +5,7 @@ import pickle
 import scipy.sparse as sp
 from sklearn.feature_extraction.text import TfidfVectorizer
 
+preloaded_thesauri = {}
 
 class ThesaurusVectorizer(TfidfVectorizer):
     """
@@ -86,43 +87,50 @@ class ThesaurusVectorizer(TfidfVectorizer):
         result = {}
         logging.getLogger('root').debug(self.thesaurus_files)
         for path in self.thesaurus_files:
-            logging.getLogger('root').debug(
-                'Loading thesaurus %s from disk' % path)
-            logging.getLogger('root').debug(
-                'PoS: %r, coarse: %r, threshold %r, k=%r' %
-                (self.use_pos,
-                 self.coarse_pos,
-                 self.sim_threshold,
-                 self.k))
-            FILTERED = '___FILTERED___'.lower()
-            curr_thesaurus = defaultdict(list)
-            with open(path) as infile:
-                for line in infile:
-                    tokens = line.strip().split('\t')
-                    if len(tokens) % 2 == 0:
-                    #must have an odd number of things, one for the entry and
-                    # pairs for (neighbour, similarity)
-                        continue
-                    if tokens[0] != FILTERED:
-                        to_insert = [(word.lower(), float(sim)) for (word, sim)
-                                     in
-                                     self.iterate_nonoverlapping_pairs(
-                                         tokens, 1, self.k)
-                                     if
-                                     word != FILTERED and sim >
-                                     self.sim_threshold]
-                        # the step above may filter out all neighbours of an
-                        # entry. if this happens, do not bother adding it
-                        if len(to_insert) > 0:
-                            if tokens[0] in curr_thesaurus:
-                                logging.getLogger('root').debug(
-                                    'Multiple entries for "%s" found' %
-                                    tokens[0])
-                            curr_thesaurus[tokens[0].lower()].extend(to_insert)
+            if path in preloaded_thesauri:
+                logging.getLogger('root').info('Returning cached thesaurus '
+                                               'for %s' % path)
+                result.update(preloaded_thesauri[path])
+            else:
+                logging.getLogger('root').info(
+                    'Loading thesaurus %s from disk' % path)
+                logging.getLogger('root').debug(
+                    'PoS: %r, coarse: %r, threshold %r, k=%r' %
+                    (self.use_pos,
+                     self.coarse_pos,
+                     self.sim_threshold,
+                     self.k))
+                FILTERED = '___FILTERED___'.lower()
+                curr_thesaurus = defaultdict(list)
+                with open(path) as infile:
+                    for line in infile:
+                        tokens = line.strip().split('\t')
+                        if len(tokens) % 2 == 0:
+                        #must have an odd number of things, one for the entry and
+                        # pairs for (neighbour, similarity)
+                            continue
+                        if tokens[0] != FILTERED:
+                            to_insert = [(word.lower(), float(sim)) for (word, sim)
+                                         in
+                                         self.iterate_nonoverlapping_pairs(
+                                             tokens, 1, self.k)
+                                         if
+                                         word != FILTERED and sim >
+                                         self.sim_threshold]
+                            # the step above may filter out all neighbours of an
+                            # entry. if this happens, do not bother adding it
+                            if len(to_insert) > 0:
+                                if tokens[0] in curr_thesaurus:
+                                    logging.getLogger('root').debug(
+                                        'Multiple entries for "%s" found' %
+                                        tokens[0])
+                                curr_thesaurus[tokens[0].lower()].extend(to_insert)
 
-                            # note- do not attempt to lowercase if the thesaurus has not already been
-                            # lowercased- may result in multiple neighbour lists for the same entry
-            result.update(curr_thesaurus)
+                # note- do not attempt to lowercase if the thesaurus has not already been
+                # lowercased- may result in multiple neighbour lists for the same entry
+                logging.getLogger('root').info('Caching thesaurus %s' % path)
+                preloaded_thesauri[path] = curr_thesaurus
+                result.update(curr_thesaurus)
 
         logging.getLogger('root').info(
             'Thesaurus contains %d entries' % len(result))

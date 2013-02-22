@@ -345,7 +345,7 @@ def _build_pipeline(classifier_name, feature_extr_conf, feature_sel_conf,
     return pipeline
 
 
-def run_tasks(configuration):
+def run_tasks(configuration, data=None):
     """
     Runs all commands specified in the configuration file
     """
@@ -382,14 +382,19 @@ def run_tasks(configuration):
         except KeyError:
             options['input_generator'] = ''
         options['source'] = configuration['training_data']
-        logging.getLogger('root').info('Loading raw training set')
-        x_vals, y_vals = cached_get_data_generators(**options)
-        if configuration['test_data']:
-            logging.getLogger('root').info('Loading raw test set')
-            #  change where we read files from
-            options['source'] = configuration['test_data']
-            x_test, y_test = cached_get_data_generators(**options)
-        del options
+        if data:
+            logging.getLogger('root').info('Using pre-loaded raw data set')
+            x_vals, y_vals, x_test, y_test = data
+        else:
+            logging.getLogger('root').info('Loading raw training set')
+            x_vals, y_vals = cached_get_data_generators(**options)
+            if configuration['test_data']:
+                logging.getLogger('root').info('Loading raw test set')
+                #  change where we read files from
+                options['source'] = configuration['test_data']
+                x_test, y_test = cached_get_data_generators(**options)
+            del options
+
 
     # **********************************
     # CROSSVALIDATION
@@ -573,9 +578,8 @@ def _prepare_classpath(classpath):
         sys.path.append(os.path.abspath(path))
 
 
-def go(conf_file, log_dir, classpath='', clean=False):
-    if not os.path.exists(log_dir):
-        os.makedirs(log_dir)
+def parse_config_file(conf_file):
+
     configspec_file = os.path.join(os.path.dirname(conf_file), '.confrc')
     config = ConfigObj(conf_file, configspec=configspec_file)
     validator = validate.Validator()
@@ -585,6 +589,15 @@ def go(conf_file, log_dir, classpath='', clean=False):
     if not result:
         print 'Invalid configuration'
         sys.exit(1)
+    return config, configspec_file
+
+
+def go(conf_file, log_dir, data=None, classpath='', clean=False):
+    if not os.path.exists(log_dir):
+        os.makedirs(log_dir)
+
+    config, configspec_file = parse_config_file(conf_file)
+
     log = _config_logger(log_dir, config['name'])
     log.info(
         'Reading configuration file from \'%s\', conf spec from \'%s\''
@@ -593,7 +606,7 @@ def go(conf_file, log_dir, classpath='', clean=False):
     output = config['output_dir']
     _prepare_output_directory(clean, output)
     _prepare_classpath(classpath)
-    status, msg = run_tasks(config)
+    status, msg = run_tasks(config, data)
     shutil.copy(conf_file, output)
     return status, msg
 
@@ -603,11 +616,11 @@ postvect_dumper_added_already = False
 if __name__ == '__main__':
     args = config.arg_parser.parse_args()
     log_dir = args.log_path
-    configuration = args.configuration
+    conf_file = args.configuration
     classpath = args.classpath
     clean = args.clean
 
-    go(configuration, log_dir, classpath, clean)
+    go(conf_file, log_dir, classpath=classpath, clean=clean)
 
 
 

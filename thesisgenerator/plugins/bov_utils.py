@@ -1,3 +1,4 @@
+from copy import deepcopy
 import csv
 import glob
 import os
@@ -5,14 +6,13 @@ import re
 import shutil
 import sys
 import ast
-from itertools import chain
 
 import numpy
 from numpy import nonzero
+from thesisgenerator.__main__ import go, _get_data_iterators, parse_config_file
 
 
 try:
-    from thesisgenerator.__main__ import go
     from thesisgenerator.utils import replace_in_file
 except ImportError:
 # if one tries to run this script from the main project directory the
@@ -119,17 +119,40 @@ def _write_exp2_5_6_7_8_conf_file(base_conf_file, exp_id, run_id, sample_size):
 
 def _exp2_5_6_7_8_file_iterator(sizes, exp_id, conf_file):
     for id, size in enumerate(sizes):
-        new_conf_file, log_file = _write_exp2_5_6_7_8_conf_file(conf_file, exp_id,
+        new_conf_file, log_file = _write_exp2_5_6_7_8_conf_file(conf_file,
+            exp_id,
             id, size)
         print 'Yielding %s' % new_conf_file
         yield new_conf_file, log_file
     raise StopIteration
 
 
-def evaluate_thesauri(file_iterator, pool_size=1):
+def evaluate_thesauri(base_conf_file, file_iterator, pool_size=1):
+    config, configspec_file = parse_config_file(base_conf_file)
     from joblib import Parallel, delayed
 
-    Parallel(n_jobs=pool_size)(delayed(go)(new_conf_file, log_file) for
+    # load the dataset just once
+    options = {}
+    options['input'] = config['feature_extraction']['input']
+
+    try:
+        options['input_generator'] = config['feature_extraction'][
+            'input_generator']
+    except KeyError:
+        options['input_generator'] = ''
+    options['source'] = config['training_data']
+
+    print 'Loading training data'
+    x_vals, y_vals = _get_data_iterators(**options)
+    # todo this only makes sense when we are using a pre-defined test set
+    if config['test_data']:
+        print 'Loading test data'
+        options['source'] = config['test_data']
+        x_test, y_test = _get_data_iterators(**options)
+
+    data = (x_vals, y_vals, x_test, y_test)
+    Parallel(n_jobs=pool_size)(delayed(go)(new_conf_file, log_file,
+        data=deepcopy(data)) for
         new_conf_file, log_file in file_iterator)
 
 
@@ -328,6 +351,7 @@ def consolidate_results(conf_dir, log_dir, output_dir,
 
     if unknown_pos_stats:
         from pandas import DataFrame
+
         df = DataFrame(unknown_pos_stats).T
         df.to_csv('unknown_token_stats.csv')
         df = DataFrame(found_pos_stats).T
@@ -339,29 +363,31 @@ if __name__ == '__main__':
     # on local machine
     prefix = '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/thesisgenerator'
     pattern = '%s/../Byblo-2.1.0/exp6-1*/*sims.neighbours.strings' % (prefix)
-    num_workers = 4
+    num_workers = 1
 
     # on cluster
-    prefix = '/mnt/lustre/scratch/inf/mmb28/thesisgenerator'
-    pattern = '%s/../FeatureExtrationToolkit/exp6-1*/*sims.neighbours' \
-              '.strings' % prefix
-    num_workers = 30
+    # prefix = '/mnt/lustre/scratch/inf/mmb28/thesisgenerator'
+    # pattern = '%s/../FeatureExtrationToolkit/exp6-1*/*sims.neighbours' \
+    #           '.strings' % prefix
+    # num_workers = 30
 
     # ----------- EXPERIMENT 1 -----------
     # it1 = _exp1_file_iterator(pattern, '%s/conf/exp1/exp1_base.conf' % prefix)
     # evaluate_thesauri(it1, pool_size=num_workers)
 
     # ----------- EXPERIMENT 2 -----------
-    sizes = chain([50], range(100, 1001, 100), range(1500, 5000, 500))
+    # sizes = chain(range(10, 50, 10), range(50, 500, 50))
+    sizes = [20, 30]
     # last value is the total number of documents
-    for i in [2]:
+    for i in [9]:
+        base_conf_file = '%s/conf/exp%d/exp%d_base.conf' % (prefix, i, i)
         it2 = _exp2_5_6_7_8_file_iterator(sizes, i,
-            '%s/conf/exp%d/exp%d_base.conf' % (prefix, i, i)
+            base_conf_file
         )
-        # evaluate_thesauri(it2, pool_size=num_workers)
+        evaluate_thesauri(base_conf_file, it2, pool_size=num_workers)
 
     # ----------- CONSOLIDATION -----------
-    for i in [5,7,8]:
+    for i in [9]:
         consolidate_results(
             '%s/conf/exp%d/exp%d_base-variants' % (prefix, i, i),
             '%s/conf/exp%d/logs/' % (prefix, i),
