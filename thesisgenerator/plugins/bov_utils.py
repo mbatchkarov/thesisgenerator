@@ -158,7 +158,7 @@ def _extract_thesausus_coverage_info(log_txt):
 
     def every_other(iterable):
         """Returns every other element in a iterable in a silly way"""
-        return numpy.array(iterable)[range(0, len(iterable), 2)]
+        return numpy.array(iterable)[range(1, len(iterable), 2)]
 
     unk_tok = [int(x) for x in every_other(
         re.findall('Unknown tokens: ([0-9]+)', log_txt))]
@@ -208,7 +208,8 @@ def _pos_statistics(input_file):
     return Counter(unknown_pos), Counter(found_pos)
 
 
-def consolidate_results(conf_dir, log_dir, output_dir):
+def consolidate_results(conf_dir, log_dir, output_dir,
+                        unknown_pos_stats_enabled=False):
     """
     Consolidates the results of a series of experiment to ./summary.csv
     A single thesaurus must be used in each experiment
@@ -293,7 +294,8 @@ def consolidate_results(conf_dir, log_dir, output_dir):
             return numpy.std(x) if x else -1
 
         s = int(my_mean(data_shape_x))
-        unknown_pos_stats[s], found_pos_stats[s] = _pos_statistics(log_file)
+        if unknown_pos_stats_enabled:
+            unknown_pos_stats[s], found_pos_stats[s] = _pos_statistics(log_file)
 
         # find out the classifier score from the final csv file
         output_file = os.path.join(output_dir, '%s.out.csv' % exp_name)
@@ -324,12 +326,12 @@ def consolidate_results(conf_dir, log_dir, output_dir):
             print 'WARNING: %s is missing' % output_file
             continue    # file is missing
 
-    from pandas import DataFrame
-
-    df = DataFrame(unknown_pos_stats).T
-    df.to_csv('unknown_token_stats.csv')
-    df = DataFrame(found_pos_stats).T
-    df.to_csv('found_token_stats.csv')
+    if unknown_pos_stats:
+        from pandas import DataFrame
+        df = DataFrame(unknown_pos_stats).T
+        df.to_csv('unknown_token_stats.csv')
+        df = DataFrame(found_pos_stats).T
+        df.to_csv('found_token_stats.csv')
 
 
 if __name__ == '__main__':
@@ -340,10 +342,10 @@ if __name__ == '__main__':
     num_workers = 4
 
     # on cluster
-    # prefix = '/mnt/lustre/scratch/inf/mmb28/thesisgenerator'
-    # pattern = '%s/../FeatureExtrationToolkit/exp6-1*/*sims.neighbours' \
-    #           '.strings' % prefix
-    # num_workers = 30
+    prefix = '/mnt/lustre/scratch/inf/mmb28/thesisgenerator'
+    pattern = '%s/../FeatureExtrationToolkit/exp6-1*/*sims.neighbours' \
+              '.strings' % prefix
+    num_workers = 30
 
     # ----------- EXPERIMENT 1 -----------
     # it1 = _exp1_file_iterator(pattern, '%s/conf/exp1/exp1_base.conf' % prefix)
@@ -359,7 +361,7 @@ if __name__ == '__main__':
         # evaluate_thesauri(it2, pool_size=num_workers)
 
     # ----------- CONSOLIDATION -----------
-    for i in [2, 3]:
+    for i in [5,7,8]:
         consolidate_results(
             '%s/conf/exp%d/exp%d_base-variants' % (prefix, i, i),
             '%s/conf/exp%d/logs/' % (prefix, i),
