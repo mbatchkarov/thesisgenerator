@@ -509,7 +509,6 @@ def _config_logger(output_path=None, name='log.txt'):
         sleep(0.1)
     assert len(newly_created_logger.handlers) == 0
 
-    print newly_created_logger.handlers
     fmt = logging.Formatter(fmt=('%(asctime)s\t%(module)s.%(funcName)s '
                                  '(line %(lineno)d)\t%(levelname)s : %('
                                  'message)s'),
