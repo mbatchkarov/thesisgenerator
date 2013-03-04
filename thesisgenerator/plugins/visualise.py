@@ -26,7 +26,45 @@ def query_to_data_frame(sql):
 
 # <codecell>
 
-def performance_bar_chart(tables, classifiers,width = 0.13):
+def _grouped_bar_chart(data_frames, width, x_columns, y_columns,
+                       yerr_columns, hatch=False):
+    if (len(x_columns) == 1):
+        x_columns = [x_columns[0] for _ in range(len(data_frames))]
+    if (len(y_columns) == 1):
+        y_columns = [y_columns[0] for _ in range(len(data_frames))]
+    if (len(yerr_columns) == 1):
+        yerr_columns = [yerr_columns[0] for _ in range(len(data_frames))]
+
+    assert len(data_frames) == len(x_columns) == len(y_columns) == \
+           len(yerr_columns)
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    cm = plt.get_cmap('gist_rainbow')
+    num_groups = len(data_frames)
+    # todo either predefine a set of colors of a set of hatch styles, not both
+    ax.set_color_cycle([cm(1. * i / num_groups) for i in range(num_groups)])
+
+    hatches = " " * len(data_frames)
+    if hatch:
+        hatches = "\\-/x*."
+
+    for (i, (name, df)) in enumerate(data_frames):
+        color = cm(1. * i / num_groups)
+        x = numpy.arange(len(df[x_columns[i]]))
+        y = df[y_columns[i]]
+        yerr = df[yerr_columns[i]]
+        ax.bar(x + i * width, y, width, yerr=yerr, color=color, ecolor='black',
+               linewidth=0, hatch=hatches[i % len(data_frames)])
+        ax.set_xticks(x + (i / 2) * width + width)
+        ax.set_xticklabels(tuple(df[x_columns[i]]), rotation=-30)
+    return ax
+
+
+def performance_bar_chart(tables, classifiers, width=0.13):
+    x_columns = ['sample_size']
+    y_columns = ['score_mean']
+    yerr_columns = ['score_std']
+
     data_frames = []
     for table in tables:
         for classifier in classifiers:
@@ -35,34 +73,59 @@ def performance_bar_chart(tables, classifiers,width = 0.13):
             print sql
             data_frames.append(('%.2d-%s' % (table, classifier),
                                 query_to_data_frame(sql)))
-           # the width of the bars
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-    cm = plt.get_cmap('gist_rainbow')
-    num_groups = len(data_frames)
-    # todo either predefine a set of colors of a set of hatch styles, not both
-    ax.set_color_cycle([cm(1. * i / num_groups) for i in range(num_groups)])
-    for (i, (name, df)) in enumerate(data_frames):
-        color = cm(1. * i / num_groups)
-        x = numpy.arange(len(df['sample_size']))
-        y = df['score_mean']
-        yerr = df['score_std']
-        ax.bar(x + i * width, y, width, yerr=yerr, color=color, ecolor='black',
-            linewidth=0, hatch="\\-/x*."[i % len(data_frames)])
-        ax.set_xlabel('Sample size')
-        ax.set_ylabel('Macroavg F1')
-        # ax.set_title(
-        #     'Earn vs not-earn with different thesauri and training data')
-        ax.set_xticks(x + (i / 2) * width + width)
-        ax.set_xticklabels(tuple(df['sample_size']))
-    ax.legend(map(operator.itemgetter(0), data_frames), 'lower right')
+
+    ax = _grouped_bar_chart(data_frames, width, x_columns, y_columns,
+                            yerr_columns)
+
+    ax.set_xlabel('Sample size')
+    ax.set_ylabel('Macroavg F1')
+    ax.set_title('Classifier performance')
+    ax.legend(map(operator.itemgetter(0), data_frames), 'right')
     exp_range = '-'.join(map(str, tables))
-    plt.savefig('figures/exp%s-performa.png'%exp_range, format='png',
-        dpi=300)
-    # plt.show()
+    plt.savefig('figures/exp%s-performa.png' % exp_range, format='png',
+                dpi=300)
 
 
-performance_bar_chart([7,8], ['LinearSVC'])
-performance_bar_chart(range(9,12), ['LinearSVC', 'BernoulliNB'])
+def coverage_bar_chart(experiments, width=0.13):
+    data_frames = []
+    stats = [
+        ["unknown_tok_mean", "unknown_tok_std"],
+        ["found_tok_mean", "found_tok_std"],
+        ["replaced_tok_mean", "replaced_tok_std"],
+        ["unknown_typ_mean", "unknown_typ_std"],
+        ["found_typ_mean", "found_typ_std"],
+        ["replaced_typ_mean", "replaced_typ_std"]
+    ]
 
+    for experiment in experiments:
+        for stat in stats:
+            sql = "SELECT DISTINCT sample_size,total_tok,total_typ,%s " \
+                  "FROM data%.2d" % (','.join(stat), experiment)
+            print sql
+            df = query_to_data_frame(sql)
+            # normalise coverage stats by total types/tokens
+            df[stat[0]] = df[stat[0]] / \
+                          map(float, df['total_%s' % stat[0][-8:-5]])
+            df[stat[1]] = df[stat[1]] / \
+                          map(float, df['total_%s' % stat[1][-7:-4]])
+            name = '%.2d-%s'.format(experiment, stat[0])
+            data_frames.append((name, df))
+
+    x_columns = ['sample_size']
+    y_columns = [x[0] for x in stats]
+    yerr_columns = [x[1] for x in stats]
+
+    ax = _grouped_bar_chart(data_frames, width, x_columns, y_columns,
+                            yerr_columns, hatch=True)
+    ax.set_xlabel('Sample size')
+    ax.set_title('Thesaurus coverage')
+    ax.legend(y_columns, 'right')
+    plt.savefig('figures/exp%s-coverage.png' % experiment, format='png',
+                dpi=300)
+
+
+performance_bar_chart([7, 8], ['LinearSVC'])
+# performance_bar_chart(range(9, 12), ['LinearSVC', 'BernoulliNB'])
+performance_bar_chart(range(9, 12), ['BernoulliNB'])
+coverage_bar_chart([8])
 print 'done'
