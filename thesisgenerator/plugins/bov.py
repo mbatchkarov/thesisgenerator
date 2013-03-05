@@ -275,6 +275,8 @@ class ThesaurusVectorizer(TfidfVectorizer):
                 term_index_in_vocab = vocabulary.get(document_term)
                 if term_index_in_vocab is not None:
                 #None if term is not in seen vocabulary
+                    logging.getLogger('root').debug(
+                        'Known token in doc %d: %s' % (doc_id, document_term))
                     doc_id_indices.append(doc_id)
                     term_indices.append(term_index_in_vocab)
                     values.append(count)

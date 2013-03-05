@@ -26,14 +26,22 @@ def query_to_data_frame(sql):
 
 # <codecell>
 
-def _grouped_bar_chart(data_frames, width, x_columns, y_columns,
-                       yerr_columns, hatch=False):
+def _safe_column_names(data_frames, x_columns, y_columns, yerr_columns):
     if (len(x_columns) == 1):
         x_columns = [x_columns[0] for _ in range(len(data_frames))]
     if (len(y_columns) == 1):
         y_columns = [y_columns[0] for _ in range(len(data_frames))]
     if (len(yerr_columns) == 1):
         yerr_columns = [yerr_columns[0] for _ in range(len(data_frames))]
+    return x_columns, y_columns, yerr_columns
+
+
+def _grouped_bar_chart(data_frames, width, x_columns, y_columns,
+                       yerr_columns, hatch=False):
+    x_columns, y_columns, yerr_columns = _safe_column_names(data_frames,
+                                                            x_columns,
+                                                            y_columns,
+                                                            yerr_columns)
 
     assert len(data_frames) == len(x_columns) == len(y_columns) == \
            len(yerr_columns)
@@ -68,11 +76,15 @@ def performance_bar_chart(tables, classifiers, width=0.13):
     data_frames = []
     for table in tables:
         for classifier in classifiers:
-            sql = "SELECT * FROM data%.2d where metric == \"macroavg_f1\" and" \
+            sql = "SELECT sample_size,score_mean,score_std FROM data%.2d " \
+                  "where " \
+                  "metric == \"macroavg_f1\" and" \
                   " classifier == \"%s\"" % (table, classifier)
             print sql
+            df = query_to_data_frame(sql)
+            # print df
             data_frames.append(('%.2d-%s' % (table, classifier),
-                                query_to_data_frame(sql)))
+                                df))
 
     ax = _grouped_bar_chart(data_frames, width, x_columns, y_columns,
                             yerr_columns)
@@ -108,7 +120,7 @@ def coverage_bar_chart(experiments, width=0.13):
                           map(float, df['total_%s' % stat[0][-8:-5]])
             df[stat[1]] = df[stat[1]] / \
                           map(float, df['total_%s' % stat[1][-7:-4]])
-            name = '%.2d-%s'.format(experiment, stat[0])
+            name = '%.2d-%s'%(experiment, stat[0])
             data_frames.append((name, df))
 
     x_columns = ['sample_size']
@@ -118,14 +130,16 @@ def coverage_bar_chart(experiments, width=0.13):
     ax = _grouped_bar_chart(data_frames, width, x_columns, y_columns,
                             yerr_columns, hatch=True)
     ax.set_xlabel('Sample size')
+    ax.set_ylabel('Proportion of total tokens/types')
     ax.set_title('Thesaurus coverage')
-    ax.legend(y_columns, 'right')
+    ax.legend(y_columns, 'best')
     plt.savefig('figures/exp%s-coverage.png' % experiment, format='png',
                 dpi=300)
 
 
 performance_bar_chart([7, 8], ['LinearSVC'])
-# performance_bar_chart(range(9, 12), ['LinearSVC', 'BernoulliNB'])
-performance_bar_chart(range(9, 12), ['BernoulliNB'])
+performance_bar_chart(range(9, 12), ['LinearSVC', 'BernoulliNB'])
+# performance_bar_chart(range(9, 12), ['BernoulliNB'])
+performance_bar_chart([2,5,6], ['LinearSVC'])
 coverage_bar_chart([8])
 print 'done'

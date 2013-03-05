@@ -28,13 +28,11 @@ class DatasetDumper(TransformerMixin):
 
         v = [inverse_vocab[i] for i in range(len(inverse_vocab))]
         c.writerow(['id'] + ['target'] + v)
-        from pandas import DataFrame
         rows = []
         for i in range(X.shape[0]):
             vals = ['%1.2f' % x for x in X[i, :].todense().tolist()[0]]
             c.writerow([i] + [y[i]] + vals)
             rows.append([i] + [y[i]] + vals)
-        df = DataFrame(rows, columns=['id'] + ['target'] + v)
         return self
 
     def transform(self, X):
