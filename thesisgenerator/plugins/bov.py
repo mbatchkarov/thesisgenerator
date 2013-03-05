@@ -3,11 +3,12 @@ import locale
 import logging
 import pickle
 import scipy.sparse as sp
-from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.feature_extraction.text import CountVectorizer
 
 preloaded_thesauri = {}
 
-class ThesaurusVectorizer(TfidfVectorizer):
+
+class ThesaurusVectorizer(CountVectorizer):
     """
     A thesaurus-backed CountVectorizer that replaces unknown features with
     their k nearest neighbours in the thesaurus
@@ -44,42 +45,42 @@ class ThesaurusVectorizer(TfidfVectorizer):
         except KeyError:
             pass
         super(ThesaurusVectorizer, self).__init__(input=input,
-            charset=charset,
-            charset_error=charset_error,
-            strip_accents=strip_accents,
-            lowercase=lowercase,
-            preprocessor=preprocessor,
-            tokenizer=tokenizer,
-            analyzer=analyzer,
-            stop_words=stop_words,
-            token_pattern=token_pattern,
-            min_n=min_n,
-            max_n=max_n,
-            ngram_range=ngram_range,
-            max_df=max_df,
-            min_df=min_df,
-            max_features=max_features,
-            vocabulary=vocabulary,
-            use_idf=use_idf,
-            smooth_idf=smooth_idf,
-            sublinear_tf=sublinear_tf,
-            binary=binary,
-            norm=norm,
-            dtype=dtype
+                                                  charset=charset,
+                                                  charset_error=charset_error,
+                                                  strip_accents=strip_accents,
+                                                  lowercase=lowercase,
+                                                  preprocessor=preprocessor,
+                                                  tokenizer=tokenizer,
+                                                  analyzer=analyzer,
+                                                  stop_words=stop_words,
+                                                  token_pattern=token_pattern,
+                                                  min_n=min_n,
+                                                  max_n=max_n,
+                                                  ngram_range=ngram_range,
+                                                  max_df=max_df,
+                                                  min_df=min_df,
+                                                  max_features=max_features,
+                                                  vocabulary=vocabulary,
+                                                  # use_idf=use_idf,
+                                                  # smooth_idf=smooth_idf,
+                                                  # sublinear_tf=sublinear_tf,
+                                                  binary=binary,
+                                                  # norm=norm,
+                                                  dtype=dtype
         )
 
     def load_thesauri(self):
         """
-        Loads a set Byblo-generated thesaurus form the specified file and returns
-        their union. If any of the files has been parsed already a cached version
-        is used.
+        Loads a set Byblo-generated thesaurus form the specified file and
+        returns their union. If any of the files has been parsed already a
+        cached version is used.
 
         Parameters:
         self.thesaurus_files: string, path the the Byblo-generated thesaurus
         self.use_pos: boolean, whether the PoS tags should be stripped from
-            entities (if they are present)
-        self.sim_threshold: what is the min similarity for neighbours that should be
-        loaded
+        entities (if they are present)
+        self.sim_threshold: what is the min similarity for neighbours that
+        should be loaded
         """
         if not self.thesaurus_files:
             return None
@@ -110,7 +111,8 @@ class ThesaurusVectorizer(TfidfVectorizer):
                         # pairs for (neighbour, similarity)
                             continue
                         if tokens[0] != FILTERED:
-                            to_insert = [(word.lower(), float(sim)) for (word, sim)
+                            to_insert = [(word.lower(), float(sim)) for
+                                         (word, sim)
                                          in
                                          self.iterate_nonoverlapping_pairs(
                                              tokens, 1, self.k)
@@ -124,7 +126,8 @@ class ThesaurusVectorizer(TfidfVectorizer):
                                     logging.getLogger('root').debug(
                                         'Multiple entries for "%s" found' %
                                         tokens[0])
-                                curr_thesaurus[tokens[0].lower()].extend(to_insert)
+                                curr_thesaurus[tokens[0].lower()].extend(
+                                    to_insert)
 
                 # note- do not attempt to lowercase if the thesaurus has not already been
                 # lowercased- may result in multiple neighbour lists for the same entry
@@ -175,7 +178,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
             tokens = []
             n_original_tokens = len(original_tokens)
             for n in xrange(min_n,
-                    min(max_n + 1, n_original_tokens + 1)):
+                            min(max_n + 1, n_original_tokens + 1)):
                 for i in xrange(n_original_tokens - n + 1):
                     tokens.append(u" ".join(original_tokens[i: i + n]))
         return tokens  # + last_chars + shapes
@@ -244,7 +247,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
                 # no thesaurus source, fall back to super behaviour
                 logging.getLogger('root').warn("F**k, no thesaurus!")
                 return super(ThesaurusVectorizer,
-                    self)._term_count_dicts_to_matrix(term_count_dicts)
+                             self)._term_count_dicts_to_matrix(term_count_dicts)
             else:
                 # thesaurus file specified, parse it
                 self._thesaurus = self.load_thesauri()
@@ -333,7 +336,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
         # this is sometimes a generator, convert to list to use len
         shape = (num_documents, max(vocabulary.itervalues()) + 1)
         spmatrix = sp.coo_matrix((values, (doc_id_indices, term_indices)),
-            shape=shape, dtype=self.dtype)
+                                 shape=shape, dtype=self.dtype)
         # remove frequencies if binary feature were requested
         if self.binary:
             spmatrix.data.fill(1)
