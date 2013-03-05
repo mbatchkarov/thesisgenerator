@@ -9,6 +9,7 @@ import ast
 from itertools import chain
 import numpy
 from numpy import nonzero
+
 try:
     from thesisgenerator.__main__ import go, _get_data_iterators, parse_config_file
     from thesisgenerator.utils import replace_in_file
@@ -37,7 +38,7 @@ def inspect_thesaurus_effect(outdir, clf_name, thesaurus_file, pipeline,
     predicted2 = pipeline.predict(x_test)
 
     with open('%s/before_after_%s.csv' % (outdir, thesaurus_file),
-            'a') as outfile:
+              'a') as outfile:
         outfile.write('DocID,')
         outfile.write(','.join([str(x) for x in range(len(predicted))]))
         outfile.write('\n')
@@ -58,13 +59,13 @@ def _write_exp1_conf_file(base_conf_file, run_id, thes):
     the experiment name and the (SINGLE) thesaurus used
     """
     log_file, new_conf_file = _prepare_conf_files(base_conf_file, 1,
-        run_id)
+                                                  run_id)
 
     replace_in_file(new_conf_file, 'name=.*', 'name=exp%d-%d' % (1, run_id))
 
     # it is important that the list of thesaurus files in the conf file ends with a comma
     replace_in_file(new_conf_file, 'thesaurus_files=.*',
-        'thesaurus_files=%s,' % thes)
+                    'thesaurus_files=%s,' % thes)
     return new_conf_file, log_file
 
 
@@ -106,20 +107,20 @@ def _write_exp2_5_6_7_8_conf_file(base_conf_file, exp_id, run_id, sample_size):
      provided base conf file
     """
     log_file, new_conf_file = _prepare_conf_files(base_conf_file, exp_id,
-        run_id)
+                                                  run_id)
 
     replace_in_file(new_conf_file, 'name=.*',
-        'name=exp%d-%d' % (exp_id, run_id))
+                    'name=exp%d-%d' % (exp_id, run_id))
     replace_in_file(new_conf_file, 'sample_size=.*',
-        'sample_size=%s' % sample_size)
+                    'sample_size=%s' % sample_size)
     return new_conf_file, log_file
 
 
 def _exp2_5_6_7_8_file_iterator(sizes, exp_id, conf_file):
     for id, size in enumerate(sizes):
         new_conf_file, log_file = _write_exp2_5_6_7_8_conf_file(conf_file,
-            exp_id,
-            id, size)
+                                                                exp_id,
+                                                                id, size)
         print 'Yielding %s' % new_conf_file
         yield new_conf_file, log_file
     raise StopIteration
@@ -150,8 +151,8 @@ def evaluate_thesauri(base_conf_file, file_iterator, pool_size=1):
 
     data = (x_vals, y_vals, x_test, y_test)
     Parallel(n_jobs=pool_size)(delayed(go)(new_conf_file, log_file,
-        data=deepcopy(data)) for
-        new_conf_file, log_file in file_iterator)
+                                           data=deepcopy(data)) for
+                               new_conf_file, log_file in file_iterator)
 
 
 def _infer_thesaurus_name(conf_txt):
@@ -345,10 +346,12 @@ def consolidate_results(conf_dir, log_dir, output_dir,
 
 if __name__ == '__main__':
 
+    i = int(sys.argv[1])
+    print 'RUNNING EXPERIMENT %d' % i
     # on local machine
     prefix = '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/thesisgenerator'
-    pattern = '%s/../Byblo-2.1.0/exp6-1*/*sims.neighbours.strings' % (prefix)
-    num_workers = 1
+    pattern = '%s/../Byblo-2.1.0/exp6-1*/*sims.neighbours.strings' % prefix
+    num_workers = 4
 
     # on cluster
     prefix = '/mnt/lustre/scratch/inf/mmb28/thesisgenerator'
@@ -362,18 +365,15 @@ if __name__ == '__main__':
 
     # ----------- EXPERIMENT 2 -----------
     sizes = chain(range(100, 1000, 100), range(1000, 5000, 500))
-    # last value is the total number of documents
-    for i in [2,5,8]:
-        base_conf_file = '%s/conf/exp%d/exp%d_base.conf' % (prefix, i, i)
-        it2 = _exp2_5_6_7_8_file_iterator(sizes, i,
-            base_conf_file
-        )
-        evaluate_thesauri(base_conf_file, it2, pool_size=num_workers)
+    sizes = chain(range(10, 100, 10), range(100, 500, 50))
+
+    base_conf_file = '%s/conf/exp%d/exp%d_base.conf' % (prefix, i, i)
+    it2 = _exp2_5_6_7_8_file_iterator(sizes, i,
+                                      base_conf_file)
+    evaluate_thesauri(base_conf_file, it2, pool_size=num_workers)
 
     # ----------- CONSOLIDATION -----------
-    for i in [2,5,8]:
-        consolidate_results(
-            '%s/conf/exp%d/exp%d_base-variants' % (prefix, i, i),
-            '%s/conf/exp%d/logs/' % (prefix, i),
-            '%s/conf/exp%d/output/' % (prefix, i),
-        )
+    consolidate_results(
+        '%s/conf/exp%d/exp%d_base-variants' % (prefix, i, i),
+        '%s/conf/exp%d/logs/' % (prefix, i),
+        '%s/conf/exp%d/output/' % (prefix, i))
