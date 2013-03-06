@@ -101,52 +101,77 @@ def _prepare_conf_files(base_conf_file, exp_id, run_id):
     return log_file, new_conf_file
 
 
-def _write_exp2_5_6_7_8_conf_file(base_conf_file, exp_id, run_id, sample_size):
+def _write_exp2_to_14_conf_file(base_conf_file, exp_id, run_id, sample_size):
+    """
+    Prepares conf files for exp2-14 by altering the sample size parameter in
+    the
+     provided base conf file
+    """
+    log_dir, new_conf_file = _prepare_conf_files(base_conf_file, exp_id,
+                                                 run_id)
+
+    replace_in_file(new_conf_file, 'name=.*',
+                    'name=exp%d-%d' % (exp_id, run_id))
+    replace_in_file(new_conf_file, 'sample_size=.*',
+                    'sample_size=%s' % sample_size)
+    return new_conf_file, log_dir
+
+
+def _exp2_5_6_7_8_file_iterator(sizes, exp_id, conf_file):
+    for id, size in enumerate(sizes):
+        new_conf_file, log_file = _write_exp2_to_14_conf_file(conf_file,
+                                                              exp_id,
+                                                              id, size)
+        print 'Yielding %s, %s' % (new_conf_file, new_conf_file)
+        yield new_conf_file, log_file
+    raise StopIteration
+
+
+def _write_exp15_conf_file(base_conf_file, exp_id, run_id, shuffle):
     """
     Prepares conf files for exp2 by altering the sample size parameter in the
      provided base conf file
     """
     log_file, new_conf_file = _prepare_conf_files(base_conf_file, exp_id,
                                                   run_id)
-
     replace_in_file(new_conf_file, 'name=.*',
                     'name=exp%d-%d' % (exp_id, run_id))
-    replace_in_file(new_conf_file, 'sample_size=.*',
-                    'sample_size=%s' % sample_size)
+    replace_in_file(new_conf_file, 'shuffle_targets=.*',
+                    'shuffle_targets=%r' % shuffle)
     return new_conf_file, log_file
 
 
-def _exp2_5_6_7_8_file_iterator(sizes, exp_id, conf_file):
-    for id, size in enumerate(sizes):
-        new_conf_file, log_file = _write_exp2_5_6_7_8_conf_file(conf_file,
-                                                                exp_id,
-                                                                id, size)
-        print 'Yielding %s' % new_conf_file
+def _exp15_file_iterator(conf_file):
+    for id, shuffle in enumerate([True, False]):
+        new_conf_file, log_file = _write_exp15_conf_file(conf_file, 15, id,
+                                                         shuffle)
+        print 'Yielding %s, %s' % (new_conf_file, log_file)
         yield new_conf_file, log_file
     raise StopIteration
 
 
 def evaluate_thesauri(base_conf_file, file_iterator, pool_size=1):
-    config, configspec_file = parse_config_file(base_conf_file)
+    config_obj, configspec_file = parse_config_file(base_conf_file)
     from joblib import Parallel, delayed
 
     # load the dataset just once
     options = {}
-    options['input'] = config['feature_extraction']['input']
+    options['input'] = config_obj['feature_extraction']['input']
+    options['shuffle_targets'] = config_obj['shuffle_targets']
 
     try:
-        options['input_generator'] = config['feature_extraction'][
+        options['input_generator'] = config_obj['feature_extraction'][
             'input_generator']
     except KeyError:
         options['input_generator'] = ''
-    options['source'] = config['training_data']
+    options['source'] = config_obj['training_data']
 
     print 'Loading training data'
     x_vals, y_vals = _get_data_iterators(**options)
     # todo this only makes sense when we are using a pre-defined test set
-    if config['test_data']:
+    if config_obj['test_data']:
         print 'Loading test data'
-        options['source'] = config['test_data']
+        options['source'] = config_obj['test_data']
         x_test, y_test = _get_data_iterators(**options)
 
     data = (x_vals, y_vals, x_test, y_test)
@@ -345,32 +370,42 @@ def consolidate_results(conf_dir, log_dir, output_dir,
 
 
 if __name__ == '__main__':
-
     i = int(sys.argv[1])
     print 'RUNNING EXPERIMENT %d' % i
+
     # on local machine
     prefix = '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/thesisgenerator'
-    pattern = '%s/../Byblo-2.1.0/exp6-1*/*sims.neighbours.strings' % prefix
+    exp1_thes_pattern = '%s/../Byblo-2.1.0/exp6-1*/*sims.neighbours.strings' % \
+                        prefix
     num_workers = 4
 
     # on cluster
-    prefix = '/mnt/lustre/scratch/inf/mmb28/thesisgenerator'
-    pattern = '%s/../FeatureExtrationToolkit/exp6-1*/*sims.neighbours' \
-              '.strings' % prefix
-    num_workers = 30
+    # prefix = '/mnt/lustre/scratch/inf/mmb28/thesisgenerator'
+    # exp1_thes_pattern = '%s/../FeatureExtrationToolkit/exp6-1*/*sims.' \
+    #                     'neighbours.strings' % prefix
+    # num_workers = 30
 
     # ----------- EXPERIMENT 1 -----------
-    # it1 = _exp1_file_iterator(pattern, '%s/conf/exp1/exp1_base.conf' % prefix)
-    # evaluate_thesauri(it1, pool_size=num_workers)
+    if i == 1:
+        it = _exp1_file_iterator(exp1_thes_pattern,
+                                 '%s/conf/exp1/exp1_base.conf' % prefix)
 
-    # ----------- EXPERIMENT 2 -----------
-    sizes = chain(range(100, 1000, 100), range(1000, 5000, 500))
-    sizes = chain(range(10, 100, 10), range(100, 500, 50))
+    # ----------- EXPERIMENTS 2-14 -----------
+    elif 1 < i <= 14:
+        sizes = chain(range(100, 1000, 100), range(1000, 5000, 500))
+        sizes = chain(range(10, 100, 10), range(100, 500, 50))
 
-    base_conf_file = '%s/conf/exp%d/exp%d_base.conf' % (prefix, i, i)
-    it2 = _exp2_5_6_7_8_file_iterator(sizes, i,
-                                      base_conf_file)
-    evaluate_thesauri(base_conf_file, it2, pool_size=num_workers)
+        base_conf_file = '%s/conf/exp%d/exp%d_base.conf' % (prefix, i, i)
+        it = _exp2_5_6_7_8_file_iterator(sizes, i,
+                                         base_conf_file)
+        evaluate_thesauri(base_conf_file, it, pool_size=num_workers)
+    elif i == 15:
+        base_conf_file = '%s/conf/exp%d/exp%d_base.conf' % (prefix, i, i)
+        it = _exp15_file_iterator(base_conf_file)
+    else:
+        raise ValueError('No such experiment number: %d' % i)
+
+    evaluate_thesauri(base_conf_file, it, pool_size=num_workers)
 
     # ----------- CONSOLIDATION -----------
     consolidate_results(

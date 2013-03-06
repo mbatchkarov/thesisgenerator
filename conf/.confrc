@@ -1,6 +1,7 @@
 name=string()
 debug=boolean(default=False)
 joblib_caching=boolean(default=False)
+shuffle_targets=boolean(default=False)
 
 [feature_extraction]
     run=boolean(default=True)
