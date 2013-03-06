@@ -93,8 +93,11 @@ def performance_bar_chart(tables, classifiers, width=0.13):
     ax.set_ylabel('Macroavg F1')
     ax.set_title('Classifier performance')
     ax.legend(map(operator.itemgetter(0), data_frames), 'right')
+    ax.set_ylim([0., 1.])
     exp_range = '-'.join(map(str, tables))
-    plt.savefig('figures/exp%s-performa.png' % exp_range, format='png',
+    classifiers = '-'.join([x[:5] for x in classifiers])
+    plt.savefig('figures/exp%s-%s-performa.png' % (exp_range, classifiers),
+                format='png',
                 dpi=300)
 
 
@@ -120,7 +123,7 @@ def coverage_bar_chart(experiments, width=0.13):
                           map(float, df['total_%s' % stat[0][-8:-5]])
             df[stat[1]] = df[stat[1]] / \
                           map(float, df['total_%s' % stat[1][-7:-4]])
-            name = '%.2d-%s'%(experiment, stat[0])
+            name = '%.2d-%s' % (experiment, stat[0])
             data_frames.append((name, df))
 
     x_columns = ['sample_size']
@@ -140,6 +143,18 @@ def coverage_bar_chart(experiments, width=0.13):
 performance_bar_chart([7, 8], ['LinearSVC'])
 performance_bar_chart(range(9, 12), ['LinearSVC', 'BernoulliNB'])
 # performance_bar_chart(range(9, 12), ['BernoulliNB'])
-performance_bar_chart([2,5,6], ['LinearSVC'])
+performance_bar_chart([2, 5, 6], ['LinearSVC'])
+performance_bar_chart([9, 10, 11], ['LinearSVC'])
+performance_bar_chart([9, 10, 11], ['BernoulliNB'])
+performance_bar_chart([12, 13, 14], ['LinearSVC'])
+performance_bar_chart([12, 13, 14], ['BernoulliNB'])
+performance_bar_chart([12, 13, 14], ['MultinomialNB'])
+performance_bar_chart([9, 12], ['LinearSVC'])
+performance_bar_chart([9, 12], ['BernoulliNB'])
+performance_bar_chart([10, 13], ['LinearSVC'])
+performance_bar_chart([10, 13], ['BernoulliNB'])
+performance_bar_chart([11, 14], ['LinearSVC'])
+performance_bar_chart([11, 14], ['BernoulliNB'])
+
 coverage_bar_chart([8])
 print 'done'
