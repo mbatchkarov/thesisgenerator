@@ -150,31 +150,35 @@ def _exp15_file_iterator(conf_file):
     raise StopIteration
 
 
-def evaluate_thesauri(base_conf_file, file_iterator, pool_size=1):
+def evaluate_thesauri(base_conf_file, file_iterator,
+                      reload_data=False, pool_size=1):
     config_obj, configspec_file = parse_config_file(base_conf_file)
     from joblib import Parallel, delayed
 
-    # load the dataset just once
-    options = {}
-    options['input'] = config_obj['feature_extraction']['input']
-    options['shuffle_targets'] = config_obj['shuffle_targets']
+    if not reload_data:
+        # load the dataset just once
+        options = {}
+        options['input'] = config_obj['feature_extraction']['input']
+        options['shuffle_targets'] = config_obj['shuffle_targets']
 
-    try:
-        options['input_generator'] = config_obj['feature_extraction'][
-            'input_generator']
-    except KeyError:
-        options['input_generator'] = ''
-    options['source'] = config_obj['training_data']
+        try:
+            options['input_generator'] = config_obj['feature_extraction'][
+                'input_generator']
+        except KeyError:
+            options['input_generator'] = ''
+        options['source'] = config_obj['training_data']
 
-    print 'Loading training data'
-    x_vals, y_vals = _get_data_iterators(**options)
-    # todo this only makes sense when we are using a pre-defined test set
-    if config_obj['test_data']:
-        print 'Loading test data'
-        options['source'] = config_obj['test_data']
-        x_test, y_test = _get_data_iterators(**options)
-
-    data = (x_vals, y_vals, x_test, y_test)
+        print 'Loading training data'
+        x_vals, y_vals = _get_data_iterators(**options)
+        # todo this only makes sense when we are using a pre-defined test set
+        if config_obj['test_data']:
+            print 'Loading test data'
+            options['source'] = config_obj['test_data']
+            x_test, y_test = _get_data_iterators(**options)
+        data = (x_vals, y_vals, x_test, y_test)
+    else:
+        data = None
+        print "WARNING: dataset will be reloaded before each sub-experiment"
     Parallel(n_jobs=pool_size)(delayed(go)(new_conf_file, log_file,
                                            data=deepcopy(data)) for
                                new_conf_file, log_file in file_iterator)
@@ -385,6 +389,7 @@ if __name__ == '__main__':
     #                     'neighbours.strings' % prefix
     # num_workers = 30
 
+    reload_data = False
     # ----------- EXPERIMENT 1 -----------
     if i == 1:
         it = _exp1_file_iterator(exp1_thes_pattern,
@@ -402,10 +407,12 @@ if __name__ == '__main__':
     elif i == 15:
         base_conf_file = '%s/conf/exp%d/exp%d_base.conf' % (prefix, i, i)
         it = _exp15_file_iterator(base_conf_file)
+        reload_data = True
     else:
         raise ValueError('No such experiment number: %d' % i)
 
-    evaluate_thesauri(base_conf_file, it, pool_size=num_workers)
+    evaluate_thesauri(base_conf_file, it, pool_size=num_workers,
+                      reload_data=reload_data)
 
     # ----------- CONSOLIDATION -----------
     consolidate_results(

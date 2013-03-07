@@ -379,25 +379,28 @@ def run_tasks(configuration, data=None):
         # very important that all relevant argument:value pairs are present
         # because joblib uses the hashed argument list to lookup cached results
         # of computations that have been executed previously
-        options = {}
-        options['input'] = configuration['feature_extraction']['input']
-        options['shuffle_targets'] = configuration['shuffle_targets']
-        try:
-            options['input_generator'] = configuration['feature_extraction'][
-                'input_generator']
-        except KeyError:
-            options['input_generator'] = ''
-        options['source'] = configuration['training_data']
         if data:
             logging.getLogger('root').info('Using pre-loaded raw data set')
             x_vals, y_vals, x_test, y_test = data
         else:
+            options = {}
+            options['input'] = configuration['feature_extraction']['input']
+            options['shuffle_targets'] = configuration['shuffle_targets']
+            try:
+                options['input_generator'] = \
+                    configuration['feature_extraction']['input_generator']
+            except KeyError:
+                options['input_generator'] = ''
+            options['source'] = configuration['training_data']
+
             logging.getLogger('root').info('Loading raw training set')
             x_vals, y_vals = cached_get_data_generators(**options)
             if configuration['test_data']:
                 logging.getLogger('root').info('Loading raw test set')
                 #  change where we read files from
                 options['source'] = configuration['test_data']
+                # ensure that only the training data targets are shuffled
+                options['shuffle_targets'] = False
                 x_test, y_test = cached_get_data_generators(**options)
             del options
 
