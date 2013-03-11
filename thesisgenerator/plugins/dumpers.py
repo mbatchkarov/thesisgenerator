@@ -30,7 +30,8 @@ class DatasetDumper(TransformerMixin):
         c.writerow(['id'] + ['target'] + v)
         rows = []
         for i in range(X.shape[0]):
-            vals = ['%1.2f' % x for x in X[i, :].todense().tolist()[0]]
+            vals = ['%1.2f' % x for x in X.todense()[i, :].tolist()[
+                0]]
             c.writerow([i] + [y[i]] + vals)
             rows.append([i] + [y[i]] + vals)
         return self

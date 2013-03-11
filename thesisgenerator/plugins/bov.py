@@ -3,12 +3,13 @@ import locale
 import logging
 import pickle
 import scipy.sparse as sp
-from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.feature_extraction.text import TfidfVectorizer
+from utils import NoopTransformer
 
 preloaded_thesauri = {}
 
 
-class ThesaurusVectorizer(CountVectorizer):
+class ThesaurusVectorizer(TfidfVectorizer):
     """
     A thesaurus-backed CountVectorizer that replaces unknown features with
     their k nearest neighbours in the thesaurus
@@ -23,7 +24,8 @@ class ThesaurusVectorizer(CountVectorizer):
                  stop_words=None, token_pattern=ur"(?u)\b\w\w+\b", min_n=None,
                  max_n=None, ngram_range=(1, 1), max_df=1.0, min_df=2,
                  max_features=None, vocabulary=None, binary=False, dtype=long,
-                 norm='l2', use_idf=True, smooth_idf=True, sublinear_tf=False):
+                 norm='l2', use_idf=True, smooth_idf=True,
+                 sublinear_tf=False, use_tfidf=True):
         """
         Builds a vectorizer the way a TfidfVectorizer is built, and takes one
         extra param specifying the path the the Byblo-generated thesaurus
@@ -39,6 +41,7 @@ class ThesaurusVectorizer(CountVectorizer):
             self.coarse_pos = coarse_pos
             # vocabulary
             self.log_vocabulary_already = False #have I done it already
+            self.use_tfidf = use_tfidf
 
             # for parsing integers with comma for thousands separator
             locale.setlocale(locale.LC_ALL, 'en_US')
@@ -61,11 +64,11 @@ class ThesaurusVectorizer(CountVectorizer):
                                                   min_df=min_df,
                                                   max_features=max_features,
                                                   vocabulary=vocabulary,
-                                                  # use_idf=use_idf,
-                                                  # smooth_idf=smooth_idf,
-                                                  # sublinear_tf=sublinear_tf,
+                                                  use_idf=use_idf,
+                                                  smooth_idf=smooth_idf,
+                                                  sublinear_tf=sublinear_tf,
                                                   binary=binary,
-                                                  # norm=norm,
+                                                  norm=norm,
                                                   dtype=dtype
         )
 
@@ -240,6 +243,13 @@ class ThesaurusVectorizer(CountVectorizer):
         """
         logging.getLogger('root').info(
             'Converting features to vectors (with thesaurus lookup)')
+
+        if not self.use_tfidf:
+            self._tfidf = NoopTransformer()
+
+        logging.getLogger('root').info(
+            'Using TF-IDF: %s, transformer is %s' % (self.use_tfidf,
+                                                     self._tfidf))
 
         if not hasattr(self, '_thesaurus'):
             #thesaurus has not been parsed yet

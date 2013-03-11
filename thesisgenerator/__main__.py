@@ -94,8 +94,8 @@ def _get_data_iterators(**kwargs):
                                      '\'content\'')
 
                 dataset = load_files(source, shuffle=False)
-                logging.getLogger('root').info('Targets are: %s' % dataset.
-                target_names)
+                logging.getLogger('root').info(
+                    'Targets are: %s' % dataset.target_names)
                 data_iterable = dataset.data
                 if kwargs['shuffle_targets']:
                     import random

@@ -10,6 +10,7 @@ import logging
 import re
 import gzip
 import sys
+from sklearn.base import BaseEstimator, TransformerMixin
 
 from sklearn.utils import check_random_state
 import numpy as np
@@ -175,6 +176,14 @@ class SubsamplingPredefinedIndicesIterator(object):
 
     def __len__(self):
         return self.num_samples
+
+
+class NoopTransformer(BaseEstimator, TransformerMixin):
+    def fit(self, X, y=None):
+        return self
+
+    def transform(self, X, copy=True):
+        return X
 
 
 class ChainCallable(object):
