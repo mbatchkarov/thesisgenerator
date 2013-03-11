@@ -93,7 +93,7 @@ def _get_data_iterators(**kwargs):
                                      'the input type in main.conf to '
                                      '\'content\'')
 
-                dataset = load_files(source)
+                dataset = load_files(source, shuffle=False)
                 logging.getLogger('root').info('Targets are: %s' % dataset.
                 target_names)
                 data_iterable = dataset.data
@@ -203,9 +203,11 @@ def get_crossvalidation_iterator(config, x_vals, y_vals, x_test=None,
     elif cv_type == 'test_set' and x_test is not None and y_test is not None:
         iterator = PredefinedIndicesIterator(train_indices, test_indices)
     elif cv_type == 'subsampled_test_set' and x_test is not None and y_test is not None:
-        iterator = SubsamplingPredefinedIndicesIterator(train_indices,
+        iterator = SubsamplingPredefinedIndicesIterator(y_vals,
+                                                        train_indices,
                                                         test_indices, int(k),
-                                                        config['sample_size'])
+                                                        config['sample_size'],
+                                                        config['random_state'])
     else:
         raise ValueError(
             'Unrecognised crossvalidation type \'%(cv_type)s\'. The supported '

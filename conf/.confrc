@@ -41,6 +41,7 @@ shuffle_targets=boolean(default=False)
 	k=integer(min=1,max=100,default=1)
 	ratio=float()
     sample_size=integer()
+    random_state=integer()
 	
 [split_data]
     run=boolean()

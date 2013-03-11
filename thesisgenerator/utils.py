@@ -7,11 +7,11 @@ import fileinput
 import inspect
 from itertools import combinations
 import logging
-import random
 import re
 import gzip
 import sys
 
+from sklearn.utils import check_random_state
 import numpy as np
 
 
@@ -31,8 +31,8 @@ def get_named_object(pathspec):
     return named_obj
 
 
-def replace_in_file(file, search_exp, replace_exp):
-    fh = fileinput.input(file, inplace=1)
+def replace_in_file(file_name, search_exp, replace_exp):
+    fh = fileinput.input(file_name, inplace=1)
     for line in fh:
         line = re.sub(search_exp, replace_exp, line)
         sys.stdout.write(line)
@@ -126,43 +126,55 @@ class PredefinedIndicesIterator(object):
 
 class SubsamplingPredefinedIndicesIterator(object):
     """
-    An
+    A CV iterator that selects a stratified sample of all available training
+    documents, but returns all available test documents
     """
 
-    def __init__(self, train, test, max_iterations, sample_size):
+    def __init__(self, y_vals, train, test, num_samples, sample_size,
+                 random_state=0):
+        """
+        Parameters:
+        y_vals - all targets, for both train and test set
+        train/test- indices of the train/test set
+        num_sample- how many CV runs to perform
+        sample_size- how large a sample to take from the test set
+        random_state- int or numpy.RandomState, as per scikit's docs
+        """
+        self.y_vals = y_vals
         self.train = train
         self.test = test
-        self.max_iterations = max_iterations
+        self.num_samples = num_samples
         self.sample_size = int(sample_size)
+        self.rng = check_random_state(random_state)
+        self.counts = np.bincount(y_vals) / float(len(y_vals))
         logging.getLogger('root').info('Will do %d runs, '
                                        'for each sampling %d documents from a '
                                        'training set of size %d' % (
-                                           self.max_iterations,
+                                           self.num_samples,
                                            self.sample_size,
                                            len(self.train)))
 
-
     def __iter__(self):
-        for i in range(self.max_iterations):
-            try:
-                logging.getLogger('root').info('Yielding a training set of '
-                                               'size %d and a test set of '
-                                               'size %d'%
-                                               (self.sample_size,
-                                                len(self.test)))
-                yield random.sample(self.train, int(self.sample_size)), \
-                      self.test
-            except ValueError, e:
-                logging.getLogger('root').critical('Sample size is %r, '
-                                                   'population size is %r. '
-                                                   'This is the %r-th '
-                                                   'iteration'%(
-                    self.sample_size, len(self.train), i))
-                raise e
+        for i in range(self.num_samples):
+            ind_train = np.zeros((0,), dtype=np.int)
+
+            for label, proportion in enumerate(list(self.counts)):
+                train_size = int(round(proportion * self.sample_size))
+
+                ind = np.nonzero(self.y_vals[self.train] == label)[0]
+                ind = self.rng.choice(ind, size=train_size, replace=False)
+
+                logging.getLogger('root').debug(
+                    'Selected %r for class %r' % (ind, label))
+                ind_train = np.concatenate((ind_train, ind), axis=0)
+            logging.getLogger('root').debug(
+                'Will train on collection of len %r - %r' % (
+                    len(ind_train), ind_train))
+            yield ind_train, self.test
         raise StopIteration
 
     def __len__(self):
-        return self.max_iterations
+        return self.num_samples
 
 
 class ChainCallable(object):
@@ -199,8 +211,8 @@ class ChainCallable(object):
         result = {}
         for func_name, func in self.to_call:
             initialize_args = inspect.getargspec(func)[0]
-            call_args = {arg: val for arg, val in self.config[func_name].
-            items() if val != '' and arg in initialize_args}
+            call_args = {arg: val for arg, val in self.config[func_name].items()
+                         if val != '' and arg in initialize_args}
             options[func_name] = call_args
             result[func_name.strip()] = (
                 func(true_labels, predicted_labels, **call_args))
