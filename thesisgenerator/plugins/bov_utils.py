@@ -6,7 +6,6 @@ import re
 import shutil
 import sys
 import ast
-from itertools import chain
 import numpy
 from numpy import nonzero
 
@@ -397,8 +396,8 @@ if __name__ == '__main__':
 
     # ----------- EXPERIMENTS 2-14 -----------
     elif 1 < i <= 14:
-        sizes = chain(range(100, 1000, 100), range(1000, 5000, 500))
-        sizes = chain(range(10, 100, 10), range(100, 500, 50))
+        # sizes = chain(range(100, 1000, 100), range(1000, 5000, 500))
+        sizes = range(10, 100, 10)
 
         base_conf_file = '%s/conf/exp%d/exp%d_base.conf' % (prefix, i, i)
         it = _exp2_5_6_7_8_file_iterator(sizes, i,
