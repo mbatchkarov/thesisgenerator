@@ -1,3 +1,4 @@
+from math import sqrt
 import operator
 
 import numpy
@@ -37,7 +38,18 @@ def _safe_column_names(data_frames, x_columns, y_columns, yerr_columns):
 
 
 def _grouped_bar_chart(data_frames, width, x_columns, y_columns,
-                       yerr_columns, hatch=False):
+                       yerr_columns, cv=25, hatch=False):
+    """
+    parameters:
+    data_frames- where to extra information from
+    width- how wide the bard should be in the plot
+    x,y,yerr_columns- which columns in the data frames that x,y,
+    yerr data is stored. data_frames[0][x_columns[0]] contains the x value
+    for the first plot, etc. It is assumed yerr contains standard deviations
+    cv- how many crossvalidations were y and yerr obtained over? we divide by
+     sqrt(cv) to get std error from stdev
+
+    """
     x_columns, y_columns, yerr_columns = _safe_column_names(data_frames,
                                                             x_columns,
                                                             y_columns,
@@ -60,7 +72,7 @@ def _grouped_bar_chart(data_frames, width, x_columns, y_columns,
         color = cm(1. * i / num_groups)
         x = numpy.arange(len(df[x_columns[i]]))
         y = df[y_columns[i]]
-        yerr = df[yerr_columns[i]]
+        yerr = df[yerr_columns[i]] / sqrt(cv)
         ax.bar(x + i * width, y, width, yerr=yerr, color=color, ecolor='black',
                linewidth=0, hatch=hatches[i % len(data_frames)])
         ax.set_xticks(x + (i / 2) * width + width)
@@ -68,7 +80,7 @@ def _grouped_bar_chart(data_frames, width, x_columns, y_columns,
     return ax
 
 
-def performance_bar_chart(tables, classifiers, width=0.13):
+def performance_bar_chart(tables, classifiers, width=0.2, cv=25):
     x_columns = ['sample_size']
     y_columns = ['score_mean']
     yerr_columns = ['score_std']
@@ -87,7 +99,7 @@ def performance_bar_chart(tables, classifiers, width=0.13):
                                 df))
 
     ax = _grouped_bar_chart(data_frames, width, x_columns, y_columns,
-                            yerr_columns)
+                            yerr_columns, cv)
 
     ax.set_xlabel('Sample size')
     ax.set_ylabel('Macroavg F1')
@@ -140,10 +152,10 @@ def coverage_bar_chart(experiments, width=0.13):
                 dpi=300)
 
 
-performance_bar_chart([7, 8], ['LinearSVC'])
-performance_bar_chart(range(9, 12), ['LinearSVC', 'BernoulliNB'])
+performance_bar_chart([7, 8], ['LinearSVC'], cv=5)
+performance_bar_chart([9, 10, 11], ['LinearSVC', 'BernoulliNB'], width=0.13)
 # performance_bar_chart(range(9, 12), ['BernoulliNB'])
-performance_bar_chart([2, 5, 6], ['LinearSVC'])
+performance_bar_chart([2, 5, 6], ['LinearSVC'], cv=5)
 performance_bar_chart([9, 10, 11], ['LinearSVC'])
 performance_bar_chart([9, 10, 11], ['BernoulliNB'])
 performance_bar_chart([12, 13, 14], ['LinearSVC'])
