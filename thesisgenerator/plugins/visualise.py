@@ -12,6 +12,7 @@ __author__ = 'mmb28'
 
 # <codecell>
 database_path = '/Volumes/LocalScratchHD/LocalHome/Dropbox/work/bov_data.sqlite'
+#database_path = '/home/reseter/Desktop/bov_data.sqlite'
 import sqlite3 as lite
 import matplotlib.pyplot as plt
 import pandas.io.sql as psql
@@ -153,20 +154,23 @@ def coverage_bar_chart(experiments, width=0.13):
 
 
 performance_bar_chart([7, 8], ['LinearSVC'], cv=5)
-performance_bar_chart([9, 10, 11], ['LinearSVC', 'BernoulliNB'], width=0.13)
-# performance_bar_chart(range(9, 12), ['BernoulliNB'])
+performance_bar_chart([9, 10, 11], ['MultinomialNB', 'BernoulliNB', 'LogisticRegression'], width=0.13)
 performance_bar_chart([2, 5, 6], ['LinearSVC'], cv=5)
-performance_bar_chart([9, 10, 11], ['LinearSVC'])
+performance_bar_chart([9,10,11], ['MultinomialNB'])
+performance_bar_chart([9, 10, 11], ['LogisticRegression'])
 performance_bar_chart([9, 10, 11], ['BernoulliNB'])
-performance_bar_chart([12, 13, 14], ['LinearSVC'])
+performance_bar_chart([12, 13, 14], ['LogisticRegression'])
 performance_bar_chart([12, 13, 14], ['BernoulliNB'])
 performance_bar_chart([12, 13, 14], ['MultinomialNB'])
-performance_bar_chart([9, 12], ['LinearSVC'])
+performance_bar_chart([9, 12], ['LogisticRegression'])
 performance_bar_chart([9, 12], ['BernoulliNB'])
-performance_bar_chart([10, 13], ['LinearSVC'])
+performance_bar_chart([9, 12], ['MultinomialNB'])
+performance_bar_chart([10, 13], ['LogisticRegression'])
 performance_bar_chart([10, 13], ['BernoulliNB'])
-performance_bar_chart([11, 14], ['LinearSVC'])
+performance_bar_chart([10, 13], ['MultinomialNB'])
+performance_bar_chart([11, 14], ['MultinomialNB'])
 performance_bar_chart([11, 14], ['BernoulliNB'])
+performance_bar_chart([11, 14], ['LogisticRegression'])
 
 coverage_bar_chart([8])
 print 'done'
