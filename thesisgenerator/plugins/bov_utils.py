@@ -1,6 +1,7 @@
 from copy import deepcopy
 import csv
 import glob
+from itertools import chain
 import os
 import re
 import shutil
@@ -397,7 +398,8 @@ if __name__ == '__main__':
     # ----------- EXPERIMENTS 2-14 -----------
     elif 1 < i <= 14:
         # sizes = chain(range(100, 1000, 100), range(1000, 5000, 500))
-        sizes = range(10, 100, 10)
+        sizes = chain(range(2, 11, 2), range(20, 101, 10))
+        # sizes = range(10, 100, 10)
 
         base_conf_file = '%s/conf/exp%d/exp%d_base.conf' % (prefix, i, i)
         it = _exp2_5_6_7_8_file_iterator(sizes, i,
