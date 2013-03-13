@@ -35,6 +35,7 @@ shuffle_targets=boolean(default=False)
     use_pos=boolean
 	coarse_pos=boolean
 	normalise_entities=boolean
+	replace_all=boolean
 	
 [crossvalidation]
 	run=boolean()
