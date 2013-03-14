@@ -168,7 +168,7 @@ class SubsamplingPredefinedIndicesIterator(object):
                 logging.getLogger('root').debug(
                     'Selected %r for class %r' % (ind, label))
                 ind_train = np.concatenate((ind_train, ind), axis=0)
-            logging.getLogger('root').debug(
+            logging.getLogger('root').info(
                 'Will train on collection of len %r - %r' % (
                     len(ind_train), ind_train))
             yield ind_train, self.test
