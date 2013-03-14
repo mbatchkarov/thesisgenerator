@@ -1,9 +1,12 @@
-import os, sys
+import os
+import sys
 import subprocess
 import traceback
 import datetime as dt
-from concurrent.futures import ProcessPoolExecutor, as_completed
 import xml.etree.cElementTree as ET
+
+from concurrent.futures import ProcessPoolExecutor, as_completed
+
 
 ################
 #
@@ -27,7 +30,8 @@ def _make_filelist_and_create_files(data_dir, filelistpath, output_dir):
                 filepath = os.path.join(data_dir, filename)
                 filelist.write("%s\n" % filepath)
                 with open(os.path.join(output_dir, filename + ".tagged"),
-                          'w'): pass
+                          'w'):
+                    pass
 
 
 class Logger(object):
@@ -42,13 +46,16 @@ class Logger(object):
             self.log.flush()
 
     def set_log(self, path):
-        if path: self.log = open(path, 'a')
+        if path:
+            self.log = open(path, 'a')
 
     def print_info(self, info, flush=True, printstdin=True):
         if self.log:
             self.log.write(info + "\n")
-        if printstdin: print info
-        if flush: self.flush()
+        if printstdin:
+            print info
+        if flush:
+            self.flush()
 
 ##########
 #
@@ -63,7 +70,8 @@ logger = Logger()
 # Process raw text through stanford pipeline
 #
 #####################
-def run_stanford_pipeline(data_dir, stanford_dir, java_threads=2, filelistdir=""):
+def run_stanford_pipeline(data_dir, stanford_dir, java_threads=2,
+                          filelistdir=""):
     '''
     Process directory of text using stanford core nlp
     suite. Perform:
@@ -81,7 +89,8 @@ def run_stanford_pipeline(data_dir, stanford_dir, java_threads=2, filelistdir=""
     output_dir = "%s-tagged" % data_dir
     try:
         os.mkdir(output_dir)
-    except OSError: pass #Directory already exists
+    except OSError:
+        pass #Directory already exists
 
     #Change working directory to stanford tools
     os.chdir(stanford_dir)
@@ -95,7 +104,8 @@ def run_stanford_pipeline(data_dir, stanford_dir, java_threads=2, filelistdir=""
         input_sub_dir = os.path.join(data_dir, data_sub_dir)
         try:
             os.mkdir(output_sub_dir)
-        except OSError: pass #Directory already exists
+        except OSError:
+            pass #Directory already exists
 
         #Create list of files to be processed.
         filelist = os.path.join(filelistdir if filelistdir else stanford_dir,
@@ -107,7 +117,7 @@ def run_stanford_pipeline(data_dir, stanford_dir, java_threads=2, filelistdir=""
 
         #Construct stanford java command.
         stanford_cmd = ['./corenlp.sh', '-annotators',
-                        'tokenize,ssplit,pos,lemma',
+                        'tokenize,ssplit,pos,lemma,ner',
                         # '-file', input_sub_dir, '-outputDirectory', output_sub_dir,
                         '-filelist', filelist, '-outputDirectory',
                         output_sub_dir,
@@ -142,7 +152,7 @@ def process_corpora_from_xml(path_to_corpora, processes=1):
     logger.print_info("<%s> Starting XML conversion..." % current_time())
     for data_sub_dir in os.listdir(path_to_corpora):
         _process_xml_to_conll(os.path.join(path_to_corpora, data_sub_dir),
-                             processes)
+                              processes)
 
 
 def _process_xml_to_conll(path_to_data, processes=1):
@@ -218,7 +228,8 @@ def dependency_parse_directory(data_dir, parser_project_path, liblinear_path,
     output_dir = "%s-parsed" % data_dir
     try:
         os.mkdir(output_dir)
-    except OSError: pass #Directory already exists
+    except OSError:
+        pass #Directory already exists
 
     logger.print_info("<%s> Beginning dependency parsing..." % current_time())
 
@@ -229,7 +240,8 @@ def dependency_parse_directory(data_dir, parser_project_path, liblinear_path,
         #Create output corpus directory
         try:
             os.mkdir(output_sub_dir)
-        except OSError: pass #directory already exists
+        except OSError:
+            pass #directory already exists
 
         logger.print_info("<%s> Parsing: %s" % (current_time(), input_sub_dir))
 
@@ -239,7 +251,7 @@ def dependency_parse_directory(data_dir, parser_project_path, liblinear_path,
             #Split data into chunks, submit a parsing job for each chunk
             for files in chunks([name for name in os.listdir(input_sub_dir) if
                                  not name.startswith('.') and name.endswith(
-                                     ".conll")], processes):
+                                         ".conll")], processes):
                 jobs[executor.submit(run_parser, input_sub_dir, files,
                                      output_sub_dir,
                                      parser_project_path)] = files
@@ -298,7 +310,7 @@ def remove_temp_files(path_to_corpora):
         if not data_sub_dir.startswith(".") and os.path.isdir(dir_path):
             for filename in os.listdir(dir_path):
                 if not filename.startswith(".") and not filename.endswith(
-                    "conll"):
+                        "conll"):
                     os.remove(os.path.join(dir_path, filename))
     logger.print_info("<%s> XML files removed." % current_time())
 
@@ -321,9 +333,10 @@ def execute_pipeline(path_to_corpora, #Required for all
     logger.set_log(log)
 
     if "stanford" in run:
-        if not path_to_stanford: raise ValueError("Specify path to stanford")
+        if not path_to_stanford:
+            raise ValueError("Specify path to stanford")
         run_stanford_pipeline(path_to_corpora, path_to_stanford,
-                          stanford_java_threads, path_to_filelistdir)
+                              stanford_java_threads, path_to_filelistdir)
 
     tagged_path = path_to_corpora + "-tagged"
 
@@ -331,8 +344,9 @@ def execute_pipeline(path_to_corpora, #Required for all
         process_corpora_from_xml(tagged_path, formatting_python_processes)
 
     if "parsing" in run:
-        if not path_to_depparser: raise ValueError(
-            "Specify path to dependency parser")
+        if not path_to_depparser:
+            raise ValueError(
+                "Specify path to dependency parser")
         dependency_parse_directory(tagged_path, path_to_depparser,
                                    path_to_liblinear, parsing_python_processes)
 
@@ -341,17 +355,19 @@ def execute_pipeline(path_to_corpora, #Required for all
 
     logger.print_info("Pipeline finished")
 
+
 if __name__ == "__main__":
     '''
     Email Andy or Miro for a copy of the readme for this script
     '''
 
     #Pipeline examples:
-#    run = set("stanford formatting parsing cleanup".split())
+    #    run = set("stanford formatting parsing cleanup".split())
     run = set("stanford".split())
 
     #Fill arguments below, for example:
-    execute_pipeline('/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/thesisgenerator/sample-data/wiki',
-                     path_to_stanford='/Volumes/LocalScratchHD/LocalHome/Downloads/stanford-corenlp-full-2012-11-12',
-                     stanford_java_threads=8,
-                     run=run)
+    execute_pipeline(
+        '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/thesisgenerator/sample-data/sts',
+        path_to_stanford='/Volumes/LocalScratchHD/LocalHome/Downloads/stanford-corenlp-full-2012-11-12',
+        stanford_java_threads=8,
+        run=run)

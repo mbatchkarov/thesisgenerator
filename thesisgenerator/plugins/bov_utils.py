@@ -7,6 +7,7 @@ import re
 import shutil
 import sys
 import ast
+import itertools
 import numpy
 from numpy import nonzero
 
@@ -128,10 +129,6 @@ def _exp2_5_6_7_8_file_iterator(sizes, exp_id, conf_file):
 
 
 def _write_exp15_conf_file(base_conf_file, exp_id, run_id, shuffle):
-    """
-    Prepares conf files for exp2 by altering the sample size parameter in the
-     provided base conf file
-    """
     log_file, new_conf_file = _prepare_conf_files(base_conf_file, exp_id,
                                                   run_id)
     replace_in_file(new_conf_file, 'name=.*',
@@ -145,6 +142,33 @@ def _exp15_file_iterator(conf_file):
     for id, shuffle in enumerate([True, False]):
         new_conf_file, log_file = _write_exp15_conf_file(conf_file, 15, id,
                                                          shuffle)
+        print 'Yielding %s, %s' % (new_conf_file, log_file)
+        yield new_conf_file, log_file
+    raise StopIteration
+
+
+def _write_exp16_conf_file(base_conf_file, exp_id, run_id, thesauri_list,
+                           normalize):
+    log_file, new_conf_file = _prepare_conf_files(base_conf_file, exp_id,
+                                                  run_id)
+    replace_in_file(new_conf_file, 'name=.*',
+                    'name=exp%d-%d' % (exp_id, run_id))
+    replace_in_file(new_conf_file, 'thesaurus_files=.*',
+                    'thesaurus_files=%s' % thesauri_list)
+    replace_in_file(new_conf_file, 'normalise_entities=.*',
+                    'normalise_entities=%r' % normalize)
+    return new_conf_file, log_file
+
+
+def _exp16_file_iterator(conf_file):
+    thesauri = [
+        "/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/exp6-12a/exp6.sims.neighbours.strings,/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/exp6-12b/exp6.sims.neighbours.strings,/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/exp6-12c/exp6.sims.neighbours.strings,/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/exp6-12d/exp6.sims.neighbours.strings,",
+        "/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/exp7-12a/exp7.sims.neighbours.strings,/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/exp7-12b/exp7.sims.neighbours.strings,/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/exp7-12c/exp7.sims.neighbours.strings,/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/exp7-12d/exp7.sims.neighbours.strings,"
+    ]
+    for id, (thesauri, normalize) in enumerate(
+            itertools.product(thesauri, [True, False])):
+        new_conf_file, log_file = _write_exp16_conf_file(conf_file, 16, id,
+                                                         thesauri, normalize)
         print 'Yielding %s, %s' % (new_conf_file, log_file)
         yield new_conf_file, log_file
     raise StopIteration
@@ -409,6 +433,9 @@ if __name__ == '__main__':
         base_conf_file = '%s/conf/exp%d/exp%d_base.conf' % (prefix, i, i)
         it = _exp15_file_iterator(base_conf_file)
         reload_data = True
+    elif i == 16:
+        base_conf_file = '%s/conf/exp%d/exp%d_base.conf' % (prefix, i, i)
+        it = _exp16_file_iterator(base_conf_file)
     else:
         raise ValueError('No such experiment number: %d' % i)
 
