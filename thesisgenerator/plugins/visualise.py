@@ -114,7 +114,8 @@ def performance_bar_chart(tables, classifiers, width=0.2, cv=25):
                 dpi=300)
 
 
-def coverage_bar_chart(experiments, width=0.13):
+def coverage_bar_chart(experiments, width=0.13, cv=25,
+                       x_columns=['sample_size']):
     data_frames = []
     stats = [
         ["unknown_tok_mean", "unknown_tok_std"],
@@ -127,7 +128,7 @@ def coverage_bar_chart(experiments, width=0.13):
 
     for experiment in experiments:
         for stat in stats:
-            sql = "SELECT DISTINCT sample_size,total_tok,total_typ,%s " \
+            sql = "SELECT DISTINCT name, sample_size,total_tok,total_typ,%s " \
                   "FROM data%.2d" % (','.join(stat), experiment)
             print sql
             df = query_to_data_frame(sql)
@@ -139,38 +140,39 @@ def coverage_bar_chart(experiments, width=0.13):
             name = '%.2d-%s' % (experiment, stat[0])
             data_frames.append((name, df))
 
-    x_columns = ['sample_size']
     y_columns = [x[0] for x in stats]
     yerr_columns = [x[1] for x in stats]
 
     ax = _grouped_bar_chart(data_frames, width, x_columns, y_columns,
-                            yerr_columns, hatch=True)
-    ax.set_xlabel('Sample size')
+                            yerr_columns, hatch=True, cv=cv)
+
+    # ax.set_xlabel('Sample size')
     ax.set_ylabel('Proportion of total tokens/types')
     ax.set_title('Thesaurus coverage')
-    ax.legend(y_columns, 'best')
+    ax.legend(y_columns, 'lower left', ncol=len(y_columns), prop={'size': 6})
     plt.savefig('figures/exp%s-coverage.png' % experiment, format='png',
                 dpi=300)
 
 
-performance_bar_chart([7, 8], ['LinearSVC'], cv=5)
-performance_bar_chart([9, 10, 11], ['MultinomialNB', 'BernoulliNB', 'LogisticRegression'], width=0.13)
-performance_bar_chart([2, 5, 6], ['LinearSVC'], cv=5)
-performance_bar_chart([9,10,11], ['MultinomialNB'])
-performance_bar_chart([9, 10, 11], ['LogisticRegression'])
-performance_bar_chart([9, 10, 11], ['BernoulliNB'])
-performance_bar_chart([12, 13, 14], ['LogisticRegression'])
-performance_bar_chart([12, 13, 14], ['BernoulliNB'])
-performance_bar_chart([12, 13, 14], ['MultinomialNB'])
-performance_bar_chart([9, 12], ['LogisticRegression'])
-performance_bar_chart([9, 12], ['BernoulliNB'])
-performance_bar_chart([9, 12], ['MultinomialNB'])
-performance_bar_chart([10, 13], ['LogisticRegression'])
-performance_bar_chart([10, 13], ['BernoulliNB'])
-performance_bar_chart([10, 13], ['MultinomialNB'])
-performance_bar_chart([11, 14], ['MultinomialNB'])
-performance_bar_chart([11, 14], ['BernoulliNB'])
-performance_bar_chart([11, 14], ['LogisticRegression'])
+# performance_bar_chart([7, 8], ['LinearSVC'], cv=5)
+# performance_bar_chart([9, 10, 11], ['MultinomialNB', 'BernoulliNB', 'LogisticRegression'], width=0.13)
+# performance_bar_chart([2, 5, 6], ['LinearSVC'], cv=5)
+# performance_bar_chart([9,10,11], ['MultinomialNB'])
+# performance_bar_chart([9, 10, 11], ['LogisticRegression'])
+# performance_bar_chart([9, 10, 11], ['BernoulliNB'])
+# performance_bar_chart([12, 13, 14], ['LogisticRegression'])
+# performance_bar_chart([12, 13, 14], ['BernoulliNB'])
+# performance_bar_chart([12, 13, 14], ['MultinomialNB'])
+# performance_bar_chart([9, 12], ['LogisticRegression'])
+# performance_bar_chart([9, 12], ['BernoulliNB'])
+# performance_bar_chart([9, 12], ['MultinomialNB'])
+# performance_bar_chart([10, 13], ['LogisticRegression'])
+# performance_bar_chart([10, 13], ['BernoulliNB'])
+# performance_bar_chart([10, 13], ['MultinomialNB'])
+# performance_bar_chart([11, 14], ['MultinomialNB'])
+# performance_bar_chart([11, 14], ['BernoulliNB'])
+# performance_bar_chart([11, 14], ['LogisticRegression'])
 
-coverage_bar_chart([8])
+coverage_bar_chart([8], cv=5)
+coverage_bar_chart([16], x_columns=['name'])
 print 'done'

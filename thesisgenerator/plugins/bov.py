@@ -276,10 +276,12 @@ class ThesaurusVectorizer(TfidfVectorizer):
 
         # how many tokens are there/ are unknown/ have been replaced
         num_tokens, unknown_tokens, found_tokens, replaced_tokens = 0, 0, 0, 0
+        known_tokens = 0
         all_types = set()
         unknown_types = set()
         found_types = set()
         replaced_types = set()
+        known_types = set()
         for doc_id, term_count_dict in enumerate(term_count_dicts):
             num_documents += 1
             for document_term, count in term_count_dict.iteritems():
@@ -288,8 +290,10 @@ class ThesaurusVectorizer(TfidfVectorizer):
                 term_index_in_vocab = vocabulary.get(document_term)
                 if term_index_in_vocab is not None:
                 #None if term is not in seen vocabulary
-                    logging.getLogger('root').debug(
-                        'Known token in doc %d: %s' % (doc_id, document_term))
+                    # logging.getLogger('root').debug(
+                    #     'Known token in doc %d: %s' % (doc_id, document_term))
+                    known_tokens += 1
+                    known_types.add(document_term)
                     doc_id_indices.append(doc_id)
                     term_indices.append(term_index_in_vocab)
                     values.append(count)
@@ -353,12 +357,17 @@ class ThesaurusVectorizer(TfidfVectorizer):
         logging.getLogger('root').debug(
             'Vectorizer: Data shape is %s' % (str(spmatrix.shape)))
         logging.getLogger('root').info(
-            'Vectorizer: Total tokens: %d, Unknown tokens: %d,  Found tokens: %d,'
-            ' Replaced tokens: %d, Total types: %d, Unknown types: %d,  '
-            'Found types: %d, Replaced types: %d' % (
-                num_tokens, unknown_tokens, found_tokens, replaced_tokens,
-                len(all_types), len(unknown_types), len(found_types),
-                len(replaced_types)))
+            'Vectorizer: '
+            'Total tokens: %d, '
+            'Unknown tokens: %d,  Found tokens: %d, Replaced tokens: %d, '
+            'Total types: %d, '
+            'Unknown types: %d,  Found types: %d, Replaced types: %d, '
+            'Known tokens: %d, Known types: %d' % (
+                num_tokens,
+                unknown_tokens, found_tokens, replaced_tokens,
+                len(all_types),
+                len(unknown_types), len(found_types), len(replaced_types),
+                known_tokens, len(known_types)))
 
         # temporarily store vocabulary
         f = './tmp_vocabulary'
