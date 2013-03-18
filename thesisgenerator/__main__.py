@@ -68,7 +68,7 @@ def _get_data_iterators(**kwargs):
             input_gen = kwargs['input_generator']
             source = kwargs['source']
             try:
-                logging.getLogger('root').debug(
+                logging.getLogger('main').debug(
                     'Retrieving input generator for name '
                     '\'%(input_gen)s\'' % locals())
 
@@ -78,7 +78,7 @@ def _get_data_iterators(**kwargs):
                     dtype=np.int)
                 data_iterable = data_iterable.documents()
             except (ValueError, ImportError):
-                logging.getLogger('root').warn(
+                logging.getLogger('main').warn(
                     'No input generator found for name '
                     '\'%(input_gen)s\'. Using a file content '
                     'generator with source \'%(source)s\'' % locals())
@@ -94,13 +94,13 @@ def _get_data_iterators(**kwargs):
                                      '\'content\'')
 
                 dataset = load_files(source, shuffle=False)
-                logging.getLogger('root').info(
+                logging.getLogger('main').info(
                     'Targets are: %s' % dataset.target_names)
                 data_iterable = dataset.data
                 if kwargs['shuffle_targets']:
                     import random
 
-                    logging.getLogger('root').warn('RANDOMIZING TARGETS')
+                    logging.getLogger('main').warn('RANDOMIZING TARGETS')
                     random.shuffle(dataset.target)
                 targets_iterable = dataset.target
         except KeyError:
@@ -139,7 +139,7 @@ def get_crossvalidation_iterator(config, x_vals, y_vals, x_test=None,
     The full text is provided as a parameter so that joblib can cache the
     call to this function.
     """
-    logging.getLogger('root').info('Building crossvalidation iterator')
+    logging.getLogger('main').info('Building crossvalidation iterator')
     cv_type = config['type']
     k = config['k']
 
@@ -158,10 +158,10 @@ def get_crossvalidation_iterator(config, x_vals, y_vals, x_test=None,
                                 validation_data, [])
 
     if x_test is not None and y_test is not None:
-        logging.getLogger('root').warn('You have requested test set to be '
+        logging.getLogger('main').warn('You have requested test set to be '
                                        'used for evaluation.')
         if cv_type != 'test_set' and cv_type != 'subsampled_test_set':
-            logging.getLogger('root').error('Wrong crossvalidation type. '
+            logging.getLogger('main').error('Wrong crossvalidation type. '
                                             'Only test_set or '
                                             'subsampled_test_set are '
                                             'permitted with a test set')
@@ -180,7 +180,7 @@ def get_crossvalidation_iterator(config, x_vals, y_vals, x_test=None,
     dataset_size = np.sum(seen_data_mask)
     targets_seen = y_vals[seen_data_mask]
     if k < 0:
-        logging.getLogger('root').warn(
+        logging.getLogger('main').warn(
             'crossvalidation.k not specified, defaulting to 1')
         k = 1
     if cv_type == 'kfold':
@@ -192,7 +192,7 @@ def get_crossvalidation_iterator(config, x_vals, y_vals, x_test=None,
     elif cv_type == 'bootstrap':
         ratio = config['ratio']
         if k < 0:
-            logging.getLogger('root').warn(
+            logging.getLogger('main').warn(
                 'crossvalidation.ratio not specified,defaulting to 0.8')
             ratio = 0.8
         iterator = cross_validation.Bootstrap(dataset_size,
@@ -267,7 +267,7 @@ def _build_vectorizer(call_args, feature_extraction_conf, pipeline_list,
 
     global postvect_dumper_added_already
     if debug and not postvect_dumper_added_already:
-        logging.getLogger('root').info('Will perform post-vectorizer data dump')
+        logging.getLogger('main').info('Will perform post-vectorizer data dump')
         pipeline_list.append(
             ('postVectDumper', DatasetDumper(output_dir)))
         postvect_dumper_added_already = True
@@ -348,7 +348,7 @@ def _build_pipeline(classifier_name, feature_extr_conf, feature_sel_conf,
     pipeline = Pipeline(pipeline_list)
     pipeline.set_params(**call_args)
 
-    logging.getLogger('root').debug('Pipeline is:\n %s', pipeline)
+    logging.getLogger('main').debug('Pipeline is:\n %s', pipeline)
     return pipeline
 
 
@@ -356,7 +356,7 @@ def run_tasks(configuration, data=None):
     """
     Runs all commands specified in the configuration file
     """
-    logging.getLogger('root').info('running tasks')
+    logging.getLogger('main').info('running tasks')
     # get a reference to the joblib cache object, if caching is not disabled
     # else build a dummy object which just returns its arguments unchanged
     if configuration['joblib_caching']:
@@ -382,7 +382,7 @@ def run_tasks(configuration, data=None):
         # because joblib uses the hashed argument list to lookup cached results
         # of computations that have been executed previously
         if data:
-            logging.getLogger('root').info('Using pre-loaded raw data set')
+            logging.getLogger('main').info('Using pre-loaded raw data set')
             x_vals, y_vals, x_test, y_test = data
         else:
             options = {}
@@ -395,10 +395,10 @@ def run_tasks(configuration, data=None):
                 options['input_generator'] = ''
             options['source'] = configuration['training_data']
 
-            logging.getLogger('root').info('Loading raw training set')
+            logging.getLogger('main').info('Loading raw training set')
             x_vals, y_vals = cached_get_data_generators(**options)
             if configuration['test_data']:
-                logging.getLogger('root').info('Loading raw test set')
+                logging.getLogger('main').info('Loading raw test set')
                 #  change where we read files from
                 options['source'] = configuration['test_data']
                 # ensure that only the training data targets are shuffled
@@ -429,12 +429,12 @@ def run_tasks(configuration, data=None):
 
         #  ignore disabled classifiers
         if not configuration['classifiers'][clf_name]['run']:
-            logging.getLogger('root').warn('Ignoring classifier %s' % clf_name)
+            logging.getLogger('main').warn('Ignoring classifier %s' % clf_name)
             continue
 
-        logging.getLogger('root').info(
+        logging.getLogger('main').info(
             '------------------------------------------------------------')
-        logging.getLogger('root').info('Building pipeline')
+        logging.getLogger('main').info('Building pipeline')
         pipeline = _build_pipeline(clf_name,
                                    configuration['feature_extraction'],
                                    configuration['feature_selection'],
@@ -444,7 +444,7 @@ def run_tasks(configuration, data=None):
                                    configuration['debug'])
 
         # pass the (feature selector + classifier) pipeline for evaluation
-        logging.getLogger('root').info(
+        logging.getLogger('main').info(
             '***Fitting pipeline for %s' % clf_name)
         cached_cross_val_score = mem_cache.cache(cross_val_score)
         scores_this_clf = \
@@ -465,7 +465,7 @@ def run_tasks(configuration, data=None):
                 scores.append(
                     [clf_name.split('.')[-1], metric.split('.')[-1],
                      score])
-    logging.getLogger('root').info('Classifier scores are %s' % scores)
+    logging.getLogger('main').info('Classifier scores are %s' % scores)
     return 0, analyze(scores, configuration['output_dir'],
                       configuration['name'])
 
@@ -475,7 +475,7 @@ def analyze(scores, output_dir, name):
     Stores a csv and xls representation of the data set. Requires pandas
     """
 
-    logging.getLogger('root').info(
+    logging.getLogger('main').info(
         "Analysing results and saving to %s" % output_dir)
 
     from pandas import DataFrame
@@ -507,18 +507,17 @@ def analyze(scores, output_dir, name):
 
 
 def _config_logger(output_path=None, name='log.txt'):
-    newly_created_logger = logging.getLogger('root')
-
-    # for parallelisation purposes we need to remove all the handlers that were
-    # possibly added to the root logger OF THE PROCESS on previous runs,
-    # otherwise logs will get mangled between different runs
-    # print newly_created_logger.handlers
-    # for some reason removing them once doesn't seem to be enough sometimes
-    for i in range(5):
-        for handler in newly_created_logger.handlers:
-            newly_created_logger.removeHandler(handler)
-        sleep(0.1)
-    assert len(newly_created_logger.handlers) == 0
+    def clear_handlers(newly_created_logger):
+        # for parallelisation purposes we need to remove all the handlers that were
+        # possibly added to the root logger OF THE PROCESS on previous runs,
+        # otherwise logs will get mangled between different runs
+        # print main_logger.handlers
+        # for some reason removing them once doesn't seem to be enough sometimes
+        for i in range(5):
+            for handler in newly_created_logger.handlers:
+                newly_created_logger.removeHandler(handler)
+            sleep(0.1)
+        assert len(newly_created_logger.handlers) == 0
 
     fmt = logging.Formatter(fmt=('%(asctime)s\t%(module)s.%(funcName)s '
                                  '(line %(lineno)d)\t%(levelname)s : %('
@@ -528,36 +527,32 @@ def _config_logger(output_path=None, name='log.txt'):
     sh = StreamHandler()
     sh.setLevel(logging.INFO)
     sh.setFormatter(fmt)
-    newly_created_logger.addHandler(sh)
+    main_logger = logging.getLogger('main')
+    main_logger.setLevel(logging.DEBUG)
+    clear_handlers(main_logger)
+    main_logger.addHandler(sh)
 
-    class MyFilter(object):
-        """
-        A logging filter which accepts messages with a level *LOWER* than the
-         one specified at construction time
-        """
-
-        def __init__(self, level):
-            self.__level = level
-
-        def filter(self, logRecord):
-            return logRecord.levelno <= self.__level
+    tokens_logger = logging.getLogger('tokens')
+    tokens_logger.setLevel(logging.DEBUG)
+    clear_handlers(tokens_logger)
 
     if output_path is not None:
         log_file = os.path.join(output_path, '%s.log' % name)
         fh = logging.FileHandler(log_file, mode='w')
         fh.setLevel(logging.DEBUG)
         fh.setFormatter(fmt)
-        #        fh.addFilter(MyFilter(logging.DEBUG))
-        #   fh1 = logging.FileHandler(os.path.join(output_path, 'log-info.txt'),
-        #                                  mode='w')
-        #        fh1.setLevel(logging.INFO)
-        #        fh1.setFormatter(fmt)
-        newly_created_logger.addHandler(fh)
+        main_logger.addHandler(fh)
 
-    newly_created_logger.setLevel(logging.DEBUG)
-    return newly_created_logger
-    # else:
-    #     return log
+        log_file2 = os.path.join(output_path, '%s-tokens.log' % name)
+        fh1 = logging.FileHandler(log_file2, mode='w')
+        fh1.setLevel(logging.DEBUG)
+        fh1.setFormatter(fmt)
+        tokens_logger.addHandler(fh1)
+    else:
+        logging.getLogger('main').warn('Tokens logger will not work because '
+                                       ' and output path is not provided')
+
+    return main_logger
 
 
 def _prepare_output_directory(clean, output):
@@ -565,7 +560,7 @@ def _prepare_output_directory(clean, output):
     # CLEAN OUTPUT DIRECTORY
     # **********************************
     if clean and os.path.exists(output):
-        logging.getLogger('root').info(
+        logging.getLogger('main').info(
             'Cleaning output directory %s' % glob(output))
         shutil.rmtree(output)
 
@@ -573,7 +568,7 @@ def _prepare_output_directory(clean, output):
     # CREATE OUTPUT DIRECTORY
     # **********************************
     if not os.path.exists(output):
-        logging.getLogger('root').info(
+        logging.getLogger('main').info(
             'Creating output directory %s' % glob(output))
         os.makedirs(output)
 
@@ -583,7 +578,7 @@ def _prepare_classpath(classpath):
     # ADD classpath TO SYSTEM PATH
     # **********************************
     for path in classpath.split(os.pathsep):
-        logging.getLogger('root').info(
+        logging.getLogger('main').info(
             'Adding (%s) to system path' % glob(path))
         sys.path.append(os.path.abspath(path))
 

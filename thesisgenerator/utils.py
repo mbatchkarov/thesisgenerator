@@ -115,7 +115,7 @@ class PredefinedIndicesIterator(object):
         self.test = test
 
     def __iter__(self):
-        logging.getLogger('root').info('Yielding a training set of '
+        logging.getLogger('main').info('Yielding a training set of '
                                        'size %d and a test set of '
                                        'size %d' %
                                        (len(self.train),
@@ -148,7 +148,7 @@ class SubsamplingPredefinedIndicesIterator(object):
         self.sample_size = int(sample_size)
         self.rng = check_random_state(random_state)
         self.counts = np.bincount(y_vals) / float(len(y_vals))
-        logging.getLogger('root').info('Will do %d runs, '
+        logging.getLogger('main').info('Will do %d runs, '
                                        'for each sampling %d documents from a '
                                        'training set of size %d' % (
                                            self.num_samples,
@@ -165,10 +165,10 @@ class SubsamplingPredefinedIndicesIterator(object):
                 ind = np.nonzero(self.y_vals[self.train] == label)[0]
                 ind = self.rng.choice(ind, size=train_size, replace=False)
 
-                logging.getLogger('root').debug(
+                logging.getLogger('main').debug(
                     'Selected %r for class %r' % (ind, label))
                 ind_train = np.concatenate((ind_train, ind), axis=0)
-            logging.getLogger('root').info(
+            logging.getLogger('main').info(
                 'Will train on collection of len %r - %r' % (
                     len(ind_train), ind_train))
             yield ind_train, self.test

@@ -89,16 +89,16 @@ class ThesaurusVectorizer(TfidfVectorizer):
             return None
 
         result = {}
-        logging.getLogger('root').debug(self.thesaurus_files)
+        logging.getLogger('main').debug(self.thesaurus_files)
         for path in self.thesaurus_files:
             if path in preloaded_thesauri:
-                logging.getLogger('root').info('Returning cached thesaurus '
+                logging.getLogger('main').info('Returning cached thesaurus '
                                                'for %s' % path)
                 result.update(preloaded_thesauri[path])
             else:
-                logging.getLogger('root').info(
+                logging.getLogger('main').info(
                     'Loading thesaurus %s from disk' % path)
-                logging.getLogger('root').debug(
+                logging.getLogger('main').debug(
                     'PoS: %r, coarse: %r, threshold %r, k=%r' %
                     (self.use_pos,
                      self.coarse_pos,
@@ -126,7 +126,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
                             # entry. if this happens, do not bother adding it
                             if len(to_insert) > 0:
                                 if tokens[0] in curr_thesaurus:
-                                    logging.getLogger('root').debug(
+                                    logging.getLogger('main').debug(
                                         'Multiple entries for "%s" found' %
                                         tokens[0])
                                 curr_thesaurus[tokens[0].lower()].extend(
@@ -134,13 +134,13 @@ class ThesaurusVectorizer(TfidfVectorizer):
 
                 # note- do not attempt to lowercase if the thesaurus has not already been
                 # lowercased- may result in multiple neighbour lists for the same entry
-                logging.getLogger('root').info('Caching thesaurus %s' % path)
+                logging.getLogger('main').info('Caching thesaurus %s' % path)
                 preloaded_thesauri[path] = curr_thesaurus
                 result.update(curr_thesaurus)
 
-        logging.getLogger('root').info(
+        logging.getLogger('main').info(
             'Thesaurus contains %d entries' % len(result))
-        logging.getLogger('root').debug(
+        logging.getLogger('main').debug(
             'Thesaurus sample %r' % result.items()[:2])
         return result
 
@@ -200,7 +200,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
         invokes self.my_feature_extractor, a more general function than
         CountVectorizer._word_ngrams()
         """
-        logging.getLogger('root').info(
+        logging.getLogger('main').info(
             'Building and starting analysis (tokenize, stopw, feature extract')
         if hasattr(self.analyzer, '__call__'):
             return self.analyzer
@@ -241,13 +241,13 @@ class ThesaurusVectorizer(TfidfVectorizer):
         Current version copied without functional modification from sklearn
         .feature_extraction.text.CountVectorizer
         """
-        logging.getLogger('root').info(
+        logging.getLogger('main').info(
             'Converting features to vectors (with thesaurus lookup)')
 
         if not self.use_tfidf:
             self._tfidf = NoopTransformer()
 
-        logging.getLogger('root').info(
+        logging.getLogger('main').info(
             'Using TF-IDF: %s, transformer is %s' % (self.use_tfidf,
                                                      self._tfidf))
 
@@ -255,7 +255,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
             #thesaurus has not been parsed yet
             if not self.thesaurus_files:
                 # no thesaurus source, fall back to super behaviour
-                logging.getLogger('root').warn("F**k, no thesaurus!")
+                logging.getLogger('main').warn("F**k, no thesaurus!")
                 return super(ThesaurusVectorizer,
                              self)._term_count_dicts_to_matrix(term_count_dicts)
             else:
@@ -270,7 +270,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
 
         vocabulary = self.vocabulary_
         num_documents = 0
-        logging.getLogger('root').debug(
+        logging.getLogger('main').debug(
             "Building feature vectors, current vocab size is %d" %
             len(vocabulary))
 
@@ -290,7 +290,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
                 term_index_in_vocab = vocabulary.get(document_term)
                 if term_index_in_vocab is not None:
                 #None if term is not in seen vocabulary
-                    # logging.getLogger('root').debug(
+                    # logging.getLogger('main').debug(
                     #     'Known token in doc %d: %s' % (doc_id, document_term))
                     known_tokens += 1
                     known_types.add(document_term)
@@ -305,7 +305,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
                 # training vocabulary
                     unknown_tokens += 1
                     unknown_types.add(document_term)
-                    logging.getLogger('root').debug(
+                    logging.getLogger('main').debug(
                         'Unknown token in doc %d: %s' % (doc_id, document_term))
 
                     neighbours = self._thesaurus.get(document_term)
@@ -316,7 +316,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
                     if neighbours:
                         found_tokens += 1
                         found_types.add(document_term)
-                        logging.getLogger('root').debug('Found thesaurus entry '
+                        logging.getLogger('main').debug('Found thesaurus entry '
                                                         'for %s' % document_term)
                     neighbours = [(neighbour, sim) for neighbour, sim in
                                   neighbours[:self.k] if
@@ -325,7 +325,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
                         replaced_tokens += 1
                         replaced_types.add(document_term)
                     for neighbour, sim in neighbours:
-                        logging.getLogger('root').debug(
+                        logging.getLogger('main').debug(
                             'Replacement. Doc %d: %s --> %s, '
                             'sim = %f' % (
                                 doc_id, document_term, neighbour, sim))
@@ -354,9 +354,9 @@ class ThesaurusVectorizer(TfidfVectorizer):
         # remove frequencies if binary feature were requested
         if self.binary:
             spmatrix.data.fill(1)
-        logging.getLogger('root').debug(
+        logging.getLogger('main').debug(
             'Vectorizer: Data shape is %s' % (str(spmatrix.shape)))
-        logging.getLogger('root').info(
+        logging.getLogger('main').info(
             'Vectorizer: '
             'Total tokens: %d, '
             'Unknown tokens: %d,  Found tokens: %d, Replaced tokens: %d, '
@@ -373,11 +373,11 @@ class ThesaurusVectorizer(TfidfVectorizer):
         f = './tmp_vocabulary'
         if self.log_vocabulary and not self.log_vocabulary_already:
             with open(f, 'w') as out:
-                logging.getLogger('root').info('Writing debug info')
+                logging.getLogger('main').info('Writing debug info')
                 pickle.dump(self.vocabulary_, out)
                 self.log_vocabulary_already = True
 
-        logging.getLogger('root').info('Done converting features to vectors')
+        logging.getLogger('main').info('Done converting features to vectors')
 
         return spmatrix
 
@@ -393,7 +393,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
         try:
             import xml.etree.cElementTree as ET
         except ImportError:
-            logging.getLogger('root').warn('cElementTree not available')
+            logging.getLogger('main').warn('cElementTree not available')
             import xml.etree.ElementTree as ET
 
         try:
@@ -423,7 +423,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
                     try:
                         iob_tag = element.find('ner').text.upper()
                     except AttributeError:
-                        logging.getLogger('root').error(
+                        logging.getLogger('main').error(
                             'You have requested named entity normalisation,'
                             ' but the input data is not annotated for '
                             'entities')
@@ -437,6 +437,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
                     txt = '__PUNCT__'
                 elif am_i_a_number:
                     txt = '__NUMBER__'
+                logging.getLogger('tokens').debug(txt)
                 tokens.append(txt)
 
         except ET.ParseError:
