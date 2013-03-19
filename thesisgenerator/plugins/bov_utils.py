@@ -38,8 +38,8 @@ def inspect_thesaurus_effect(outdir, clf_name, thesaurus_file, pipeline,
     pipeline.named_steps['vect'].thesaurus = {}
     predicted2 = pipeline.predict(x_test)
 
-    with open('%s/before_after_%s.csv' % (outdir, thesaurus_file),
-              'a') as outfile:
+    with open('%s/before_after_%s.csv' %
+                      (outdir, thesaurus_file), 'a') as outfile:
         outfile.write('DocID,')
         outfile.write(','.join([str(x) for x in range(len(predicted))]))
         outfile.write('\n')
@@ -118,7 +118,7 @@ def _write_exp2_to_14_conf_file(base_conf_file, exp_id, run_id, sample_size):
     return new_conf_file, log_dir
 
 
-def _exp2_5_6_7_8_file_iterator(sizes, exp_id, conf_file):
+def _exp2_to_14_file_iterator(sizes, exp_id, conf_file):
     for id, size in enumerate(sizes):
         new_conf_file, log_file = _write_exp2_to_14_conf_file(conf_file,
                                                               exp_id,
@@ -420,15 +420,13 @@ if __name__ == '__main__':
                                  '%s/conf/exp1/exp1_base.conf' % prefix)
 
     # ----------- EXPERIMENTS 2-14 -----------
-    elif 1 < i <= 14:
+    elif 1 < i <= 14 or 17 <= i <= 19:
         # sizes = chain(range(100, 1000, 100), range(1000, 5000, 500))
         sizes = chain(range(2, 11, 2), range(20, 101, 10))
         # sizes = range(10, 100, 10)
 
         base_conf_file = '%s/conf/exp%d/exp%d_base.conf' % (prefix, i, i)
-        it = _exp2_5_6_7_8_file_iterator(sizes, i,
-                                         base_conf_file)
-        evaluate_thesauri(base_conf_file, it, pool_size=num_workers)
+        it = _exp2_to_14_file_iterator(sizes, i, base_conf_file)
     elif i == 15:
         base_conf_file = '%s/conf/exp%d/exp%d_base.conf' % (prefix, i, i)
         it = _exp15_file_iterator(base_conf_file)
@@ -446,4 +444,5 @@ if __name__ == '__main__':
     consolidate_results(
         '%s/conf/exp%d/exp%d_base-variants' % (prefix, i, i),
         '%s/conf/exp%d/logs/' % (prefix, i),
-        '%s/conf/exp%d/output/' % (prefix, i))
+        '%s/conf/exp%d/output/' % (prefix, i)
+    )

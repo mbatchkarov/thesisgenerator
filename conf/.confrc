@@ -1,8 +1,6 @@
 name=string()
 debug=boolean(default=False)
-joblib_caching=boolean(default=False)
-shuffle_targets=boolean(default=False)
-
+	
 [feature_extraction]
     run=boolean(default=True)
     vectorizer=string(default="")
@@ -25,24 +23,20 @@ shuffle_targets=boolean(default=False)
     max_features=integer
     vocabulary=string
     binary=boolean
-    use_tfidf=boolean
     
     # extra options required by the Bag-of-Vectors project Vectorizer
-    thesaurus_files=list
+    thesaurus_file=string
     k=integer(min=0)
     sim_threshold=float
     lemmatize=boolean
     use_pos=boolean
 	coarse_pos=boolean
-	normalise_entities=boolean
 	
 [crossvalidation]
 	run=boolean()
 	type = option('kfold', 'skfold', 'loo', 'bootstrap', 'oracle', default = 'kfold')
 	k=integer(min=1,max=100,default=1)
 	ratio=float()
-    sample_size=integer()
-    random_state=integer()
 	
 [split_data]
     run=boolean()
@@ -86,37 +80,7 @@ shuffle_targets=boolean(default=False)
 	    run=boolean(default=False)
 	    
 [evaluation]
-    [[sklearn.metrics.precision_score]]
-        run=boolean(default=False)
-		average=option('micro', 'macro', 'weighted', default=None)
-	
-	[[sklearn.metrics.recall_score]]
-		run=boolean(default=False)
-		average=option('micro', 'macro', 'weighted', default=None)
-	
 	[[sklearn.metrics.f1_score]]
-		run=boolean(default=False)
-        average=option('micro', 'macro', 'weighted', default=None)
-
-	[[thesisgenerator.metrics.macroavg_prec]]
-    	run=boolean
-	
-	[[thesisgenerator.metrics.macroavg_rec]]
-    	run=boolean
-	
-	[[thesisgenerator.metrics.macroavg_f1]]
-    	run=boolean
-
-    [[thesisgenerator.metrics.microavg_prec]]
-    	run=boolean
-	
-	[[thesisgenerator.metrics.microavg_rec]]
-    	run=boolean
-	
-	[[thesisgenerator.metrics.microavg_f1]]
-    	run=boolean
-    	
-    [[sklearn.metrics.accuracy_score]]
-        run=boolean(default=False)
-        
-        
+        run=boolean(default=True)
+    [[sklearn.metrics.zero_one_score]]
+        run=boolean(default=True)
