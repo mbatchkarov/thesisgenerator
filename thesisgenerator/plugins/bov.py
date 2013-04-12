@@ -2,6 +2,7 @@ from collections import defaultdict
 import locale
 import logging
 import pickle
+import traceback
 import scipy.sparse as sp
 from sklearn.feature_extraction.text import TfidfVectorizer
 from utils import NoopTransformer
@@ -25,7 +26,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
                  max_n=None, ngram_range=(1, 1), max_df=1.0, min_df=2,
                  max_features=None, vocabulary=None, binary=False, dtype=long,
                  norm='l2', use_idf=True, smooth_idf=True,
-                 sublinear_tf=False, use_tfidf=True):
+                 sublinear_tf=False, use_tfidf=True, replace_all=False):
         """
         Builds a vectorizer the way a TfidfVectorizer is built, and takes one
         extra param specifying the path the the Byblo-generated thesaurus
@@ -42,11 +43,32 @@ class ThesaurusVectorizer(TfidfVectorizer):
             # vocabulary
             self.log_vocabulary_already = False #have I done it already
             self.use_tfidf = use_tfidf
+            self.replace_all = replace_all
+
+            print thesaurus_files
+            traceback.print_stack()
+
+            # if not self.thesaurus_files:
+            #     logging.getLogger('root').error("No thesaurus specified! "
+            #                                     "One is required when "
+            #                                     "using the replace_all "
+            #                                     "option in order to set "
+            #                                     "the dimensions of the "
+            #                                     "semantic space")
+            #     raise ValueError('Thesaurus is required')
+            # else:
+            #     # thesaurus file specified, parse it
+            #     self._thesaurus = self.load_thesauri()
 
             # for parsing integers with comma for thousands separator
             locale.setlocale(locale.LC_ALL, 'en_US')
         except KeyError:
             pass
+
+        # vocabulary_to_pass_in = vocabulary if self.replace_all else \
+        #     self._thesaurus.keys()
+        vocabulary_to_pass_in = vocabulary
+
         super(ThesaurusVectorizer, self).__init__(input=input,
                                                   charset=charset,
                                                   charset_error=charset_error,
@@ -63,7 +85,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
                                                   max_df=max_df,
                                                   min_df=min_df,
                                                   max_features=max_features,
-                                                  vocabulary=vocabulary,
+                                                  vocabulary=vocabulary_to_pass_in,
                                                   use_idf=use_idf,
                                                   smooth_idf=smooth_idf,
                                                   sublinear_tf=sublinear_tf,
