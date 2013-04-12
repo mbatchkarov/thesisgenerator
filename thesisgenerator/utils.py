@@ -10,6 +10,8 @@ import logging
 import re
 import gzip
 import sys
+import os.path as p
+import itertools
 from sklearn.base import BaseEstimator, TransformerMixin
 
 from sklearn.utils import check_random_state
@@ -20,6 +22,20 @@ try:
     from xml.etree import cElementTree as ET
 except ImportError:
     from xml.etree import ElementTree as ET
+
+
+def get_confrc(conf_file):
+    """
+    Searches the file hierarchy top to bottom for confrc,
+    starting from  conf_file and going as many as 3 levels up
+    """
+    for i in range(4):
+        my_list = itertools.chain([p.dirname(conf_file)], ['..'] * i,
+                                  ['confrc'])
+        candidate = p.join(*[x for x in my_list])
+        if p.exists(candidate):
+            print candidate
+            return candidate
 
 
 def get_named_object(pathspec):

@@ -13,7 +13,7 @@ from numpy import nonzero
 
 try:
     from thesisgenerator.__main__ import go, _get_data_iterators, parse_config_file
-    from thesisgenerator.utils import replace_in_file
+    from thesisgenerator.utils import replace_in_file, get_confrc
 except ImportError:
 # if one tries to run this script from the main project directory the
 # thesisgenerator package would not be on the path, add it and try again
@@ -22,7 +22,7 @@ except ImportError:
     sys.path.append('./')
     sys.path.append('./thesisgenerator')
     from thesisgenerator.__main__ import go, _get_data_iterators, parse_config_file
-    from thesisgenerator.utils import replace_in_file
+    from thesisgenerator.utils import replace_in_file, get_confrc
 
 __author__ = 'mmb28'
 
@@ -97,8 +97,8 @@ def _prepare_conf_files(base_conf_file, exp_id, run_id):
     new_conf_file = os.path.join(name, 'exp%d-%d%s' % (exp_id, run_id, ext))
     log_file = os.path.join(name, '..', 'logs')
     shutil.copy(base_conf_file, new_conf_file)
-    configspec_file = os.path.join(os.path.dirname(base_conf_file), '.confrc')
-    shutil.copy(configspec_file, name)
+    configspec_file = get_confrc(base_conf_file)
+    # shutil.copy(configspec_file, name)
     return log_file, new_conf_file
 
 

@@ -27,7 +27,10 @@ import config
 from plugins.dumpers import DatasetDumper
 from utils import (get_named_object,
                    LeaveNothingOut,
-                   ChainCallable, PredefinedIndicesIterator, SubsamplingPredefinedIndicesIterator)
+                   ChainCallable,
+                   PredefinedIndicesIterator,
+                   SubsamplingPredefinedIndicesIterator,
+                   get_confrc)
 
 
 # **********************************
@@ -584,7 +587,7 @@ def _prepare_classpath(classpath):
 
 
 def parse_config_file(conf_file):
-    configspec_file = os.path.join(os.path.dirname(conf_file), '.confrc')
+    configspec_file = get_confrc(conf_file)
     config = ConfigObj(conf_file, configspec=configspec_file)
     validator = validate.Validator()
     result = config.validate(validator)

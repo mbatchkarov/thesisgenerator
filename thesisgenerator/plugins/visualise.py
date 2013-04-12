@@ -105,7 +105,7 @@ def performance_bar_chart(tables, classifiers, width=0.2, cv=25):
     ax.set_xlabel('Sample size')
     ax.set_ylabel('Macroavg F1')
     ax.set_title('Classifier performance')
-    ax.legend(map(operator.itemgetter(0), data_frames), 'right')
+    ax.legend(map(operator.itemgetter(0), data_frames), 'best')
     ax.set_ylim([0., 1.])
     exp_range = '-'.join(map(str, tables))
     classifiers = '-'.join([x[:5] for x in classifiers])
@@ -115,7 +115,7 @@ def performance_bar_chart(tables, classifiers, width=0.2, cv=25):
 
 
 def coverage_bar_chart(experiments, width=0.13, cv=25,
-                       x_columns=['sample_size']):
+                       x_columns=['sample_size'], legend_position='best'):
     data_frames = []
     stats = [
         ["unknown_tok_mean", "unknown_tok_std"],
@@ -149,7 +149,8 @@ def coverage_bar_chart(experiments, width=0.13, cv=25,
     # ax.set_xlabel('Sample size')
     ax.set_ylabel('Proportion of total tokens/types')
     ax.set_title('Thesaurus coverage')
-    ax.legend(y_columns, 'lower left', ncol=len(y_columns), prop={'size': 6})
+    ax.legend(y_columns, legend_position, ncol=len(y_columns),
+              prop={'size': 6})
     plt.savefig('figures/exp%s-coverage.png' % experiment, format='png',
                 dpi=300)
 
@@ -172,7 +173,10 @@ def coverage_bar_chart(experiments, width=0.13, cv=25,
 # performance_bar_chart([11, 14], ['MultinomialNB'])
 # performance_bar_chart([11, 14], ['BernoulliNB'])
 # performance_bar_chart([11, 14], ['LogisticRegression'])
+# performance_bar_chart([17, 18, 19], ['LogisticRegression'])
+# performance_bar_chart([2, 17, 18, 19], ['MultinomialNB'])
+# performance_bar_chart([17, 18, 19], ['BernoulliNB'])
 
-coverage_bar_chart([8], cv=5)
+coverage_bar_chart([6, 8], cv=5, legend_position='upper center')
 coverage_bar_chart([16], x_columns=['name'])
 print 'done'

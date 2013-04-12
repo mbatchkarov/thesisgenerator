@@ -76,7 +76,7 @@ def unindex_thesauri(byblo_path, thesauri_paths):
     thesauri_paths: Iterable over Path to Byblo output directories. All
     directories are assumed to ONLY contain Byblo output files
     """
-    from iterpipes import  cmd, run
+    from iterpipes import cmd, run
 
     os.chdir(byblo_path)
 
@@ -86,7 +86,9 @@ def unindex_thesauri(byblo_path, thesauri_paths):
         commands = []
 
         # events after filtering
-        commands.append(cmd('./tools.sh unindex-events -i {}events.filtered -o {}events.strings -Xe {}entry-index -Xf {}feature-index -et JDBM', exp_name, exp_name, exp_name, exp_name))
+        commands.append(cmd(
+            './tools.sh unindex-events -i {}events.filtered -o {}events.strings -Xe {}entry-index -Xf {}feature-index -et JDBM',
+            exp_name, exp_name, exp_name, exp_name))
         # events before filtering
         commands.append(cmd(
             './tools.sh unindex-events -i {}events -o {}events-unfiltered.strings -Xe {}entry-index -Xf {}feature-index -et JDBM',
@@ -156,7 +158,7 @@ def postfilter_thesauri(thesauri_paths, lower, upper=None):
     Parameters:
     thesauri_paths: byblo-produced output directly, must not contain other files
     lower: iterable overs integer. minimum thresholds
-    lower: iterable overs integer. maximum thresholds
+    upper: iterable overs integer. maximum thresholds
     """
     import sys
 
@@ -210,6 +212,7 @@ def convert_old_byblo_format_to_new(filename):
             outfile.write('\n')
     return new_file
 
+
 if __name__ == '__main__':
 #    pass
     print 'hi'
@@ -227,8 +230,8 @@ if __name__ == '__main__':
         '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/Byblo-2.1.0/sample-output',
         '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/Byblo-2.1.0/sample-output',
         '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/Byblo-2.1.0/sample-output'
-        ]
-#    thesauri = ['/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/Byblo-2.1.0/exp6-%d%s/'%(x,y) for x,y in product([11],'b')]
+    ]
+    #    thesauri = ['/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/Byblo-2.1.0/exp6-%d%s/'%(x,y) for x,y in product([11],'b')]
 
     for x in thesauri:
         unindex_thesauri(
