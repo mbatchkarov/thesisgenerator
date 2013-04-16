@@ -18,7 +18,7 @@ class DatasetDumper(TransformerMixin):
         self.prefix = prefix
         self._tranform_call_count = 0
 
-    def _dump(self, X, y=defaultdict(str), file_name='dump.csv'):
+    def _dump(self, X, y, file_name='dump.csv'):
         """
         The call order is
             1. training data
@@ -48,15 +48,19 @@ class DatasetDumper(TransformerMixin):
             c.writerow([i, y[i], sum(row), count_nonzero(row)] + vals)
 
     def fit(self, X, y=None, **fit_params):
-        if self._tranform_call_count == 1:
-            self._dump(X, y, 'PostVectorizerDump-tr%d.csv' % self.pipe_id)
+        self.y = y
         return self
 
     def transform(self, X):
         self._tranform_call_count += 1
-        if self._tranform_call_count == 2:
-            self._dump(X,
-                       file_name='PostVectorizerDump-ev%d.csv' % self.pipe_id)
+        suffix = {1: 'tr', 2: 'ev'}
+        if not hasattr(self, 'y'):
+            self.y = defaultdict(str)
+
+        if 1 <= self._tranform_call_count <= 2:
+            self._dump(X, self.y, file_name='PostVectDump-%s%d.csv' % (
+                suffix[self._tranform_call_count],
+                self.pipe_id))
         return X
 
     def get_params(self, deep=True):

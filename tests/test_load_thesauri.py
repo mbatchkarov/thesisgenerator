@@ -7,7 +7,7 @@ __author__ = 'mmb28'
 
 
 class TestLoad_thesauri(TestCase):
-    files = ['../sample-data/simple.thesaurus.strings']
+    files = ['sample-data/simple.thesaurus.strings']
     params = {'thesaurus_files': files,
               'sim_threshold': 0,
               'k': 10,

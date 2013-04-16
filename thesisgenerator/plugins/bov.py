@@ -22,7 +22,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
                  preprocessor=None, tokenizer=None, analyzer='better',
                  stop_words=None, token_pattern=ur"(?u)\b\w\w+\b", min_n=None,
                  max_n=None, ngram_range=(1, 1), max_df=1.0, min_df=2,
-                 max_features=None, vocabulary=None, binary=False, dtype=long,
+                 max_features=None, vocabulary=None, binary=False, dtype=float,
                  norm='l2', use_idf=True, smooth_idf=True,
                  sublinear_tf=False, use_tfidf=True, replace_all=False):
         """
@@ -36,11 +36,6 @@ class ThesaurusVectorizer(TfidfVectorizer):
             self.use_tfidf = use_tfidf
             self.replace_all = bool(replace_all)
             self.pipe_id = pipe_id
-            self._thesaurus = load_thesauri()
-
-            if replace_all:
-                vocabulary = self._thesaurus.keys()
-
             # for parsing integers with comma for thousands separator
             locale.setlocale(locale.LC_ALL, 'en_US')
         except KeyError:
@@ -70,6 +65,23 @@ class ThesaurusVectorizer(TfidfVectorizer):
                                                   norm=norm,
                                                   dtype=dtype
         )
+
+    def fit_transform(self, raw_documents, y=None):
+        self._thesaurus = load_thesauri()
+        if self.replace_all:
+            self.vocabulary_ = {k: v for v, k in
+                                enumerate(sorted(self._thesaurus.keys()))}
+            self.fixed_vocabulary = True
+        return super(ThesaurusVectorizer, self).fit_transform(raw_documents,
+                                                              y)
+
+    def fit(self, X, y=None, **fit_params):
+        self._thesaurus = load_thesauri()
+        if self.replace_all:
+            self.vocabulary_ = {k: v for v, k in
+                                enumerate(sorted(self._thesaurus.keys()))}
+            self.fixed_vocabulary = True
+        return super(ThesaurusVectorizer, self).fit_(X, y, **fit_params)
 
     def my_feature_extractor(self, tokens, stop_words=None,
                              ngram_range=(1, 1)):
@@ -288,11 +300,11 @@ class ThesaurusVectorizer(TfidfVectorizer):
         f = './tmp_vocabulary%d' % self.pipe_id
         if self.log_vocabulary and not self.log_vocabulary_already:
             with open(f, 'w') as out:
-                print 'Writing debug info to', f
+                # print 'Writing debug info to', f
                 pickle.dump(self.vocabulary_, out)
                 self.log_vocabulary_already = True
-        else:
-            print 'Written debug info already'
+                # else:
+                #     print 'Written debug info already'
 
         logging.getLogger('root').info('Done converting features to vectors')
 

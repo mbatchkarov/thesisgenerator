@@ -270,7 +270,7 @@ def _build_vectorizer(id, call_args, feature_extraction_conf, pipeline_list,
     if debug:# and not postvect_dumper_added_already:
         logging.getLogger('root').info('Will perform post-vectorizer data dump')
         pipeline_list.append(
-            ('postVectDumper', DatasetDumper(id, output_dir)))
+            ('dumper', DatasetDumper(id, output_dir)))
         # postvect_dumper_added_already = True
         call_args['vect__log_vocabulary'] = True # tell the vectorizer it
         # needs to persist some information (used by the postvect dumper)
@@ -341,12 +341,14 @@ def _build_pipeline(id, classifier_name, feature_extr_conf, feature_sel_conf,
                                   pipeline_list)
     # include a classifier in the pipeline regardless of whether we are doing
     # feature selection/dim. red. or not
-    clf = get_named_object(classifier_name)
-    initialize_args = inspect.getargspec(clf.__init__)[0]
-    call_args.update({'clf__%s' % arg: val
-                      for arg, val in classifier_conf[classifier_name].items()
-                      if val != '' and arg in initialize_args})
-    pipeline_list.append(('clf', clf()))
+    if classifier_name:
+        clf = get_named_object(classifier_name)
+        initialize_args = inspect.getargspec(clf.__init__)[0]
+        call_args.update({'clf__%s' % arg: val
+                          for arg, val in
+                          classifier_conf[classifier_name].items()
+                          if val != '' and arg in initialize_args})
+        pipeline_list.append(('clf', clf()))
     pipeline = Pipeline(pipeline_list)
     pipeline.set_params(**call_args)
 
@@ -604,6 +606,9 @@ def parse_config_file(conf_file):
 
 
 def _init_utilities_state(config):
+    """
+    Initialises the state of helper modules from a config object
+    """
     tokenizers.normalise_entities = config['feature_extraction'][
         'normalise_entities']
     tokenizers.use_pos = config['feature_extraction']['use_pos']
