@@ -606,10 +606,10 @@ def parse_config_file(conf_file):
 def _init_utilities_state(config):
     tokenizers.normalise_entities = config['feature_extraction'][
         'normalise_entities']
-    tokenizers.use_pos = config['feature_extraction']['use_pos']
-    tokenizers.coarse_pos = config['feature_extraction']['coarse_pos']
+    # tokenizers.use_pos = config['feature_extraction']['use_pos']
+    # tokenizers.coarse_pos = config['feature_extraction']['coarse_pos']
     tokenizers.lemmatize = config['feature_extraction']['lemmatize']
-    tokenizers.lowercase = config['feature_extraction']['lowercase']
+    tokenizers.lowercase = config['tokenizer']['lowercase']
     thesaurus_loader.thesaurus_files = config['feature_extraction'][
         'thesaurus_files']
     thesaurus_loader.use_pos = config['feature_extraction']['use_pos']

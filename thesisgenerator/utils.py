@@ -106,7 +106,7 @@ class LeaveNothingOut(object):
 
 class PredefinedIndicesIterator(object):
     """A scikits-compliant crossvalidation iterator which returns
-    a single pair of pre-defined train-test indices. To be used when the test
+    a single pair of pre-defined train-tests indices. To be used when the tests
      set is known in advance
     """
 
@@ -116,7 +116,7 @@ class PredefinedIndicesIterator(object):
 
     def __iter__(self):
         logging.getLogger('root').info('Yielding a training set of '
-                                       'size %d and a test set of '
+                                       'size %d and a tests set of '
                                        'size %d' %
                                        (len(self.train),
                                         len(self.test)))
@@ -128,17 +128,17 @@ class PredefinedIndicesIterator(object):
 class SubsamplingPredefinedIndicesIterator(object):
     """
     A CV iterator that selects a stratified sample of all available training
-    documents, but returns all available test documents
+    documents, but returns all available tests documents
     """
 
     def __init__(self, y_vals, train, test, num_samples, sample_size,
                  random_state=0):
         """
         Parameters:
-        y_vals - all targets, for both train and test set
-        train/test- indices of the train/test set
+        y_vals - all targets, for both train and tests set
+        train/tests- indices of the train/tests set
         num_sample- how many CV runs to perform
-        sample_size- how large a sample to take from the test set
+        sample_size- how large a sample to take from the tests set
         random_state- int or numpy.RandomState, as per scikit's docs
         """
         self.y_vals = y_vals

@@ -80,14 +80,11 @@ def xml_tokenizer(doc):
             else:
                 txt = element.find('word').text
 
-            if lowercase:
-                txt = txt.lower()
-
             # check if the token is a number before things have been done
             #  to it
-            am_i_a_number = is_number(txt)
+            am_i_a_number = _is_number(txt)
 
-            pos = element.find('pos').text.upper()
+            pos = element.find('POS').text.upper()
             if use_pos:
                 if coarse_pos:
                     pos = pos_coarsification_map[pos.upper()]
@@ -95,7 +92,7 @@ def xml_tokenizer(doc):
 
             if normalise_entities:
                 try:
-                    iob_tag = element.find('ner').text.upper()
+                    iob_tag = element.find('NER').text.upper()
                 except AttributeError:
                     logging.getLogger('root').error(
                         'You have requested named entity normalisation,'
@@ -111,6 +108,10 @@ def xml_tokenizer(doc):
                 txt = '__PUNCT__'
             elif am_i_a_number:
                 txt = '__NUMBER__'
+
+            if lowercase:
+                txt = txt.lower()
+
             tokens.append(txt)
 
     except ET.ParseError:
@@ -120,7 +121,7 @@ def xml_tokenizer(doc):
     return tokens
 
 
-def is_number(s):
+def _is_number(s):
     """
     Checks if the given string is an int or a float. Numbers with thousands
     separators (e.g. "1,000.12") are also recognised. Returns true of the string

@@ -4,6 +4,7 @@ import logging
 __author__ = 'mmb28'
 
 preloaded_thesauri = {}
+use_cache = True # used to disable caching for testing purposes
 
 
 def load_thesauri():
@@ -19,7 +20,7 @@ def load_thesauri():
     sim_threshold: what is the min similarity for neighbours that
     should be loaded
     """
-    global thesaurus_files, use_pos, coarse_pos, sim_threshold, k, include_self
+    global thesaurus_files, sim_threshold, k, include_self
 
     if not thesaurus_files:
         logging.getLogger('root').warn("No thesaurus specified")
@@ -28,7 +29,7 @@ def load_thesauri():
     result = {}
     logging.getLogger('root').debug(thesaurus_files)
     for path in thesaurus_files:
-        if path in preloaded_thesauri:
+        if path in preloaded_thesauri and use_cache:
             logging.getLogger('root').info('Returning cached thesaurus '
                                            'for %s' % path)
             result.update(preloaded_thesauri[path])
@@ -36,11 +37,8 @@ def load_thesauri():
             logging.getLogger('root').info(
                 'Loading thesaurus %s from disk' % path)
             logging.getLogger('root').debug(
-                'PoS: %r, coarse: %r, threshold %r, k=%r' %
-                (use_pos,
-                 coarse_pos,
-                 sim_threshold,
-                 k))
+                'threshold %r, k=%r' % (sim_threshold, k))
+
             FILTERED = '___FILTERED___'.lower()
             curr_thesaurus = defaultdict(list)
             with open(path) as infile:
@@ -57,8 +55,8 @@ def load_thesauri():
                                      _iterate_nonoverlapping_pairs(
                                          tokens, 1, k)
                                      if
-                                     word != FILTERED and sim >
-                                     sim_threshold]
+                                     word != FILTERED and
+                                     float(sim) > sim_threshold]
                         if include_self:
                             to_insert.insert(0, (tokens[0].lower(), 1.0))
                             # the step above may filter out all neighbours of an
@@ -73,8 +71,9 @@ def load_thesauri():
 
             # note- do not attempt to lowercase if the thesaurus has not already been
             # lowercased- may result in multiple neighbour lists for the same entry
-            logging.getLogger('root').info('Caching thesaurus %s' % path)
-            preloaded_thesauri[path] = curr_thesaurus
+            if use_cache:
+                logging.getLogger('root').info('Caching thesaurus %s' % path)
+                preloaded_thesauri[path] = curr_thesaurus
             result.update(curr_thesaurus)
 
     logging.getLogger('root').info(
@@ -84,6 +83,7 @@ def load_thesauri():
     return result
 
 
-def _iterate_nonoverlapping_pairs(iterable, beg, end):
-    for i in xrange(beg, min(len(iterable) - 1, 2 * end), 2):  #step size 2
+def _iterate_nonoverlapping_pairs(iterable, beg, num_pairs):
+    for i in xrange(beg, min(len(iterable) - 1, 2 * num_pairs),
+                    2):  #step size 2
         yield (iterable[i], iterable[i + 1])

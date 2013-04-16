@@ -1,11 +1,13 @@
 import locale
 import logging
 import pickle
+
 import scipy.sparse as sp
 from sklearn.feature_extraction.text import TfidfVectorizer
+from utils import NoopTransformer
+
 from plugins.thesaurus_loader import load_thesauri
 from plugins.tokenizers import xml_tokenizer
-from utils import NoopTransformer
 
 
 class ThesaurusVectorizer(TfidfVectorizer):
@@ -82,9 +84,8 @@ class ThesaurusVectorizer(TfidfVectorizer):
         # handle stop words and lowercasing- this is needed because thesaurus
         # only contains lowercase entries
         if stop_words is not None:
-            tokens = [w.lower() for w in tokens if
-                      w not in stop_words and len(w) >
-                      3]
+            tokens = [w for w in tokens if w.lower() not in stop_words and
+                                           len(w) > 3]
 
         #    last_chars = ['**suffix(%s)' % token[-1] for token in tokens]
         #    shapes = ['**shape(%s)' % "".join(
@@ -221,7 +222,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
                 # replace term with its k nearest neighbours from the thesaurus
 
                 #  logger.info below demonstrates that unseen words exist,
-                # i.e. vectorizer is not reducing the test set to the
+                # i.e. vectorizer is not reducing the tests set to the
                 # training vocabulary
                     unknown_tokens += 1
                     unknown_types.add(document_term)
