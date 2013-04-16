@@ -36,7 +36,8 @@ shuffle_targets=boolean(default=False)
 	coarse_pos=boolean
 	normalise_entities=boolean
 	replace_all=boolean
-	
+    include_self=boolean(default=True)	
+    
 [crossvalidation]
 	run=boolean()
 	type = option('kfold', 'skfold', 'loo', 'bootstrap', 'oracle', default = 'kfold')

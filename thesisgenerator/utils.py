@@ -179,11 +179,19 @@ class SubsamplingPredefinedIndicesIterator(object):
 
 
 class NoopTransformer(BaseEstimator, TransformerMixin):
+    """
+    A no-op base estimator, which does nothing to its input data
+    Also functions as a joblib cache object that does nothing
+    """
+
     def fit(self, X, y=None):
         return self
 
     def transform(self, X, copy=True):
         return X
+
+    def cache(self, x):
+        return x
 
 
 class ChainCallable(object):

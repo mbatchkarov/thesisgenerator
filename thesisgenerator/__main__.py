@@ -24,10 +24,11 @@ from sklearn.datasets import load_files
 from joblib import Memory
 
 import config
+from plugins import tokenizers, thesaurus_loader
 from plugins.dumpers import DatasetDumper
 from utils import (get_named_object,
                    LeaveNothingOut,
-                   ChainCallable, PredefinedIndicesIterator, SubsamplingPredefinedIndicesIterator)
+                   ChainCallable, PredefinedIndicesIterator, SubsamplingPredefinedIndicesIterator, NoopTransformer)
 
 
 # **********************************
@@ -228,7 +229,7 @@ def get_crossvalidation_iterator(config, x_vals, y_vals, x_test=None,
     return iterator, validation_indices, x_vals, y_vals
 
 
-def _build_vectorizer(call_args, feature_extraction_conf, pipeline_list,
+def _build_vectorizer(id, call_args, feature_extraction_conf, pipeline_list,
                       output_dir, debug):
     """
     Builds a vectorized that converts raw text to feature vectors. The
@@ -265,15 +266,16 @@ def _build_vectorizer(call_args, feature_extraction_conf, pipeline_list,
     pipeline_list.append(('vect', vectorizer()))
     call_args['vect__log_vocabulary'] = False
 
-    global postvect_dumper_added_already
-    if debug and not postvect_dumper_added_already:
+    # global postvect_dumper_added_already
+    if debug:# and not postvect_dumper_added_already:
         logging.getLogger('root').info('Will perform post-vectorizer data dump')
         pipeline_list.append(
-            ('postVectDumper', DatasetDumper(output_dir)))
-        postvect_dumper_added_already = True
+            ('postVectDumper', DatasetDumper(id, output_dir)))
+        # postvect_dumper_added_already = True
         call_args['vect__log_vocabulary'] = True # tell the vectorizer it
         # needs to persist some information (used by the postvect dumper)
         # this is needed because object in the pipeline are isolated
+        call_args['vect__pipe_id'] = id
 
 
 def _build_feature_selector(call_args, feature_selection_conf, pipeline_list):
@@ -318,7 +320,7 @@ def _build_dimensionality_reducer(call_args, dimensionality_reduction_conf,
         pipeline_list.append(('dr', dr_method()))
 
 
-def _build_pipeline(classifier_name, feature_extr_conf, feature_sel_conf,
+def _build_pipeline(id, classifier_name, feature_extr_conf, feature_sel_conf,
                     dim_red_conf, classifier_conf, output_dir, debug):
     """
     Builds a pipeline consisting of
@@ -330,7 +332,7 @@ def _build_pipeline(classifier_name, feature_extr_conf, feature_sel_conf,
     call_args = {}
     pipeline_list = []
 
-    _build_vectorizer(call_args, feature_extr_conf,
+    _build_vectorizer(id, call_args, feature_extr_conf,
                       pipeline_list, output_dir, debug)
 
     _build_feature_selector(call_args, feature_sel_conf,
@@ -362,8 +364,8 @@ def run_tasks(configuration, data=None):
     if configuration['joblib_caching']:
         mem_cache = Memory(cachedir=configuration['output_dir'], verbose=0)
     else:
-        op = type("JoblibDummy", (object,), {"cache": lambda self, x: x})
-        mem_cache = op()
+        # op = type("JoblibDummy", (object,), {"cache": lambda self, x: x})
+        mem_cache = NoopTransformer()
 
     # retrieve the actions that should be run by the framework
     actions = configuration.keys()
@@ -423,7 +425,7 @@ def run_tasks(configuration, data=None):
     del y_vals # only the non-validation data should be used from now on
 
     scores = []
-    for clf_name in configuration['classifiers']:
+    for i, clf_name in enumerate(configuration['classifiers']):
         if not configuration['classifiers'][clf_name]:
             continue
 
@@ -435,7 +437,7 @@ def run_tasks(configuration, data=None):
         logging.getLogger('root').info(
             '------------------------------------------------------------')
         logging.getLogger('root').info('Building pipeline')
-        pipeline = _build_pipeline(clf_name,
+        pipeline = _build_pipeline(i, clf_name,
                                    configuration['feature_extraction'],
                                    configuration['feature_selection'],
                                    configuration['dimensionality_reduction'],
@@ -601,6 +603,23 @@ def parse_config_file(conf_file):
     return config, configspec_file
 
 
+def _init_utilities_state(config):
+    tokenizers.normalise_entities = config['feature_extraction'][
+        'normalise_entities']
+    tokenizers.use_pos = config['feature_extraction']['use_pos']
+    tokenizers.coarse_pos = config['feature_extraction']['coarse_pos']
+    tokenizers.lemmatize = config['feature_extraction']['lemmatize']
+    tokenizers.lowercase = config['feature_extraction']['lowercase']
+    thesaurus_loader.thesaurus_files = config['feature_extraction'][
+        'thesaurus_files']
+    thesaurus_loader.use_pos = config['feature_extraction']['use_pos']
+    thesaurus_loader.coarse_pos = config['feature_extraction']['coarse_pos']
+    thesaurus_loader.sim_threshold = config['feature_extraction'][
+        'sim_threshold']
+    thesaurus_loader.k = config['feature_extraction']['k']
+    thesaurus_loader.include_self = config['feature_extraction']['include_self']
+
+
 def go(conf_file, log_dir, data=None, classpath='', clean=False):
     if not os.path.exists(log_dir):
         os.makedirs(log_dir)
@@ -611,7 +630,7 @@ def go(conf_file, log_dir, data=None, classpath='', clean=False):
     log.info(
         'Reading configuration file from \'%s\', conf spec from \'%s\''
         % (glob(conf_file)[0], configspec_file))
-
+    _init_utilities_state(config)
     output = config['output_dir']
     _prepare_output_directory(clean, output)
     _prepare_classpath(classpath)
