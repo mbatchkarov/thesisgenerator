@@ -24,13 +24,11 @@ from sklearn.datasets import load_files
 from joblib import Memory
 
 import config
+from plugins import tokenizers, thesaurus_loader
 from plugins.dumpers import DatasetDumper
 from utils import (get_named_object,
                    LeaveNothingOut,
-                   ChainCallable,
-                   PredefinedIndicesIterator,
-                   SubsamplingPredefinedIndicesIterator,
-                   get_confrc)
+                   ChainCallable, PredefinedIndicesIterator, SubsamplingPredefinedIndicesIterator, NoopTransformer)
 
 
 # **********************************
@@ -71,7 +69,7 @@ def _get_data_iterators(**kwargs):
             input_gen = kwargs['input_generator']
             source = kwargs['source']
             try:
-                logging.getLogger('main').debug(
+                logging.getLogger('root').debug(
                     'Retrieving input generator for name '
                     '\'%(input_gen)s\'' % locals())
 
@@ -81,7 +79,7 @@ def _get_data_iterators(**kwargs):
                     dtype=np.int)
                 data_iterable = data_iterable.documents()
             except (ValueError, ImportError):
-                logging.getLogger('main').warn(
+                logging.getLogger('root').warn(
                     'No input generator found for name '
                     '\'%(input_gen)s\'. Using a file content '
                     'generator with source \'%(source)s\'' % locals())
@@ -97,13 +95,13 @@ def _get_data_iterators(**kwargs):
                                      '\'content\'')
 
                 dataset = load_files(source, shuffle=False)
-                logging.getLogger('main').info(
+                logging.getLogger('root').info(
                     'Targets are: %s' % dataset.target_names)
                 data_iterable = dataset.data
                 if kwargs['shuffle_targets']:
                     import random
 
-                    logging.getLogger('main').warn('RANDOMIZING TARGETS')
+                    logging.getLogger('root').warn('RANDOMIZING TARGETS')
                     random.shuffle(dataset.target)
                 targets_iterable = dataset.target
         except KeyError:
@@ -142,7 +140,7 @@ def get_crossvalidation_iterator(config, x_vals, y_vals, x_test=None,
     The full text is provided as a parameter so that joblib can cache the
     call to this function.
     """
-    logging.getLogger('main').info('Building crossvalidation iterator')
+    logging.getLogger('root').info('Building crossvalidation iterator')
     cv_type = config['type']
     k = config['k']
 
@@ -161,10 +159,10 @@ def get_crossvalidation_iterator(config, x_vals, y_vals, x_test=None,
                                 validation_data, [])
 
     if x_test is not None and y_test is not None:
-        logging.getLogger('main').warn('You have requested test set to be '
+        logging.getLogger('root').warn('You have requested test set to be '
                                        'used for evaluation.')
         if cv_type != 'test_set' and cv_type != 'subsampled_test_set':
-            logging.getLogger('main').error('Wrong crossvalidation type. '
+            logging.getLogger('root').error('Wrong crossvalidation type. '
                                             'Only test_set or '
                                             'subsampled_test_set are '
                                             'permitted with a test set')
@@ -183,7 +181,7 @@ def get_crossvalidation_iterator(config, x_vals, y_vals, x_test=None,
     dataset_size = np.sum(seen_data_mask)
     targets_seen = y_vals[seen_data_mask]
     if k < 0:
-        logging.getLogger('main').warn(
+        logging.getLogger('root').warn(
             'crossvalidation.k not specified, defaulting to 1')
         k = 1
     if cv_type == 'kfold':
@@ -195,7 +193,7 @@ def get_crossvalidation_iterator(config, x_vals, y_vals, x_test=None,
     elif cv_type == 'bootstrap':
         ratio = config['ratio']
         if k < 0:
-            logging.getLogger('main').warn(
+            logging.getLogger('root').warn(
                 'crossvalidation.ratio not specified,defaulting to 0.8')
             ratio = 0.8
         iterator = cross_validation.Bootstrap(dataset_size,
@@ -231,7 +229,7 @@ def get_crossvalidation_iterator(config, x_vals, y_vals, x_test=None,
     return iterator, validation_indices, x_vals, y_vals
 
 
-def _build_vectorizer(call_args, feature_extraction_conf, pipeline_list,
+def _build_vectorizer(id, call_args, feature_extraction_conf, pipeline_list,
                       output_dir, debug):
     """
     Builds a vectorized that converts raw text to feature vectors. The
@@ -268,15 +266,16 @@ def _build_vectorizer(call_args, feature_extraction_conf, pipeline_list,
     pipeline_list.append(('vect', vectorizer()))
     call_args['vect__log_vocabulary'] = False
 
-    global postvect_dumper_added_already
-    if debug and not postvect_dumper_added_already:
-        logging.getLogger('main').info('Will perform post-vectorizer data dump')
+    # global postvect_dumper_added_already
+    if debug:# and not postvect_dumper_added_already:
+        logging.getLogger('root').info('Will perform post-vectorizer data dump')
         pipeline_list.append(
-            ('postVectDumper', DatasetDumper(output_dir)))
-        postvect_dumper_added_already = True
+            ('dumper', DatasetDumper(id, output_dir)))
+        # postvect_dumper_added_already = True
         call_args['vect__log_vocabulary'] = True # tell the vectorizer it
         # needs to persist some information (used by the postvect dumper)
         # this is needed because object in the pipeline are isolated
+        call_args['vect__pipe_id'] = id
 
 
 def _build_feature_selector(call_args, feature_selection_conf, pipeline_list):
@@ -321,7 +320,7 @@ def _build_dimensionality_reducer(call_args, dimensionality_reduction_conf,
         pipeline_list.append(('dr', dr_method()))
 
 
-def _build_pipeline(classifier_name, feature_extr_conf, feature_sel_conf,
+def _build_pipeline(id, classifier_name, feature_extr_conf, feature_sel_conf,
                     dim_red_conf, classifier_conf, output_dir, debug):
     """
     Builds a pipeline consisting of
@@ -333,7 +332,7 @@ def _build_pipeline(classifier_name, feature_extr_conf, feature_sel_conf,
     call_args = {}
     pipeline_list = []
 
-    _build_vectorizer(call_args, feature_extr_conf,
+    _build_vectorizer(id, call_args, feature_extr_conf,
                       pipeline_list, output_dir, debug)
 
     _build_feature_selector(call_args, feature_sel_conf,
@@ -342,16 +341,18 @@ def _build_pipeline(classifier_name, feature_extr_conf, feature_sel_conf,
                                   pipeline_list)
     # include a classifier in the pipeline regardless of whether we are doing
     # feature selection/dim. red. or not
-    clf = get_named_object(classifier_name)
-    initialize_args = inspect.getargspec(clf.__init__)[0]
-    call_args.update({'clf__%s' % arg: val
-                      for arg, val in classifier_conf[classifier_name].items()
-                      if val != '' and arg in initialize_args})
-    pipeline_list.append(('clf', clf()))
+    if classifier_name:
+        clf = get_named_object(classifier_name)
+        initialize_args = inspect.getargspec(clf.__init__)[0]
+        call_args.update({'clf__%s' % arg: val
+                          for arg, val in
+                          classifier_conf[classifier_name].items()
+                          if val != '' and arg in initialize_args})
+        pipeline_list.append(('clf', clf()))
     pipeline = Pipeline(pipeline_list)
     pipeline.set_params(**call_args)
 
-    logging.getLogger('main').debug('Pipeline is:\n %s', pipeline)
+    logging.getLogger('root').debug('Pipeline is:\n %s', pipeline)
     return pipeline
 
 
@@ -359,14 +360,14 @@ def run_tasks(configuration, data=None):
     """
     Runs all commands specified in the configuration file
     """
-    logging.getLogger('main').info('running tasks')
+    logging.getLogger('root').info('running tasks')
     # get a reference to the joblib cache object, if caching is not disabled
     # else build a dummy object which just returns its arguments unchanged
     if configuration['joblib_caching']:
         mem_cache = Memory(cachedir=configuration['output_dir'], verbose=0)
     else:
-        op = type("JoblibDummy", (object,), {"cache": lambda self, x: x})
-        mem_cache = op()
+        # op = type("JoblibDummy", (object,), {"cache": lambda self, x: x})
+        mem_cache = NoopTransformer()
 
     # retrieve the actions that should be run by the framework
     actions = configuration.keys()
@@ -385,7 +386,7 @@ def run_tasks(configuration, data=None):
         # because joblib uses the hashed argument list to lookup cached results
         # of computations that have been executed previously
         if data:
-            logging.getLogger('main').info('Using pre-loaded raw data set')
+            logging.getLogger('root').info('Using pre-loaded raw data set')
             x_vals, y_vals, x_test, y_test = data
         else:
             options = {}
@@ -398,10 +399,10 @@ def run_tasks(configuration, data=None):
                 options['input_generator'] = ''
             options['source'] = configuration['training_data']
 
-            logging.getLogger('main').info('Loading raw training set')
+            logging.getLogger('root').info('Loading raw training set')
             x_vals, y_vals = cached_get_data_generators(**options)
             if configuration['test_data']:
-                logging.getLogger('main').info('Loading raw test set')
+                logging.getLogger('root').info('Loading raw test set')
                 #  change where we read files from
                 options['source'] = configuration['test_data']
                 # ensure that only the training data targets are shuffled
@@ -426,19 +427,19 @@ def run_tasks(configuration, data=None):
     del y_vals # only the non-validation data should be used from now on
 
     scores = []
-    for clf_name in configuration['classifiers']:
+    for i, clf_name in enumerate(configuration['classifiers']):
         if not configuration['classifiers'][clf_name]:
             continue
 
         #  ignore disabled classifiers
         if not configuration['classifiers'][clf_name]['run']:
-            logging.getLogger('main').warn('Ignoring classifier %s' % clf_name)
+            logging.getLogger('root').warn('Ignoring classifier %s' % clf_name)
             continue
 
-        logging.getLogger('main').info(
+        logging.getLogger('root').info(
             '------------------------------------------------------------')
-        logging.getLogger('main').info('Building pipeline')
-        pipeline = _build_pipeline(clf_name,
+        logging.getLogger('root').info('Building pipeline')
+        pipeline = _build_pipeline(i, clf_name,
                                    configuration['feature_extraction'],
                                    configuration['feature_selection'],
                                    configuration['dimensionality_reduction'],
@@ -447,7 +448,7 @@ def run_tasks(configuration, data=None):
                                    configuration['debug'])
 
         # pass the (feature selector + classifier) pipeline for evaluation
-        logging.getLogger('main').info(
+        logging.getLogger('root').info(
             '***Fitting pipeline for %s' % clf_name)
         cached_cross_val_score = mem_cache.cache(cross_val_score)
         scores_this_clf = \
@@ -468,7 +469,7 @@ def run_tasks(configuration, data=None):
                 scores.append(
                     [clf_name.split('.')[-1], metric.split('.')[-1],
                      score])
-    logging.getLogger('main').info('Classifier scores are %s' % scores)
+    logging.getLogger('root').info('Classifier scores are %s' % scores)
     return 0, analyze(scores, configuration['output_dir'],
                       configuration['name'])
 
@@ -478,7 +479,7 @@ def analyze(scores, output_dir, name):
     Stores a csv and xls representation of the data set. Requires pandas
     """
 
-    logging.getLogger('main').info(
+    logging.getLogger('root').info(
         "Analysing results and saving to %s" % output_dir)
 
     from pandas import DataFrame
@@ -510,17 +511,18 @@ def analyze(scores, output_dir, name):
 
 
 def _config_logger(output_path=None, name='log.txt'):
-    def clear_handlers(newly_created_logger):
-        # for parallelisation purposes we need to remove all the handlers that were
-        # possibly added to the root logger OF THE PROCESS on previous runs,
-        # otherwise logs will get mangled between different runs
-        # print main_logger.handlers
-        # for some reason removing them once doesn't seem to be enough sometimes
-        for i in range(5):
-            for handler in newly_created_logger.handlers:
-                newly_created_logger.removeHandler(handler)
-            sleep(0.1)
-        assert len(newly_created_logger.handlers) == 0
+    newly_created_logger = logging.getLogger('root')
+
+    # for parallelisation purposes we need to remove all the handlers that were
+    # possibly added to the root logger OF THE PROCESS on previous runs,
+    # otherwise logs will get mangled between different runs
+    # print newly_created_logger.handlers
+    # for some reason removing them once doesn't seem to be enough sometimes
+    for i in range(5):
+        for handler in newly_created_logger.handlers:
+            newly_created_logger.removeHandler(handler)
+        sleep(0.1)
+    assert len(newly_created_logger.handlers) == 0
 
     fmt = logging.Formatter(fmt=('%(asctime)s\t%(module)s.%(funcName)s '
                                  '(line %(lineno)d)\t%(levelname)s : %('
@@ -530,32 +532,36 @@ def _config_logger(output_path=None, name='log.txt'):
     sh = StreamHandler()
     sh.setLevel(logging.INFO)
     sh.setFormatter(fmt)
-    main_logger = logging.getLogger('main')
-    main_logger.setLevel(logging.DEBUG)
-    clear_handlers(main_logger)
-    main_logger.addHandler(sh)
+    newly_created_logger.addHandler(sh)
 
-    tokens_logger = logging.getLogger('tokens')
-    tokens_logger.setLevel(logging.DEBUG)
-    clear_handlers(tokens_logger)
+    class MyFilter(object):
+        """
+        A logging filter which accepts messages with a level *LOWER* than the
+         one specified at construction time
+        """
+
+        def __init__(self, level):
+            self.__level = level
+
+        def filter(self, logRecord):
+            return logRecord.levelno <= self.__level
 
     if output_path is not None:
         log_file = os.path.join(output_path, '%s.log' % name)
         fh = logging.FileHandler(log_file, mode='w')
         fh.setLevel(logging.DEBUG)
         fh.setFormatter(fmt)
-        main_logger.addHandler(fh)
+        #        fh.addFilter(MyFilter(logging.DEBUG))
+        #   fh1 = logging.FileHandler(os.path.join(output_path, 'log-info.txt'),
+        #                                  mode='w')
+        #        fh1.setLevel(logging.INFO)
+        #        fh1.setFormatter(fmt)
+        newly_created_logger.addHandler(fh)
 
-        log_file2 = os.path.join(output_path, '%s-tokens.log' % name)
-        fh1 = logging.FileHandler(log_file2, mode='w')
-        fh1.setLevel(logging.DEBUG)
-        fh1.setFormatter(fmt)
-        tokens_logger.addHandler(fh1)
-    else:
-        logging.getLogger('main').warn('Tokens logger will not work because '
-                                       ' and output path is not provided')
-
-    return main_logger
+    newly_created_logger.setLevel(logging.DEBUG)
+    return newly_created_logger
+    # else:
+    #     return log
 
 
 def _prepare_output_directory(clean, output):
@@ -563,7 +569,7 @@ def _prepare_output_directory(clean, output):
     # CLEAN OUTPUT DIRECTORY
     # **********************************
     if clean and os.path.exists(output):
-        logging.getLogger('main').info(
+        logging.getLogger('root').info(
             'Cleaning output directory %s' % glob(output))
         shutil.rmtree(output)
 
@@ -571,7 +577,7 @@ def _prepare_output_directory(clean, output):
     # CREATE OUTPUT DIRECTORY
     # **********************************
     if not os.path.exists(output):
-        logging.getLogger('main').info(
+        logging.getLogger('root').info(
             'Creating output directory %s' % glob(output))
         os.makedirs(output)
 
@@ -581,13 +587,13 @@ def _prepare_classpath(classpath):
     # ADD classpath TO SYSTEM PATH
     # **********************************
     for path in classpath.split(os.pathsep):
-        logging.getLogger('main').info(
+        logging.getLogger('root').info(
             'Adding (%s) to system path' % glob(path))
         sys.path.append(os.path.abspath(path))
 
 
 def parse_config_file(conf_file):
-    configspec_file = get_confrc(conf_file)
+    configspec_file = os.path.join(os.path.dirname(conf_file), '.confrc')
     config = ConfigObj(conf_file, configspec=configspec_file)
     validator = validate.Validator()
     result = config.validate(validator)
@@ -597,6 +603,27 @@ def parse_config_file(conf_file):
         print 'Invalid configuration'
         sys.exit(1)
     return config, configspec_file
+
+
+def _init_utilities_state(config):
+    """
+    Initialises the state of helper modules from a config object
+    """
+    tokenizers.normalise_entities = config['feature_extraction'][
+        'normalise_entities']
+    tokenizers.use_pos = config['feature_extraction']['use_pos']
+    tokenizers.coarse_pos = config['feature_extraction']['coarse_pos']
+    tokenizers.lemmatize = config['feature_extraction']['lemmatize']
+    tokenizers.lowercase = config['tokenizer']['lowercase']
+
+    thesaurus_loader.thesaurus_files = config['feature_extraction'][
+        'thesaurus_files']
+    # thesaurus_loader.use_pos = config['feature_extraction']['use_pos']
+    # thesaurus_loader.coarse_pos = config['feature_extraction']['coarse_pos']
+    thesaurus_loader.sim_threshold = config['feature_extraction'][
+        'sim_threshold']
+    thesaurus_loader.k = config['feature_extraction']['k']
+    thesaurus_loader.include_self = config['feature_extraction']['include_self']
 
 
 def go(conf_file, log_dir, data=None, classpath='', clean=False):
@@ -609,7 +636,7 @@ def go(conf_file, log_dir, data=None, classpath='', clean=False):
     log.info(
         'Reading configuration file from \'%s\', conf spec from \'%s\''
         % (glob(conf_file)[0], configspec_file))
-
+    _init_utilities_state(config)
     output = config['output_dir']
     _prepare_output_directory(clean, output)
     _prepare_classpath(classpath)
