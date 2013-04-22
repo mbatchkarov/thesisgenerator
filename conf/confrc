@@ -30,12 +30,12 @@ shuffle_targets=boolean(default=False)
     # extra options required by the Bag-of-Vectors project Vectorizer
     thesaurus_files=list
     k=integer(min=0)
-    sim_threshold=float
-    lemmatize=boolean
-    use_pos=boolean
-	coarse_pos=boolean
-	normalise_entities=boolean
-	replace_all=boolean
+    sim_threshold=float(default=0.0)
+    lemmatize=boolean(default=True)
+    use_pos=boolean(default=True)
+	coarse_pos=boolean(default=True)
+	normalise_entities=boolean(default=False)
+	replace_all=boolean(default=False)
     include_self=boolean(default=True)	
 
 [tokenizer] 

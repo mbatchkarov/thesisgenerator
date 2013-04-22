@@ -418,7 +418,7 @@ if __name__ == '__main__':
                                  '%s/conf/exp1/exp1_base.conf' % prefix)
 
     # ----------- EXPERIMENTS 2-14 -----------
-    elif 1 < i <= 14 or 17 <= i <= 19:
+    elif i == 0 or 1 < i <= 14 or 17 <= i <= 22:
         # sizes = chain(range(100, 1000, 100), range(1000, 5000, 500))
         sizes = chain(range(2, 11, 2), range(20, 101, 10))
         # sizes = range(10, 100, 10)

@@ -4,10 +4,10 @@ import pickle
 
 import scipy.sparse as sp
 from sklearn.feature_extraction.text import TfidfVectorizer
-from utils import NoopTransformer
+from thesisgenerator.utils import NoopTransformer
 
-from plugins.thesaurus_loader import load_thesauri
-from plugins.tokenizers import xml_tokenizer
+from thesisgenerator.plugins.thesaurus_loader import load_thesauri
+from thesisgenerator.plugins.tokenizers import xml_tokenizer
 
 
 class ThesaurusVectorizer(TfidfVectorizer):

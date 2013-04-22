@@ -24,15 +24,15 @@ from sklearn.datasets import load_files
 from joblib import Memory
 
 import config
-from plugins import tokenizers, thesaurus_loader
-from plugins.dumpers import DatasetDumper
-from utils import (get_named_object,
-                   LeaveNothingOut,
-                   ChainCallable,
-                   PredefinedIndicesIterator,
-                   SubsamplingPredefinedIndicesIterator,
-                   NoopTransformer,
-                   get_confrc)
+from thesisgenerator.plugins import tokenizers, thesaurus_loader
+from thesisgenerator.plugins.dumpers import DatasetDumper
+from thesisgenerator.utils import (get_named_object,
+                                   LeaveNothingOut,
+                                   ChainCallable,
+                                   PredefinedIndicesIterator,
+                                   SubsamplingPredefinedIndicesIterator,
+                                   NoopTransformer,
+                                   get_confrc)
 
 
 # **********************************
