@@ -86,45 +86,58 @@ class Test_get_data_iterators(TestCase):
             'replace_all': False
         }
         x_tr, y_tr, x_ev, y_ev = self._load_data()
-        pipeline = self._build_simple_pipeline(feature_extraction_conf)
-        self.assertEqual(len(pipeline.named_steps), 2)
-        self.assertEqual(sorted(list(pipeline.named_steps))[0], 'dumper')
-        self.assertEqual(sorted(list(pipeline.named_steps))[1], 'vect')
 
-        x1 = pipeline.fit_transform(x_tr, y_tr)
+        # ===================================================================
+        # ===================================================================
+        for inc_self in [True, False]:
+            # the expected matrices are the same with and without
+            # include_self when replace_all=False
+            thesaurus_loader.include_self = inc_self
 
-        # check vocabulary. For some reason it does not come out in the order
-        #  in which words are put in, but that is fine as long as its the
-        # same order every time
-        self.assertDictEqual({'cat/n': 0, 'dog/n': 1, 'game/n': 2,
-                              'kid/n': 3, 'like/v': 4, 'play/v': 5},
-                             pipeline.named_steps['vect'].vocabulary_)
+            pipeline = self._build_simple_pipeline(feature_extraction_conf)
+            self.assertEqual(len(pipeline.named_steps), 2)
+            self.assertEqual(sorted(list(pipeline.named_steps))[0], 'dumper')
+            self.assertEqual(sorted(list(pipeline.named_steps))[1], 'vect')
 
-        # test output when not replacing all feature (old model)
-        self.assertIsInstance(x1, sp.spmatrix)
-        t.assert_array_equal(x1.todense(),
-                             np.array(
-                                 [
-                                     [1, 1, 0, 0, 1, 0],
-                                     [1, 1, 0, 0, 1, 0],
-                                     [0, 0, 1, 1, 0, 1]
-                                 ]
-                             )
-        )
+            x1 = pipeline.fit_transform(x_tr, y_tr)
 
-        x2 = pipeline.transform(x_ev)
-        t.assert_array_equal(x2.todense(),
-                             np.array(
-                                 [
-                                     [.06, .05, 0, 0, 1, 0],
-                                     [.06, .05, 0, 0, 1, 0],
-                                     [0, 1, 0, 0, 0, 0]
-                                 ]
-                             )
-        )
+            # check vocabulary. For some reason it does not come out in the order
+            #  in which words are put in, but that is fine as long as its the
+            # same order every time
+            self.assertDictEqual({'cat/n': 0, 'dog/n': 1, 'game/n': 2,
+                                  'kid/n': 3, 'like/v': 4, 'play/v': 5},
+                                 pipeline.named_steps['vect'].vocabulary_)
 
-        # test output when not replacing all feature (old model)
+            # test output when not replacing all feature (old model)
+            self.assertIsInstance(x1, sp.spmatrix)
+            t.assert_array_equal(x1.todense(),
+                                 np.array(
+                                     [
+                                         [1, 1, 0, 0, 1, 0],
+                                         [1, 1, 0, 0, 1, 0],
+                                         [0, 0, 1, 1, 0, 1]
+                                     ]
+                                 )
+            )
+
+            x2 = pipeline.transform(x_ev)
+            t.assert_array_equal(x2.todense(),
+                                 np.array(
+                                     [
+                                         [.06, .05, 0, 0, 1, 0],
+                                         [.06, .05, 0, 0, 1, 0],
+                                         [0, 1, 0, 0, 0, 0]
+                                     ]
+                                 )
+            )
+
+        # ===================================================================
+        # ===================================================================
+        # test output when not replacing all feature (old model),
+        # not including self as thesaurus neighbour
+        thesaurus_loader.include_self = False
         feature_extraction_conf['replace_all'] = True
+
         x_tr, y_tr, x_ev, y_ev = self._load_data()
         pipeline = self._build_simple_pipeline(feature_extraction_conf)
         x1 = pipeline.fit_transform(x_tr, y_tr)
@@ -140,7 +153,7 @@ class Test_get_data_iterators(TestCase):
                                  [
                                      [.7, .8, 0, .4, 0.3, 0, 0.11],
                                      [.7, .8, 0, .4, 0.3, 0, 0.11],
-                                     [.06, .04, 0.1, 0, 0, 0.09, 0.6],
+                                     [.06, .04, 0.1, 0, 0, 0.09, 0.6]
                                  ]
                              )
         )
@@ -155,8 +168,38 @@ class Test_get_data_iterators(TestCase):
                                  ]
                              )
         )
-
-        # todo redo both tests above with thesaurus_loader.include_self=True
-        thesaurus_loader.include_self = False
+        # ===================================================================
+        # ===================================================================
+        thesaurus_loader.include_self = True
+        feature_extraction_conf['replace_all'] = True
         pipeline = self._build_simple_pipeline(feature_extraction_conf)
+
+        x1 = pipeline.fit_transform(x_tr, y_tr)
+
+        self.assertDictEqual({'cat/n': 0, 'dog/n': 1, 'fruit/n': 2,
+                              'game/n': 3, 'kid/n': 4, 'like/v': 5,
+                              'play/v': 6},
+                             pipeline.named_steps['vect'].vocabulary_)
+
+        self.assertIsInstance(x1, sp.spmatrix)
+        t.assert_array_equal(x1.toarray(),
+                             np.array(
+                                 [
+                                     [1.7, 1.8, 0, .4, 0.3, 1, 0.11],
+                                     [1.7, 1.8, 0, .4, 0.3, 1, 0.11],
+                                     [.06, .04, 0.1, 1, 1, 0.09, 1.6],
+                                 ]
+                             )
+        )
+
+        x2 = pipeline.transform(x_ev)
+        t.assert_array_equal(x2.toarray(),
+                             np.array(
+                                 [
+                                     [.06, .05, 1, 0, 0, 1, 0.11],
+                                     [.06, .05, 1, 0, 0, 1, 0.11],
+                                     [.7, 1, 0, 0, 0.3, 0, 0]
+                                 ]
+                             )
+        )
 
