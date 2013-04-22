@@ -514,7 +514,7 @@ def analyze(scores, output_dir, name):
     return csv
 
 
-def _config_logger(output_path=None, name='log.txt'):
+def _config_logger(output_path=None, name='log'):
     newly_created_logger = logging.getLogger('root')
 
     # for parallelisation purposes we need to remove all the handlers that were
