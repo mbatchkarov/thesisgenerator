@@ -30,11 +30,11 @@ def get_confrc(conf_file):
     starting from  conf_file and going as many as 3 levels up
     """
     for i in range(4):
-        my_list = itertools.chain([p.dirname(conf_file)], ['..'] * i,
+        my_list = itertools.chain([p.dirname(conf_file)],
+                                  ['..'] * i,
                                   ['confrc'])
         candidate = p.join(*[x for x in my_list])
         if p.exists(candidate):
-            print candidate
             return candidate
 
 
@@ -131,7 +131,7 @@ class PredefinedIndicesIterator(object):
         self.test = test
 
     def __iter__(self):
-        logging.getLogger('main').info('Yielding a training set of '
+        logging.getLogger('root').info('Yielding a training set of '
                                        'size %d and a test set of '
                                        'size %d' %
                                        (len(self.train),
@@ -164,7 +164,7 @@ class SubsamplingPredefinedIndicesIterator(object):
         self.sample_size = int(sample_size)
         self.rng = check_random_state(random_state)
         self.counts = np.bincount(y_vals) / float(len(y_vals))
-        logging.getLogger('main').info('Will do %d runs, '
+        logging.getLogger('root').info('Will do %d runs, '
                                        'for each sampling %d documents from a '
                                        'training set of size %d' % (
                                            self.num_samples,
@@ -181,10 +181,10 @@ class SubsamplingPredefinedIndicesIterator(object):
                 ind = np.nonzero(self.y_vals[self.train] == label)[0]
                 ind = self.rng.choice(ind, size=train_size, replace=False)
 
-                logging.getLogger('main').debug(
+                logging.getLogger('root').debug(
                     'Selected %r for class %r' % (ind, label))
                 ind_train = np.concatenate((ind_train, ind), axis=0)
-            logging.getLogger('main').info(
+            logging.getLogger('root').info(
                 'Will train on collection of len %r - %r' % (
                     len(ind_train), ind_train))
             yield ind_train, self.test

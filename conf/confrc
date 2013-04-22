@@ -13,7 +13,7 @@ shuffle_targets=boolean(default=False)
     charset=string
     charset_error=string
     strip_accents=string
-    lowercase=boolean
+    lowercase=boolean(default=False)	
     token_pattern=string
     min_n=integer
     max_n=integer
@@ -37,6 +37,9 @@ shuffle_targets=boolean(default=False)
 	normalise_entities=boolean
 	replace_all=boolean
     include_self=boolean(default=True)	
+
+[tokenizer] 
+	lowercase=boolean
     
 [crossvalidation]
 	run=boolean()

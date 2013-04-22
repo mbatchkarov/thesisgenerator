@@ -33,7 +33,6 @@ class DatasetDumper(TransformerMixin):
         with open(vocab_file, 'r') as f:
             vocabulary_ = pickle.load(f)
             if len(y) < 1:
-                print '*********** deleting pickled vocab file'
                 os.remove(vocab_file)
         new_file = os.path.join(self.prefix, file_name)
         c = csv.writer(open(new_file, "w"))
@@ -54,7 +53,7 @@ class DatasetDumper(TransformerMixin):
     def transform(self, X):
         self._tranform_call_count += 1
         suffix = {1: 'tr', 2: 'ev'}
-        if not hasattr(self, 'y'):
+        if self._tranform_call_count == 2:
             self.y = defaultdict(str)
 
         if 1 <= self._tranform_call_count <= 2:
@@ -65,6 +64,3 @@ class DatasetDumper(TransformerMixin):
 
     def get_params(self, deep=True):
         return {'pipe_id': self.pipe_id}
-
-    def set_params(self, params):
-        pass
