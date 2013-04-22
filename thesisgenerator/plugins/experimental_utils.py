@@ -1,3 +1,11 @@
+# if one tries to run this script from the main project directory the
+# thesisgenerator package would not be on the path, add it and try again
+import sys
+
+sys.path.append('../../')
+sys.path.append('../')
+sys.path.append('./')
+
 from copy import deepcopy
 import csv
 import glob
@@ -5,24 +13,14 @@ from itertools import chain
 import os
 import re
 import shutil
-import sys
+
 import ast
 import itertools
 import numpy
 from numpy import nonzero
 
-try:
-    from thesisgenerator.__main__ import go, _get_data_iterators, parse_config_file
-    from thesisgenerator.utils import replace_in_file, get_confrc
-except ImportError:
-# if one tries to run this script from the main project directory the
-# thesisgenerator package would not be on the path, add it and try again
-    sys.path.append('../../')
-    sys.path.append('../')
-    sys.path.append('./')
-    sys.path.append('./thesisgenerator')
-    from thesisgenerator.__main__ import go, _get_data_iterators, parse_config_file
-    from thesisgenerator.utils import replace_in_file, get_confrc
+from thesisgenerator.__main__ import go, _get_data_iterators, parse_config_file
+from thesisgenerator.utils import replace_in_file, get_confrc
 
 __author__ = 'mmb28'
 
