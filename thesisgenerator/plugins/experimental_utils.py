@@ -2,7 +2,6 @@
 # thesisgenerator package would not be on the path, add it and try again
 import sqlite3
 import sys
-from thesisgenerator.plugins.consolidator import consolidate_results
 
 sys.path.append('../../')
 sys.path.append('../')
@@ -20,6 +19,7 @@ from numpy import nonzero
 from thesisgenerator.__main__ import go, _get_data_iterators, parse_config_file
 from thesisgenerator.utils import replace_in_file, get_confrc
 from thesisgenerator.plugins.dumpers import ConsolidatedResultsSqliteAndCsvWriter
+from thesisgenerator.plugins.consolidator import consolidate_results
 
 
 def inspect_thesaurus_effect(outdir, clf_name, thesaurus_file, pipeline,
