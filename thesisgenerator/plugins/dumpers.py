@@ -2,13 +2,15 @@ from collections import defaultdict
 import csv
 import os
 import pickle
+import sqlite3
+import itertools
 from numpy import count_nonzero
 from sklearn.base import TransformerMixin
 
 __author__ = 'mmb28'
 
 
-class DatasetDumper(TransformerMixin):
+class FeatureVectorsCsvDumper(TransformerMixin):
     """
     Saves the vectorized input to file for inspection
     """
@@ -64,3 +66,90 @@ class DatasetDumper(TransformerMixin):
 
     def get_params(self, deep=True):
         return {'pipe_id': self.pipe_id}
+
+
+columns = [('name', 'TEXT'),
+           ('sample_size', 'INTEGER'),
+           ('train_voc_mean', 'INTEGER'),
+           ('train_voc_std', 'INTEGER'),
+           ('corpus', 'INTEGER'),
+           ('features', 'INTEGER'),
+           ('pos', 'TEXT'),
+           ('fef', 'INTEGER'),
+           ('classifier', 'TEXT'),
+           ('th_size', 'INTEGER'),
+           ('total_tok', 'INTEGER'),
+           ('unknown_tok_mean', 'INTEGER'),
+           ('unknown_tok_std', 'INTEGER'),
+           ('found_tok_mean', 'INTEGER'),
+           ('found_tok_std', 'INTEGER'),
+           ('replaced_tok_mean', 'INTEGER'),
+           ('replaced_tok_std', 'INTEGER'),
+           ('total_typ', 'INTEGER'),
+           ('unknown_typ_mean', 'INTEGER'),
+           ('unknown_typ_std', 'INTEGER'),
+           ('found_typ_mean', 'INTEGER'),
+           ('found_typ_std', 'INTEGER'),
+           ('replaced_typ_mean', 'INTEGER'),
+           ('replaced_typ_std', 'INTEGER'),
+           ('metric', 'TEXT'),
+           ('score_mean', 'FLOAT'),
+           ('score_std', 'FLOAT')]
+
+
+class ConsolidatedResultsCsvWriter(object):
+    def __init__(self, id, output_dir):
+        self.outfile = os.path.join(output_dir, "summary%d.csv" % id)
+        self.c = csv.writer(open(self.outfile, "w"))
+        self.c.writerow([x[0] for x in columns])
+
+    def writerow(self, row):
+        self.c.writerow(row)
+
+    def __str__(self):
+        return 'ConsolidatedResultsCsvWriter-%s' % self.outfile
+
+
+class ConsolidatedResultsSqliteWriter(object):
+    def __init__(self, id, output_db):
+        self.conn = sqlite3.connect(output_db)
+        c = self.conn.cursor()
+
+        self.table_name = 'data%.2d' % id
+
+        c.execute('DROP TABLE IF EXISTS %s' % self.table_name)
+        params = [item for col in columns for item in col]
+        template = 'CREATE TABLE %s(' + \
+                   ', '.join(['%s %s'] * (len(params) / 2)) + \
+                   ')'
+        q = template % tuple(itertools.chain([self.table_name], params))
+        c.execute(q)
+
+    def writerow(self, row):
+        template = "INSERT INTO \"%s\" VALUES (" + \
+                   ', '.join(['\"%s\"'] * len(row)) + \
+                   ")"
+        sql = template % tuple(itertools.chain([self.table_name], row))
+        self.conn.cursor().execute(sql)
+        self.conn.commit()
+
+    def __del__(self):
+        self.conn.commit()
+        self.conn.close()
+
+    def __str__(self):
+        return 'ConsolidatedResultsSqliteWriter-%s' % self.table_name
+
+
+class ConsolidatedResultsSqliteAndCsvWriter(object):
+    def __init__(self, exp_id, csv_output_dir, output_db):
+        self.scv = ConsolidatedResultsCsvWriter(exp_id, csv_output_dir)
+        self.sqlite = ConsolidatedResultsSqliteWriter(exp_id, output_db)
+
+    def writerow(self, row):
+        self.scv.writerow(row)
+        self.sqlite.writerow(row)
+
+    def __str__(self):
+        return 'ConsolidatedResultsSqliteAndCsvWriter-%s-%s' % (
+            self.csv, self.sqlite)

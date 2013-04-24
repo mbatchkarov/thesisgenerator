@@ -25,7 +25,7 @@ from joblib import Memory
 
 import config
 from thesisgenerator.plugins import tokenizers, thesaurus_loader
-from thesisgenerator.plugins.dumpers import DatasetDumper
+from thesisgenerator.plugins.dumpers import FeatureVectorsCsvDumper
 from thesisgenerator.utils import (get_named_object,
                                    LeaveNothingOut,
                                    ChainCallable,
@@ -274,7 +274,7 @@ def _build_vectorizer(id, call_args, feature_extraction_conf, pipeline_list,
     if debug:# and not postvect_dumper_added_already:
         logging.getLogger('root').info('Will perform post-vectorizer data dump')
         pipeline_list.append(
-            ('dumper', DatasetDumper(id, output_dir)))
+            ('dumper', FeatureVectorsCsvDumper(id, output_dir)))
         # postvect_dumper_added_already = True
         call_args['vect__log_vocabulary'] = True # tell the vectorizer it
         # needs to persist some information (used by the postvect dumper)
@@ -508,7 +508,7 @@ def analyze(scores, output_dir, name):
 
     # store csv for futher processing
     csv = os.path.join(output_dir, '%s.out.csv' % name)
-    res.to_csv(csv)
+    res.to_csv(csv, na_rep='-1')
     # df.to_excel(os.path.join(output_dir, '%s.out.xls' % name))
 
     return csv

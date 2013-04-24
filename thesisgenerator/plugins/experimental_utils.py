@@ -21,8 +21,7 @@ from numpy import nonzero
 
 from thesisgenerator.__main__ import go, _get_data_iterators, parse_config_file
 from thesisgenerator.utils import replace_in_file, get_confrc
-
-__author__ = 'mmb28'
+from thesisgenerator.plugins.dumpers import ConsolidatedResultsSqliteAndCsvWriter
 
 
 def inspect_thesaurus_effect(outdir, clf_name, thesaurus_file, pipeline,
@@ -281,7 +280,7 @@ def _pos_statistics(input_file):
     return Counter(unknown_pos), Counter(found_pos)
 
 
-def consolidate_results(conf_dir, log_dir, output_dir,
+def consolidate_results(writer, conf_dir, log_dir, output_dir,
                         unknown_pos_stats_enabled=False):
     """
     Consolidates the results of a series of experiment to ./summary.csv
@@ -289,18 +288,6 @@ def consolidate_results(conf_dir, log_dir, output_dir,
     """
     print 'Consolidating results from %s' % conf_dir
     os.chdir(conf_dir)
-    c = csv.writer(open("summary.csv", "w"))
-    c.writerow(['name', 'sample_size', 'train_voc_mean', 'train_voc_std',
-                'corpus', 'features', 'pos', 'fef',
-                'classifier', 'th_size', 'total_tok',
-                'unknown_tok_mean', 'unknown_tok_std',
-                'found_tok_mean', 'found_tok_std',
-                'replaced_tok_mean', 'replaced_tok_std',
-                'total_typ',
-                'unknown_typ_mean', 'unknown_typ_std',
-                'found_typ_mean', 'found_typ_std',
-                'replaced_typ_mean', 'replaced_typ_std',
-                'metric', 'score_mean', 'score_std'])
 
     experiments = glob.glob('*.conf')
     unknown_pos_stats, found_pos_stats = {}, {}
@@ -369,7 +356,7 @@ def consolidate_results(conf_dir, log_dir, output_dir,
             for row in reader:
                 classifier, metric, score_my_mean, score_my_std = row
 
-                c.writerow(
+                writer.writerow(
                     [exp_name, int(my_mean(data_shape_x)),
                      int(my_mean(data_shape_y)), int(my_std(data_shape_y)),
                      corpus, features, pos, fef, classifier,
@@ -406,10 +393,15 @@ if __name__ == '__main__':
     num_workers = 4
 
     # on cluster
-    # prefix = '/mnt/lustre/scratch/inf/mmb28/thesisgenerator'
-    # exp1_thes_pattern = '%s/../FeatureExtrationToolkit/exp6-1*/*sims.' \
-    #                     'neighbours.strings' % prefix
-    # num_workers = 30
+    import platform
+
+    hostname = platform.node()
+    if 'apollo' in hostname or 'node' in hostname:
+        # set the paths automatically when on the cluster
+        prefix = '/mnt/lustre/scratch/inf/mmb28/thesisgenerator'
+        exp1_thes_pattern = '%s/../FeatureExtrationToolkit/exp6-1*/*sims.' \
+                            'neighbours.strings' % prefix
+        num_workers = 30
 
     reload_data = False
     # ----------- EXPERIMENT 1 -----------
@@ -421,7 +413,9 @@ if __name__ == '__main__':
     elif i == 0 or 1 < i <= 14 or 17 <= i <= 22:
         # sizes = chain(range(100, 1000, 100), range(1000, 5000, 500))
         sizes = chain(range(2, 11, 2), range(20, 101, 10))
-        # sizes = range(10, 100, 10)
+        if i == 0:
+            # exp0 is for debugging only, we don't have to do much
+            sizes = range(10, 31, 10)
 
         base_conf_file = '%s/conf/exp%d/exp%d_base.conf' % (prefix, i, i)
         it = _exp2_to_14_file_iterator(sizes, i, base_conf_file)
@@ -435,12 +429,19 @@ if __name__ == '__main__':
     else:
         raise ValueError('No such experiment number: %d' % i)
 
+    # todo enable this
     evaluate_thesauri(base_conf_file, it, pool_size=num_workers,
                       reload_data=reload_data)
 
     # ----------- CONSOLIDATION -----------
+    output_dir = '%s/conf/exp%d/output/' % (prefix, i)
+    output_db = '%s/conf/bov-data.sqlite' % (prefix)
+
+    writer = ConsolidatedResultsSqliteAndCsvWriter(i, output_dir, output_db)
+
     consolidate_results(
+        writer,
         '%s/conf/exp%d/exp%d_base-variants' % (prefix, i, i),
         '%s/conf/exp%d/logs/' % (prefix, i),
-        '%s/conf/exp%d/output/' % (prefix, i)
+        output_dir
     )
