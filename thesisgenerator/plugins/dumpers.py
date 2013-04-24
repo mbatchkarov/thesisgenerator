@@ -2,7 +2,6 @@ from collections import defaultdict
 import csv
 import os
 import pickle
-import sqlite3
 import itertools
 from numpy import count_nonzero
 from sklearn.base import TransformerMixin
@@ -98,9 +97,8 @@ columns = [('name', 'TEXT'),
 
 
 class ConsolidatedResultsCsvWriter(object):
-    def __init__(self, id, output_dir):
-        self.outfile = os.path.join(output_dir, "summary%d.csv" % id)
-        self.c = csv.writer(open(self.outfile, "w"))
+    def __init__(self, output_fh):
+        self.c = csv.writer(output_fh)
         self.c.writerow([x[0] for x in columns])
 
     def writerow(self, row):
@@ -111,11 +109,11 @@ class ConsolidatedResultsCsvWriter(object):
 
 
 class ConsolidatedResultsSqliteWriter(object):
-    def __init__(self, id, output_db):
-        self.conn = sqlite3.connect(output_db)
+    def __init__(self, table_number, output_db_conn):
+        self.conn = output_db_conn
         c = self.conn.cursor()
 
-        self.table_name = 'data%.2d' % id
+        self.table_name = 'data%.2d' % table_number
 
         c.execute('DROP TABLE IF EXISTS %s' % self.table_name)
         params = [item for col in columns for item in col]
@@ -124,6 +122,7 @@ class ConsolidatedResultsSqliteWriter(object):
                    ')'
         q = template % tuple(itertools.chain([self.table_name], params))
         c.execute(q)
+        self.conn.commit()
 
     def writerow(self, row):
         template = "INSERT INTO \"%s\" VALUES (" + \
@@ -142,9 +141,10 @@ class ConsolidatedResultsSqliteWriter(object):
 
 
 class ConsolidatedResultsSqliteAndCsvWriter(object):
-    def __init__(self, exp_id, csv_output_dir, output_db):
-        self.scv = ConsolidatedResultsCsvWriter(exp_id, csv_output_dir)
-        self.sqlite = ConsolidatedResultsSqliteWriter(exp_id, output_db)
+    def __init__(self, table_number, csv_output_fh, output_db_conn):
+        self.scv = ConsolidatedResultsCsvWriter(csv_output_fh)
+        self.sqlite = ConsolidatedResultsSqliteWriter(table_number,
+                                                      output_db_conn)
 
     def writerow(self, row):
         self.scv.writerow(row)
