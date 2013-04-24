@@ -79,7 +79,7 @@ class Test_ThesaurusVectorizer(TestCase):
         # but instead creates a pipe using the no-params constructor and then
         #  assigns the parameters to a copy
 
-        pipeline = _build_pipeline(0, #id, for naming debug files
+        pipeline = _build_pipeline(12345, #id, for naming debug files
                                    None, # classifier
                                    feature_extraction_conf,
                                    {'run': False}, # feature selection conf
@@ -136,6 +136,48 @@ class Test_ThesaurusVectorizer(TestCase):
                     ]
                 )
             )
+
+
+            # ===============================================================
+            # Test that the CSV dumper correctly unpacks the vocabulary and
+            # the feature vectors
+            # ===============================================================
+            def compare_csv(expected, stage):
+                expected = [x.strip() for x in expected.split()]
+                with open('PostVectDump-%s12345.csv' % stage) as infile:
+                    csv_file_contents = [x.strip() for x in infile.readlines()]
+
+                # headers must be identical character for character
+                self.assertEqual(expected[0], csv_file_contents[0])
+                for line1, line2 in zip(expected[1:], csv_file_contents[1:]):
+                    for token1, token2 in zip(line1.split(','),
+                                              line2.split(',')):
+                        try:
+                            print token1, token2
+                            self.assertEqual(float(token1), float(token2))
+                        except ValueError:
+                            # in the evaluation file there are no targets,
+                            # i.e. token1==''
+                            self.assertEqual(token1, token2)
+                            self.assertEqual(token1.strip(), '')
+
+            expected = \
+                """
+    id,target,total_feat_weight,nonzero_feats,cat/n,dog/n,game/n,kid/n,like/v,play/v
+    0,0,3,3,1,1,0,0,1,0
+    1,0,3,3,1,1,0,0,1,0
+    2,1,3,3,0,0,1,1,0,1
+                """
+            compare_csv(expected, 'tr')
+
+            expected = \
+                """
+    id,target,total_feat_weight,nonzero_feats,cat/n,dog/n,game/n,kid/n,like/v,play/v
+    0,,1.11,3,0.06,0.05,0,0,1,0
+    1,,1.11,3,0.06,0.05,0,0,1,0
+    2,,1,1,0,1,0,0,0,0
+                """
+            compare_csv(expected, 'ev')
 
     def test_replaceAll_True_includeSelf_False(self):
         self.feature_extraction_conf['replace_all'] = True
