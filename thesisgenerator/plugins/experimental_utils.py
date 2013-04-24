@@ -429,7 +429,6 @@ if __name__ == '__main__':
     else:
         raise ValueError('No such experiment number: %d' % i)
 
-    # todo enable this
     evaluate_thesauri(base_conf_file, it, pool_size=num_workers,
                       reload_data=reload_data)
 
