@@ -7,20 +7,25 @@ __author__ = 'mmb28'
 
 
 class TestLoad_thesauri(TestCase):
-    files = ['sample-data/simple.thesaurus.strings']
-    params = {'thesaurus_files': files,
-              'sim_threshold': 0,
-              'k': 10,
-              'include_self': False,
-              'use_cache': False}
-
     def setUp(self):
         """
         Sets the default parameters of the tokenizer and reads a sample file
         for processing
         """
+
+        self.params = {'thesaurus_files': ['sample-data/simple.thesaurus'
+                                           '.strings'],
+                       'sim_threshold': 0,
+                       'k': 10,
+                       'include_self': False,
+                       'use_cache': False}
+
         for key, val in self.params.items():
             setattr(thesaurus_loader, key, val)
+
+    def test_empty_thesaurus(self):
+        setattr(thesaurus_loader, 'thesaurus_files', [])
+        self._reload_and_assert(0, 0)
 
     def _reload_and_assert(self, entry_count, neighbour_count):
         th = load_thesauri()

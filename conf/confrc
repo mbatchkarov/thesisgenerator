@@ -69,9 +69,12 @@ shuffle_targets=boolean(default=False)
     
 [classifiers]
     [[sklearn.naive_bayes.MultinomialNB]]
-    	# add the MultinomialNB parameters
     	run=boolean(default=False) 
-	alpha=float()
+		alpha=float()
+	
+	[[sklearn.naive_bayes.BernoulliNB]]
+    	run=boolean(default=False) 
+		alpha=float()
 
     [[sklearn.neighbors.KNeighborsClassifier]]
     	run=boolean(default=False)

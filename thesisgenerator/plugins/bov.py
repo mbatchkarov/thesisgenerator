@@ -69,6 +69,10 @@ class ThesaurusVectorizer(TfidfVectorizer):
     def fit_transform(self, raw_documents, y=None):
         self._thesaurus = load_thesauri()
         if self.replace_all:
+            print self._thesaurus
+            if not self._thesaurus:
+                raise ValueError('A thesaurus is required when using '
+                                 'replace_all')
             self.vocabulary_ = {k: v for v, k in
                                 enumerate(sorted(self._thesaurus.keys()))}
             self.fixed_vocabulary = True
@@ -78,10 +82,14 @@ class ThesaurusVectorizer(TfidfVectorizer):
     def fit(self, X, y=None, **fit_params):
         self._thesaurus = load_thesauri()
         if self.replace_all:
+            print self._thesaurus
+            if not self._thesaurus:
+                raise ValueError('A thesaurus is required when using '
+                                 'replace_all')
             self.vocabulary_ = {k: v for v, k in
                                 enumerate(sorted(self._thesaurus.keys()))}
             self.fixed_vocabulary = True
-        return super(ThesaurusVectorizer, self).fit_(X, y, **fit_params)
+        return super(ThesaurusVectorizer, self).fit(X, y, **fit_params)
 
     def my_feature_extractor(self, tokens, stop_words=None,
                              ngram_range=(1, 1)):
@@ -166,6 +174,17 @@ class ThesaurusVectorizer(TfidfVectorizer):
                              self.analyzer)
 
 
+    def _dump_vocabulary_for_debugging(self):
+        # temporarily store vocabulary
+        f = './tmp_vocabulary%d' % self.pipe_id
+        if self.log_vocabulary and not self.log_vocabulary_already:
+            with open(f, 'w') as out:
+                # print 'Writing debug info to', f
+                pickle.dump(self.vocabulary_, out)
+                self.log_vocabulary_already = True
+                # else:
+                #     print 'Written debug info already'
+
     def _term_count_dicts_to_matrix(self, term_count_dicts):
         """
         Converts a set ot document_term counts to a matrix; Input is a
@@ -175,6 +194,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
         """
         logging.getLogger('root').info(
             'Converting features to vectors (with thesaurus lookup)')
+        self._dump_vocabulary_for_debugging()
 
         if not self.use_tfidf:
             self._tfidf = NoopTransformer()
@@ -295,17 +315,6 @@ class ThesaurusVectorizer(TfidfVectorizer):
                 num_tokens, unknown_tokens, found_tokens, replaced_tokens,
                 len(all_types), len(unknown_types), len(found_types),
                 len(replaced_types)))
-
-        # temporarily store vocabulary
-        f = './tmp_vocabulary%d' % self.pipe_id
-        if self.log_vocabulary and not self.log_vocabulary_already:
-            with open(f, 'w') as out:
-                # print 'Writing debug info to', f
-                pickle.dump(self.vocabulary_, out)
-                self.log_vocabulary_already = True
-                # else:
-                #     print 'Written debug info already'
-
         logging.getLogger('root').info('Done converting features to vectors')
 
         return spmatrix

@@ -229,7 +229,9 @@ if __name__ == '__main__':
         num_workers = 30
 
     reload_data = False
+
     # ----------- EXPERIMENT 1 -----------
+    base_conf_file = '%s/conf/exp%d/exp%d_base.conf' % (prefix, i, i)
     if i == 1:
         it = _exp1_file_iterator(exp1_thes_pattern,
                                  '%s/conf/exp1/exp1_base.conf' % prefix)
@@ -242,14 +244,12 @@ if __name__ == '__main__':
             # exp0 is for debugging only, we don't have to do much
             sizes = range(10, 31, 10)
 
-        base_conf_file = '%s/conf/exp%d/exp%d_base.conf' % (prefix, i, i)
         it = _exp2_to_14_file_iterator(sizes, i, base_conf_file)
     elif i == 15:
-        base_conf_file = '%s/conf/exp%d/exp%d_base.conf' % (prefix, i, i)
         it = _exp15_file_iterator(base_conf_file)
         reload_data = True
     elif i == 16:
-        base_conf_file = '%s/conf/exp%d/exp%d_base.conf' % (prefix, i, i)
+
         it = _exp16_file_iterator(base_conf_file)
     else:
         raise ValueError('No such experiment number: %d' % i)

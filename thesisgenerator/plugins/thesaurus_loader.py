@@ -19,12 +19,14 @@ def load_thesauri():
     entities (if they are present)
     sim_threshold: what is the min similarity for neighbours that
     should be loaded
+
+    Returns:
+    A set of thesauri or an empty dictionary
     """
     global thesaurus_files, sim_threshold, k, include_self
 
     if not thesaurus_files:
         logging.getLogger('root').warn("No thesaurus specified")
-        return None
 
     result = {}
     logging.getLogger('root').debug(thesaurus_files)
