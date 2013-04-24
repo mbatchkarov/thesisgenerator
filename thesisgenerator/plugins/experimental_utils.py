@@ -58,6 +58,7 @@ def _write_exp1_conf_file(base_conf_file, run_id, thes):
                                                   run_id)
 
     replace_in_file(new_conf_file, 'name=.*', 'name=exp%d-%d' % (1, run_id))
+    replace_in_file(new_conf_file, 'debug=.*', 'debug=False')
 
     # it is important that the list of thesaurus files in the conf file ends with a comma
     replace_in_file(new_conf_file, 'thesaurus_files=.*',
@@ -110,6 +111,7 @@ def _write_exp2_to_14_conf_file(base_conf_file, exp_id, run_id, sample_size):
                     'name=exp%d-%d' % (exp_id, run_id))
     replace_in_file(new_conf_file, 'sample_size=.*',
                     'sample_size=%s' % sample_size)
+    replace_in_file(new_conf_file, 'debug=.*', 'debug=False')
     return new_conf_file, log_dir
 
 
@@ -130,6 +132,7 @@ def _write_exp15_conf_file(base_conf_file, exp_id, run_id, shuffle):
                     'name=exp%d-%d' % (exp_id, run_id))
     replace_in_file(new_conf_file, 'shuffle_targets=.*',
                     'shuffle_targets=%r' % shuffle)
+    replace_in_file(new_conf_file, 'debug=.*', 'debug=False')
     return new_conf_file, log_file
 
 
@@ -152,6 +155,7 @@ def _write_exp16_conf_file(base_conf_file, exp_id, run_id, thesauri_list,
                     'thesaurus_files=%s' % thesauri_list)
     replace_in_file(new_conf_file, 'normalise_entities=.*',
                     'normalise_entities=%r' % normalize)
+    replace_in_file(new_conf_file, 'debug=.*', 'debug=False')
     return new_conf_file, log_file
 
 
