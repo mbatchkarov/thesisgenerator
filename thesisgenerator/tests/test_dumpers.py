@@ -1,9 +1,9 @@
-import sqlite3
 from unittest import TestCase
 import cStringIO
 from thesisgenerator.plugins.dumpers import ConsolidatedResultsCsvWriter, \
-    ConsolidatedResultsSqliteWriter
+    ConsolidatedResultsSqlWriter
 import thesisgenerator.plugins.dumpers as d
+from thesisgenerator import utils
 
 header_list = [x[0] for x in d.columns]
 header_str = ','.join(header_list)
@@ -20,34 +20,48 @@ class TestConsolidatedResultsCsvWriter(TestCase):
         self.assertEqual(header_str, self.fh.getvalue().strip())
 
 
-class TestConsolidatedResultsSqliteWriter(TestCase):
+class TestConsolidatedResultsSqlWriter(TestCase):
     def setUp(self):
-        self.db_conn = sqlite3.connect(':memory:')
+        self.db_conn = utils.get_susx_mysql_conn()
+
+        if not self.db_conn:
+            self.fail("DB connection parameters file is missing. This is "
+                      "quite important")
+
         # create a writer and write header
-        self.writer = ConsolidatedResultsSqliteWriter(0, self.db_conn)
+        self.writer = ConsolidatedResultsSqlWriter(0, self.db_conn)
 
     def test_header(self):
         """
-        Test if an emtpy table was created
+        Test if the results table for an experiment is emptied by the
+        creation of a new SQL writer
         """
-        q = 'SELECT name FROM sqlite_master WHERE type=\'table\';'
-        res = self.db_conn.cursor().execute(q)
-        tables = [x[0] for x in res]
-        self.assertIn('data00', tables)
-
         q = 'SELECT * FROM data00;'
-        res = self.db_conn.cursor().execute('SELECT * FROM data00;')
-        rows = [x[0] for x in res]
-        self.assertEqual(0, len(rows))
+        cur = self.db_conn.cursor()
+        cur.execute('SELECT * FROM data00;')
+        res = cur.fetchall()
+        self.assertEqual(0, len(res))
 
-    def test_header(self):
+    def test_insert(self):
         """
         Test that items are correctly inserted into the database
         """
         self.writer.writerow(range(len(header_list)))
-        res = self.db_conn.cursor().execute('SELECT * FROM data00;')
-        rows = [x for x in res]
+
+        cur = self.db_conn.cursor()
+        cur.execute('SELECT * FROM data00;')
+        rows = cur.fetchall()
         self.assertEqual(1, len(rows))
         self.assertEqual(len(header_list), len(rows[0]))
         for i, val in enumerate(rows[0]):
             self.assertEqual(float(i), float(val))
+
+    def test_mysql(self):
+        con = utils.get_susx_mysql_conn()
+
+        with con:
+            cur = con.cursor()
+            cur.execute("SELECT * FROM data00")
+            rows = cur.fetchall()
+            for row in rows:
+                print row

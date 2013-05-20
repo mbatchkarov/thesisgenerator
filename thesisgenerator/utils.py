@@ -12,6 +12,7 @@ import gzip
 import sys
 import os.path as p
 import itertools
+from configobj import ConfigObj
 from sklearn.base import BaseEstimator, TransformerMixin
 
 from sklearn.utils import check_random_state
@@ -22,6 +23,21 @@ try:
     from xml.etree import cElementTree as ET
 except ImportError:
     from xml.etree import ElementTree as ET
+
+
+def get_susx_mysql_conn():
+    import MySQLdb as mdb
+
+    config = ConfigObj('thesisgenerator/db-credentials')
+    if not config:
+        return None
+        # thesisgenerator/db-credentials file not found. This is needed for a
+        # MySQL connection
+
+    return mdb.connect(config['server'],
+                       config['user'],
+                       config['pass'],
+                       config['db'])
 
 
 def get_confrc(conf_file):

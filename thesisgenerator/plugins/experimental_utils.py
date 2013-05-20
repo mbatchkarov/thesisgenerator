@@ -1,6 +1,5 @@
 # if one tries to run this script from the main project directory the
 # thesisgenerator package would not be on the path, add it and try again
-import sqlite3
 import sys
 
 sys.path.append('../../')
@@ -17,8 +16,8 @@ import itertools
 from numpy import nonzero
 
 from thesisgenerator.__main__ import go, _get_data_iterators, parse_config_file
-from thesisgenerator.utils import replace_in_file, get_confrc
-from thesisgenerator.plugins.dumpers import ConsolidatedResultsSqliteAndCsvWriter
+from thesisgenerator.utils import replace_in_file, get_confrc, get_susx_mysql_conn
+from thesisgenerator.plugins.dumpers import ConsolidatedResultsSqlAndCsvWriter
 from thesisgenerator.plugins.consolidator import consolidate_results
 
 
@@ -260,12 +259,10 @@ if __name__ == '__main__':
     # ----------- CONSOLIDATION -----------
     output_dir = '%s/conf/exp%d/output/' % (prefix, i)
     csv_out_fh = open(os.path.join(output_dir, "summary%d.csv" % i), "w")
+    output_db_conn = get_susx_mysql_conn()
 
-    output_db = '%s/conf/bov-data.sqlite' % (prefix)
-    output_db_conn = sqlite3.connect(output_db)
-
-    writer = ConsolidatedResultsSqliteAndCsvWriter(i, csv_out_fh,
-                                                   output_db_conn)
+    writer = ConsolidatedResultsSqlAndCsvWriter(i, csv_out_fh,
+                                                output_db_conn)
 
     consolidate_results(
         writer,

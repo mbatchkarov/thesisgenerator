@@ -1,5 +1,7 @@
 from collections import defaultdict
 import csv
+import logging
+from operator import itemgetter
 import os
 import pickle
 import itertools
@@ -108,7 +110,7 @@ class ConsolidatedResultsCsvWriter(object):
         return 'ConsolidatedResultsCsvWriter-%s' % self.outfile
 
 
-class ConsolidatedResultsSqliteWriter(object):
+class ConsolidatedResultsSqlWriter(object):
     def __init__(self, table_number, output_db_conn):
         self.conn = output_db_conn
         c = self.conn.cursor()
@@ -125,10 +127,14 @@ class ConsolidatedResultsSqliteWriter(object):
         self.conn.commit()
 
     def writerow(self, row):
-        template = "INSERT INTO \"%s\" VALUES (" + \
-                   ', '.join(['\"%s\"'] * len(row)) + \
+        template = "INSERT INTO %s(" + \
+                   ', '.join(['%s'] * len(columns)) + \
+                   ") VALUES (" + \
+                   ', '.join(['%s'] * len(row)) + \
                    ")"
-        sql = template % tuple(itertools.chain([self.table_name], row))
+        sql = template % tuple(itertools.chain([self.table_name],
+                                               map(itemgetter(0), columns),
+                                               row))
         self.conn.cursor().execute(sql)
         self.conn.commit()
 
@@ -140,16 +146,29 @@ class ConsolidatedResultsSqliteWriter(object):
         return 'ConsolidatedResultsSqliteWriter-%s' % self.table_name
 
 
-class ConsolidatedResultsSqliteAndCsvWriter(object):
+class DummySqlWriter(object):
+    """
+    A null SqlWriter object
+    """
+
+    def writerow(self, row):
+        pass
+
+
+class ConsolidatedResultsSqlAndCsvWriter(object):
     def __init__(self, table_number, csv_output_fh, output_db_conn):
         self.scv = ConsolidatedResultsCsvWriter(csv_output_fh)
-        self.sqlite = ConsolidatedResultsSqliteWriter(table_number,
-                                                      output_db_conn)
+        if output_db_conn:
+            self.sql_conn = ConsolidatedResultsSqlWriter(table_number,
+                                                         output_db_conn)
+        else:
+            logging.getLogger('root').warn("Database connection impossible")
+            self.sql_conn = DummySqlWriter()
 
     def writerow(self, row):
         self.scv.writerow(row)
-        self.sqlite.writerow(row)
+        self.sql_conn.writerow(row)
 
     def __str__(self):
         return 'ConsolidatedResultsSqliteAndCsvWriter-%s-%s' % (
-            self.csv, self.sqlite)
+            self.csv, self.sql_conn)
