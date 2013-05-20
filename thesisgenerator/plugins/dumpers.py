@@ -131,7 +131,7 @@ class ConsolidatedResultsSqlWriter(object):
         template = "INSERT INTO %s(" + \
                    ', '.join(['%s'] * len(columns)) + \
                    ") VALUES (" + \
-                   ', '.join(['%s'] * len(row)) + \
+                   ', '.join(['\"%s\"'] * len(row)) + \
                    ")"
         sql = template % tuple(itertools.chain([self.table_name],
                                                map(itemgetter(0), columns),
