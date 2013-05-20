@@ -1,3 +1,4 @@
+# coding=utf-8
 from math import sqrt
 import operator
 
@@ -29,11 +30,11 @@ def query_to_data_frame(sql):
 # <codecell>
 
 def _safe_column_names(data_frames, x_columns, y_columns, yerr_columns):
-    if (len(x_columns) == 1):
+    if len(x_columns) == 1:
         x_columns = [x_columns[0] for _ in range(len(data_frames))]
-    if (len(y_columns) == 1):
+    if len(y_columns) == 1:
         y_columns = [y_columns[0] for _ in range(len(data_frames))]
-    if (len(yerr_columns) == 1):
+    if len(yerr_columns) == 1:
         yerr_columns = [yerr_columns[0] for _ in range(len(data_frames))]
     return x_columns, y_columns, yerr_columns
 

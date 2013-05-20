@@ -1,3 +1,4 @@
+# coding=utf-8
 import os
 import sys
 import subprocess
@@ -18,12 +19,12 @@ def current_time(): #for reporting purposes.
 
 
 def _make_filelist_and_create_files(data_dir, filelistpath, output_dir):
-    '''
+    """
     1. Create a list of files in a directory to be processed, which
        can be passed to stanford's "filelist" input argument.
     2. Pre-create each output file in an attempt to avoid cluster
        problems.
-    '''
+    """
     with open(filelistpath, 'w') as filelist:
         for filename in os.listdir(data_dir):
             if not filename.startswith("."):
@@ -35,7 +36,7 @@ def _make_filelist_and_create_files(data_dir, filelistpath, output_dir):
 
 
 class Logger(object):
-    '''Use for program-wide printing to logfile.'''
+    """Use for program-wide printing to logfile."""
 
     def __init__(self):
         self.log = ""
@@ -61,7 +62,7 @@ class Logger(object):
 #
 # Create a logger
 #
-##########     
+##########
 logger = Logger()
 
 
@@ -72,7 +73,7 @@ logger = Logger()
 #####################
 def run_stanford_pipeline(data_dir, stanford_dir, java_threads=2,
                           filelistdir=""):
-    '''
+    """
     Process directory of text using stanford core nlp
     suite. Perform:
         - Tokenisation
@@ -81,7 +82,7 @@ def run_stanford_pipeline(data_dir, stanford_dir, java_threads=2,
         - Lemmatisation
 
     Output XML to "*data_dir*-tagged"
-    '''
+    """
     if not all([data_dir, stanford_dir]):
         raise ValueError("ERROR: Must specify path to data and stanford tools.")
 
@@ -142,13 +143,13 @@ def run_stanford_pipeline(data_dir, stanford_dir, java_threads=2,
 #
 ##################
 def process_corpora_from_xml(path_to_corpora, processes=1):
-    '''
+    """
     Given a directory of corpora, where each corpus is a
     directory of xml files produced by stanford_pipeline,
     convert text to CoNLL-style formatting:
         ID    FORM    LEMMA    POS
     Jobs are run in parallel.
-    '''
+    """
     logger.print_info("<%s> Starting XML conversion..." % current_time())
     for data_sub_dir in os.listdir(path_to_corpora):
         _process_xml_to_conll(os.path.join(path_to_corpora, data_sub_dir),
@@ -156,10 +157,10 @@ def process_corpora_from_xml(path_to_corpora, processes=1):
 
 
 def _process_xml_to_conll(path_to_data, processes=1):
-    '''
+    """
     Given a directory of XML documents from stanford's output,
     convert them to CoNLL style sentences. Jobs run in parallel.
-    '''
+    """
     logger.print_info("<%s> Beginning formatting to CoNLL: %s" % (
         current_time(), path_to_data))
     jobs = {}
@@ -184,9 +185,9 @@ def _process_xml_to_conll(path_to_data, processes=1):
 
 
 def _process_single_xml_to_conll(path_to_file):
-    '''
+    """
     Convert a single file from XML to CoNLL style.
-    '''
+    """
     with open(path_to_file + ".conll", 'w') as outfile:
         #Create iterator over XML elements, don't store whole tree
         xmltree = ET.iterparse(path_to_file, events=("end",))
@@ -212,14 +213,14 @@ def _process_single_xml_to_conll(path_to_file):
 ####################
 def dependency_parse_directory(data_dir, parser_project_path, liblinear_path,
                                processes=20):
-    '''Dependency parse conll style data, in several simultaneous processes.'''
+    """Dependency parse conll style data, in several simultaneous processes."""
 
     #Add to python path location of dependency parser and liblinear
     sys.path.append(os.path.join(parser_project_path, "src"))
     sys.path.append(liblinear_path)
 
     def chunks(items, no_of_chunks):
-        '''Split *items* into a number (no_of_chunks) of equal chunks.'''
+        """Split *items* into a number (no_of_chunks) of equal chunks."""
         chunksize = (len(items) + no_of_chunks // 2) // no_of_chunks
         return (items[i:i + chunksize] for i in xrange(0, len(items),
                                                        chunksize))
@@ -276,7 +277,7 @@ def dependency_parse_directory(data_dir, parser_project_path, liblinear_path,
 
 
 def run_parser(input_dir, input_files, output_dir, parser_project_path):
-    '''Create a parser and parse a list of files'''
+    """Create a parser and parse a list of files"""
     from parsing.parsing_functions import DependencyParser
 
     start = dt.datetime.now()
@@ -303,7 +304,7 @@ def run_parser(input_dir, input_files, output_dir, parser_project_path):
 #
 ############
 def remove_temp_files(path_to_corpora):
-    '''Remove XML versions of processed data'''
+    """Remove XML versions of processed data"""
     logger.print_info("<%s> Removing XML files..." % current_time())
     for data_sub_dir in os.listdir(path_to_corpora):
         dir_path = os.path.join(path_to_corpora, data_sub_dir)
@@ -357,9 +358,9 @@ def execute_pipeline(path_to_corpora, #Required for all
 
 
 if __name__ == "__main__":
-    '''
+    """
     Email Andy or Miro for a copy of the readme for this script
-    '''
+    """
 
     #Pipeline examples:
     #    run = set("stanford formatting parsing cleanup".split())

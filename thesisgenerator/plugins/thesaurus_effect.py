@@ -1,3 +1,4 @@
+# coding=utf-8
 """
 Used to investigate the effect a thesaurus has on classification performance.
 Given a run log and PostVectorizerDump.csv for that run (which contains the

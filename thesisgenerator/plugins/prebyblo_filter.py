@@ -1,3 +1,4 @@
+# coding=utf-8
 __author__ = 'mmb28'
 
 # with open('/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/thesisgenerator'

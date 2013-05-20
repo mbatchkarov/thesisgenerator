@@ -1,3 +1,4 @@
+# coding=utf-8
 from collections import Counter
 from numpy import array
 from sklearn.base import BaseEstimator

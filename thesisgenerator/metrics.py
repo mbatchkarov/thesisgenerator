@@ -1,8 +1,9 @@
-'''
+# coding=utf-8
+"""
 Created on Oct 17, 2012
 
 @author: ml249
-'''
+"""
 
 from sklearn.metrics import f1_score, precision_score, recall_score
 

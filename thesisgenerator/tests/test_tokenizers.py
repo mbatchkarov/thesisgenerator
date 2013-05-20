@@ -1,3 +1,4 @@
+# coding=utf-8
 from unittest import TestCase
 from thesisgenerator.plugins import tokenizers
 from thesisgenerator.plugins.tokenizers import xml_tokenizer, _is_number

@@ -1,3 +1,4 @@
+# coding=utf-8
 from unittest import TestCase
 from thesisgenerator.plugins import thesaurus_loader
 from thesisgenerator.plugins.thesaurus_loader import load_thesauri, \
@@ -61,8 +62,8 @@ class TestLoad_thesauri(TestCase):
                     self.assertGreaterEqual(1, neighbours[0][1])
 
     def test_iterate_nonoverlapping_pairs(self):
-        input = [0, 1, 2, 3, 4, 5, 6, 7, 8]
-        output1 = [x for x in _iterate_nonoverlapping_pairs(input, 1, 4)]
-        output2 = [x for x in _iterate_nonoverlapping_pairs(input, 1, 2)]
+        inp = [0, 1, 2, 3, 4, 5, 6, 7, 8]
+        output1 = [x for x in _iterate_nonoverlapping_pairs(inp, 1, 4)]
+        output2 = [x for x in _iterate_nonoverlapping_pairs(inp, 1, 2)]
         self.assertListEqual([(1, 2), (3, 4), (5, 6), (7, 8)], output1)
         self.assertListEqual([(1, 2), (3, 4)], output2)

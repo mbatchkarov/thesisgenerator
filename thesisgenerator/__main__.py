@@ -1,9 +1,10 @@
 #!/usr/bin/python
-'''
+# coding=utf-8
+"""
 Created on Oct 18, 2012
 
 @author: ml249
-'''
+"""
 import os
 import sys
 import shutil
@@ -393,9 +394,8 @@ def run_tasks(configuration, data=None):
             logging.getLogger('root').info('Using pre-loaded raw data set')
             x_vals, y_vals, x_test, y_test = data
         else:
-            options = {}
-            options['input'] = configuration['feature_extraction']['input']
-            options['shuffle_targets'] = configuration['shuffle_targets']
+            options = {'input': configuration['feature_extraction']['input'],
+                       'shuffle_targets': configuration['shuffle_targets']}
             try:
                 options['input_generator'] = \
                     configuration['feature_extraction']['input_generator']

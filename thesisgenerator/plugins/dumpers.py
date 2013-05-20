@@ -1,3 +1,4 @@
+# coding=utf-8
 from collections import defaultdict
 import csv
 import logging
@@ -107,7 +108,7 @@ class ConsolidatedResultsCsvWriter(object):
         self.c.writerow(row)
 
     def __str__(self):
-        return 'ConsolidatedResultsCsvWriter-%s' % self.outfile
+        return 'ConsolidatedResultsCsvWriter-%s' % self.c
 
 
 class ConsolidatedResultsSqlWriter(object):
@@ -157,7 +158,7 @@ class DummySqlWriter(object):
 
 class ConsolidatedResultsSqlAndCsvWriter(object):
     def __init__(self, table_number, csv_output_fh, output_db_conn):
-        self.scv = ConsolidatedResultsCsvWriter(csv_output_fh)
+        self.csv = ConsolidatedResultsCsvWriter(csv_output_fh)
         if output_db_conn:
             self.sql_conn = ConsolidatedResultsSqlWriter(table_number,
                                                          output_db_conn)
@@ -166,7 +167,7 @@ class ConsolidatedResultsSqlAndCsvWriter(object):
             self.sql_conn = DummySqlWriter()
 
     def writerow(self, row):
-        self.scv.writerow(row)
+        self.csv.writerow(row)
         self.sql_conn.writerow(row)
 
     def __str__(self):

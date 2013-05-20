@@ -1,3 +1,4 @@
+# coding=utf-8
 # if one tries to run this script from the main project directory the
 # thesisgenerator package would not be on the path, add it and try again
 import sys
@@ -179,9 +180,8 @@ def evaluate_thesauri(base_conf_file, file_iterator,
 
     if not reload_data:
         # load the dataset just once
-        options = {}
-        options['input'] = config_obj['feature_extraction']['input']
-        options['shuffle_targets'] = config_obj['shuffle_targets']
+        options = {'input': config_obj['feature_extraction']['input'],
+                   'shuffle_targets': config_obj['shuffle_targets']}
 
         try:
             options['input_generator'] = config_obj['feature_extraction'][

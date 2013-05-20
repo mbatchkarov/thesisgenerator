@@ -1,3 +1,4 @@
+# coding=utf-8
 from collections import Counter
 import glob
 import os
@@ -15,7 +16,7 @@ def compare_thesauri(prefix, names):
     Names = names of files in that directory
     If prefix is None, the names are assumed to be absolute
     """
-    from plugins.bov import ThesaurusVectorizer
+    from thesisgenerator.plugins.bov import ThesaurusVectorizer
 
     thesauri = []
     vect = ThesaurusVectorizer(use_pos=True, sim_threshold=0)
