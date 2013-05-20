@@ -1,7 +1,7 @@
 from unittest import TestCase
 
 from numpy import zeros
-from classifiers import MostCommonLabelClassifier
+from thesisgenerator.classifiers import MostCommonLabelClassifier
 
 
 __author__ = 'mmb28'

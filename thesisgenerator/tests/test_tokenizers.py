@@ -1,6 +1,6 @@
 from unittest import TestCase
-from plugins import tokenizers
-from plugins.tokenizers import xml_tokenizer, _is_number
+from thesisgenerator.plugins import tokenizers
+from thesisgenerator.plugins.tokenizers import xml_tokenizer, _is_number
 
 __author__ = 'mmb28'
 

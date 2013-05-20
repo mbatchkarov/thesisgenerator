@@ -1,6 +1,6 @@
 from unittest import TestCase
-from plugins import thesaurus_loader
-from plugins.thesaurus_loader import load_thesauri, \
+from thesisgenerator.plugins import thesaurus_loader
+from thesisgenerator.plugins.thesaurus_loader import load_thesauri, \
     _iterate_nonoverlapping_pairs
 
 __author__ = 'mmb28'

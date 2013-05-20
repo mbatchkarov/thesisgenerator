@@ -30,7 +30,7 @@ class Test_ThesaurusVectorizer(TestCase):
         thesaurus_loader.use_cache = False
 
         self.feature_extraction_conf = {
-            'vectorizer': 'plugins.bov.ThesaurusVectorizer',
+            'vectorizer': 'thesisgenerator.plugins.bov.ThesaurusVectorizer',
             'use_tfidf': False,
             'min_df': 1,
             'lowercase': False,
