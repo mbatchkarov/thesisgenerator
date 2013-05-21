@@ -3,28 +3,16 @@ from math import sqrt
 import operator
 
 import numpy
-
+from thesisgenerator import utils
 
 __author__ = 'mmb28'
 
-
-# -*- coding: utf-8 -*-
-# <nbformat>2</nbformat>
-
-# <codecell>
-database_path = '/Volumes/LocalScratchHD/LocalHome/Dropbox/work/bov_data.sqlite'
-#database_path = '/home/reseter/Desktop/bov_data.sqlite'
-import sqlite3 as lite
 import matplotlib.pyplot as plt
 import pandas.io.sql as psql
 
 
 def query_to_data_frame(sql):
-    #open the database
-    global database_path
-    con = lite.connect(database_path)
-    with con:
-        return psql.frame_query(sql, con)
+    return psql.frame_query(sql, utils.get_susx_mysql_conn())
 
 
 # <codecell>
@@ -92,8 +80,8 @@ def performance_bar_chart(tables, classifiers, width=0.2, cv=25):
         for classifier in classifiers:
             sql = "SELECT sample_size,score_mean,score_std FROM data%.2d " \
                   "where " \
-                  "metric == \"macroavg_f1\" and" \
-                  " classifier == \"%s\"" % (table, classifier)
+                  "metric = \"macroavg_f1\" and" \
+                  " classifier = \"%s\"" % (table, classifier)
             print sql
             df = query_to_data_frame(sql)
             # print df
@@ -176,8 +164,14 @@ def coverage_bar_chart(experiments, width=0.13, cv=25,
 # performance_bar_chart([11, 14], ['LogisticRegression'])
 # performance_bar_chart([17, 18, 19], ['LogisticRegression'])
 # performance_bar_chart([2, 17, 18, 19], ['MultinomialNB'])
-# performance_bar_chart([17, 18, 19], ['BernoulliNB'])
 
-coverage_bar_chart([6, 8], cv=5, legend_position='upper center')
-coverage_bar_chart([16], x_columns=['name'])
+# performance_bar_chart([17, 18, 19], ['BernoulliNB'])
+performance_bar_chart([17],
+                      ['BernoulliNB', 'MultinomialNB', 'LogisticRegression'])
+performance_bar_chart([17, 18], ['BernoulliNB'])
+performance_bar_chart([17, 18], ['MultinomialNB'])
+performance_bar_chart([17, 18], ['LogisticRegression'])
+
+# coverage_bar_chart([6, 8], cv=5, legend_position='upper center')
+# coverage_bar_chart([16], x_columns=['name'])
 print 'done'

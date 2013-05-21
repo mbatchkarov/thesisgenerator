@@ -24,7 +24,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.datasets import load_files
 from joblib import Memory
 
-import config
+from thesisgenerator import config
 from thesisgenerator.plugins import tokenizers, thesaurus_loader
 from thesisgenerator.plugins.dumpers import FeatureVectorsCsvDumper
 from thesisgenerator.utils import (get_named_object,
@@ -208,7 +208,8 @@ def get_crossvalidation_iterator(config, x_vals, y_vals, x_test=None,
         iterator = LeaveNothingOut(dataset_size, dataset_size)
     elif cv_type == 'test_set' and x_test is not None and y_test is not None:
         iterator = PredefinedIndicesIterator(train_indices, test_indices)
-    elif cv_type == 'subsampled_test_set' and x_test is not None and y_test is not None:
+    elif cv_type == 'subsampled_test_set' and \
+                    x_test is not None and y_test is not None:
         iterator = SubsamplingPredefinedIndicesIterator(y_vals,
                                                         train_indices,
                                                         test_indices, int(k),

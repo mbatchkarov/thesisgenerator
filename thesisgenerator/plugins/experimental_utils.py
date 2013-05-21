@@ -1,12 +1,10 @@
 # coding=utf-8
+
 # if one tries to run this script from the main project directory the
 # thesisgenerator package would not be on the path, add it and try again
-import sys
-
-sys.path.append('../../')
-sys.path.append('../')
 sys.path.append('./')
 
+import sys
 from copy import deepcopy
 import glob
 from itertools import chain
@@ -206,16 +204,13 @@ def evaluate_thesauri(base_conf_file, file_iterator,
                                new_conf_file, log_file in file_iterator)
 
 
-if __name__ == '__main__':
-    i = int(sys.argv[1])
+def run_experiment(i):
     print 'RUNNING EXPERIMENT %d' % i
-
     # on local machine
     prefix = '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/thesisgenerator'
     exp1_thes_pattern = '%s/../Byblo-2.1.0/exp6-1*/*sims.neighbours.strings' % \
                         prefix
     num_workers = 4
-
     # on cluster
     import platform
 
@@ -226,9 +221,7 @@ if __name__ == '__main__':
         exp1_thes_pattern = '%s/../FeatureExtrationToolkit/exp6-1*/*sims.' \
                             'neighbours.strings' % prefix
         num_workers = 30
-
     reload_data = False
-
     # ----------- EXPERIMENT 1 -----------
     base_conf_file = '%s/conf/exp%d/exp%d_base.conf' % (prefix, i, i)
     if i == 1:
@@ -252,21 +245,21 @@ if __name__ == '__main__':
         it = _exp16_file_iterator(base_conf_file)
     else:
         raise ValueError('No such experiment number: %d' % i)
-
     evaluate_thesauri(base_conf_file, it, pool_size=num_workers,
                       reload_data=reload_data)
-
     # ----------- CONSOLIDATION -----------
     output_dir = '%s/conf/exp%d/output/' % (prefix, i)
     csv_out_fh = open(os.path.join(output_dir, "summary%d.csv" % i), "w")
     output_db_conn = get_susx_mysql_conn()
-
     writer = ConsolidatedResultsSqlAndCsvWriter(i, csv_out_fh,
                                                 output_db_conn)
-
     consolidate_results(
         writer,
         '%s/conf/exp%d/exp%d_base-variants' % (prefix, i, i),
         '%s/conf/exp%d/logs/' % (prefix, i),
         output_dir
     )
+
+
+if __name__ == '__main__':
+    run_experiment(int(sys.argv[1]))
