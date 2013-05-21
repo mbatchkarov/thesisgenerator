@@ -1,17 +1,13 @@
 # coding=utf-8
 
-# if one tries to run this script from the main project directory the
-# thesisgenerator package would not be on the path, add it and try again
-sys.path.append('./')
-
-import sys
 from copy import deepcopy
 import glob
 from itertools import chain
 import os
 import shutil
-
 import itertools
+import sys
+
 from numpy import nonzero
 
 from thesisgenerator.__main__ import go, _get_data_iterators, parse_config_file
