@@ -1,12 +1,20 @@
 # coding=utf-8
 
+
+# if one tries to run this script from the main project directory the
+# thesisgenerator package would not be on the path, add it and try again
+import sys
+
+sys.path.append('.')
+sys.path.append('..')
+sys.path.append('../..')
+
 from copy import deepcopy
 import glob
 from itertools import chain
 import os
 import shutil
 import itertools
-import sys
 
 from numpy import nonzero
 
