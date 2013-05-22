@@ -20,7 +20,7 @@ from numpy import nonzero
 
 from thesisgenerator.__main__ import go, _get_data_iterators, parse_config_file
 from thesisgenerator.utils import replace_in_file, get_confrc, get_susx_mysql_conn
-from thesisgenerator.plugins.dumpers import ConsolidatedResultsSqlAndCsvWriter
+from thesisgenerator.plugins.dumpers import ConsolidatedResultsCsvWriter
 from thesisgenerator.plugins.consolidator import consolidate_results
 
 
@@ -255,8 +255,7 @@ def run_experiment(i):
     output_dir = '%s/conf/exp%d/output/' % (prefix, i)
     csv_out_fh = open(os.path.join(output_dir, "summary%d.csv" % i), "w")
     output_db_conn = get_susx_mysql_conn()
-    writer = ConsolidatedResultsSqlAndCsvWriter(i, csv_out_fh,
-                                                output_db_conn)
+    writer = ConsolidatedResultsCsvWriter(csv_out_fh)
     consolidate_results(
         writer,
         '%s/conf/exp%d/exp%d_base-variants' % (prefix, i, i),
