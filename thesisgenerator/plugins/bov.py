@@ -70,7 +70,6 @@ class ThesaurusVectorizer(TfidfVectorizer):
     def fit_transform(self, raw_documents, y=None):
         self._thesaurus = load_thesauri()
         if self.replace_all:
-            print self._thesaurus
             if not self._thesaurus:
                 raise ValueError('A thesaurus is required when using '
                                  'replace_all')
@@ -83,7 +82,6 @@ class ThesaurusVectorizer(TfidfVectorizer):
     def fit(self, X, y=None, **fit_params):
         self._thesaurus = load_thesauri()
         if self.replace_all:
-            print self._thesaurus
             if not self._thesaurus:
                 raise ValueError('A thesaurus is required when using '
                                  'replace_all')
@@ -174,17 +172,13 @@ class ThesaurusVectorizer(TfidfVectorizer):
             raise ValueError('%s is not a valid tokenization scheme/analyzer' %
                              self.analyzer)
 
-
     def _dump_vocabulary_for_debugging(self):
         # temporarily store vocabulary
         f = './tmp_vocabulary%d' % self.pipe_id
         if self.log_vocabulary and not self.log_vocabulary_already:
             with open(f, 'w') as out:
-                # print 'Writing debug info to', f
                 pickle.dump(self.vocabulary_, out)
                 self.log_vocabulary_already = True
-                # else:
-                #     print 'Written debug info already'
 
     def _term_count_dicts_to_matrix(self, term_count_dicts):
         """
