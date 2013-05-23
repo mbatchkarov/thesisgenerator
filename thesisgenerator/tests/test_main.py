@@ -36,21 +36,26 @@ class Test_ThesaurusVectorizer(TestCase):
             'lowercase': False,
             'replace_all': False
         }
-        self.x_tr, self.y_tr, self.x_ev, self.y_ev = self._load_data()
 
-    def _load_data(self):
-        """
-        Loads a predefined dataset from disk
-        """
-        options = {
+        self.default_prefix = 'thesisgenerator/resources/test'
+
+        self.data_options = {
             'input': 'content',
             'shuffle_targets': False,
             'input_generator': '',
-            'source': 'thesisgenerator/resources/test-tr'
         }
-        x_tr, y_tr = _get_data_iterators(**options)
-        options['source'] = 'thesisgenerator/resources/test-ev'
-        x_ev, y_ev = _get_data_iterators(**options)
+
+        self.x_tr, self.y_tr, self.x_ev, self.y_ev = self. \
+            _load_data(self.default_prefix)
+
+    def _load_data(self, prefix):
+        """
+        Loads a predefined dataset from disk
+        """
+        self.data_options['source'] = '%s-tr' % prefix
+        x_tr, y_tr = _get_data_iterators(**self.data_options)
+        self.data_options['source'] = '%s-ev' % prefix
+        x_ev, y_ev = _get_data_iterators(**self.data_options)
         return x_tr, y_tr, x_ev, y_ev
 
     def test_get_data_iterators(self):
@@ -58,7 +63,7 @@ class Test_ThesaurusVectorizer(TestCase):
         Tests if data loading functions returns the right number of documents
          and the right targets
         """
-        x_tr, y_tr, x_ev, y_ev = self._load_data()
+        x_tr, y_tr, x_ev, y_ev = self._load_data(self.default_prefix)
         # both training and testing data contain three docs
         self.assertEqual(len(x_tr), 3)
         self.assertEqual(len(x_ev), 3)
@@ -70,6 +75,14 @@ class Test_ThesaurusVectorizer(TestCase):
             self.assertEqual(y[0], 0)
             self.assertEqual(y[1], 0)
             self.assertEqual(y[2], 1)
+
+    def _vectorize_data(self):
+        pipeline = self._build_simple_pipeline(self.feature_extraction_conf)
+        x1 = pipeline.fit_transform(self.x_tr, self.y_tr)
+        voc = pipeline.named_steps['vect'].vocabulary_
+        x2 = pipeline.transform(self.x_ev)
+
+        return x1, x2, voc
 
     def _build_simple_pipeline(self, feature_extraction_conf):
         """
@@ -98,19 +111,14 @@ class Test_ThesaurusVectorizer(TestCase):
             # include_self when replace_all=False
             thesaurus_loader.include_self = inc_self
 
-            pipeline = self._build_simple_pipeline(self.feature_extraction_conf)
-            self.assertEqual(len(pipeline.named_steps), 2)
-            self.assertEqual(sorted(list(pipeline.named_steps))[0], 'dumper')
-            self.assertEqual(sorted(list(pipeline.named_steps))[1], 'vect')
-
-            x1 = pipeline.fit_transform(self.x_tr, self.y_tr)
+            x1, x2, voc = self._vectorize_data()
 
             # check vocabulary. For some reason it does not come out in the order
             #  in which words are put in, but that is fine as long as its the
             # same order every time
             self.assertDictEqual({'cat/n': 0, 'dog/n': 1, 'game/n': 2,
                                   'kid/n': 3, 'like/v': 4, 'play/v': 5},
-                                 pipeline.named_steps['vect'].vocabulary_)
+                                 voc)
 
             # test output when not replacing all feature (old model)
             self.assertIsInstance(x1, sp.spmatrix)
@@ -125,7 +133,6 @@ class Test_ThesaurusVectorizer(TestCase):
                 )
             )
 
-            x2 = pipeline.transform(self.x_ev)
             t.assert_array_equal(
                 x2.todense(),
                 np.array(
@@ -183,13 +190,12 @@ class Test_ThesaurusVectorizer(TestCase):
         self.feature_extraction_conf['replace_all'] = True
         thesaurus_loader.include_self = False
 
-        pipeline = self._build_simple_pipeline(self.feature_extraction_conf)
-        x1 = pipeline.fit_transform(self.x_tr, self.y_tr)
+        x1, x2, voc = self._vectorize_data()
 
         self.assertDictEqual({'cat/n': 0, 'dog/n': 1, 'fruit/n': 2,
                               'game/n': 3, 'kid/n': 4, 'like/v': 5,
                               'play/v': 6},
-                             pipeline.named_steps['vect'].vocabulary_)
+                             voc)
 
         self.assertIsInstance(x1, sp.spmatrix)
         t.assert_array_equal(
@@ -203,7 +209,6 @@ class Test_ThesaurusVectorizer(TestCase):
             )
         )
 
-        x2 = pipeline.transform(self.x_ev)
         t.assert_array_equal(
             x2.toarray(),
             np.array(
@@ -219,13 +224,12 @@ class Test_ThesaurusVectorizer(TestCase):
         self.feature_extraction_conf['replace_all'] = True
         thesaurus_loader.include_self = True
 
-        pipeline = self._build_simple_pipeline(self.feature_extraction_conf)
-        x1 = pipeline.fit_transform(self.x_tr, self.y_tr)
+        x1, x2, voc = self._vectorize_data()
 
         self.assertDictEqual({'cat/n': 0, 'dog/n': 1, 'fruit/n': 2,
                               'game/n': 3, 'kid/n': 4, 'like/v': 5,
                               'play/v': 6},
-                             pipeline.named_steps['vect'].vocabulary_)
+                             voc)
 
         self.assertIsInstance(x1, sp.spmatrix)
         t.assert_array_equal(
@@ -239,7 +243,6 @@ class Test_ThesaurusVectorizer(TestCase):
             )
         )
 
-        x2 = pipeline.transform(self.x_ev)
         t.assert_array_equal(
             x2.toarray(),
             np.array(
@@ -251,3 +254,34 @@ class Test_ThesaurusVectorizer(TestCase):
             )
         )
 
+    def test_baseline_use_all_features_signifier_only(self):
+        thesaurus_loader.thesaurus_files = \
+            ['thesisgenerator/resources/baseline.thesaurus.strings']
+        self.x_tr, self.y_tr, self.x_ev, self.y_ev = self. \
+            _load_data('thesisgenerator/resources/test-baseline')
+
+        x1, x2, voc = self._vectorize_data()
+
+        self.assertDictEqual({'a/n': 0, 'b/n': 1, 'd/n': 2}, voc)
+
+        self.assertIsInstance(x1, sp.spmatrix)
+        t.assert_array_equal(
+            x1.toarray(),
+            np.array(
+                [
+                    [1, 1, 0],
+                    [0, 1, 1],
+                ]
+            )
+        )
+
+        self.fail('Not implemented yet')
+
+    def test_baseline_ignore_nonthesaurus_features_signifier_only(self):
+        self.fail('Not implemented yet')
+
+    def test_baseline_use_all_features_with_signified(self):
+        self.fail('Not implemented yet')
+
+    def test_baseline_ignore_nonthesaurus_features_with_signified(self):
+        self.fail('Not implemented yet')

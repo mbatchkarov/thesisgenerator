@@ -67,15 +67,18 @@ class ThesaurusVectorizer(TfidfVectorizer):
                                                   dtype=dtype
         )
 
+    def set_vocabulary_from_thesaurus_keys(self):
+        self.vocabulary_ = {k: v for v, k in
+                            enumerate(sorted(self._thesaurus.keys()))}
+        self.fixed_vocabulary = True
+
     def fit_transform(self, raw_documents, y=None):
         self._thesaurus = load_thesauri()
         if self.replace_all:
             if not self._thesaurus:
                 raise ValueError('A thesaurus is required when using '
                                  'replace_all')
-            self.vocabulary_ = {k: v for v, k in
-                                enumerate(sorted(self._thesaurus.keys()))}
-            self.fixed_vocabulary = True
+            self.set_vocabulary_from_thesaurus_keys()
         return super(ThesaurusVectorizer, self).fit_transform(raw_documents,
                                                               y)
 
@@ -85,9 +88,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
             if not self._thesaurus:
                 raise ValueError('A thesaurus is required when using '
                                  'replace_all')
-            self.vocabulary_ = {k: v for v, k in
-                                enumerate(sorted(self._thesaurus.keys()))}
-            self.fixed_vocabulary = True
+            self.set_vocabulary_from_thesaurus_keys()
         return super(ThesaurusVectorizer, self).fit(X, y, **fit_params)
 
     def my_feature_extractor(self, tokens, stop_words=None,
@@ -201,15 +202,15 @@ class ThesaurusVectorizer(TfidfVectorizer):
         if not self._thesaurus:
             # no thesaurus was loaded in the constructor,
             # fall back to super behaviour
-            logging.getLogger('root').warn("F**k, no thesaurus!")
-            return super(ThesaurusVectorizer,
-                         self)._term_count_dicts_to_matrix(term_count_dicts)
+            logging.getLogger('root').warn("No thesaurus, reverting to super")
+            return super(ThesaurusVectorizer, self) \
+                ._term_count_dicts_to_matrix(term_count_dicts)
 
         # sparse storage for document-term matrix (terminology note: term ==
         # feature)
-        doc_id_indices = [] #which document the feature occurs in
-        term_indices = []   #which term id appeared
-        values = []         #values[i] = frequency(term[i]) in document[i]
+        doc_id_indices = [] # which document the feature occurs in
+        term_indices = []   # which term id appeared
+        values = []         # values[i] = frequency(term[i]) in document[i]
 
         vocabulary = self.vocabulary_
         num_documents = 0
@@ -223,6 +224,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
         unknown_types = set()
         found_types = set()
         replaced_types = set()
+
         for doc_id, term_count_dict in enumerate(term_count_dicts):
             num_documents += 1
             for document_term, count in term_count_dict.iteritems():
@@ -288,7 +290,6 @@ class ThesaurusVectorizer(TfidfVectorizer):
                         term_indices.append(vocabulary.get(neighbour))
                         values.append(sim)
 
-
             # free memory as we go
             term_count_dict.clear()
 
@@ -298,6 +299,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
         shape = (num_documents, max(vocabulary.itervalues()) + 1)
         spmatrix = sp.coo_matrix((values, (doc_id_indices, term_indices)),
                                  shape=shape, dtype=self.dtype)
+
         # remove frequencies if binary feature were requested
         if self.binary:
             spmatrix.data.fill(1)
