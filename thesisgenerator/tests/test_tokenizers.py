@@ -21,7 +21,8 @@ class Test_tokenizers(TestCase):
         for key, val in self.params.items():
             setattr(tokenizers, key, val)
 
-        with open('sample-data/test-tr/earn/earn_1.tagged') as infile:
+        with open(
+                'thesisgenerator/resources/test-tr/earn/earn_1.tagged') as infile:
             self.doc = infile.read()
         self.assertIn('<document>', self.doc)
         self.assertIn('</document>', self.doc)

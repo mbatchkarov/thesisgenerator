@@ -14,12 +14,14 @@ class TestLoad_thesauri(TestCase):
         for processing
         """
 
-        self.params = {'thesaurus_files': ['sample-data/simple.thesaurus'
-                                           '.strings'],
-                       'sim_threshold': 0,
-                       'k': 10,
-                       'include_self': False,
-                       'use_cache': False}
+        self.params = {
+            'thesaurus_files': [
+                'thesisgenerator/resources/simple.thesaurus.strings'],
+            'sim_threshold': 0,
+            'k': 10,
+            'include_self': False,
+            'use_cache': False
+        }
 
         for key, val in self.params.items():
             setattr(thesaurus_loader, key, val)

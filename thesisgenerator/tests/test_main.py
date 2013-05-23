@@ -23,7 +23,7 @@ class Test_ThesaurusVectorizer(TestCase):
         tokenizers.lowercase = True
 
         thesaurus_loader.thesaurus_files = \
-            ['sample-data/simple.thesaurus.strings']
+            ['thesisgenerator/resources/simple.thesaurus.strings']
         thesaurus_loader.sim_threshold = 0
         thesaurus_loader.k = 10
         thesaurus_loader.include_self = False
@@ -46,10 +46,10 @@ class Test_ThesaurusVectorizer(TestCase):
             'input': 'content',
             'shuffle_targets': False,
             'input_generator': '',
-            'source': 'sample-data/test-tr'
+            'source': 'thesisgenerator/resources/test-tr'
         }
         x_tr, y_tr = _get_data_iterators(**options)
-        options['source'] = 'sample-data/test-ev'
+        options['source'] = 'thesisgenerator/resources/test-ev'
         x_ev, y_ev = _get_data_iterators(**options)
         return x_tr, y_tr, x_ev, y_ev
 
