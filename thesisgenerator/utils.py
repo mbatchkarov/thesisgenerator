@@ -106,11 +106,11 @@ class PredefinedIndicesIterator(object):
         self.test = test
 
     def __iter__(self):
-        logging.getLogger('root').info('Yielding a training set of '
-                                       'size %d and a test set of '
-                                       'size %d' %
-                                       (len(self.train),
-                                        len(self.test)))
+        logging.getLogger().info('Yielding a training set of '
+                                 'size %d and a test set of '
+                                 'size %d' %
+                                 (len(self.train),
+                                  len(self.test)))
 
         yield self.train, self.test
         raise StopIteration
@@ -139,12 +139,12 @@ class SubsamplingPredefinedIndicesIterator(object):
         self.sample_size = int(sample_size)
         self.rng = check_random_state(random_state)
         self.counts = np.bincount(y_vals) / float(len(y_vals))
-        logging.getLogger('root').info('Will do %d runs, '
-                                       'for each sampling %d documents from a '
-                                       'training set of size %d' % (
-                                           self.num_samples,
-                                           self.sample_size,
-                                           len(self.train)))
+        logging.getLogger().info('Will do %d runs, '
+                                 'for each sampling %d documents from a '
+                                 'training set of size %d' % (
+                                     self.num_samples,
+                                     self.sample_size,
+                                     len(self.train)))
 
     def __iter__(self):
         for i in range(self.num_samples):
@@ -156,10 +156,10 @@ class SubsamplingPredefinedIndicesIterator(object):
                 ind = np.nonzero(self.y_vals[self.train] == label)[0]
                 ind = self.rng.choice(ind, size=train_size, replace=False)
 
-                logging.getLogger('root').debug(
+                logging.getLogger().debug(
                     'Selected %r for class %r' % (ind, label))
                 ind_train = np.concatenate((ind_train, ind), axis=0)
-            logging.getLogger('root').info(
+            logging.getLogger().info(
                 'Will train on collection of len %r - %r' % (
                     len(ind_train), ind_train))
             yield ind_train, self.test

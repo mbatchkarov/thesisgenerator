@@ -42,23 +42,23 @@ class StatsRecordingFeatureHandlerMixin(object):
         self.num_tokens += 1
 
     def print_coverage_stats(self):
-        logging.getLogger('root').info('Vectorizer: '
-                                       'Total tokens: %d, '
-                                       'Unknown tokens: %d, '
-                                       'Found tokens: %d, '
-                                       'Replaced tokens: %d, '
-                                       'Total types: %d, '
-                                       'Unknown types: %d,  '
-                                       'Found types: %d, '
-                                       'Replaced types: %d' % (
-                                           self.num_tokens,
-                                           self.unknown_tokens,
-                                           self.found_tokens,
-                                           self.replaced_tokens,
-                                           len(self.all_types),
-                                           len(self.unknown_types),
-                                           len(self.found_types),
-                                           len(self.replaced_types)))
+        logging.getLogger().info('Vectorizer: '
+                                 'Total tokens: %d, '
+                                 'Unknown tokens: %d, '
+                                 'Found tokens: %d, '
+                                 'Replaced tokens: %d, '
+                                 'Total types: %d, '
+                                 'Unknown types: %d,  '
+                                 'Found types: %d, '
+                                 'Replaced types: %d' % (
+                                     self.num_tokens,
+                                     self.unknown_tokens,
+                                     self.found_tokens,
+                                     self.replaced_tokens,
+                                     len(self.all_types),
+                                     len(self.unknown_types),
+                                     len(self.found_types),
+                                     len(self.replaced_types)))
 
 
 class BaseFeatureHandler(StatsRecordingFeatureHandlerMixin):
@@ -72,14 +72,14 @@ class BaseFeatureHandler(StatsRecordingFeatureHandlerMixin):
 
     def _insert_feature_only(self, doc_id, doc_id_indices, document_term,
                              term_indices, term_index_in_vocab, values, count):
-        logging.getLogger('root').debug(
+        logging.getLogger().debug(
             'Known token in doc %d: %s' % (doc_id, document_term))
         doc_id_indices.append(doc_id)
         term_indices.append(term_index_in_vocab)
         values.append(count)
 
     def _ignore_feature(self, doc_id, document_term):
-        logging.getLogger('root').debug(
+        logging.getLogger().debug(
             'Non-thesaurus token in doc %d: %s' % (doc_id, document_term))
 
     def _insert_thesaurus_neighbours(self, doc_id, doc_id_indices,
@@ -100,8 +100,8 @@ class BaseFeatureHandler(StatsRecordingFeatureHandlerMixin):
         if neighbours:
             self.found_tokens += 1
             self.found_types.add(document_term)
-            logging.getLogger('root').debug('Found thesaurus entry '
-                                            'for %s' % document_term)
+            logging.getLogger().debug('Found thesaurus entry '
+                                      'for %s' % document_term)
 
         neighbours = [(neighbour, sim) for neighbour, sim in
                       neighbours if
@@ -111,7 +111,7 @@ class BaseFeatureHandler(StatsRecordingFeatureHandlerMixin):
             self.replaced_tokens += 1
             self.replaced_types.add(document_term)
         for neighbour, sim in neighbours:
-            logging.getLogger('root').debug(
+            logging.getLogger().debug(
                 'Replacement. Doc %d: %s --> %s, '
                 'sim = %f' % (
                     doc_id, document_term, neighbour, sim))

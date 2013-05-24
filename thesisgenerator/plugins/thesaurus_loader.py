@@ -27,19 +27,19 @@ def get_all_thesauri():
     global thesaurus_files, sim_threshold, k, include_self
 
     if not thesaurus_files:
-        logging.getLogger('root').warn("No thesaurus specified")
+        logging.getLogger().warn("No thesaurus specified")
 
     result = {}
-    logging.getLogger('root').debug(thesaurus_files)
+    logging.getLogger().debug(thesaurus_files)
     for path in thesaurus_files:
         if path in preloaded_thesauri and use_cache:
-            logging.getLogger('root').info('Returning cached thesaurus '
-                                           'for %s' % path)
+            logging.getLogger().info('Returning cached thesaurus '
+                                     'for %s' % path)
             result.update(preloaded_thesauri[path])
         else:
-            logging.getLogger('root').info(
+            logging.getLogger().info(
                 'Loading thesaurus %s from disk' % path)
-            logging.getLogger('root').debug(
+            logging.getLogger().debug(
                 'threshold %r, k=%r' % (sim_threshold, k))
 
             FILTERED = '___FILTERED___'.lower()
@@ -66,7 +66,7 @@ def get_all_thesauri():
                         # entry. if this happens, do not bother adding it
                         if len(to_insert) > 0:
                             if tokens[0] in curr_thesaurus:
-                                logging.getLogger('root').error(
+                                logging.getLogger().error(
                                     'Multiple entries for "%s" found' %
                                     tokens[0])
                             curr_thesaurus[tokens[0].lower()].extend(
@@ -76,13 +76,13 @@ def get_all_thesauri():
             # already been lowercased- may result in multiple neighbour lists
             # for the same entry
             if use_cache:
-                logging.getLogger('root').info('Caching thesaurus %s' % path)
+                logging.getLogger().info('Caching thesaurus %s' % path)
                 preloaded_thesauri[path] = curr_thesaurus
             result.update(curr_thesaurus)
 
-    logging.getLogger('root').info(
+    logging.getLogger().info(
         'Thesaurus contains %d entries' % len(result))
-    # logging.getLogger('root').debug(
+    # logging.getLogger().debug(
     #     'Thesaurus sample %r' % result.items()[:2])
     return result
 

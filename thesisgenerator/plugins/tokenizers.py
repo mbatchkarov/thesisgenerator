@@ -78,7 +78,7 @@ def xml_tokenizer(doc):
     try:
         import xml.etree.cElementTree as ET
     except ImportError:
-        logging.getLogger('root').warn('cElementTree not available')
+        logging.getLogger().warn('cElementTree not available')
         import xml.etree.ElementTree as ET
 
     try:
@@ -104,7 +104,7 @@ def xml_tokenizer(doc):
                 try:
                     iob_tag = element.find('NER').text.upper()
                 except AttributeError:
-                    logging.getLogger('root').error(
+                    logging.getLogger().error(
                         'You have requested named entity normalisation,'
                         ' but the input data is not annotated for '
                         'entities')
