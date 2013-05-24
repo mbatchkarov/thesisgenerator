@@ -1,5 +1,4 @@
 # coding=utf-8
-import locale
 import logging
 import pickle
 import scipy.sparse as sp
@@ -42,8 +41,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
             self.log_vocabulary_already = False #have I done it already
             self.use_tfidf = use_tfidf
             self.pipe_id = pipe_id
-            # for parsing integers with comma for thousands separator
-            locale.setlocale(locale.LC_ALL, 'en_US')
+            self.replace_all = replace_all
             self.vocab_from_thes = vocab_from_thes
 
         except KeyError:

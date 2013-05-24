@@ -3,6 +3,9 @@ from collections import defaultdict
 import locale
 import logging
 
+# for parsing integers with comma for thousands separator
+locale.setlocale(locale.LC_ALL, 'en_US')
+
 
 
 # copied from feature extraction toolkit
