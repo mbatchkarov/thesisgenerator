@@ -8,7 +8,6 @@ import inspect
 from itertools import combinations
 import logging
 import re
-import gzip
 import sys
 import os.path as p
 import itertools
@@ -70,46 +69,6 @@ def replace_in_file(file_name, search_exp, replace_exp):
         line = re.sub(search_exp, replace_exp, line)
         sys.stdout.write(line)
     fh.close()
-
-
-class GorkanaXmlParser(object):
-    def __init__(self, source):
-        self._source = source
-
-    def documents(self):
-        with gzip.open(self._source, 'r') as _in_fh:
-            self._xml_etree = ET.iterparse(_in_fh, events=('end',))
-            regex = re.compile(
-                '(?:&lt;|<)headline(?:&gt;|>)(.*)(?:&lt;|<)/headline(?:&gt;|>)')
-            for _, element in self._xml_etree:
-                if element.tag == 'documents' or element.text is None:
-                    continue
-
-                article_text = element.text
-                _headline = regex.findall(article_text)
-                _headline = _headline[0] if len(_headline) > 0 else ''
-                _body = regex.sub('', article_text)
-
-                yield '%s\n%s' % (_headline.strip(), _body.strip())
-
-    def targets(self):
-        with gzip.open(self._source, 'r') as _in_fh:
-            self._xml_etree = ET.iterparse(_in_fh, events=('end',))
-            for _, element in self._xml_etree:
-                if element.tag == 'documents' or element.text is None:
-                    continue
-                target = element.attrib['relevant'] == 'True'
-                yield target
-
-
-def gorkana_200_seen_positives_validation(x, y):
-    i = 0
-    pos = 0
-    while pos < 200:
-        i += 1
-        pos += 1 if y[i] == 1 else 0
-
-    return [(i, len(y))]
 
 
 class LeaveNothingOut(object):
