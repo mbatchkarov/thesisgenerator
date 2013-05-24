@@ -1,7 +1,7 @@
 # coding=utf-8
 from unittest import TestCase
 from thesisgenerator.plugins import thesaurus_loader
-from thesisgenerator.plugins.thesaurus_loader import load_thesauri, \
+from thesisgenerator.plugins.thesaurus_loader import get_all_thesauri, \
     _iterate_nonoverlapping_pairs
 
 __author__ = 'mmb28'
@@ -31,7 +31,7 @@ class TestLoad_thesauri(TestCase):
         self._reload_and_assert(0, 0)
 
     def _reload_and_assert(self, entry_count, neighbour_count):
-        th = load_thesauri()
+        th = get_all_thesauri()
         all_neigh = [x for v in th.values() for x in v]
         self.assertEqual(len(th), entry_count)
         self.assertEqual(len(all_neigh), neighbour_count)

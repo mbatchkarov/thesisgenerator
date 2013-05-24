@@ -8,7 +8,7 @@ preloaded_thesauri = {}
 use_cache = True # used to disable caching for testing purposes
 
 
-def load_thesauri():
+def get_all_thesauri():
     """
     Loads a set Byblo-generated thesaurus form the specified file and
     returns their union. If any of the files has been parsed already a
@@ -81,8 +81,8 @@ def load_thesauri():
 
     logging.getLogger('root').info(
         'Thesaurus contains %d entries' % len(result))
-    logging.getLogger('root').debug(
-        'Thesaurus sample %r' % result.items()[:2])
+    # logging.getLogger('root').debug(
+    #     'Thesaurus sample %r' % result.items()[:2])
     return result
 
 

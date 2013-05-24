@@ -36,7 +36,8 @@ shuffle_targets=boolean(default=False)
 	coarse_pos=boolean(default=True)
 	normalise_entities=boolean(default=False)
 	replace_all=boolean(default=False)
-    include_self=boolean(default=True)	
+    include_self=boolean(default=True)
+    vocab_from_thes=boolean(default=False)
 
 [tokenizer] 
 	lowercase=boolean

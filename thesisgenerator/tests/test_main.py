@@ -1,6 +1,6 @@
 # coding=utf-8
 
-from unittest import TestCase
+from unittest import TestCase, skip
 
 import numpy as np
 import numpy.testing as t
@@ -103,7 +103,9 @@ class Test_ThesaurusVectorizer(TestCase):
         )
         return pipeline
 
-    def test_includeSelf_TrueFalse(self):
+    @skip("Not sure how the old algorithm below fits with our new thinking of"
+          " what should happen when not using replace_all")
+    def test_replaceAll_False_includeSelf_TrueFalse(self):
         self.feature_extraction_conf['replace_all'] = False
 
         for inc_self in [True, False]:
@@ -151,7 +153,8 @@ class Test_ThesaurusVectorizer(TestCase):
             # ===============================================================
             def compare_csv(expected, stage):
                 expected = [x.strip() for x in expected.split()]
-                with open('PostVectDump-%s12345.csv' % stage) as infile:
+                filename = 'PostVectDump-%s12345.csv' % stage
+                with open(filename) as infile:
                     csv_file_contents = [x.strip() for x in infile.readlines()]
 
                 # headers must be identical character for character

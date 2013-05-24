@@ -2,12 +2,11 @@
 import locale
 import logging
 import pickle
-
 import scipy.sparse as sp
 from sklearn.feature_extraction.text import TfidfVectorizer
+from thesisgenerator.plugins.bov_feature_handlers import get_handler
 from thesisgenerator.utils import NoopTransformer
-
-from thesisgenerator.plugins.thesaurus_loader import load_thesauri
+from thesisgenerator.plugins.thesaurus_loader import get_all_thesauri
 from thesisgenerator.plugins.tokenizers import xml_tokenizer
 
 
@@ -25,20 +24,28 @@ class ThesaurusVectorizer(TfidfVectorizer):
                  max_n=None, ngram_range=(1, 1), max_df=1.0, min_df=2,
                  max_features=None, vocabulary=None, binary=False, dtype=float,
                  norm='l2', use_idf=True, smooth_idf=True,
-                 sublinear_tf=False, use_tfidf=True, replace_all=False):
+                 sublinear_tf=False, use_tfidf=True, replace_all=False,
+                 vocab_from_thes=False):
         """
         Builds a vectorizer the way a TfidfVectorizer is built, and takes one
-        extra param specifying the path the the Byblo-generated thesaurus
+        extra param specifying the path the the Byblo-generated thesaurus.
+
+        Do not do any real work here, this constructor is first invoked with
+        no parameters by the pipeline and then all the right params are set
+        through reflection. When __init__ terminates the class invariants
+        have not been established, make sure to check& establish them in
+        fit_transform()
         """
         try:
             self.log_vocabulary = log_vocabulary # if I should log the
             # vocabulary
             self.log_vocabulary_already = False #have I done it already
             self.use_tfidf = use_tfidf
-            self.replace_all = bool(replace_all)
             self.pipe_id = pipe_id
             # for parsing integers with comma for thousands separator
             locale.setlocale(locale.LC_ALL, 'en_US')
+            self.vocab_from_thes = vocab_from_thes
+
         except KeyError:
             pass
 
@@ -67,32 +74,33 @@ class ThesaurusVectorizer(TfidfVectorizer):
                                                   dtype=dtype
         )
 
-    def set_vocabulary_from_thesaurus_keys(self):
-        self.vocabulary_ = {k: v for v, k in
-                            enumerate(sorted(self._thesaurus.keys()))}
-        self.fixed_vocabulary = True
+    def try_to_set_vocabulary_from_thesaurus_keys(self):
+        if self.replace_all:
+            logging.getLogger('root').warn('Replace_all is enabled, '
+                                           'fixing vocabulary from thes')
+            self.vocab_from_thes = True
+
+        if self.vocab_from_thes:
+            if not get_all_thesauri():
+                raise ValueError(
+                    'A thesaurus is required when using vocab_from_thes')
+            self.vocabulary_ = {k: v for v, k in
+                                enumerate(sorted(get_all_thesauri().keys()))}
+            self.fixed_vocabulary = True
 
     def fit_transform(self, raw_documents, y=None):
-        self._thesaurus = load_thesauri()
-        if self.replace_all:
-            if not self._thesaurus:
-                raise ValueError('A thesaurus is required when using '
-                                 'replace_all')
-            self.set_vocabulary_from_thesaurus_keys()
+        self.handler = get_handler(self.replace_all, self.vocab_from_thes)
+
+        self.try_to_set_vocabulary_from_thesaurus_keys()
         return super(ThesaurusVectorizer, self).fit_transform(raw_documents,
                                                               y)
 
     def fit(self, X, y=None, **fit_params):
-        self._thesaurus = load_thesauri()
-        if self.replace_all:
-            if not self._thesaurus:
-                raise ValueError('A thesaurus is required when using '
-                                 'replace_all')
-            self.set_vocabulary_from_thesaurus_keys()
+        self.handler = get_handler(self.replace_all, self.vocab_from_thes)
+        self.try_to_set_vocabulary_from_thesaurus_keys()
         return super(ThesaurusVectorizer, self).fit(X, y, **fit_params)
 
-    def my_feature_extractor(self, tokens, stop_words=None,
-                             ngram_range=(1, 1)):
+    def my_feature_extractor(self, tokens, stop_words=None, ngram_range=(1, 1)):
         """
         Turn a document( a list of tokens) into a sequence of features. These
         include n-grams after stop words filtering,
@@ -100,7 +108,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
         Based on sklearn.feature_extraction.text._word_ngrams
         """
 
-        #todo add/enable feature functions here
+        # todo add/enable feature functions here
         # handle stop words and lowercasing- this is needed because thesaurus
         # only contains lowercase entries
         if stop_words is not None:
@@ -181,6 +189,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
                 pickle.dump(self.vocabulary_, out)
                 self.log_vocabulary_already = True
 
+
     def _term_count_dicts_to_matrix(self, term_count_dicts):
         """
         Converts a set ot document_term counts to a matrix; Input is a
@@ -199,7 +208,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
             'Using TF-IDF: %s, transformer is %s' % (self.use_tfidf,
                                                      self._tfidf))
 
-        if not self._thesaurus:
+        if not get_all_thesauri():
             # no thesaurus was loaded in the constructor,
             # fall back to super behaviour
             logging.getLogger('root').warn("No thesaurus, reverting to super")
@@ -218,83 +227,28 @@ class ThesaurusVectorizer(TfidfVectorizer):
             "Building feature vectors, current vocab size is %d" %
             len(vocabulary))
 
-        # how many tokens are there/ are unknown/ have been replaced
-        num_tokens, unknown_tokens, found_tokens, replaced_tokens = 0, 0, 0, 0
-        all_types = set()
-        unknown_types = set()
-        found_types = set()
-        replaced_types = set()
-
         for doc_id, term_count_dict in enumerate(term_count_dicts):
             num_documents += 1
             for document_term, count in term_count_dict.iteritems():
-                all_types.add(document_term)
-                num_tokens += 1
+                self.handler.register_token(document_term)
                 term_index_in_vocab = vocabulary.get(document_term)
-                in_vocab = term_index_in_vocab is not None #None if term is not in seen vocabulary
+                is_in_vocabulary = term_index_in_vocab is not None
+                # None if term is not in seen vocabulary
+                is_in_th = get_all_thesauri().get(document_term) is not None
 
-                if in_vocab and not self.replace_all:
-                # insert the term itself as a feature
-                    logging.getLogger('root').debug(
-                        'Known token in doc %d: %s' % (
-                            doc_id, document_term))
-                    doc_id_indices.append(doc_id)
-                    term_indices.append(term_index_in_vocab)
-                    values.append(count)
-                elif not in_vocab and self.replace_all:
-                    logging.getLogger('root').debug(
-                        'Non-thesaurus token in doc %d: %s' % (
-                            doc_id, document_term))
-                    # unknown term, but it's not in thesaurus; nothing
-                    # we can do about it
-                else:
-                # replace term with its k nearest neighbours from the thesaurus
-
-                #  logger.info below demonstrates that unseen words exist,
-                # i.e. vectorizer is not reducing the tests set to the
-                # training vocabulary
-                    unknown_tokens += 1
-                    unknown_types.add(document_term)
-                    logging.getLogger('root').debug(
-                        'Unknown token in doc %d: %s' % (doc_id, document_term))
-
-                    neighbours = self._thesaurus.get(document_term)
-
-                    # if there are any neighbours filter the list of
-                    # neighbours so that it contains only pairs where
-                    # the neighbour has been seen
-                    if neighbours:
-                        found_tokens += 1
-                        found_types.add(document_term)
-                        logging.getLogger('root').debug('Found thesaurus entry '
-                                                        'for %s' % document_term)
-                    neighbours = [(neighbour, sim) for neighbour, sim in
-                                  neighbours if
-                                  neighbour in self.vocabulary_] if neighbours \
-                        else []
-                    if len(neighbours) > 0:
-                        replaced_tokens += 1
-                        replaced_types.add(document_term)
-                    for neighbour, sim in neighbours:
-                        logging.getLogger('root').debug(
-                            'Replacement. Doc %d: %s --> %s, '
-                            'sim = %f' % (
-                                doc_id, document_term, neighbour, sim))
-                        # todo the document may already contain the feature we
-                        # are about to insert into it,
-                        # a mergin strategy is required,
-                        # e.g. what do we do if the document has the word X
-                        # in it and we encounter X again. By default,
-                        # scipy uses addition
-                        doc_id_indices.append(doc_id)
-                        term_indices.append(vocabulary.get(neighbour))
-                        values.append(sim)
-
-            # free memory as we go
+                params = (doc_id, doc_id_indices, document_term, term_indices,
+                          term_index_in_vocab, values, count, vocabulary)
+                if is_in_vocabulary and is_in_th:
+                    self.handler.handle_IV_IT_feature(*params)
+                if is_in_vocabulary and not is_in_th:
+                    self.handler.handle_IV_OOT_feature(*params)
+                if not is_in_vocabulary and is_in_th:
+                    self.handler.handle_OOV_IT_feature(*params)
+                if not is_in_vocabulary and not is_in_th:
+                    self.handler.handle_OOV_OOT_feature(*params)
             term_count_dict.clear()
 
-        # convert the three lists above to a numpy sparse matrix
-
+        # convert the three iterables above to a numpy sparse matrix
         # this is sometimes a generator, convert to list to use len
         shape = (num_documents, max(vocabulary.itervalues()) + 1)
         spmatrix = sp.coo_matrix((values, (doc_id_indices, term_indices)),
@@ -305,13 +259,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
             spmatrix.data.fill(1)
         logging.getLogger('root').debug(
             'Vectorizer: Data shape is %s' % (str(spmatrix.shape)))
-        logging.getLogger('root').info(
-            'Vectorizer: Total tokens: %d, Unknown tokens: %d,  Found tokens: %d,'
-            ' Replaced tokens: %d, Total types: %d, Unknown types: %d,  '
-            'Found types: %d, Replaced types: %d' % (
-                num_tokens, unknown_tokens, found_tokens, replaced_tokens,
-                len(all_types), len(unknown_types), len(found_types),
-                len(replaced_types)))
+        self.handler.print_coverage_stats()
         logging.getLogger('root').info('Done converting features to vectors')
 
         return spmatrix
