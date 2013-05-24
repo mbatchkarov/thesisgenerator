@@ -621,6 +621,7 @@ def _init_utilities_state(config):
     tokenizers.coarse_pos = config['feature_extraction']['coarse_pos']
     tokenizers.lemmatize = config['feature_extraction']['lemmatize']
     tokenizers.lowercase = config['tokenizer']['lowercase']
+    tokenizers.keep_only_IT = config['tokenizer']['keep_only_IT']
 
     thesaurus_loader.thesaurus_files = config['feature_extraction'][
         'thesaurus_files']

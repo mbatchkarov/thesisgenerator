@@ -71,7 +71,7 @@ class BaseFeatureHandler(StatsRecordingFeatureHandlerMixin):
                                      document_term, term_indices,
                                      values, vocabulary):
         """
-        replace term with its k nearest neighbours from the thesaurus
+        Replace term with its k nearest neighbours from the thesaurus
         """
 
         # logger.info below demonstrates that unseen words exist,

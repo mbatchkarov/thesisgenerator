@@ -11,23 +11,31 @@ from thesisgenerator.__main__ import _get_data_iterators
 from thesisgenerator.__main__ import _build_pipeline
 
 
+def _init_tokenizer():
+    tokenizers.normalise_entities = False
+    tokenizers.use_pos = True
+    tokenizers.coarse_pos = True
+    tokenizers.lemmatize = True
+    tokenizers.lowercase = True
+    tokenizers.keep_only_IT = False
+
+
+def _init_thesauri():
+    thesaurus_loader.thesaurus_files = \
+        ['thesisgenerator/resources/simple.thesaurus.strings']
+    thesaurus_loader.sim_threshold = 0
+    thesaurus_loader.k = 10
+    thesaurus_loader.include_self = False
+    thesaurus_loader.use_cache = False
+
+
 class Test_ThesaurusVectorizer(TestCase):
     def setUp(self):
         """
         Initialises the state of helper modules to sensible defaults
         """
-        tokenizers.normalise_entities = False
-        tokenizers.use_pos = True
-        tokenizers.coarse_pos = True
-        tokenizers.lemmatize = True
-        tokenizers.lowercase = True
-
-        thesaurus_loader.thesaurus_files = \
-            ['thesisgenerator/resources/simple.thesaurus.strings']
-        thesaurus_loader.sim_threshold = 0
-        thesaurus_loader.k = 10
-        thesaurus_loader.include_self = False
-        thesaurus_loader.use_cache = False
+        _init_tokenizer()
+        _init_thesauri()
 
         self.feature_extraction_conf = {
             'vectorizer': 'thesisgenerator.plugins.bov.ThesaurusVectorizer',
@@ -257,7 +265,43 @@ class Test_ThesaurusVectorizer(TestCase):
             )
         )
 
-    def test_baseline_use_all_features_signifier_only(self):
+    def test_baseline_use_all_features_signifier_only_B(self):
+        self.feature_extraction_conf['vocab_from_thes'] = False
+        self.feature_extraction_conf['use_signifier_only'] = True
+        thesaurus_loader.thesaurus_files = \
+            ['thesisgenerator/resources/baseline.thesaurus.strings']
+        self.x_tr, self.y_tr, self.x_ev, self.y_ev = self. \
+            _load_data('thesisgenerator/resources/test-baseline')
+
+        x1, x2, voc = self._vectorize_data()
+
+        self.assertDictEqual({'a/n': 0, 'b/n': 1, 'c/n': 2,
+                              'd/n': 3, 'e/n': 4, 'f/n': 5},
+                             voc)
+
+        self.assertIsInstance(x1, sp.spmatrix)
+        t.assert_array_equal(
+            x1.toarray(),
+            np.array(
+                [
+                    [1, 1, 1, 0, 0, 0],
+                    [0, 0, 0, 1, 1, 1],
+                ]
+            )
+        )
+
+        t.assert_array_equal(
+            x2.toarray(),
+            np.array(
+                [
+                    [1, 0, 1, 0, 0, 0],
+                ]
+            )
+        )
+
+    def test_baseline_ignore_nonthesaurus_features_signifier_only_A(self):
+        tokenizers.keep_only_IT = True
+        self.feature_extraction_conf['use_signifier_only'] = True
         thesaurus_loader.thesaurus_files = \
             ['thesisgenerator/resources/baseline.thesaurus.strings']
         self.x_tr, self.y_tr, self.x_ev, self.y_ev = self. \
@@ -273,18 +317,82 @@ class Test_ThesaurusVectorizer(TestCase):
             np.array(
                 [
                     [1, 1, 0],
-                    [0, 1, 1],
+                    [0, 0, 1],
                 ]
             )
         )
 
-        self.fail('Not implemented yet')
+        t.assert_array_equal(
+            x2.toarray(),
+            np.array(
+                [
+                    [1, 0, 0],
+                ]
+            )
+        )
 
-    def test_baseline_ignore_nonthesaurus_features_signifier_only(self):
-        self.fail('Not implemented yet')
+    def test_baseline_use_all_features_with_signified_D(self):
+        self.feature_extraction_conf['vocab_from_thes'] = False
+        self.feature_extraction_conf['use_signifier_only'] = False
+        thesaurus_loader.thesaurus_files = \
+            ['thesisgenerator/resources/baseline.thesaurus.strings']
+        self.x_tr, self.y_tr, self.x_ev, self.y_ev = self. \
+            _load_data('thesisgenerator/resources/test-baseline')
 
-    def test_baseline_use_all_features_with_signified(self):
-        self.fail('Not implemented yet')
+        x1, x2, voc = self._vectorize_data()
 
-    def test_baseline_ignore_nonthesaurus_features_with_signified(self):
-        self.fail('Not implemented yet')
+        self.assertDictEqual({'a/n': 0, 'b/n': 1, 'c/n': 2,
+                              'd/n': 3, 'e/n': 4, 'f/n': 5},
+                             voc)
+
+        self.assertIsInstance(x1, sp.spmatrix)
+        t.assert_array_equal(
+            x1.toarray(),
+            np.array(
+                [
+                    [1, 1, 1, 0, 0, 0],
+                    [0, 0, 0, 1, 1, 1],
+                ]
+            )
+        )
+
+        t.assert_array_equal(
+            x2.toarray(),
+            np.array(
+                [
+                    [1, 0, 1, 0.7, 0, 0],
+                ]
+            )
+        )
+
+    def test_baseline_ignore_nonthesaurus_features_with_signified_C(self):
+        tokenizers.keep_only_IT = True
+        self.feature_extraction_conf['use_signifier_only'] = False
+        thesaurus_loader.thesaurus_files = \
+            ['thesisgenerator/resources/baseline.thesaurus.strings']
+        self.x_tr, self.y_tr, self.x_ev, self.y_ev = self. \
+            _load_data('thesisgenerator/resources/test-baseline')
+
+        x1, x2, voc = self._vectorize_data()
+
+        self.assertDictEqual({'a/n': 0, 'b/n': 1, 'd/n': 2}, voc)
+
+        self.assertIsInstance(x1, sp.spmatrix)
+        t.assert_array_equal(
+            x1.toarray(),
+            np.array(
+                [
+                    [1, 1, 0],
+                    [0, 0, 1],
+                ]
+            )
+        )
+
+        t.assert_array_equal(
+            x2.toarray(),
+            np.array(
+                [
+                    [1, 0, 0.7],
+                ]
+            )
+        )

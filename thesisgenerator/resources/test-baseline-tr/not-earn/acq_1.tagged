@@ -6,20 +6,20 @@
       <sentence id="1">
         <tokens>
           <token id="1">
+            <word>d</word>
+            <lemma>d</lemma>
+            <POS>NN</POS>
+            <NER>O</NER>
+          </token>
+          <token id="2">
             <word>e</word>
             <lemma>e</lemma>
             <POS>NN</POS>
             <NER>O</NER>
           </token>
-          <token id="2">
+          <token id="3">
             <word>f</word>
             <lemma>f</lemma>
-            <POS>NN</POS>
-            <NER>O</NER>
-          </token>
-          <token id="3">
-            <word>g</word>
-            <lemma>g</lemma>
             <POS>NN</POS>
             <NER>O</NER>
           </token>

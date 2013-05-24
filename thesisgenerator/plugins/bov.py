@@ -24,7 +24,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
                  max_features=None, vocabulary=None, binary=False, dtype=float,
                  norm='l2', use_idf=True, smooth_idf=True,
                  sublinear_tf=False, use_tfidf=True, replace_all=False,
-                 vocab_from_thes=False):
+                 use_signifier_only=False):
         """
         Builds a vectorizer the way a TfidfVectorizer is built, and takes one
         extra param specifying the path the the Byblo-generated thesaurus.
@@ -42,8 +42,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
             self.use_tfidf = use_tfidf
             self.pipe_id = pipe_id
             self.replace_all = replace_all
-            self.vocab_from_thes = vocab_from_thes
-
+            self.use_signifier_only = use_signifier_only
         except KeyError:
             pass
 
@@ -75,10 +74,11 @@ class ThesaurusVectorizer(TfidfVectorizer):
     def try_to_set_vocabulary_from_thesaurus_keys(self):
         if self.replace_all:
             logging.getLogger('root').warn('Replace_all is enabled, '
-                                           'fixing vocabulary from thes')
-            self.vocab_from_thes = True
+                                           'setting vocabulary to thesaurus '
+                                           'entries')
+            # if self.vocab_from_thes:
+            # self.vocab_from_thes = True
 
-        if self.vocab_from_thes:
             if not get_all_thesauri():
                 raise ValueError(
                     'A thesaurus is required when using vocab_from_thes')
@@ -87,14 +87,14 @@ class ThesaurusVectorizer(TfidfVectorizer):
             self.fixed_vocabulary = True
 
     def fit_transform(self, raw_documents, y=None):
-        self.handler = get_handler(self.replace_all, self.vocab_from_thes)
+        self.handler = get_handler(self.replace_all, self.use_signifier_only)
 
         self.try_to_set_vocabulary_from_thesaurus_keys()
         return super(ThesaurusVectorizer, self).fit_transform(raw_documents,
                                                               y)
 
     def fit(self, X, y=None, **fit_params):
-        self.handler = get_handler(self.replace_all, self.vocab_from_thes)
+        self.handler = get_handler(self.replace_all, self.vocab_keep_only_IT)
         self.try_to_set_vocabulary_from_thesaurus_keys()
         return super(ThesaurusVectorizer, self).fit(X, y, **fit_params)
 

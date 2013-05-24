@@ -5,7 +5,7 @@ import logging
 __author__ = 'mmb28'
 
 preloaded_thesauri = {}
-use_cache = True # used to disable caching for testing purposes
+use_cache = True    # used to disable caching for testing purposes
 
 
 def get_all_thesauri():
@@ -72,8 +72,9 @@ def get_all_thesauri():
                             curr_thesaurus[tokens[0].lower()].extend(
                                 to_insert)
 
-            # note- do not attempt to lowercase if the thesaurus has not already been
-            # lowercased- may result in multiple neighbour lists for the same entry
+            # note- do not attempt to lowercase if the thesaurus has not
+            # already been lowercased- may result in multiple neighbour lists
+            # for the same entry
             if use_cache:
                 logging.getLogger('root').info('Caching thesaurus %s' % path)
                 preloaded_thesauri[path] = curr_thesaurus
@@ -88,5 +89,5 @@ def get_all_thesauri():
 
 def _iterate_nonoverlapping_pairs(iterable, beg, num_pairs):
     for i in xrange(beg, min(len(iterable) - 1, 2 * num_pairs),
-                    2):  #step size 2
+                    2):  # step size 2
         yield (iterable[i], iterable[i + 1])

@@ -11,7 +11,8 @@ class Test_tokenizers(TestCase):
               'use_pos': False,
               'coarse_pos': False,
               'lemmatize': False,
-              'lowercase': False}
+              'lowercase': False,
+              'keep_only_IT': False}
 
     def setUp(self):
         """
@@ -21,9 +22,13 @@ class Test_tokenizers(TestCase):
         for key, val in self.params.items():
             setattr(tokenizers, key, val)
 
-        with open(
-                'thesisgenerator/resources/test-tr/earn/earn_1.tagged') as infile:
+        with open('thesisgenerator/resources/test-tr/earn/earn_1.tagged') \
+            as infile:
             self.doc = infile.read()
+        with open('thesisgenerator/resources/test-ev/earn/earn_2.tagged') \
+            as infile:
+            self.other_doc = infile.read()
+
         self.assertIn('<document>', self.doc)
         self.assertIn('</document>', self.doc)
         self.assertIn('<token id=', self.doc)
@@ -62,6 +67,29 @@ class Test_tokenizers(TestCase):
         tokenizers.coarse_pos = True
         tokens = xml_tokenizer(self.doc)
         self.assertListEqual(tokens, ['Cats/N', 'like/V', 'dogs/N'])
+
+    def test_xml_tokenizer_keep_IT_only(self):
+        """
+        tests xml_tokenizer's ability to discard out-of-thesaurus tokens
+        """
+        tokenizers.keep_only_IT = True
+        tokenizers.coarse_pos = True
+        tokenizers.use_pos = True
+        tokenizers.lowercase = True
+        tokenizers.lemmatize = True
+        tokenizers.thes_entries = None
+
+        from thesisgenerator.tests.test_main import _init_thesauri
+
+        _init_thesauri()
+
+        tokens = xml_tokenizer(self.doc)
+        self.assertListEqual(tokens, ['cat/n', 'like/v', 'dog/n'])
+
+        tokenizers.thes_entries = None
+        tokens = xml_tokenizer(self.other_doc)
+        self.assertListEqual(tokens, ['like/v', 'fruit/n'])
+
 
     def test_xml_tokenizer_lemmatize(self):
         """

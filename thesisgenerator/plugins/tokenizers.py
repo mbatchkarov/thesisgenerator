@@ -4,6 +4,8 @@ import locale
 import logging
 
 # for parsing integers with comma for thousands separator
+from thesisgenerator.plugins.thesaurus_loader import get_all_thesauri
+
 locale.setlocale(locale.LC_ALL, 'en_US')
 
 
@@ -55,10 +57,8 @@ pos_coarsification_map.update({
     "-RRB-": "PUNCT",
 })
 
-# normalise_entities=False
-# use_pos=False
-# coarse_pos=True
-# lemmatize=False
+thes_entries = None
+
 
 def xml_tokenizer(doc):
     """
@@ -68,7 +68,13 @@ def xml_tokenizer(doc):
      type, e.g. PERSON or ORG, otherwise numbers and punctuation will be
      canonicalised
     """
-    global normalise_entities, use_pos, coarse_pos, lemmatize, lowercase
+    global normalise_entities, use_pos, coarse_pos, lemmatize, lowercase, \
+        keep_only_IT, thes_entries
+
+    if not thes_entries and keep_only_IT:
+        thes_entries = set(get_all_thesauri().keys())
+        if not thes_entries:
+            raise Exception('A thesaurus is required with keep_only_IT')
     try:
         import xml.etree.cElementTree as ET
     except ImportError:
@@ -116,6 +122,8 @@ def xml_tokenizer(doc):
             if lowercase:
                 txt = txt.lower()
 
+            if keep_only_IT and txt not in thes_entries:
+                continue
             tokens.append(txt)
 
     except ET.ParseError:
