@@ -94,7 +94,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
                                                               y)
 
     def fit(self, X, y=None, **fit_params):
-        self.handler = get_handler(self.replace_all, self.vocab_keep_only_IT)
+        self.handler = get_handler(self.replace_all, self.use_signifier_only)
         self.try_to_set_vocabulary_from_thesaurus_keys()
         return super(ThesaurusVectorizer, self).fit(X, y, **fit_params)
 

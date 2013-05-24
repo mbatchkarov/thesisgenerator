@@ -2,17 +2,24 @@ import logging
 from thesisgenerator.plugins.thesaurus_loader import get_all_thesauri
 
 
-def get_handler(replace_all, vocab_from_thes):
+def get_handler(replace_all, use_signifier_only):
     if replace_all:
         return ReplaceAllFeatureHandler()
     else:
-        if vocab_from_thes:
-            return VocabFromThesaurusBaselineFeatureHandler()
-        else:
+        if use_signifier_only:
             return BaseFeatureHandler()
+        else:
+            return SignifierSignifiedFeatureHandler()
 
 
 class StatsRecordingFeatureHandlerMixin(object):
+    """
+    Provides facilities for counting seen, unseen,
+    in-thesaurus and out-of-thesaurus tokens and types
+    """
+    # todo needs to be rethought- the concept of unseen token does not make
+    # sense when the tokenizer removes all OOT tokens. We will always have
+    # 100% coverage at test time
     def __init__(self):
         self.recording = False
 
@@ -55,6 +62,14 @@ class StatsRecordingFeatureHandlerMixin(object):
 
 
 class BaseFeatureHandler(StatsRecordingFeatureHandlerMixin):
+    """
+    Handles features the way standard Naive Bayes does:
+        - in vocabulary, in thesaurus: only insert feature itself
+        - IV,OOT: feature itself
+        - OOV, IT: ignore feature
+        - OOV, OOT: ignore feature
+    """
+
     def _insert_feature_only(self, doc_id, doc_id_indices, document_term,
                              term_indices, term_index_in_vocab, values, count):
         logging.getLogger('root').debug(
@@ -135,11 +150,30 @@ class BaseFeatureHandler(StatsRecordingFeatureHandlerMixin):
         self._ignore_feature(doc_id, document_term)
 
 
-class VocabFromThesaurusBaselineFeatureHandler(BaseFeatureHandler):
-    pass
+class SignifierSignifiedFeatureHandler(BaseFeatureHandler):
+    """
+    Handles features the way standard Naive Bayes does, except
+        - OOV, IT: insert K neighbours from thesaurus instead of ignoring the
+        feature
+    """
+
+    def handle_OOV_IT_feature(self, doc_id, doc_id_indices, document_term,
+                              term_indices, term_index_in_vocab, values, count,
+                              vocabulary):
+        self._insert_thesaurus_neighbours(doc_id, doc_id_indices,
+                                          document_term, term_indices,
+                                          values, vocabulary)
 
 
 class ReplaceAllFeatureHandler(BaseFeatureHandler):
+    """
+    Handles features the way standard Naive Bayes does, except
+        - OOV, IT: insert K neighbours from thesaurus
+        - IV, IT: insert K neighbours from thesaurus
+
+        Note: no token can ever be IV and OOT in this setting
+    """
+
     def handle_IV_IT_feature(self, doc_id, doc_id_indices, document_term,
                              term_indices, term_index_in_vocab, values, count,
                              vocabulary):

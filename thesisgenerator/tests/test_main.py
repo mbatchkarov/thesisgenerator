@@ -270,6 +270,7 @@ class Test_ThesaurusVectorizer(TestCase):
         self.feature_extraction_conf['use_signifier_only'] = True
         thesaurus_loader.thesaurus_files = \
             ['thesisgenerator/resources/baseline.thesaurus.strings']
+        thesaurus_loader.k = 1
         self.x_tr, self.y_tr, self.x_ev, self.y_ev = self. \
             _load_data('thesisgenerator/resources/test-baseline')
 
@@ -304,6 +305,7 @@ class Test_ThesaurusVectorizer(TestCase):
         self.feature_extraction_conf['use_signifier_only'] = True
         thesaurus_loader.thesaurus_files = \
             ['thesisgenerator/resources/baseline.thesaurus.strings']
+        thesaurus_loader.k = 1
         self.x_tr, self.y_tr, self.x_ev, self.y_ev = self. \
             _load_data('thesisgenerator/resources/test-baseline')
 
@@ -332,10 +334,11 @@ class Test_ThesaurusVectorizer(TestCase):
         )
 
     def test_baseline_use_all_features_with_signified_D(self):
-        self.feature_extraction_conf['vocab_from_thes'] = False
+        tokenizers.keep_only_IT = False
         self.feature_extraction_conf['use_signifier_only'] = False
         thesaurus_loader.thesaurus_files = \
             ['thesisgenerator/resources/baseline.thesaurus.strings']
+        thesaurus_loader.k = 1
         self.x_tr, self.y_tr, self.x_ev, self.y_ev = self. \
             _load_data('thesisgenerator/resources/test-baseline')
 
@@ -370,6 +373,7 @@ class Test_ThesaurusVectorizer(TestCase):
         self.feature_extraction_conf['use_signifier_only'] = False
         thesaurus_loader.thesaurus_files = \
             ['thesisgenerator/resources/baseline.thesaurus.strings']
+        thesaurus_loader.k = 1 # equivalent to max
         self.x_tr, self.y_tr, self.x_ev, self.y_ev = self. \
             _load_data('thesisgenerator/resources/test-baseline')
 
