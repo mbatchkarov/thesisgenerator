@@ -1,8 +1,13 @@
+from collections import deque
 import logging
 from thesisgenerator.plugins.thesaurus_loader import get_all_thesauri
 
 
-def get_handler(replace_all, use_signifier_only):
+def get_stats_recorder(enabled=False):
+    return StatsRecorder() if enabled else NoopStatsRecorder()
+
+
+def get_token_handler(replace_all, use_signifier_only):
     if replace_all:
         return ReplaceAllFeatureHandler()
     else:
@@ -12,56 +17,78 @@ def get_handler(replace_all, use_signifier_only):
             return SignifierSignifiedFeatureHandler()
 
 
-class StatsRecordingFeatureHandlerMixin(object):
+class StatsRecorder(object):
     """
     Provides facilities for counting seen, unseen,
     in-thesaurus and out-of-thesaurus tokens and types
     """
-    # todo needs to be rethought- the concept of unseen token does not make
-    # sense when the tokenizer removes all OOT tokens. We will always have
-    # 100% coverage at test time
+
     def __init__(self):
         self.recording = False
 
-    def begin_stats_recording(self):
-        # how many tokens are there/ are unknown/ have been replaced
-        self.num_tokens, self.unknown_tokens = 0, 0
-        self.found_tokens, self.replaced_tokens = 0, 0
-        self.all_types = set()
-        self.unknown_types = set()
-        self.found_types = set()
-        self.replaced_types = set()
+    def _begin_stats_recording(self):
+        # # how many tokens are there/ are unknown/ have been replaced
+        # self.num_tokens, self.unknown_tokens = 0, 0
+        # self.found_tokens, self.replaced_tokens = 0, 0
+        # self.all_types = set()
+        # self.unknown_types = set()
+        # self.found_types = set()
+        # self.replaced_types = set()
 
-    def register_token(self, document_term):
-        # todo this needs to be conditional on some global switch
+        self.iv_it = deque()
+        self.iv_oot = deque()
+        self.oov_it = deque()
+        self.oov_oot = deque()
+
+    def register_token(self, token, iv, it):
         if not self.recording:
-            self.begin_stats_recording()
+            self._begin_stats_recording()
             self.recording = True
 
-        self.all_types.add(document_term)
-        self.num_tokens += 1
+        if iv and it:
+            self.iv_it.append(token)
+            logging.getLogger().debug('IV IT token %s' % token)
+        elif iv and not it:
+            self.iv_oot.append(token)
+            logging.getLogger().debug('IV OOT token %s' % token)
+        elif not iv and it:
+            self.oov_it.append(token)
+            logging.getLogger().debug('OOV IT token %s' % token)
+        else:
+            self.oov_oot.append(token)
+            logging.getLogger().debug('OOV OOT token %s' % token)
+            # self.all_types.add(token)
+            # self.num_tokens += 1
 
     def print_coverage_stats(self):
         logging.getLogger().info('Vectorizer: '
-                                 'Total tokens: %d, '
-                                 'Unknown tokens: %d, '
-                                 'Found tokens: %d, '
-                                 'Replaced tokens: %d, '
-                                 'Total types: %d, '
-                                 'Unknown types: %d,  '
-                                 'Found types: %d, '
-                                 'Replaced types: %d' % (
-                                     self.num_tokens,
-                                     self.unknown_tokens,
-                                     self.found_tokens,
-                                     self.replaced_tokens,
-                                     len(self.all_types),
-                                     len(self.unknown_types),
-                                     len(self.found_types),
-                                     len(self.replaced_types)))
+                                 'IV IT tokens: %d, '
+                                 'IV OOT tokens: %d, '
+                                 'OOV IT tokens: %d, '
+                                 'OOV OOT tokens: %d, '
+                                 'IV IT types: %d, '
+                                 'IV OOT types: %d, '
+                                 'OOV IT types: %d, '
+                                 'OOV OOT types: %d ' % (
+                                     len(self.iv_it),
+                                     len(self.iv_oot),
+                                     len(self.oov_it),
+                                     len(self.oov_oot),
+                                     len(set(self.iv_it)),
+                                     len(set(self.iv_oot)),
+                                     len(set(self.oov_it)),
+                                     len(set(self.oov_oot))))
 
 
-class BaseFeatureHandler(StatsRecordingFeatureHandlerMixin):
+class NoopStatsRecorder(StatsRecorder):
+    def register_token(self, token, iv, it):
+        pass
+
+    def print_coverage_stats(self):
+        pass
+
+
+class BaseFeatureHandler():
     """
     Handles features the way standard Naive Bayes does:
         - in vocabulary, in thesaurus: only insert feature itself
@@ -97,19 +124,10 @@ class BaseFeatureHandler(StatsRecordingFeatureHandlerMixin):
         # if there are any neighbours filter the list of
         # neighbours so that it contains only pairs where
         # the neighbour has been seen
-        if neighbours:
-            self.found_tokens += 1
-            self.found_types.add(document_term)
-            logging.getLogger().debug('Found thesaurus entry '
-                                      'for %s' % document_term)
-
         neighbours = [(neighbour, sim) for neighbour, sim in
                       neighbours if
                       neighbour in vocabulary] if neighbours \
             else []
-        if len(neighbours) > 0:
-            self.replaced_tokens += 1
-            self.replaced_types.add(document_term)
         for neighbour, sim in neighbours:
             logging.getLogger().debug(
                 'Replacement. Doc %d: %s --> %s, '

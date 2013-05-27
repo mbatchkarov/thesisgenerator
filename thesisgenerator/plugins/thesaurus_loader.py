@@ -33,8 +33,8 @@ def get_all_thesauri():
     logging.getLogger().debug(thesaurus_files)
     for path in thesaurus_files:
         if path in preloaded_thesauri and use_cache:
-            logging.getLogger().info('Returning cached thesaurus '
-                                     'for %s' % path)
+            # logging.getLogger().info('Returning cached thesaurus '
+            #                          'for %s' % path)
             result.update(preloaded_thesauri[path])
         else:
             logging.getLogger().info(
@@ -80,8 +80,8 @@ def get_all_thesauri():
                 preloaded_thesauri[path] = curr_thesaurus
             result.update(curr_thesaurus)
 
-    logging.getLogger().info(
-        'Thesaurus contains %d entries' % len(result))
+    # logging.getLogger().info(
+    #     'Thesaurus contains %d entries' % len(result))
     # logging.getLogger().debug(
     #     'Thesaurus sample %r' % result.items()[:2])
     return result

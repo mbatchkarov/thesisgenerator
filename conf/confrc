@@ -38,6 +38,7 @@ shuffle_targets=boolean(default=False)
 	replace_all=boolean(default=False)
     include_self=boolean(default=True)
 	use_signifier_only=boolean(default=False)
+	record_stats=boolean(default=False)
 
 [tokenizer] 
 	lowercase=boolean

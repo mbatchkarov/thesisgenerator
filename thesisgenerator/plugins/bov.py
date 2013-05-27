@@ -3,7 +3,7 @@ import logging
 import pickle
 import scipy.sparse as sp
 from sklearn.feature_extraction.text import TfidfVectorizer
-from thesisgenerator.plugins.bov_feature_handlers import get_handler
+from thesisgenerator.plugins.bov_feature_handlers import get_token_handler, get_stats_recorder
 from thesisgenerator.utils import NoopTransformer
 from thesisgenerator.plugins.thesaurus_loader import get_all_thesauri
 from thesisgenerator.plugins.tokenizers import xml_tokenizer
@@ -24,7 +24,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
                  max_features=None, vocabulary=None, binary=False, dtype=float,
                  norm='l2', use_idf=True, smooth_idf=True,
                  sublinear_tf=False, use_tfidf=True, replace_all=False,
-                 use_signifier_only=False):
+                 use_signifier_only=False, record_stats=False):
         """
         Builds a vectorizer the way a TfidfVectorizer is built, and takes one
         extra param specifying the path the the Byblo-generated thesaurus.
@@ -35,16 +35,14 @@ class ThesaurusVectorizer(TfidfVectorizer):
         have not been established, make sure to check& establish them in
         fit_transform()
         """
-        try:
-            self.log_vocabulary = log_vocabulary # if I should log the
-            # vocabulary
-            self.log_vocabulary_already = False #have I done it already
-            self.use_tfidf = use_tfidf
-            self.pipe_id = pipe_id
-            self.replace_all = replace_all
-            self.use_signifier_only = use_signifier_only
-        except KeyError:
-            pass
+        self.log_vocabulary = log_vocabulary # if I should log the
+        # vocabulary
+        self.log_vocabulary_already = False # have I done it already
+        self.use_tfidf = use_tfidf
+        self.pipe_id = pipe_id
+        self.replace_all = replace_all
+        self.use_signifier_only = use_signifier_only
+        self.record_stats = record_stats
 
         super(ThesaurusVectorizer, self).__init__(input=input,
                                                   charset=charset,
@@ -87,14 +85,18 @@ class ThesaurusVectorizer(TfidfVectorizer):
             self.fixed_vocabulary = True
 
     def fit_transform(self, raw_documents, y=None):
-        self.handler = get_handler(self.replace_all, self.use_signifier_only)
+        self.handler = get_token_handler(self.replace_all,
+                                         self.use_signifier_only)
+        self.stats = get_stats_recorder(self.record_stats)
 
         self.try_to_set_vocabulary_from_thesaurus_keys()
         return super(ThesaurusVectorizer, self).fit_transform(raw_documents,
                                                               y)
 
     def fit(self, X, y=None, **fit_params):
-        self.handler = get_handler(self.replace_all, self.use_signifier_only)
+        self.handler = get_token_handler(self.replace_all,
+                                         self.use_signifier_only)
+        self.stats = get_stats_recorder(self.record_stats)
         self.try_to_set_vocabulary_from_thesaurus_keys()
         return super(ThesaurusVectorizer, self).fit(X, y, **fit_params)
 
@@ -228,11 +230,14 @@ class ThesaurusVectorizer(TfidfVectorizer):
         for doc_id, term_count_dict in enumerate(term_count_dicts):
             num_documents += 1
             for document_term, count in term_count_dict.iteritems():
-                self.handler.register_token(document_term)
+
                 term_index_in_vocab = vocabulary.get(document_term)
                 is_in_vocabulary = term_index_in_vocab is not None
                 # None if term is not in seen vocabulary
                 is_in_th = get_all_thesauri().get(document_term) is not None
+
+                self.stats.register_token(document_term, is_in_vocabulary, \
+                                          is_in_th)
 
                 params = (doc_id, doc_id_indices, document_term, term_indices,
                           term_index_in_vocab, values, count, vocabulary)
@@ -257,7 +262,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
             spmatrix.data.fill(1)
         logging.getLogger().debug(
             'Vectorizer: Data shape is %s' % (str(spmatrix.shape)))
-        self.handler.print_coverage_stats()
+        self.stats.print_coverage_stats()
         logging.getLogger().info('Done converting features to vectors')
 
         return spmatrix
