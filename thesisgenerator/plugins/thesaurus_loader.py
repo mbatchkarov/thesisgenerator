@@ -30,7 +30,6 @@ def get_all_thesauri():
         logging.getLogger().warn("No thesaurus specified")
 
     result = {}
-    logging.getLogger().debug(thesaurus_files)
     for path in thesaurus_files:
         if path in preloaded_thesauri and use_cache:
             # logging.getLogger().info('Returning cached thesaurus '

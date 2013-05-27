@@ -100,14 +100,14 @@ class BaseFeatureHandler():
     def _insert_feature_only(self, doc_id, doc_id_indices, document_term,
                              term_indices, term_index_in_vocab, values, count):
         logging.getLogger().debug(
-            'Known token in doc %d: %s' % (doc_id, document_term))
+            'Inserting feature in doc %d: %s' % (doc_id, document_term))
         doc_id_indices.append(doc_id)
         term_indices.append(term_index_in_vocab)
         values.append(count)
 
     def _ignore_feature(self, doc_id, document_term):
         logging.getLogger().debug(
-            'Non-thesaurus token in doc %d: %s' % (doc_id, document_term))
+            'Ignoring feature in doc %d: %s' % (doc_id, document_term))
 
     def _insert_thesaurus_neighbours(self, doc_id, doc_id_indices,
                                      document_term, term_indices,
