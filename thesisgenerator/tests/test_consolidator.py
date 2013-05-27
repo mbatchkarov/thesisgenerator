@@ -23,23 +23,21 @@ class TestConsolidator(TestCase):
         self.assertEqual(len(res), 1)
         self.assertEqual(res[0][0], 'MultinomialNB')
 
-        cursor.execute('SELECT DISTINCT '
-                       'total_tok,total_typ,'
-                       'iv_it_tok_mean,iv_it_tok_std,'
-                       'iv_oot_tok_mean,iv_oot_tok_std,'
-                       'oov_it_tok_mean,oov_it_tok_std,'
-                       'oov_oot_tok_mean,oov_oot_tok_std,'
-                       'iv_it_typ_mean,iv_it_typ_std,'
-                       'iv_oot_typ_mean,iv_oot_typ_std,'
-                       'oov_it_typ_mean,oov_it_typ_std,'
-                       'oov_oot_typ_mean,oov_oot_typ_std '
-                       'from data00;')
-        res = cursor.fetchall()
-        self.assertTupleEqual(res[0],
-                              (
-                                  20, 12, 12, 0, 0, 0, 2, 0, 4, 0, 6, 0, 0, 0,
-                                  1, 0,
-                                  3, 0))
+        exp = {
+            'total_tok': 9, 'total_typ': 6,
+            'iv_it_tok_mean': 3, 'iv_it_tok_std': 0,
+            'iv_oot_tok_mean': 0, 'iv_oot_tok_std': 0,
+            'oov_it_tok_mean': 2, 'oov_it_tok_std': 0,
+            'oov_oot_tok_mean': 4, 'oov_oot_tok_std': 0,
+            'iv_it_typ_mean': 2, 'iv_it_typ_std': 0,
+            'iv_oot_typ_mean': 0, 'iv_oot_typ_std': 0,
+            'oov_it_typ_mean': 1, 'oov_it_typ_std': 0,
+            'oov_oot_typ_mean': 3, 'oov_oot_typ_std': 0
+        }
+        for variable, exp_value in exp.items():
+            cursor.execute('SELECT DISTINCT %s from data00;' % variable)
+            res = cursor.fetchall()
+            self.assertEqual(res[0][0], exp_value)
         print res
 
 

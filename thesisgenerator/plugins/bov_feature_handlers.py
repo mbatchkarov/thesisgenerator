@@ -24,27 +24,12 @@ class StatsRecorder(object):
     """
 
     def __init__(self):
-        self.recording = False
-
-    def _begin_stats_recording(self):
-        # # how many tokens are there/ are unknown/ have been replaced
-        # self.num_tokens, self.unknown_tokens = 0, 0
-        # self.found_tokens, self.replaced_tokens = 0, 0
-        # self.all_types = set()
-        # self.unknown_types = set()
-        # self.found_types = set()
-        # self.replaced_types = set()
-
         self.iv_it = deque()
         self.iv_oot = deque()
         self.oov_it = deque()
         self.oov_oot = deque()
 
     def register_token(self, token, iv, it):
-        if not self.recording:
-            self._begin_stats_recording()
-            self.recording = True
-
         if iv and it:
             self.iv_it.append(token)
             logging.getLogger().debug('IV IT token %s' % token)
@@ -78,6 +63,10 @@ class StatsRecorder(object):
                                      len(set(self.iv_oot)),
                                      len(set(self.oov_it)),
                                      len(set(self.oov_oot))))
+        # logging.getLogger().debug('IV IT %s'% self.iv_it)
+        # logging.getLogger().debug('IV 00T %s' % self.iv_oot)
+        # logging.getLogger().debug('OOV IT %s' % self.oov_it)
+        # logging.getLogger().debug('OOV OOT %s' % self.oov_oot)
 
 
 class NoopStatsRecorder(StatsRecorder):

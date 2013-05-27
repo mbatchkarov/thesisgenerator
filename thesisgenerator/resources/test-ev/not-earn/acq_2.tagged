@@ -19,7 +19,7 @@
           </token>
           <token id="3">
             <word>birds</word>
-            <lemma>birds</lemma>
+            <lemma>bird</lemma>
             <POS>NNP</POS>
             <NER>O</NER>
           </token>

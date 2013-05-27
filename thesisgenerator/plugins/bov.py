@@ -88,17 +88,17 @@ class ThesaurusVectorizer(TfidfVectorizer):
         self.handler = get_token_handler(self.replace_all,
                                          self.use_signifier_only)
         self.stats = get_stats_recorder(self.record_stats)
+        # a different stats recorder will be used for the testing data
 
         self.try_to_set_vocabulary_from_thesaurus_keys()
         return super(ThesaurusVectorizer, self).fit_transform(raw_documents,
                                                               y)
 
-    def fit(self, X, y=None, **fit_params):
-        self.handler = get_token_handler(self.replace_all,
-                                         self.use_signifier_only)
+    def transform(self, raw_documents):
+        # record stats separately for the test set
         self.stats = get_stats_recorder(self.record_stats)
-        self.try_to_set_vocabulary_from_thesaurus_keys()
-        return super(ThesaurusVectorizer, self).fit(X, y, **fit_params)
+        return super(ThesaurusVectorizer, self).transform(raw_documents)
+
 
     def my_feature_extractor(self, tokens, stop_words=None, ngram_range=(1, 1)):
         """

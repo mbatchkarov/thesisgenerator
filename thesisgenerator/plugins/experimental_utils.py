@@ -208,6 +208,19 @@ def evaluate_thesauri(base_conf_file, file_iterator,
                                new_conf_file, log_file in file_iterator)
 
 
+def _clear_old_files(i, prefix):
+    """
+    clear old conf, logs and result files for this experiment
+    """
+
+    for f in glob.glob('%s/conf/exp%d/exp%d_base-variants/*' % (prefix, i, i)):
+        os.remove(f)
+    for f in glob.glob('%s/conf/exp%d/output/*' % (prefix, i)):
+        os.remove(f)
+    for f in glob.glob('%s/conf/exp%d/logs/*' % (prefix, i)):
+        os.remove(f)
+
+
 def run_experiment(i, num_workers=4,
                    predefined_sized=[],
                    prefix='/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/thesisgenerator'):
@@ -253,11 +266,7 @@ def run_experiment(i, num_workers=4,
     else:
         raise ValueError('No such experiment number: %d' % i)
 
-    # clear old conf files for this experiment
-    for f in glob.glob('%s/conf/exp%d/exp%d_base-variants/*' % (prefix, i, i)):
-        os.remove(f)
-    for f in glob.glob('%s/conf/exp%d/output/*' % (prefix, i)):
-        os.remove(f)
+    _clear_old_files(i, prefix)
 
     evaluate_thesauri(base_conf_file, it, pool_size=num_workers,
                       reload_data=reload_data)
