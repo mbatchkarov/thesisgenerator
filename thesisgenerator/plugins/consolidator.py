@@ -183,6 +183,7 @@ def _infer_thesaurus_name(conf_txt):
 
 
 def _pos_statistics(input_file):
+    # todo this needs to be updated to IV/IT notation
     regex1 = re.compile(".*Unknown token.*/(.*)")
     regex2 = re.compile(".*Found thesaurus entry.*/(.*)")
     unknown_pos, found_pos = [], []

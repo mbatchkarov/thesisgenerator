@@ -9,8 +9,7 @@ from itertools import combinations
 import logging
 import re
 import sys
-import os.path as p
-import itertools
+import os.path as path
 from configobj import ConfigObj
 from sklearn.base import BaseEstimator, TransformerMixin
 
@@ -42,15 +41,17 @@ def get_susx_mysql_conn():
 def get_confrc(conf_file):
     """
     Searches the file hierarchy top to bottom for confrc,
-    starting from  conf_file and going as many as 3 levels up
+    starting from conf_file and going as many as 4 levels up. As it goes
+    up, also searches in the 'conf' sub directory, it exists
     """
-    for i in range(4):
-        my_list = itertools.chain([p.dirname(conf_file)],
-                                  ['..'] * i,
-                                  ['confrc'])
-        candidate = p.join(*[x for x in my_list])
-        if p.exists(candidate):
-            return candidate
+
+    for subdir in ['.', 'conf']:
+        for i in range(6):
+            my_list = [path.dirname(conf_file)] + ['..'] * i + \
+                      [subdir] + ['confrc']
+            candidate = path.join(*my_list)
+            if path.exists(candidate):
+                return candidate
 
 
 def get_named_object(pathspec):

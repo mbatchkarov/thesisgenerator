@@ -208,13 +208,13 @@ def evaluate_thesauri(base_conf_file, file_iterator,
                                new_conf_file, log_file in file_iterator)
 
 
-def run_experiment(i):
+def run_experiment(i, num_workers=4,
+                   prefix='/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/thesisgenerator'):
     print 'RUNNING EXPERIMENT %d' % i
     # on local machine
-    prefix = '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/thesisgenerator'
+
     exp1_thes_pattern = '%s/../Byblo-2.1.0/exp6-1*/*sims.neighbours.strings' % \
                         prefix
-    num_workers = 4
     # on cluster
     import platform
 
