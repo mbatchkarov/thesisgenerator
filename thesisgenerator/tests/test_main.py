@@ -22,7 +22,7 @@ def _init_tokenizer():
 
 def _init_thesauri():
     thesaurus_loader.thesaurus_files = \
-        ['thesisgenerator/resources/simple.thesaurus.strings']
+        ['thesisgenerator/resources/exp0-0a.strings']
     thesaurus_loader.sim_threshold = 0
     thesaurus_loader.k = 10
     thesaurus_loader.include_self = False
@@ -269,7 +269,7 @@ class Test_ThesaurusVectorizer(TestCase):
         self.feature_extraction_conf['vocab_from_thes'] = False
         self.feature_extraction_conf['use_signifier_only'] = True
         thesaurus_loader.thesaurus_files = \
-            ['thesisgenerator/resources/baseline.thesaurus.strings']
+            ['thesisgenerator/resources/exp0-0b.strings']
         thesaurus_loader.k = 1
         self.x_tr, self.y_tr, self.x_ev, self.y_ev = self. \
             _load_data('thesisgenerator/resources/test-baseline')
@@ -304,7 +304,7 @@ class Test_ThesaurusVectorizer(TestCase):
         tokenizers.keep_only_IT = True
         self.feature_extraction_conf['use_signifier_only'] = True
         thesaurus_loader.thesaurus_files = \
-            ['thesisgenerator/resources/baseline.thesaurus.strings']
+            ['thesisgenerator/resources/exp0-0b.strings']
         thesaurus_loader.k = 1
         self.x_tr, self.y_tr, self.x_ev, self.y_ev = self. \
             _load_data('thesisgenerator/resources/test-baseline')
@@ -337,7 +337,7 @@ class Test_ThesaurusVectorizer(TestCase):
         tokenizers.keep_only_IT = False
         self.feature_extraction_conf['use_signifier_only'] = False
         thesaurus_loader.thesaurus_files = \
-            ['thesisgenerator/resources/baseline.thesaurus.strings']
+            ['thesisgenerator/resources/exp0-0b.strings']
         thesaurus_loader.k = 1
         self.x_tr, self.y_tr, self.x_ev, self.y_ev = self. \
             _load_data('thesisgenerator/resources/test-baseline')
@@ -372,7 +372,7 @@ class Test_ThesaurusVectorizer(TestCase):
         tokenizers.keep_only_IT = True
         self.feature_extraction_conf['use_signifier_only'] = False
         thesaurus_loader.thesaurus_files = \
-            ['thesisgenerator/resources/baseline.thesaurus.strings']
+            ['thesisgenerator/resources/exp0-0b.strings']
         thesaurus_loader.k = 1 # equivalent to max
         self.x_tr, self.y_tr, self.x_ev, self.y_ev = self. \
             _load_data('thesisgenerator/resources/test-baseline')

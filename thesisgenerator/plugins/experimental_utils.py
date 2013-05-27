@@ -19,8 +19,8 @@ import itertools
 from numpy import nonzero
 
 from thesisgenerator.__main__ import go, _get_data_iterators, parse_config_file
-from thesisgenerator.utils import replace_in_file, get_confrc
-from thesisgenerator.plugins.dumpers import ConsolidatedResultsCsvWriter
+from thesisgenerator.utils import replace_in_file, get_confrc, get_susx_mysql_conn
+from thesisgenerator.plugins.dumpers import *
 from thesisgenerator.plugins.consolidator import consolidate_results
 
 
@@ -209,6 +209,7 @@ def evaluate_thesauri(base_conf_file, file_iterator,
 
 
 def run_experiment(i, num_workers=4,
+                   predefined_sized=[],
                    prefix='/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/thesisgenerator'):
     print 'RUNNING EXPERIMENT %d' % i
     # on local machine
@@ -239,6 +240,8 @@ def run_experiment(i, num_workers=4,
         if i == 0:
             # exp0 is for debugging only, we don't have to do much
             sizes = range(10, 31, 10)
+        if predefined_sized:
+            sizes = predefined_sized
 
         it = _exp2_to_14_file_iterator(sizes, i, base_conf_file)
     elif i == 15:
@@ -249,13 +252,25 @@ def run_experiment(i, num_workers=4,
         it = _exp16_file_iterator(base_conf_file)
     else:
         raise ValueError('No such experiment number: %d' % i)
+
+    # clear old conf files for this experiment
+    for f in glob.glob('%s/conf/exp%d/exp%d_base-variants/*' % (prefix, i, i)):
+        os.remove(f)
+    for f in glob.glob('%s/conf/exp%d/output/*' % (prefix, i)):
+        os.remove(f)
+
     evaluate_thesauri(base_conf_file, it, pool_size=num_workers,
                       reload_data=reload_data)
     # ----------- CONSOLIDATION -----------
     output_dir = '%s/conf/exp%d/output/' % (prefix, i)
     csv_out_fh = open(os.path.join(output_dir, "summary%d.csv" % i), "w")
-    # output_db_conn = get_susx_mysql_conn()
-    writer = ConsolidatedResultsCsvWriter(csv_out_fh)
+
+    if not ('apollo' in hostname or 'node' in hostname):
+        output_db_conn = get_susx_mysql_conn()
+        writer = ConsolidatedResultsSqlAndCsvWriter(i, csv_out_fh,
+                                                    output_db_conn)
+    else:
+        writer = ConsolidatedResultsSqlAndCsvWriter(csv_out_fh)
     consolidate_results(
         writer,
         '%s/conf/exp%d/exp%d_base-variants' % (prefix, i, i),

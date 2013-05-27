@@ -117,7 +117,6 @@ def unindex_thesauri(byblo_path, thesauri_paths):
 #        features[path] = vect.load_thesaurus()
 #
 #        # get features of 2 words which I know are neighbours sorted by frequency
-#        # todo words must be chosen at random from thesaurus
 #        feature_set1 = set(map(itemgetter(0), features[path]['Andres/NNP']))
 #        feature_set2 = set(map(itemgetter(0), features[path]['president/NN']))
 #        shared_features = feature_set1 | feature_set2

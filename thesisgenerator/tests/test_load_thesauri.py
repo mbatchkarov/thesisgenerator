@@ -16,7 +16,7 @@ class TestLoad_thesauri(TestCase):
 
         self.params = {
             'thesaurus_files': [
-                'thesisgenerator/resources/simple.thesaurus.strings'],
+                'thesisgenerator/resources/exp0-0a.strings'],
             'sim_threshold': 0,
             'k': 10,
             'include_self': False,

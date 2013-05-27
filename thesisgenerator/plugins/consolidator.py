@@ -23,9 +23,8 @@ def consolidate_results(writer, conf_dir, log_dir, output_dir,
     A single thesaurus must be used in each experiment
     """
     print 'Consolidating results from %s' % conf_dir
-    os.chdir(conf_dir)
 
-    experiments = glob.glob('*.conf')
+    experiments = glob.glob(os.path.join(conf_dir, '*.conf'))
     unknown_pos_stats, found_pos_stats = {}, {}
     for conf_file in experiments:
         print 'Processing file %s' % conf_file
@@ -37,6 +36,8 @@ def consolidate_results(writer, conf_dir, log_dir, output_dir,
         data_shape_x, data_shape_y = [], []
         log_file = os.path.join(log_dir, '%s.log' % exp_name)
 
+        # todo this can consume loads of memory, should really scan the file a
+        # line at a time
         with open(log_file) as infile:
             log_txt = ''.join(infile.readlines())
 
@@ -163,7 +164,7 @@ def _extract_thesausus_coverage_info(log_txt):
 
 
 def _infer_thesaurus_name(conf_txt):
-    thesauri = ''.join(re.findall('thesaurus_files\s*=([\w-]+)', conf_txt))
+    thesauri = ''.join(re.findall('thesaurus_files\s*=(.+)', conf_txt))
     if thesauri:
     # thesauri is something like "exp6-11a/exp6.sims.neighbours.strings,"
         corpus = re.findall('exp([0-9]+)', thesauri)[0]

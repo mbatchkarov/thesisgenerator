@@ -110,22 +110,22 @@ shuffle_targets=boolean(default=False)
         average=option('micro', 'macro', 'weighted', default=None)
 
 	[[thesisgenerator.metrics.macroavg_prec]]
-    	run=boolean
+    	run=boolean(default=False)
 	
 	[[thesisgenerator.metrics.macroavg_rec]]
-    	run=boolean
+    	run=boolean(default=False)
 	
 	[[thesisgenerator.metrics.macroavg_f1]]
-    	run=boolean
+    	run=boolean(default=False)
 
     [[thesisgenerator.metrics.microavg_prec]]
-    	run=boolean
+    	run=boolean(default=False)
 	
 	[[thesisgenerator.metrics.microavg_rec]]
-    	run=boolean
+    	run=boolean(default=False)
 	
 	[[thesisgenerator.metrics.microavg_f1]]
-    	run=boolean
+    	run=boolean(default=False)
     	
     [[sklearn.metrics.accuracy_score]]
         run=boolean(default=False)
