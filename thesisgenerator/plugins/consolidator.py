@@ -40,11 +40,6 @@ def consolidate_results(writer, conf_dir, log_dir, output_dir,
         with open(log_file) as infile:
             log_txt = ''.join(infile.readlines())
 
-        lines = re.findall('Total types:', log_txt)
-        if not lines:
-            print 'WARNING: log file %s does not contain thesaurus ' \
-                  'information' % log_file
-
         sizes = re.findall('Data shape is (\(.*\))', log_txt)
         sizes = [ast.literal_eval(x) for x in sizes]
         # skip the information about the test set
@@ -67,7 +62,7 @@ def consolidate_results(writer, conf_dir, log_dir, output_dir,
 
         # find out how many unknown tokens, etc there were from log file
         iv_it_tok, iv_oot_tok, oov_it_tok, oov_oot_tok, iv_it_ty, \
-        iv_oot_ty, oov_it_ty, oov_oot_ty = \
+        iv_oot_ty, oov_it_ty, oov_oot_ty, total_tok, total_typ = \
             _extract_thesausus_coverage_info(log_txt)
 
         # find out the name of the thesaurus(es) from the conf file
@@ -95,6 +90,8 @@ def consolidate_results(writer, conf_dir, log_dir, output_dir,
                     [exp_name, int(my_mean(data_shape_x)),
                      int(my_mean(data_shape_y)), int(my_std(data_shape_y)),
                      corpus, features, pos, fef, classifier,
+
+                     int(total_tok), int(total_typ),
 
                      int(my_mean(iv_it_tok)), int(my_std(iv_it_tok)),
                      int(my_mean(iv_oot_tok)), int(my_std(iv_oot_tok)),
@@ -151,13 +148,18 @@ def _extract_thesausus_coverage_info(log_txt):
     oov_oot_ty = [int(x) for x in every_other(
         re.findall('OOV OOT types: ([0-9]+)', log_txt))]
 
-
-    # find out how large the thesaurus was from log file
-    # th_size = re.findall("Thesaurus contains ([0-9]+)", log_txt)
-    # th_size = int(th_size[0]) if th_size else -1
+    try:
+        # the pointwise sum of the token/type lists below should be a constant
+        # for a given data set, what changes is not the number of
+        # tokens/types, but how that distribute in the IV/OOV, IT/OOT bins
+        total_tok = iv_it_tok[0] + iv_oot_tok[0] + oov_oot_tok[0] + oov_oot_tok[
+            0]
+        total_typ = iv_it_ty[0] + iv_oot_ty[0] + oov_oot_ty[0] + oov_oot_ty[0]
+    except IndexError:
+        total_tok, total_typ = -1, -1
 
     return iv_it_tok, iv_oot_tok, oov_it_tok, oov_oot_tok, iv_it_ty, \
-           iv_oot_ty, oov_it_ty, oov_oot_ty
+           iv_oot_ty, oov_it_ty, oov_oot_ty, total_tok, total_typ
 
 
 def _infer_thesaurus_name(conf_txt):

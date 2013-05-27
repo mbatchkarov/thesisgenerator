@@ -107,12 +107,10 @@ def coverage_bar_chart(experiments, width=0.13, cv=25,
                        x_columns=['sample_size'], legend_position='best'):
     data_frames = []
     stats = [
-        ["unknown_tok_mean", "unknown_tok_std"],
-        ["found_tok_mean", "found_tok_std"],
-        ["replaced_tok_mean", "replaced_tok_std"],
-        ["unknown_typ_mean", "unknown_typ_std"],
-        ["found_typ_mean", "found_typ_std"],
-        ["replaced_typ_mean", "replaced_typ_std"]
+        ['iv_it_tok_mean', 'iv_it_tok_std'],
+        ['iv_oot_tok_mean', 'iv_oot_tok_std'],
+        ['oov_it_tok_mean', 'oov_it_tok_std'],
+        ['oov_oot_tok_mean', 'oov_oot_tok_std']
     ]
 
     for experiment in experiments:

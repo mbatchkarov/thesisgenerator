@@ -80,6 +80,9 @@ columns = [('name', 'TEXT'),
            ('fef', 'INTEGER'),
            ('classifier', 'TEXT'),
 
+           ('total_tok', 'INTEGER'),
+           ('total_typ', 'INTEGER'),
+
            ('iv_it_tok_mean', 'INTEGER'),
            ('iv_it_tok_std', 'INTEGER'),
            ('iv_oot_tok_mean', 'INTEGER'),
