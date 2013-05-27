@@ -11,7 +11,7 @@ __author__ = 'mmb28'
 """
 Goes through output and log files for a given experiment and collects
 interesting information. It is then passed on to a writer object,
-which may write it to a csv or to a sqlite database
+which may write it to a csv or to a database
 """
 
 
@@ -55,9 +55,7 @@ def consolidate_results(writer, conf_dir, log_dir, output_dir,
 
         if not data_shape_x:
             print "WARNING: training data size not  present in log file %s, " \
-                  "trying the other way" \
-                  "" % \
-                  log_file
+                  "trying the other way" % log_file
             # try the other way of getting the sample size
             try:
                 x = re.findall('for each sampling (\d+) documents', log_txt)
@@ -68,8 +66,9 @@ def consolidate_results(writer, conf_dir, log_dir, output_dir,
 
 
         # find out how many unknown tokens, etc there were from log file
-        total_tok, total_ty, unk_tok, unk_ty, found_tok, found_ty, repl_tok, \
-        repl_ty, th_size = _extract_thesausus_coverage_info(log_txt)
+        iv_it_tok, iv_oot_tok, oov_it_tok, oov_oot_tok, iv_it_ty, \
+        iv_oot_ty, oov_it_ty, oov_oot_ty = \
+            _extract_thesausus_coverage_info(log_txt)
 
         # find out the name of the thesaurus(es) from the conf file
         corpus, features, fef, pos = _infer_thesaurus_name(conf_txt)
@@ -96,14 +95,17 @@ def consolidate_results(writer, conf_dir, log_dir, output_dir,
                     [exp_name, int(my_mean(data_shape_x)),
                      int(my_mean(data_shape_y)), int(my_std(data_shape_y)),
                      corpus, features, pos, fef, classifier,
-                     int(my_mean(th_size)), int(my_mean(total_tok)),
-                     int(my_mean(unk_tok)), int(my_std(unk_tok)),
-                     int(my_mean(found_tok)), int(my_std(found_tok)),
-                     int(my_mean(repl_tok)), int(my_std(repl_tok)),
-                     int(my_mean(total_ty)),
-                     int(my_mean(unk_ty)), int(my_std(unk_ty)),
-                     int(my_mean(found_ty)), int(my_std(found_ty)),
-                     int(my_mean(repl_ty)), int(my_std(found_ty)),
+
+                     int(my_mean(iv_it_tok)), int(my_std(iv_it_tok)),
+                     int(my_mean(iv_oot_tok)), int(my_std(iv_oot_tok)),
+                     int(my_mean(oov_it_tok)), int(my_std(oov_it_tok)),
+                     int(my_mean(oov_oot_tok)), int(my_std(oov_oot_tok)),
+
+                     int(my_mean(iv_it_ty)), int(my_std(iv_it_ty)),
+                     int(my_mean(iv_oot_ty)), int(my_std(iv_oot_ty)),
+                     int(my_mean(oov_it_ty)), int(my_std(oov_it_ty)),
+                     int(my_mean(oov_oot_ty)), int(my_std(oov_oot_ty)),
+
                      metric, score_my_mean, score_my_std])
         except IOError:
             print 'WARNING: %s is missing' % output_file
@@ -125,33 +127,37 @@ def _extract_thesausus_coverage_info(log_txt):
         """Returns every other element in a iterable in a silly way"""
         return numpy.array(iterable)[range(1, len(iterable), 2)]
 
-    unk_tok = [int(x) for x in every_other(
-        re.findall('Unknown tokens: ([0-9]+)', log_txt))]
+    iv_it_tok = [int(x) for x in every_other(
+        re.findall('IV IT tokens: ([0-9]+)', log_txt))]
 
-    total_tok = [int(x) for x in every_other(
-        re.findall('Total tokens: ([0-9]+)', log_txt))]
-    found_tok = [int(x) for x in every_other(
-        re.findall('Found tokens: ([0-9]+)', log_txt))]
+    iv_oot_tok = [int(x) for x in every_other(
+        re.findall('IV OOT tokens: ([0-9]+)', log_txt))]
 
-    repl_tok = [int(x) for x in every_other(
-        re.findall('Replaced tokens: ([0-9]+)', log_txt))]
+    oov_it_tok = [int(x) for x in every_other(
+        re.findall('OOV IT tokens: ([0-9]+)', log_txt))]
 
-    total_ty = [int(x) for x in every_other(
-        re.findall('Total types: ([0-9]+)', log_txt))]
+    oov_oot_tok = [int(x) for x in every_other(
+        re.findall('OOV OOT tokens: ([0-9]+)', log_txt))]
 
-    unk_ty = [int(x) for x in every_other(
-        re.findall('Unknown types: ([0-9]+)', log_txt))]
-    found_ty = [int(x) for x in every_other(
-        re.findall('Found types: ([0-9]+)', log_txt))]
-    repl_ty = [int(x) for x in every_other(
-        re.findall('Replaced types: ([0-9]+)', log_txt))]
+    iv_it_ty = [int(x) for x in every_other(
+        re.findall('IV IT types: ([0-9]+)', log_txt))]
+
+    iv_oot_ty = [int(x) for x in every_other(
+        re.findall('IV OOT types: ([0-9]+)', log_txt))]
+
+    oov_it_ty = [int(x) for x in every_other(
+        re.findall('OOV IT types: ([0-9]+)', log_txt))]
+
+    oov_oot_ty = [int(x) for x in every_other(
+        re.findall('OOV OOT types: ([0-9]+)', log_txt))]
+
 
     # find out how large the thesaurus was from log file
-    th_size = re.findall("Thesaurus contains ([0-9]+)", log_txt)
-    th_size = int(th_size[0]) if th_size else -1
+    # th_size = re.findall("Thesaurus contains ([0-9]+)", log_txt)
+    # th_size = int(th_size[0]) if th_size else -1
 
-    return total_tok, total_ty, unk_tok, unk_ty, found_tok, found_ty, \
-           repl_tok, repl_ty, th_size
+    return iv_it_tok, iv_oot_tok, oov_it_tok, oov_oot_tok, iv_it_ty, \
+           iv_oot_ty, oov_it_ty, oov_oot_ty
 
 
 def _infer_thesaurus_name(conf_txt):
