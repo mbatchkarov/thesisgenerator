@@ -84,16 +84,13 @@ class TestUtils(TestCase):
                     ev = array(all_x)[test]
 
                     if not kfold:
-                        # 2-fold CV, iterator should yield train/test segments half as
-                        # long as the full data set
+                        # 2-fold CV, iterator should yield train/test segments
+                        #  half as long as the full data set
                         self.assertEqual(len(tr),
                                          len(self.x_train) / self.conf['k'])
                     else:
                         #
                         self.assertEqual(len(tr), self.conf['sample_size'])
-
-
-
 
                     # the test bit of the corpus must not be touched
                     self.assertSetEqual(set(),
