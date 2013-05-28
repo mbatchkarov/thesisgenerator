@@ -153,9 +153,9 @@ def _extract_thesausus_coverage_info(log_txt):
         # the pointwise sum of the token/type lists below should be a constant
         # for a given data set, what changes is not the number of
         # tokens/types, but how that distribute in the IV/OOV, IT/OOT bins
-        total_tok = iv_it_tok[0] + iv_oot_tok[0] + oov_oot_tok[0] + oov_oot_tok[
+        total_tok = iv_it_tok[0] + iv_oot_tok[0] + oov_it_tok[0] + oov_oot_tok[
             0]
-        total_typ = iv_it_ty[0] + iv_oot_ty[0] + oov_oot_ty[0] + oov_oot_ty[0]
+        total_typ = iv_it_ty[0] + iv_oot_ty[0] + oov_it_ty[0] + oov_oot_ty[0]
     except IndexError:
         total_tok, total_typ = -1, -1
 

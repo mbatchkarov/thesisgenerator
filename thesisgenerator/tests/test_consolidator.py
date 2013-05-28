@@ -24,7 +24,7 @@ class TestConsolidator(TestCase):
         self.assertEqual(res[0][0], 'MultinomialNB')
 
         exp = {
-            'total_tok': 9, 'total_typ': 6,
+            'total_tok': 9, 'total_typ': 5,
             'iv_it_tok_mean': 3, 'iv_it_tok_std': 0,
             'iv_oot_tok_mean': 0, 'iv_oot_tok_std': 0,
             'oov_it_tok_mean': 2, 'oov_it_tok_std': 0,
@@ -32,13 +32,12 @@ class TestConsolidator(TestCase):
             'iv_it_typ_mean': 2, 'iv_it_typ_std': 0,
             'iv_oot_typ_mean': 0, 'iv_oot_typ_std': 0,
             'oov_it_typ_mean': 1, 'oov_it_typ_std': 0,
-            'oov_oot_typ_mean': 3, 'oov_oot_typ_std': 0
+            'oov_oot_typ_mean': 2, 'oov_oot_typ_std': 0
         }
         for variable, exp_value in exp.items():
             cursor.execute('SELECT DISTINCT %s from data00;' % variable)
             res = cursor.fetchall()
             self.assertEqual(res[0][0], exp_value)
-        print res
 
 
 
