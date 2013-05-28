@@ -128,7 +128,6 @@ class TestUtils(TestCase):
                     range = max(c.values()) - min(c.values())
                     self.assertLess(range, 5)
 
-
         self.conf['type'] = 'kfold'
         self.conf['k'] = 2
         go()
@@ -136,36 +135,3 @@ class TestUtils(TestCase):
         self.conf['type'] = 'subsampled_test_set'
         self.conf['sample_size'] = 120
         go(kfold=True)
-
-
-        # train_sets = {}
-        #
-        #     # should get the same result if using the same seed
-        #     for seed in [1, 2, 3, 1, 2, 3, 1, 2, 3]:
-        #         self.conf['random_state'] = seed
-        #         it, _, all_x, all_y = \
-        #             _build_crossvalidation_iterator(self.conf,
-        #                                             self.x_train,
-        #                                             self.y_train,
-        #                                             x_test=self.x_test,
-        #                                             y_test=self.y_test)
-        #
-        #         for id, (train, test) in enumerate(it):
-        #             tr = array(all_x)[train]
-        #             ev = array(all_x)[test]
-        #
-        #             # 2-fold CV, iterator should yield train/test segments half as
-        #             # long as the full data set
-        #             self.assertEqual(len(tr), len(self.x_train) / 2)
-        #
-        #             # the test bit of the corpus must not be touched
-        #             self.assertSetEqual(set(),
-        #                                 set(self.x_test).intersection(set(tr)))
-        #
-        #             # must yield the same sets in the same order
-        #             if train_sets.get((seed, id)) is None:
-        #                 # first time, just save it
-        #                 train_sets[(seed, id)] = tr
-        #             else:
-        #                 # after that, check for equality
-        #                 assert_array_equal(train_sets[(seed, id)], tr)
