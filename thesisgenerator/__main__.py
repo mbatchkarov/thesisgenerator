@@ -129,8 +129,8 @@ def _get_data_iterators(**kwargs):
     return data_iterable, targets_iterable
 
 
-def get_crossvalidation_iterator(config, x_vals, y_vals, x_test=None,
-                                 y_test=None):
+def _build_crossvalidation_iterator(config, x_vals, y_vals, x_test=None,
+                                    y_test=None):
     """
     Returns a crossvalidation iterator, which contains a list of
     (train_indices, test_indices) that can be used to slice
@@ -173,6 +173,7 @@ def get_crossvalidation_iterator(config, x_vals, y_vals, x_test=None,
                                       'permitted with a test set')
             sys.exit(1)
 
+        x_vals = list(x_vals)
         train_indices = range(len(x_vals))
         test_indices = range(len(x_vals), len(x_vals) + len(x_test))
         x_vals.extend(x_test)
@@ -205,7 +206,7 @@ def get_crossvalidation_iterator(config, x_vals, y_vals, x_test=None,
                                               n_iter=int(k),
                                               train_size=ratio)
     elif cv_type == 'oracle':
-        iterator = LeaveNothingOut(dataset_size, dataset_size)
+        iterator = LeaveNothingOut(dataset_size)
     elif cv_type == 'test_set' and x_test is not None and y_test is not None:
         iterator = PredefinedIndicesIterator(train_indices, test_indices)
     elif cv_type == 'subsampled_test_set' and \
@@ -422,7 +423,7 @@ def _run_tasks(configuration, data=None):
     # iterator stays consistent across all classifiers
 
     # CREATE CROSSVALIDATION ITERATOR
-    crossvalidate_cached = mem_cache.cache(get_crossvalidation_iterator)
+    crossvalidate_cached = mem_cache.cache(_build_crossvalidation_iterator)
     cv_iterator, validate_indices, x_vals_seen, y_vals_seen = \
         crossvalidate_cached(
             configuration['crossvalidation'], x_vals, y_vals, x_test, y_test)
