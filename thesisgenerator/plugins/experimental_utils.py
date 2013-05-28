@@ -117,11 +117,47 @@ def _write_exp2_to_14_conf_file(base_conf_file, exp_id, run_id, sample_size):
     return new_conf_file, log_dir
 
 
+def _write_exp22conf_file(base_conf_file, exp_id, run_id, sample_size,
+                          keep_only_IT, use_signifier_only):
+    """
+    Prepares conf files for exp22 by altering the sample_size,
+    use_signifier_only and keep_only_IT  parameters in the provided base
+    conf file
+    """
+    log_dir, new_conf_file = _prepare_conf_files(base_conf_file, exp_id,
+                                                 run_id)
+
+    replace_in_file(new_conf_file, 'name=.*',
+                    'name=exp%d-%d' % (exp_id, run_id))
+    replace_in_file(new_conf_file, 'sample_size=.*',
+                    'sample_size=%s' % sample_size)
+    replace_in_file(new_conf_file, 'use_signifier_only=.*',
+                    'use_signifier_only=%s' % use_signifier_only)
+    replace_in_file(new_conf_file, 'keep_only_IT=.*',
+                    'keep_only_IT=%s' % keep_only_IT)
+    replace_in_file(new_conf_file, 'debug=.*', 'debug=False')
+    return new_conf_file, log_dir
+
+
 def _exp2_to_14_file_iterator(sizes, exp_id, conf_file):
     for id, size in enumerate(sizes):
         new_conf_file, log_file = _write_exp2_to_14_conf_file(conf_file,
                                                               exp_id,
                                                               id, size)
+        print 'Yielding %s, %s' % (new_conf_file, new_conf_file)
+        yield new_conf_file, log_file
+    raise StopIteration
+
+
+def _exp22_file_iterator(sizes, exp_id, conf_file):
+    for id, size in enumerate(sizes):
+        for keep_only_IT in [True, False]:
+            for use_signifier_only in [True, False]:
+                new_conf_file, log_file = _write_exp22conf_file(conf_file,
+                                                                exp_id,
+                                                                id, size,
+                                                                keep_only_IT,
+                                                                use_signifier_only)
         print 'Yielding %s, %s' % (new_conf_file, new_conf_file)
         yield new_conf_file, log_file
     raise StopIteration
