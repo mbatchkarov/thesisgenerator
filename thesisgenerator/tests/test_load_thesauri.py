@@ -1,8 +1,7 @@
 # coding=utf-8
 from unittest import TestCase
 from thesisgenerator.plugins import thesaurus_loader
-from thesisgenerator.plugins.thesaurus_loader import get_all_thesauri, \
-    _iterate_nonoverlapping_pairs
+from thesisgenerator.plugins.thesaurus_loader import _iterate_nonoverlapping_pairs
 
 __author__ = 'mmb28'
 
@@ -15,23 +14,22 @@ class TestLoad_thesauri(TestCase):
         """
 
         self.params = {
-            'thesaurus_files': [
-                'thesisgenerator/resources/exp0-0a.strings'],
+            'thesaurus_files': ['thesisgenerator/resources/exp0-0a.strings'],
             'sim_threshold': 0,
             'k': 10,
-            'include_self': False,
-            'use_cache': False
+            'include_self': False
         }
 
-        for key, val in self.params.items():
-            setattr(thesaurus_loader, key, val)
+    def _reload_thesaurus(self):
+        thesaurus_loader.read_thesaurus(**self.params)
 
     def test_empty_thesaurus(self):
-        setattr(thesaurus_loader, 'thesaurus_files', [])
+        self.params['thesaurus_files'] = []
+        self._reload_thesaurus()
         self._reload_and_assert(0, 0)
 
     def _reload_and_assert(self, entry_count, neighbour_count):
-        th = get_all_thesauri()
+        th = thesaurus_loader.read_thesaurus(**self.params)
         all_neigh = [x for v in th.values() for x in v]
         self.assertEqual(len(th), entry_count)
         self.assertEqual(len(all_neigh), neighbour_count)
@@ -39,17 +37,20 @@ class TestLoad_thesauri(TestCase):
 
     def test_sim_threshold(self):
         for i, j, k in zip([0, .39, .5, 1], [7, 3, 3, 0], [14, 4, 3, 0]):
-            thesaurus_loader.sim_threshold = i
+            self.params['sim_threshold'] = i
+            self._reload_thesaurus()
             self._reload_and_assert(j, k)
 
     def test_k(self):
         for i, j, k in zip([3, 2, 1, 0], [7, 7, 7, 0], [14, 12, 7, 0]):
-            thesaurus_loader.k = i
+            self.params['k'] = i
+            self._reload_thesaurus()
             self._reload_and_assert(j, k)
 
     def test_include_self(self):
         for i, j, k in zip([False, True], [7, 7], [14, 21]):
-            thesaurus_loader.include_self = i
+            self.params['include_self'] = i
+            self._reload_thesaurus()
             th = self._reload_and_assert(j, k)
 
             for entry, neighbours in th.items():

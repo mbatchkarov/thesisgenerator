@@ -1,6 +1,6 @@
 from collections import deque
 import logging
-from thesisgenerator.plugins.thesaurus_loader import get_all_thesauri
+from thesisgenerator.plugins.thesaurus_loader import get_thesaurus
 
 
 def get_stats_recorder(enabled=False):
@@ -108,7 +108,7 @@ class BaseFeatureHandler():
         # logger.info below demonstrates that unseen words exist,
         # i.e. vectorizer is not reducing the test set to the
         # training vocabulary
-        neighbours = get_all_thesauri().get(document_term)
+        neighbours = get_thesaurus().get(document_term)
 
         # if there are any neighbours filter the list of
         # neighbours so that it contains only pairs where

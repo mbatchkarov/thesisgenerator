@@ -5,8 +5,8 @@ import scipy.sparse as sp
 from sklearn.feature_extraction.text import TfidfVectorizer
 from thesisgenerator.plugins import tokenizers
 from thesisgenerator.plugins.bov_feature_handlers import get_token_handler, get_stats_recorder
+from thesisgenerator.plugins.thesaurus_loader import get_thesaurus
 from thesisgenerator.utils import NoopTransformer
-from thesisgenerator.plugins.thesaurus_loader import get_all_thesauri
 
 
 class ThesaurusVectorizer(TfidfVectorizer):
@@ -77,11 +77,12 @@ class ThesaurusVectorizer(TfidfVectorizer):
             # if self.vocab_from_thes:
             # self.vocab_from_thes = True
 
-            if not get_all_thesauri():
+            if not get_thesaurus():
                 raise ValueError(
                     'A thesaurus is required when using vocab_from_thes')
             self.vocabulary_ = {k: v for v, k in
-                                enumerate(sorted(get_all_thesauri().keys()))}
+                                enumerate(
+                                    sorted(get_thesaurus().keys()))}
             self.fixed_vocabulary = True
 
     def fit_transform(self, raw_documents, y=None):
@@ -208,7 +209,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
             'Using TF-IDF: %s, transformer is %s' % (self.use_tfidf,
                                                      self._tfidf))
 
-        if not get_all_thesauri():
+        if not get_thesaurus():
             # no thesaurus was loaded in the constructor,
             # fall back to super behaviour
             logging.getLogger().warn("No thesaurus, reverting to super")
@@ -234,7 +235,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
                 term_index_in_vocab = vocabulary.get(document_term)
                 is_in_vocabulary = term_index_in_vocab is not None
                 # None if term is not in seen vocabulary
-                is_in_th = get_all_thesauri().get(document_term) is not None
+                is_in_th = get_thesaurus().get(document_term) is not None
 
                 self.stats.register_token(document_term, is_in_vocabulary, \
                                           is_in_th)

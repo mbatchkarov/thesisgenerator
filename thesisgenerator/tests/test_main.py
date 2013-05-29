@@ -7,17 +7,7 @@ import numpy.testing as t
 import scipy.sparse as sp
 
 from thesisgenerator.plugins import tokenizers, thesaurus_loader
-from thesisgenerator.__main__ import _get_data_iterators
-from thesisgenerator.__main__ import _build_pipeline
-
-
-def _init_thesauri():
-    thesaurus_loader.thesaurus_files = \
-        ['thesisgenerator/resources/exp0-0a.strings']
-    thesaurus_loader.sim_threshold = 0
-    thesaurus_loader.k = 10
-    thesaurus_loader.include_self = False
-    thesaurus_loader.use_cache = False
+from thesisgenerator import __main__
 
 
 class Test_ThesaurusVectorizer(TestCase):
@@ -32,7 +22,13 @@ class Test_ThesaurusVectorizer(TestCase):
             lemmatize=True,
             lowercase=True,
             keep_only_IT=False)
-        _init_thesauri()
+
+        self._thesaurus_opts = {
+            'thesaurus_files': ['thesisgenerator/resources/exp0-0a.strings'],
+            'sim_threshold': 0,
+            'k': 10,
+            'include_self': False
+        }
 
         self.feature_extraction_conf = {
             'vectorizer': 'thesisgenerator.plugins.bov.ThesaurusVectorizer',
@@ -58,9 +54,9 @@ class Test_ThesaurusVectorizer(TestCase):
         Loads a predefined dataset from disk
         """
         self.data_options['source'] = '%s-tr' % prefix
-        x_tr, y_tr = _get_data_iterators(**self.data_options)
+        x_tr, y_tr = __main__._get_data_iterators(**self.data_options)
         self.data_options['source'] = '%s-ev' % prefix
-        x_ev, y_ev = _get_data_iterators(**self.data_options)
+        x_ev, y_ev = __main__._get_data_iterators(**self.data_options)
         return x_tr, y_tr, x_ev, y_ev
 
     def test_get_data_iterators(self):
@@ -82,31 +78,24 @@ class Test_ThesaurusVectorizer(TestCase):
             self.assertEqual(y[2], 1)
 
     def _vectorize_data(self):
-        pipeline = self._build_simple_pipeline(self.feature_extraction_conf)
+        pipeline = __main__._build_pipeline(
+            12345, #id, for naming debug files
+            None, # classifier
+            self.feature_extraction_conf,
+            {'run': False}, # feature selection conf
+            {'run': False}, # dim re. conf
+            None, # classifier options
+            '.', # temp files dir
+            True                # debug mode
+        )
         x1 = pipeline.fit_transform(self.x_tr, self.y_tr)
         voc = pipeline.named_steps['vect'].vocabulary_
         x2 = pipeline.transform(self.x_ev)
 
         return x1, x2, voc
 
-    def _build_simple_pipeline(self, feature_extraction_conf):
-        """
-        Builds a sklearn pipeline consisting of a single
-        """
-        # todo this does not pass the values of feature_extraction_conf in,
-        # but instead creates a pipe using the no-params constructor and then
-        #  assigns the parameters to a copy
-
-        pipeline = _build_pipeline(12345, #id, for naming debug files
-                                   None, # classifier
-                                   feature_extraction_conf,
-                                   {'run': False}, # feature selection conf
-                                   {'run': False}, # dim re. conf
-                                   None, # classifier options
-                                   '.', # temp files dir
-                                   True  # debug mode
-        )
-        return pipeline
+    def _reload_thesaurus(self):
+        thesaurus_loader.read_thesaurus(**self._thesaurus_opts)
 
     @skip(
         "Not sure how the old algorithm below fits with our new thinking of"
@@ -117,7 +106,8 @@ class Test_ThesaurusVectorizer(TestCase):
         for inc_self in [True, False]:
             # the expected matrices are the same with and without
             # include_self when replace_all=False
-            thesaurus_loader.include_self = inc_self
+            self._thesaurus_opts['include_self'] = inc_self
+            self._reload_thesaurus()
 
             x1, x2, voc = self._vectorize_data()
 
@@ -199,7 +189,8 @@ class Test_ThesaurusVectorizer(TestCase):
 
     def test_replaceAll_True_includeSelf_False(self):
         self.feature_extraction_conf['replace_all'] = True
-        thesaurus_loader.include_self = False
+        self._thesaurus_opts['include_self'] = False
+        self._reload_thesaurus()
 
         x1, x2, voc = self._vectorize_data()
 
@@ -233,7 +224,8 @@ class Test_ThesaurusVectorizer(TestCase):
 
     def test_replaceAll_True_includeSelf_True(self):
         self.feature_extraction_conf['replace_all'] = True
-        thesaurus_loader.include_self = True
+        self._thesaurus_opts['include_self'] = True
+        self._reload_thesaurus()
 
         x1, x2, voc = self._vectorize_data()
 
@@ -268,9 +260,11 @@ class Test_ThesaurusVectorizer(TestCase):
     def test_baseline_use_all_features_signifier_only_B(self):
         self.feature_extraction_conf['vocab_from_thes'] = False
         self.feature_extraction_conf['use_signifier_only'] = True
-        thesaurus_loader.thesaurus_files = \
+        self._thesaurus_opts['thesaurus_files'] = \
             ['thesisgenerator/resources/exp0-0b.strings']
-        thesaurus_loader.k = 1
+        self._thesaurus_opts['k'] = 1
+        self._reload_thesaurus()
+
         self.x_tr, self.y_tr, self.x_ev, self.y_ev = self. \
             _load_data('thesisgenerator/resources/test-baseline')
 
@@ -303,9 +297,11 @@ class Test_ThesaurusVectorizer(TestCase):
     def test_baseline_ignore_nonthesaurus_features_signifier_only_A(self):
         self.tokenizer.keep_only_IT = True
         self.feature_extraction_conf['use_signifier_only'] = True
-        thesaurus_loader.thesaurus_files = \
+        self._thesaurus_opts['thesaurus_files'] = \
             ['thesisgenerator/resources/exp0-0b.strings']
-        thesaurus_loader.k = 1
+        self._thesaurus_opts['k'] = 1
+        self._reload_thesaurus()
+
         self.x_tr, self.y_tr, self.x_ev, self.y_ev = self. \
             _load_data('thesisgenerator/resources/test-baseline')
 
@@ -336,9 +332,11 @@ class Test_ThesaurusVectorizer(TestCase):
     def test_baseline_use_all_features_with_signified_D(self):
         self.tokenizer.keep_only_IT = False
         self.feature_extraction_conf['use_signifier_only'] = False
-        thesaurus_loader.thesaurus_files = \
+        self._thesaurus_opts['thesaurus_files'] = \
             ['thesisgenerator/resources/exp0-0b.strings']
-        thesaurus_loader.k = 1
+        self._thesaurus_opts['k'] = 1
+        self._reload_thesaurus()
+
         self.x_tr, self.y_tr, self.x_ev, self.y_ev = self. \
             _load_data('thesisgenerator/resources/test-baseline')
 
@@ -371,9 +369,11 @@ class Test_ThesaurusVectorizer(TestCase):
     def test_baseline_ignore_nonthesaurus_features_with_signified_C(self):
         self.tokenizer.keep_only_IT = True
         self.feature_extraction_conf['use_signifier_only'] = False
-        thesaurus_loader.thesaurus_files = \
+        self._thesaurus_opts['thesaurus_files'] = \
             ['thesisgenerator/resources/exp0-0b.strings']
-        thesaurus_loader.k = 1 # equivalent to max
+        self._thesaurus_opts['k'] = 1 # equivalent to max
+        self._reload_thesaurus()
+
         self.x_tr, self.y_tr, self.x_ev, self.y_ev = self. \
             _load_data('thesisgenerator/resources/test-baseline')
 

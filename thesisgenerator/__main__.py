@@ -616,6 +616,12 @@ def _init_utilities_state(config):
     """
     Initialises the state of helper modules from a config object
     """
+    thesaurus_loader.read_thesaurus(
+        thesaurus_files=config['feature_extraction']['thesaurus_files'],
+        sim_threshold=config['feature_extraction']['sim_threshold'],
+        k=config['feature_extraction']['k'],
+        include_self=config['feature_extraction']['include_self'])
+
     tokenizers.build_tokenizer(
         normalise_entities=config['feature_extraction']['normalise_entities'],
         use_pos=config['feature_extraction']['use_pos'],
@@ -624,15 +630,6 @@ def _init_utilities_state(config):
         lowercase=config['tokenizer']['lowercase'],
         keep_only_IT=config['tokenizer']['keep_only_IT']
     )
-
-    thesaurus_loader.thesaurus_files = config['feature_extraction'][
-        'thesaurus_files']
-    # thesaurus_loader.use_pos = config['feature_extraction']['use_pos']
-    # thesaurus_loader.coarse_pos = config['feature_extraction']['coarse_pos']
-    thesaurus_loader.sim_threshold = config['feature_extraction'][
-        'sim_threshold']
-    thesaurus_loader.k = config['feature_extraction']['k']
-    thesaurus_loader.include_self = config['feature_extraction']['include_self']
 
 
 def go(conf_file, log_dir, data=None, classpath='', clean=False):

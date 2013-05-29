@@ -1,5 +1,6 @@
 # coding=utf-8
 from unittest import TestCase
+from thesisgenerator.plugins import thesaurus_loader
 from thesisgenerator.plugins.tokenizers import XmlTokenizer
 
 __author__ = 'mmb28'
@@ -81,9 +82,11 @@ class Test_tokenizer(TestCase):
         self.tokenizer.lemmatize = True
         self.tokenizer.thes_entries = None
 
-        from thesisgenerator.tests.test_main import _init_thesauri
-
-        _init_thesauri() #todo remove that silly call
+        thesaurus_loader.read_thesaurus(
+            thesaurus_files=['thesisgenerator/resources/exp0-0a.strings'],
+            sim_threshold=0,
+            k=10,
+            include_self=False)
 
         tokens = self.tokenizer(self.doc)
         self.assertListEqual(tokens, ['cat/n', 'like/v', 'dog/n'])

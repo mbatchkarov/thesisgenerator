@@ -2,8 +2,7 @@
 from collections import defaultdict
 import locale
 import logging
-
-from thesisgenerator.plugins.thesaurus_loader import get_all_thesauri
+from thesisgenerator.plugins.thesaurus_loader import get_thesaurus
 
 
 def build_tokenizer(**kwargs):
@@ -16,7 +15,7 @@ def get_tokenizer():
     return tokenizer
 
 
-class XmlTokenizer:
+class XmlTokenizer(object):
     # for parsing integers with comma for thousands separator
     locale.setlocale(locale.LC_ALL, 'en_US')
 
@@ -92,7 +91,7 @@ class XmlTokenizer:
         """
 
         if not self.thes_entries and self.keep_only_IT:
-            thes_entries = set(get_all_thesauri().keys())
+            thes_entries = set(get_thesaurus().keys())
             if not thes_entries:
                 raise Exception('A thesaurus is required with keep_only_IT')
         try:
