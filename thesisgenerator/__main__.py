@@ -616,13 +616,14 @@ def _init_utilities_state(config):
     """
     Initialises the state of helper modules from a config object
     """
-    tokenizers.normalise_entities = config['feature_extraction'][
-        'normalise_entities']
-    tokenizers.use_pos = config['feature_extraction']['use_pos']
-    tokenizers.coarse_pos = config['feature_extraction']['coarse_pos']
-    tokenizers.lemmatize = config['feature_extraction']['lemmatize']
-    tokenizers.lowercase = config['tokenizer']['lowercase']
-    tokenizers.keep_only_IT = config['tokenizer']['keep_only_IT']
+    tokenizers.build_tokenizer(
+        normalise_entities=config['feature_extraction']['normalise_entities'],
+        use_pos=config['feature_extraction']['use_pos'],
+        coarse_pos=config['feature_extraction']['coarse_pos'],
+        lemmatize=config['feature_extraction']['lemmatize'],
+        lowercase=config['tokenizer']['lowercase'],
+        keep_only_IT=config['tokenizer']['keep_only_IT']
+    )
 
     thesaurus_loader.thesaurus_files = config['feature_extraction'][
         'thesaurus_files']

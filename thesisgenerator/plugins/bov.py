@@ -3,10 +3,10 @@ import logging
 import pickle
 import scipy.sparse as sp
 from sklearn.feature_extraction.text import TfidfVectorizer
+from thesisgenerator.plugins import tokenizers
 from thesisgenerator.plugins.bov_feature_handlers import get_token_handler, get_stats_recorder
 from thesisgenerator.utils import NoopTransformer
 from thesisgenerator.plugins.thesaurus_loader import get_all_thesauri
-from thesisgenerator.plugins.tokenizers import xml_tokenizer
 
 
 class ThesaurusVectorizer(TfidfVectorizer):
@@ -171,7 +171,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
 
         elif self.analyzer == 'better':
             stop_words = self.get_stop_words()
-            tokenize = xml_tokenizer
+            tokenize = tokenizers.get_tokenizer()
 
             return lambda doc: self.my_feature_extractor(
                 tokenize(preprocess(self.decode(doc))), stop_words,

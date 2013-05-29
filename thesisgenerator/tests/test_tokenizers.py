@@ -1,12 +1,11 @@
 # coding=utf-8
 from unittest import TestCase
-from thesisgenerator.plugins import tokenizers
-from thesisgenerator.plugins.tokenizers import xml_tokenizer, _is_number
+from thesisgenerator.plugins.tokenizers import XmlTokenizer
 
 __author__ = 'mmb28'
 
 
-class Test_tokenizers(TestCase):
+class Test_tokenizer(TestCase):
     params = {'normalise_entities': False,
               'use_pos': False,
               'coarse_pos': False,
@@ -19,8 +18,11 @@ class Test_tokenizers(TestCase):
         Sets the default parameters of the tokenizer and reads a sample file
         for processing
         """
+
+        self.tokenizer = XmlTokenizer(**self.params)
+
         for key, val in self.params.items():
-            setattr(tokenizers, key, val)
+            setattr(self.tokenizer, key, val)
 
         with open('thesisgenerator/resources/test-tr/earn/earn_1.tagged') \
             as infile:
@@ -46,48 +48,48 @@ class Test_tokenizers(TestCase):
         tests xml_tokenizer's lowercasing facility
         """
 
-        tokens = xml_tokenizer(self.doc)
+        tokens = self.tokenizer(self.doc)
         self.assertListEqual(tokens, ['Cats', 'like', 'dogs'])
 
-        tokenizers.lowercase = True
-        tokens = xml_tokenizer(self.doc)
+        self.tokenizer.lowercase = True
+        tokens = self.tokenizer(self.doc)
         self.assertListEqual(tokens, ['cats', 'like', 'dogs'])
 
     def test_xml_tokenizer_pos(self):
         """
         Tests xml_tokenizer's coarse_pos and use_pos facilities
         """
-        tokens = xml_tokenizer(self.doc)
+        tokens = self.tokenizer(self.doc)
         self.assertListEqual(tokens, ['Cats', 'like', 'dogs'])
 
-        tokenizers.use_pos = True
-        tokens = xml_tokenizer(self.doc)
+        self.tokenizer.use_pos = True
+        tokens = self.tokenizer(self.doc)
         self.assertListEqual(tokens, ['Cats/NNP', 'like/VB', 'dogs/NNP'])
 
-        tokenizers.coarse_pos = True
-        tokens = xml_tokenizer(self.doc)
+        self.tokenizer.coarse_pos = True
+        tokens = self.tokenizer(self.doc)
         self.assertListEqual(tokens, ['Cats/N', 'like/V', 'dogs/N'])
 
     def test_xml_tokenizer_keep_IT_only(self):
         """
         tests xml_tokenizer's ability to discard out-of-thesaurus tokens
         """
-        tokenizers.keep_only_IT = True
-        tokenizers.coarse_pos = True
-        tokenizers.use_pos = True
-        tokenizers.lowercase = True
-        tokenizers.lemmatize = True
-        tokenizers.thes_entries = None
+        self.tokenizer.keep_only_IT = True
+        self.tokenizer.coarse_pos = True
+        self.tokenizer.use_pos = True
+        self.tokenizer.lowercase = True
+        self.tokenizer.lemmatize = True
+        self.tokenizer.thes_entries = None
 
         from thesisgenerator.tests.test_main import _init_thesauri
 
-        _init_thesauri()
+        _init_thesauri() #todo remove that silly call
 
-        tokens = xml_tokenizer(self.doc)
+        tokens = self.tokenizer(self.doc)
         self.assertListEqual(tokens, ['cat/n', 'like/v', 'dog/n'])
 
-        tokenizers.thes_entries = None
-        tokens = xml_tokenizer(self.other_doc)
+        self.tokenizer.thes_entries = None
+        tokens = self.tokenizer(self.other_doc)
         self.assertListEqual(tokens, ['like/v', 'fruit/n'])
 
 
@@ -96,8 +98,8 @@ class Test_tokenizers(TestCase):
         tests xml_tokenizer's lemmatization facility
         """
 
-        tokenizers.lemmatize = True
-        tokens = xml_tokenizer(self.doc)
+        self.tokenizer.lemmatize = True
+        tokens = self.tokenizer(self.doc)
         self.assertListEqual(tokens, ['Cat', 'like', 'dog'])
 
     def test_xml_tokenizer_common_settings(self):
@@ -106,27 +108,28 @@ class Test_tokenizers(TestCase):
         only testing a few out of the many possible combinations
         """
 
-        tokenizers.lemmatize = True
-        tokenizers.use_pos = True
-        tokenizers.coarse_pos = True
-        tokenizers.lowercase = True
-        tokenizers.normalise_entities = True
+        self.tokenizer.lemmatize = True
+        self.tokenizer.use_pos = True
+        self.tokenizer.coarse_pos = True
+        self.tokenizer.lowercase = True
+        self.tokenizer.normalise_entities = True
 
-        tokens = xml_tokenizer(self.doc)
+        tokens = self.tokenizer(self.doc)
         self.assertListEqual(tokens, ['cat/n', 'like/v', '__ner-org__'])
 
-        tokenizers.lowercase = False
-        tokens = xml_tokenizer(self.doc)
+        self.tokenizer.lowercase = False
+        tokens = self.tokenizer(self.doc)
         self.assertListEqual(tokens, ['Cat/N', 'like/V', '__NER-ORG__'])
 
     def test_is_number(self):
-        self.assertTrue('123')
-        self.assertTrue('123.1928')
-        self.assertTrue('123e3')
-        self.assertTrue('123e-3')
-        self.assertTrue('123/3')
-        self.assertTrue('123/3')
-        self.assertTrue('123,300')
+        is_number = self.tokenizer._is_number
 
-        self.assertTrue(_is_number('asdf') == False) # for some reason
-        # assertFalse does not work
+        self.assertTrue(is_number('123'))
+        self.assertTrue(is_number('123.1928'))
+        self.assertTrue(is_number('123e3'))
+        self.assertTrue(is_number('123e-3'))
+        self.assertTrue(is_number('123/3'))
+        self.assertTrue(is_number('123/3'))
+        self.assertTrue(is_number('123,300'))
+
+        self.assertFalse(is_number('asdf'))

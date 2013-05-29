@@ -11,15 +11,6 @@ from thesisgenerator.__main__ import _get_data_iterators
 from thesisgenerator.__main__ import _build_pipeline
 
 
-def _init_tokenizer():
-    tokenizers.normalise_entities = False
-    tokenizers.use_pos = True
-    tokenizers.coarse_pos = True
-    tokenizers.lemmatize = True
-    tokenizers.lowercase = True
-    tokenizers.keep_only_IT = False
-
-
 def _init_thesauri():
     thesaurus_loader.thesaurus_files = \
         ['thesisgenerator/resources/exp0-0a.strings']
@@ -34,7 +25,13 @@ class Test_ThesaurusVectorizer(TestCase):
         """
         Initialises the state of helper modules to sensible defaults
         """
-        _init_tokenizer()
+        self.tokenizer = tokenizers.build_tokenizer(
+            normalise_entities=False,
+            use_pos=True,
+            coarse_pos=True,
+            lemmatize=True,
+            lowercase=True,
+            keep_only_IT=False)
         _init_thesauri()
 
         self.feature_extraction_conf = {
@@ -111,8 +108,9 @@ class Test_ThesaurusVectorizer(TestCase):
         )
         return pipeline
 
-    @skip("Not sure how the old algorithm below fits with our new thinking of"
-          " what should happen when not using replace_all")
+    @skip(
+        "Not sure how the old algorithm below fits with our new thinking of"
+        " what should happen when not using replace_all")
     def test_replaceAll_False_includeSelf_TrueFalse(self):
         self.feature_extraction_conf['replace_all'] = False
 
@@ -163,11 +161,13 @@ class Test_ThesaurusVectorizer(TestCase):
                 expected = [x.strip() for x in expected.split()]
                 filename = 'PostVectDump-%s12345.csv' % stage
                 with open(filename) as infile:
-                    csv_file_contents = [x.strip() for x in infile.readlines()]
+                    csv_file_contents = [x.strip() for x in
+                                         infile.readlines()]
 
                 # headers must be identical character for character
                 self.assertEqual(expected[0], csv_file_contents[0])
-                for line1, line2 in zip(expected[1:], csv_file_contents[1:]):
+                for line1, line2 in zip(expected[1:],
+                                        csv_file_contents[1:]):
                     for token1, token2 in zip(line1.split(','),
                                               line2.split(',')):
                         try:
@@ -301,7 +301,7 @@ class Test_ThesaurusVectorizer(TestCase):
         )
 
     def test_baseline_ignore_nonthesaurus_features_signifier_only_A(self):
-        tokenizers.keep_only_IT = True
+        self.tokenizer.keep_only_IT = True
         self.feature_extraction_conf['use_signifier_only'] = True
         thesaurus_loader.thesaurus_files = \
             ['thesisgenerator/resources/exp0-0b.strings']
@@ -334,7 +334,7 @@ class Test_ThesaurusVectorizer(TestCase):
         )
 
     def test_baseline_use_all_features_with_signified_D(self):
-        tokenizers.keep_only_IT = False
+        self.tokenizer.keep_only_IT = False
         self.feature_extraction_conf['use_signifier_only'] = False
         thesaurus_loader.thesaurus_files = \
             ['thesisgenerator/resources/exp0-0b.strings']
@@ -369,7 +369,7 @@ class Test_ThesaurusVectorizer(TestCase):
         )
 
     def test_baseline_ignore_nonthesaurus_features_with_signified_C(self):
-        tokenizers.keep_only_IT = True
+        self.tokenizer.keep_only_IT = True
         self.feature_extraction_conf['use_signifier_only'] = False
         thesaurus_loader.thesaurus_files = \
             ['thesisgenerator/resources/exp0-0b.strings']
