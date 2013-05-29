@@ -115,6 +115,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
         if stop_words is not None:
             tokens = [w for w in tokens if w.lower() not in stop_words and
                                            len(w) > 3]
+            # todo this needs to be moved to tokenizers module
 
         #    last_chars = ['**suffix(%s)' % token[-1] for token in tokens]
         #    shapes = ['**shape(%s)' % "".join(
@@ -137,8 +138,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
 
 
     def my_analyzer(self):
-        return lambda doc: self.my_feature_extractor(
-            doc, None, None)
+        return lambda doc: self.my_feature_extractor(doc, None, None)
 
     def build_analyzer(self):
         """

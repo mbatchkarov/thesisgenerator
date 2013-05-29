@@ -28,6 +28,10 @@ class TestLoad_thesauri(TestCase):
         self._reload_thesaurus()
         self._reload_and_assert(0, 0)
 
+        # should return an empty neighbour list for unknown tokens
+        th = thesaurus_loader.get_thesaurus()
+        self.assertListEqual([], th['kasdjhfka'])
+
     def _reload_and_assert(self, entry_count, neighbour_count):
         th = thesaurus_loader.read_thesaurus(**self.params)
         all_neigh = [x for v in th.values() for x in v]

@@ -21,14 +21,15 @@ def get_thesaurus():
     return last_read_thesaurus
 
 
-class Thesaurus(dict):
+class Thesaurus(defaultdict):
     def __init__(self, thesaurus_files='', sim_threshold=0, k=1,
                  include_self=False):
         self.thesaurus_files = thesaurus_files
         self.sim_threshold = sim_threshold
         self.k = k
         self.include_self = include_self
-        self.preloaded_thesauri = {}
+        # make this class act like a defaultdict(list)
+        self.default_factory = list
 
         self._read_from_disk()
 
@@ -55,60 +56,44 @@ class Thesaurus(dict):
 
         result = {}
         for path in self.thesaurus_files:
-            if path in self.preloaded_thesauri and self.use_cache:
-                # logging.getLogger().info('Returning cached thesaurus '
-                #                          'for %s' % path)
-                result.update(self.preloaded_thesauri[path])
-            else:
-                logging.getLogger().info(
-                    'Loading thesaurus %s from disk' % path)
-                logging.getLogger().debug(
-                    'threshold %r, k=%r' % (self.sim_threshold, self.k))
+            logging.getLogger().info(
+                'Loading thesaurus %s from disk' % path)
+            logging.getLogger().debug(
+                'threshold %r, k=%r' % (self.sim_threshold, self.k))
 
-                FILTERED = '___FILTERED___'.lower()
-                curr_thesaurus = defaultdict(list)
-                with open(path) as infile:
-                    for line in infile:
-                        tokens = line.strip().split('\t')
-                        if len(tokens) % 2 == 0:
-                        # must have an odd number of things, one for the entry
-                        # and pairs for (neighbour, similarity)
-                            continue
-                        if tokens[0] != FILTERED:
-                            to_insert = [(word.lower(), float(sim)) for
-                                         (word, sim)
-                                         in
-                                         _iterate_nonoverlapping_pairs(
-                                             tokens, 1, self.k)
-                                         if
-                                         word != FILTERED and
-                                         float(sim) > self.sim_threshold]
-                            if self.include_self:
-                                to_insert.insert(0, (tokens[0].lower(), 1.0))
-                                # the step above may filter out all neighbours
-                                # of an entry. if this happens, do not bother
-                                # adding it
-                            if len(to_insert) > 0:
-                                if tokens[0] in curr_thesaurus:
-                                    logging.getLogger().error(
-                                        'Multiple entries for "%s" found' %
-                                        tokens[0])
-                                curr_thesaurus[tokens[0].lower()].extend(
-                                    to_insert)
+            FILTERED = '___FILTERED___'.lower()
+            with open(path) as infile:
+                for line in infile:
+                    tokens = line.strip().split('\t')
+                    if len(tokens) % 2 == 0:
+                    # must have an odd number of things, one for the entry
+                    # and pairs for (neighbour, similarity)
+                        continue
+                    if tokens[0] != FILTERED:
+                        to_insert = [(word.lower(), float(sim)) for
+                                     (word, sim)
+                                     in
+                                     _iterate_nonoverlapping_pairs(
+                                         tokens, 1, self.k)
+                                     if
+                                     word != FILTERED and
+                                     float(sim) > self.sim_threshold]
+                        if self.include_self:
+                            to_insert.insert(0, (tokens[0].lower(), 1.0))
+                            # the step above may filter out all neighbours
+                            # of an entry. if this happens, do not bother
+                            # adding it
+                        if len(to_insert) > 0:
+                            if tokens[0] in self:
+                                logging.getLogger().error(
+                                    'Multiple entries for "%s" found' %
+                                    tokens[0])
+                            self[tokens[0].lower()].extend(to_insert)
 
-                # note- do not attempt to lowercase if the thesaurus has not
-                # already been lowercased- may result in multiple neighbour lists
-                # for the same entry
-                logging.getLogger().info('Caching thesaurus %s' % path)
-                self.preloaded_thesauri[path] = curr_thesaurus
-                result.update(curr_thesaurus)
-
-        # logging.getLogger().info(
-        #     'Thesaurus contains %d entries' % len(result))
-        # logging.getLogger().debug(
-        #     'Thesaurus sample %r' % result.items()[:2])
-        self.update(result)
-        # END OF CLASS
+                            # note- do not attempt to lowercase if the thesaurus has not
+                            # already been lowercased- may result in multiple neighbour lists
+                            # for the same entry
+                            # END OF CLASS
 
 
 def _iterate_nonoverlapping_pairs(iterable, beg, num_pairs):
