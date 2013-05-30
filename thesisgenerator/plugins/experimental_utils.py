@@ -315,7 +315,7 @@ def run_experiment(i, num_workers=4,
         writer = ConsolidatedResultsSqlAndCsvWriter(i, csv_out_fh,
                                                     output_db_conn)
     else:
-        writer = ConsolidatedResultsSqlAndCsvWriter(csv_out_fh)
+        writer = ConsolidatedResultsCsvWriter(csv_out_fh)
     consolidate_results(
         writer,
         '%s/conf/exp%d/exp%d_base-variants' % (prefix, i, i),
