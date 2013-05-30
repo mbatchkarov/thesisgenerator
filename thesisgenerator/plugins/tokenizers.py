@@ -1,6 +1,6 @@
 # coding=utf-8
 from collections import defaultdict
-import locale
+# import locale
 import logging
 from thesisgenerator.plugins.thesaurus_loader import get_thesaurus
 
@@ -17,7 +17,7 @@ def get_tokenizer():
 
 class XmlTokenizer(object):
     # for parsing integers with comma for thousands separator
-    locale.setlocale(locale.LC_ALL, 'en_US')
+    # locale.setlocale(locale.LC_ALL, 'en_US')
 
     # copied from feature extraction toolkit
     pos_coarsification_map = defaultdict(lambda: "UNK")
@@ -164,11 +164,11 @@ class XmlTokenizer(object):
         except ValueError:
             is_float = False
 
-        try:
-            locale.atof(s)
-            is_int = True
-        except ValueError:
-            is_int = False
+        # try:
+        #     locale.atof(s)
+        #     is_int = True
+        # except ValueError:
+        #     is_int = False
 
         is_only_digits_or_punct = True
         for ch in s:
@@ -176,4 +176,4 @@ class XmlTokenizer(object):
                 is_only_digits_or_punct = False
                 break
 
-        return is_float or is_int or is_only_digits_or_punct
+        return is_float or is_only_digits_or_punct #or is_int
