@@ -90,12 +90,12 @@ class Thesaurus(defaultdict):
                                     tokens[0])
                             self[tokens[0].lower()].extend(to_insert)
 
-                            # note- do not attempt to lowercase if the thesaurus has not
-                            # already been lowercased- may result in multiple neighbour lists
-                            # for the same entry
-                            # END OF CLASS
+                            # note- do not attempt to lowercase if the thesaurus
+                            #  has not already been lowercased- may result in
+                            # multiple neighbour lists for the same entry
 
 
+# END OF CLASS
 def _iterate_nonoverlapping_pairs(iterable, beg, num_pairs):
     for i in xrange(beg, min(len(iterable) - 1, 2 * num_pairs),
                     2):  # step size 2

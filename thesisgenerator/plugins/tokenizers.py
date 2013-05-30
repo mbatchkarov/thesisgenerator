@@ -78,8 +78,8 @@ class XmlTokenizer(object):
         self.lowercase = lowercase
         self.keep_only_IT = keep_only_IT
 
-    def __call__(self, *args, **kwargs):
-        return self.tokenize(*args)
+    def __call__(self, doc):
+        return self.tokenize(doc)
 
     def tokenize(self, doc):
         """
