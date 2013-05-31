@@ -627,6 +627,7 @@ def _init_utilities_state(config):
         use_pos=config['feature_extraction']['use_pos'],
         coarse_pos=config['feature_extraction']['coarse_pos'],
         lemmatize=config['feature_extraction']['lemmatize'],
+
         lowercase=config['tokenizer']['lowercase'],
         keep_only_IT=config['tokenizer']['keep_only_IT']
     )

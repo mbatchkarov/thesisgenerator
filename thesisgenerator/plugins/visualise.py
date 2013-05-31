@@ -81,7 +81,8 @@ def performance_bar_chart(tables, classifiers, width=0.2, cv=25):
             sql = "SELECT sample_size,score_mean,score_std FROM data%.2d " \
                   "where " \
                   "metric = \"macroavg_f1\" and" \
-                  " classifier = \"%s\"" % (table, classifier)
+                  " classifier = \"%s\"" \
+                  "order by sample_size" % (table, classifier)
             print sql
             df = query_to_data_frame(sql)
             # print df
@@ -116,7 +117,8 @@ def coverage_bar_chart(experiments, width=0.13, cv=25,
     for experiment in experiments:
         for stat in stats:
             sql = "SELECT DISTINCT name, sample_size,total_tok,total_typ,%s " \
-                  "FROM data%.2d" % (','.join(stat), experiment)
+                  "FROM data%.2d order by sample_size" % (','.join(stat),
+                                                          experiment)
             print sql
             df = query_to_data_frame(sql)
             # normalise coverage stats by total types/tokens
@@ -164,12 +166,12 @@ def coverage_bar_chart(experiments, width=0.13, cv=25,
 # performance_bar_chart([2, 17, 18, 19], ['MultinomialNB'])
 
 # performance_bar_chart([17, 18, 19], ['BernoulliNB'])
-performance_bar_chart([17],
-                      ['BernoulliNB', 'MultinomialNB', 'LogisticRegression'])
-performance_bar_chart([17, 18], ['BernoulliNB'])
-performance_bar_chart([17, 18], ['MultinomialNB'])
-performance_bar_chart([17, 18], ['LogisticRegression'])
+# performance_bar_chart([17],
+#                       ['BernoulliNB', 'MultinomialNB', 'LogisticRegression'])
+# performance_bar_chart([17, 18], ['BernoulliNB'])
+# performance_bar_chart([17, 18], ['MultinomialNB'])
+# performance_bar_chart([17, 18], ['LogisticRegression'])
 
 # coverage_bar_chart([6, 8], cv=5, legend_position='upper center')
-# coverage_bar_chart([16], x_columns=['name'])
+coverage_bar_chart([22], x_columns=['sample_size'])
 print 'done'
