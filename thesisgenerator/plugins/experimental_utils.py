@@ -275,6 +275,14 @@ def run_experiment(i, num_workers=4,
         exp1_thes_pattern = '%s/../FeatureExtrationToolkit/exp6-1*/*sims.' \
                             'neighbours.strings' % prefix
         num_workers = 30
+
+    sizes = chain(range(2, 11, 2), range(20, 101, 10))
+    if i == 0:
+        # exp0 is for debugging only, we don't have to do much
+        sizes = range(10, 31, 10)
+    if predefined_sized:
+        sizes = predefined_sized
+
     reload_data = False
     # ----------- EXPERIMENT 1 -----------
     base_conf_file = '%s/conf/exp%d/exp%d_base.conf' % (prefix, i, i)
@@ -283,21 +291,16 @@ def run_experiment(i, num_workers=4,
                                  '%s/conf/exp1/exp1_base.conf' % prefix)
 
     # ----------- EXPERIMENTS 2-14 -----------
-    elif i == 0 or 1 < i <= 14 or 17 <= i <= 22:
+    elif i == 0 or 1 < i <= 14 or 17 <= i <= 21:
         # sizes = chain(range(100, 1000, 100), range(1000, 5000, 500))
-        sizes = chain(range(2, 11, 2), range(20, 101, 10))
-        if i == 0:
-            # exp0 is for debugging only, we don't have to do much
-            sizes = range(10, 31, 10)
-        if predefined_sized:
-            sizes = predefined_sized
 
         it = _exp2_to_14_file_iterator(sizes, i, base_conf_file)
+    elif i == 22:
+        it = _exp22_file_iterator(sizes, i, base_conf_file)
     elif i == 15:
         it = _exp15_file_iterator(base_conf_file)
         reload_data = True
     elif i == 16:
-
         it = _exp16_file_iterator(base_conf_file)
     else:
         raise ValueError('No such experiment number: %d' % i)
