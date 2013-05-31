@@ -71,18 +71,24 @@ class FeatureVectorsCsvDumper(TransformerMixin):
 
 
 columns = [('name', 'TEXT'),
-           ('sample_size', 'INTEGER'),
            ('train_voc_mean', 'INTEGER'),
            ('train_voc_std', 'INTEGER'),
+
+           #  thesaurus information, if using exp0-0a.strings naming format
            ('corpus', 'INTEGER'),
            ('features', 'INTEGER'),
            ('pos', 'TEXT'),
            ('fef', 'INTEGER'),
+
+           # experiment settings
+           ('sample_size', 'INTEGER'),
            ('classifier', 'TEXT'),
+           ('keep_only_IT', 'BOOLEAN'),
+           ('use_signifier_only', 'BOOLEAN'),
+           ('use_tfidf', 'BOOLEAN'),
 
+           # token  statistics
            ('total_tok', 'INTEGER'),
-           ('total_typ', 'INTEGER'),
-
            ('iv_it_tok_mean', 'INTEGER'),
            ('iv_it_tok_std', 'INTEGER'),
            ('iv_oot_tok_mean', 'INTEGER'),
@@ -92,6 +98,8 @@ columns = [('name', 'TEXT'),
            ('oov_oot_tok_mean', 'INTEGER'),
            ('oov_oot_tok_std', 'INTEGER'),
 
+           #  type statistics
+           ('total_typ', 'INTEGER'),
            ('iv_it_typ_mean', 'INTEGER'),
            ('iv_it_typ_std', 'INTEGER'),
            ('iv_oot_typ_mean', 'INTEGER'),
@@ -101,7 +109,7 @@ columns = [('name', 'TEXT'),
            ('oov_oot_typ_mean', 'INTEGER'),
            ('oov_oot_typ_std', 'INTEGER'),
 
-
+           #  performance
            ('metric', 'TEXT'),
            ('score_mean', 'FLOAT'),
            ('score_std', 'FLOAT')]

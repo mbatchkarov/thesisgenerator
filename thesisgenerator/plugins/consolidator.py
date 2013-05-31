@@ -4,7 +4,11 @@ import csv
 import glob
 import os
 import re
+
 import numpy
+
+from thesisgenerator.utils import get_confrc
+
 
 __author__ = 'mmb28'
 
@@ -13,6 +17,18 @@ Goes through output and log files for a given experiment and collects
 interesting information. It is then passed on to a writer object,
 which may write it to a csv or to a database
 """
+
+
+def _get_value_from_conf_file(key, conf_txt, confrc_txt):
+    try:
+        value = re.findall('%s=(.*)' % key, conf_txt)[0]
+    except IndexError:
+        # if the parameter is not explicitly specified,
+        # fetch its default value from the confspec file
+        value = re.findall('%s=.+\(default=(.+)\)' % key, confrc_txt)[0]
+    if value is None:
+        raise ValueError('Could not determine value of parameter %s' % key)
+    return value
 
 
 def consolidate_results(writer, conf_dir, log_dir, output_dir,
@@ -28,9 +44,16 @@ def consolidate_results(writer, conf_dir, log_dir, output_dir,
     unknown_pos_stats, found_pos_stats = {}, {}
     for conf_file in experiments:
         print 'Processing file %s' % conf_file
+        with open(get_confrc(conf_file)) as infile:
+            confrc_txt = ''.join(infile.readlines())
         with open(conf_file) as infile:
             conf_txt = ''.join(infile.readlines())
-        exp_name = re.findall('name=(.*)', conf_txt)[0]
+        exp_name = _get_value_from_conf_file('name', conf_txt, confrc_txt)
+        keep_only_IT = _get_value_from_conf_file('keep_only_IT', conf_txt,
+                                                 confrc_txt)
+        use_signifier_only = _get_value_from_conf_file('use_signifier_only',
+                                                       conf_txt, confrc_txt)
+        use_tfidf = _get_value_from_conf_file('use_tfidf', conf_txt, confrc_txt)
 
         # find out thesaurus information
         data_shape_x, data_shape_y = [], []
@@ -81,41 +104,72 @@ def consolidate_results(writer, conf_dir, log_dir, output_dir,
 
         # find out the classifier score from the final csv file
         output_file = os.path.join(output_dir, '%s.out.csv' % exp_name)
+
         try:
             reader = csv.reader(open(output_file, 'r'))
             _ = reader.next()   # skip over header
             for row in reader:
                 classifier, metric, score_my_mean, score_my_std = row
 
-                writer.writerow(
-                    [exp_name, int(my_mean(data_shape_x)),
-                     int(my_mean(data_shape_y)), int(my_std(data_shape_y)),
-                     corpus, features, pos, fef, classifier,
+                writer.writerow([
+                    exp_name,
 
-                     int(total_tok), int(total_typ),
+                    int(my_mean(data_shape_y)), # train_voc_mean
+                    int(my_std(data_shape_y)), # train_voc_std
 
-                     int(my_mean(iv_it_tok)), int(my_std(iv_it_tok)),
-                     int(my_mean(iv_oot_tok)), int(my_std(iv_oot_tok)),
-                     int(my_mean(oov_it_tok)), int(my_std(oov_it_tok)),
-                     int(my_mean(oov_oot_tok)), int(my_std(oov_oot_tok)),
+                    # thesaurus information, if using exp0-0a naming format
+                    corpus,
+                    features,
+                    pos,
+                    fef,
 
-                     int(my_mean(iv_it_ty)), int(my_std(iv_it_ty)),
-                     int(my_mean(iv_oot_ty)), int(my_std(iv_oot_ty)),
-                     int(my_mean(oov_it_ty)), int(my_std(oov_it_ty)),
-                     int(my_mean(oov_oot_ty)), int(my_std(oov_oot_ty)),
+                    # experiment settings
+                    int(my_mean(data_shape_x)), #sample_size
+                    classifier,
+                    # these need to be converted to a bool and then to an int
+                    #  because mysql stores booleans as a tinyint and complains
+                    #  if you pass in a python boolean
+                    int(ast.literal_eval(keep_only_IT)),
+                    int(ast.literal_eval(use_signifier_only)),
+                    int(ast.literal_eval(use_tfidf)),
 
-                     metric, score_my_mean, score_my_std])
+                    # token status
+                    int(total_tok),
+                    int(my_mean(iv_it_tok)),
+                    int(my_std(iv_it_tok)),
+                    int(my_mean(iv_oot_tok)),
+                    int(my_std(iv_oot_tok)),
+                    int(my_mean(oov_it_tok)),
+                    int(my_std(oov_it_tok)),
+                    int(my_mean(oov_oot_tok)),
+                    int(my_std(oov_oot_tok)),
+
+                    # type stats
+                    int(total_typ),
+                    int(my_mean(iv_it_ty)),
+                    int(my_std(iv_it_ty)),
+                    int(my_mean(iv_oot_ty)),
+                    int(my_std(iv_oot_ty)),
+                    int(my_mean(oov_it_ty)),
+                    int(my_std(oov_it_ty)),
+                    int(my_mean(oov_oot_ty)),
+                    int(my_std(oov_oot_ty)),
+
+                    # performance
+                    metric,
+                    score_my_mean,
+                    score_my_std])
         except IOError:
             print 'WARNING: %s is missing' % output_file
             continue    # file is missing
 
-    if unknown_pos_stats:
-        from pandas import DataFrame
+        if unknown_pos_stats:
+            from pandas import DataFrame
 
-        df = DataFrame(unknown_pos_stats).T
-        df.to_csv('unknown_token_stats.csv')
-        df = DataFrame(found_pos_stats).T
-        df.to_csv('found_token_stats.csv')
+            df = DataFrame(unknown_pos_stats).T
+            df.to_csv('unknown_token_stats.csv')
+            df = DataFrame(found_pos_stats).T
+            df.to_csv('found_token_stats.csv')
 
 
 def _extract_thesausus_coverage_info(log_txt):

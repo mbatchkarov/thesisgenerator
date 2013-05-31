@@ -306,9 +306,9 @@ def run_experiment(i, num_workers=4,
         raise ValueError('No such experiment number: %d' % i)
 
     _clear_old_files(i, prefix)
-
     evaluate_thesauri(base_conf_file, it, pool_size=num_workers,
                       reload_data=reload_data)
+
     # ----------- CONSOLIDATION -----------
     output_dir = '%s/conf/exp%d/output/' % (prefix, i)
     csv_out_fh = open(os.path.join(output_dir, "summary%d.csv" % i), "w")
