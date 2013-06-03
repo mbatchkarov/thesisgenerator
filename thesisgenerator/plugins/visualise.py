@@ -1,6 +1,8 @@
 # coding=utf-8
+from itertools import product
 from math import sqrt
 import operator
+from jinja2 import Template
 
 import numpy
 from thesisgenerator import utils
@@ -9,6 +11,12 @@ __author__ = 'mmb28'
 
 import matplotlib.pyplot as plt
 import pandas.io.sql as psql
+
+coverage_sql = \
+    "    SELECT DISTINCT name, sample_size,total_tok,total_typ, " \
+    "{{ variables|join(', ') }} FROM data{{ '{:02d}'.format(number)}} " \
+    "{% if wheres %} WHERE {{ wheres|join(' and ') }} {% endif %} " \
+    "ORDER BY sample_size"
 
 
 def query_to_data_frame(sql):
@@ -85,7 +93,6 @@ def performance_bar_chart(tables, classifiers, width=0.2, cv=25):
                   "order by sample_size" % (table, classifier)
             print sql
             df = query_to_data_frame(sql)
-            # print df
             data_frames.append(('%.2d-%s' % (table, classifier),
                                 df))
 
@@ -105,7 +112,10 @@ def performance_bar_chart(tables, classifiers, width=0.2, cv=25):
 
 
 def coverage_bar_chart(experiments, width=0.13, cv=25,
-                       x_columns=['sample_size'], legend_position='best'):
+                       x_columns=['sample_size'],
+                       wheres=[],
+                       legend_position='best',
+                       xlabel='Sample size'):
     data_frames = []
     stats = [
         ['iv_it_tok_mean', 'iv_it_tok_std'],
@@ -116,9 +126,16 @@ def coverage_bar_chart(experiments, width=0.13, cv=25,
 
     for experiment in experiments:
         for stat in stats:
-            sql = "SELECT DISTINCT name, sample_size,total_tok,total_typ,%s " \
-                  "FROM data%.2d order by sample_size" % (','.join(stat),
-                                                          experiment)
+            # sql = "SELECT DISTINCT name, sample_size,total_tok,total_typ,%s " \
+            #       "FROM data%.2d order by sample_size " % (','.join(stat),
+            #                                                experiment)
+
+            values = {
+                'variables': stat,
+                'number': experiment,
+                'wheres': wheres
+            }
+            sql = Template(coverage_sql).render(values)
             print sql
             df = query_to_data_frame(sql)
             # normalise coverage stats by total types/tokens
@@ -128,19 +145,20 @@ def coverage_bar_chart(experiments, width=0.13, cv=25,
                           map(float, df['total_%s' % stat[1][-7:-4]])
             name = '%.2d-%s' % (experiment, stat[0])
             data_frames.append((name, df))
-
     y_columns = [x[0] for x in stats]
     yerr_columns = [x[1] for x in stats]
 
     ax = _grouped_bar_chart(data_frames, width, x_columns, y_columns,
-                            yerr_columns, hatch=True, cv=cv)
+                            yerr_columns, hatch=False, cv=cv)
 
-    # ax.set_xlabel('Sample size')
+    ax.set_xlabel(xlabel)
     ax.set_ylabel('Proportion of total tokens/types')
     ax.set_title('Thesaurus coverage')
     ax.legend(y_columns, legend_position, ncol=len(y_columns),
               prop={'size': 6})
-    plt.savefig('figures/exp%s-coverage.png' % experiment, format='png',
+    plt.savefig('figures/exp%s-%s-coverage.png' % (experiment,
+                                                   '_'.join(wheres)),
+                format='png',
                 dpi=300)
 
 
@@ -173,5 +191,12 @@ def coverage_bar_chart(experiments, width=0.13, cv=25,
 # performance_bar_chart([17, 18], ['LogisticRegression'])
 
 # coverage_bar_chart([6, 8], cv=5, legend_position='upper center')
-coverage_bar_chart([22], x_columns=['sample_size'])
+
+for keep, use in product([0, 1], [0, 1]):
+    coverage_bar_chart([22],
+                       x_columns=['sample_size'],
+                       wheres=[
+                           'keep_only_it=%d' % keep,
+                           'use_signifier_only=%d' % use])
+
 print 'done'
