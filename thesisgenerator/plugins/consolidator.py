@@ -6,8 +6,7 @@ import os
 import re
 
 import numpy
-
-from thesisgenerator.utils import get_confrc
+from thesisgenerator.__main__ import parse_config_file
 
 
 __author__ = 'mmb28'
@@ -17,18 +16,6 @@ Goes through output and log files for a given experiment and collects
 interesting information. It is then passed on to a writer object,
 which may write it to a csv or to a database
 """
-
-
-def _get_value_from_conf_file(key, conf_txt, confrc_txt):
-    try:
-        value = re.findall('%s=(.*)' % key, conf_txt)[0]
-    except IndexError:
-        # if the parameter is not explicitly specified,
-        # fetch its default value from the confspec file
-        value = re.findall('%s=.+\(default=(.+)\)' % key, confrc_txt)[0]
-    if value is None:
-        raise ValueError('Could not determine value of parameter %s' % key)
-    return value
 
 
 def consolidate_results(writer, conf_dir, log_dir, output_dir,
@@ -44,16 +31,19 @@ def consolidate_results(writer, conf_dir, log_dir, output_dir,
     unknown_pos_stats, found_pos_stats = {}, {}
     for conf_file in experiments:
         print 'Processing file %s' % conf_file
-        with open(get_confrc(conf_file)) as infile:
-            confrc_txt = ''.join(infile.readlines())
-        with open(conf_file) as infile:
-            conf_txt = ''.join(infile.readlines())
-        exp_name = _get_value_from_conf_file('name', conf_txt, confrc_txt)
-        keep_only_IT = _get_value_from_conf_file('keep_only_IT', conf_txt,
-                                                 confrc_txt)
-        use_signifier_only = _get_value_from_conf_file('use_signifier_only',
-                                                       conf_txt, confrc_txt)
-        use_tfidf = _get_value_from_conf_file('use_tfidf', conf_txt, confrc_txt)
+
+        config_obj, configspec_file = parse_config_file(conf_file)
+        # with open(get_confrc(conf_file)) as infile:
+        #     confrc_txt = ''.join(infile.readlines())
+        # with open(conf_file) as infile:
+        #     conf_txt = ''.join(infile.readlines())
+
+
+        exp_name = config_obj['name']
+        keep_only_IT = config_obj['tokenizer']['keep_only_IT']
+        use_signifier_only = config_obj['feature_extraction'] \
+            ['use_signifier_only']
+        use_tfidf = config_obj['feature_extraction']['use_tfidf']
 
         # find out thesaurus information
         data_shape_x, data_shape_y = [], []
@@ -90,7 +80,7 @@ def consolidate_results(writer, conf_dir, log_dir, output_dir,
             _extract_thesausus_coverage_info(log_txt)
 
         # find out the name of the thesaurus(es) from the conf file
-        corpus, features, fef, pos = _infer_thesaurus_name(conf_txt)
+        corpus, features, fef, pos = _infer_thesaurus_name(config_obj)
 
         def my_mean(x):
             return numpy.mean(x) if x else -1
@@ -129,9 +119,9 @@ def consolidate_results(writer, conf_dir, log_dir, output_dir,
                     # these need to be converted to a bool and then to an int
                     #  because mysql stores booleans as a tinyint and complains
                     #  if you pass in a python boolean
-                    int(ast.literal_eval(keep_only_IT)),
-                    int(ast.literal_eval(use_signifier_only)),
-                    int(ast.literal_eval(use_tfidf)),
+                    int(keep_only_IT),
+                    int(use_signifier_only),
+                    int(use_tfidf),
 
                     # token status
                     int(total_tok),
@@ -217,24 +207,24 @@ def _extract_thesausus_coverage_info(log_txt):
            iv_oot_ty, oov_it_ty, oov_oot_ty, total_tok, total_typ
 
 
-def _infer_thesaurus_name(conf_txt):
-    thesauri = ''.join(re.findall('thesaurus_files\s*=(.+)', conf_txt))
-    if thesauri:
-    # thesauri is something like "exp6-11a/exp6.sims.neighbours.strings,"
-        corpus = re.findall('exp([0-9]+)', thesauri)[0]
-        features = (re.findall('-([0-9]+)', thesauri))[0]
-        pos = (re.findall('-[0-9]+(.)', thesauri))[0]
-        fef = re.findall('fef([0-9]+)', thesauri)
-        # 'fef' isn't in thesaurus name, i.e. has not been postfiltered
-        if not fef:
-            fef = 0
-            print 'WARNING: thesaurus file name %s does not contain ' \
-                  'explicit fef information' % thesauri
-    else:
-        # a thesaurus was not used
-        corpus, features, pos, fef = -1, -1, -1, -1
+def _infer_thesaurus_name(config_obj):
+    thesauri = config_obj['feature_extraction']['thesaurus_files']
 
-    return corpus, features, fef, pos
+    corpus, features, pos, fef = [], [], [], []
+    if thesauri:
+        for t in thesauri:
+            pattern = '.*exp(?P<corpus>\d+)-(?P<features>\d+)(?P<pos>[A-Za-z])' \
+                      '(fef(?P<fef>\d+))?.*'
+            m = re.match(pattern, t)
+            corpus.append(m.group('corpus'))
+            features.append(m.group('features'))
+            pos.append(m.group('pos'))
+            fef.append(m.group('fef') if m.group('fef') else '?')
+
+    return '_'.join(corpus), \
+           '_'.join(features), \
+           '_'.join(fef), \
+           '_'.join(pos)
 
 
 def _pos_statistics(input_file):

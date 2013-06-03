@@ -75,10 +75,10 @@ columns = [('name', 'TEXT'),
            ('train_voc_std', 'INTEGER'),
 
            #  thesaurus information, if using exp0-0a.strings naming format
-           ('corpus', 'INTEGER'),
-           ('features', 'INTEGER'),
+           ('corpus', 'TEXT'),
+           ('features', 'TEXT'),
            ('pos', 'TEXT'),
-           ('fef', 'INTEGER'),
+           ('fef', 'TEXT'),
 
            # experiment settings
            ('sample_size', 'INTEGER'),
