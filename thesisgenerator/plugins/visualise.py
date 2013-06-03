@@ -18,6 +18,12 @@ coverage_sql = \
     "{% if wheres %} WHERE {{ wheres|join(' and ') }} {% endif %} " \
     "ORDER BY sample_size"
 
+perf_sql = "SELECT sample_size,score_mean,score_std " \
+           "FROM data{{ '{:02d}'.format(number)}} " \
+           "WHERE metric=\"macroavg_f1\" and classifier=\"{{classifier}}\"" \
+           "{% if wheres %} and {{ wheres|join(' and ') }} {% endif %} " \
+           "ORDER BY sample_size"
+
 
 def query_to_data_frame(sql):
     return psql.frame_query(sql, utils.get_susx_mysql_conn())
@@ -78,7 +84,7 @@ def _grouped_bar_chart(data_frames, width, x_columns, y_columns,
     return ax
 
 
-def performance_bar_chart(tables, classifiers, width=0.2, cv=25):
+def performance_bar_chart(tables, classifiers, width=0.2, cv=25, wheres=[]):
     x_columns = ['sample_size']
     y_columns = ['score_mean']
     yerr_columns = ['score_std']
@@ -91,6 +97,14 @@ def performance_bar_chart(tables, classifiers, width=0.2, cv=25):
                   "metric = \"macroavg_f1\" and" \
                   " classifier = \"%s\"" \
                   "order by sample_size" % (table, classifier)
+
+            values = {
+                'classifier': classifier,
+                'number': table,
+                'wheres': wheres
+            }
+            sql = Template(perf_sql).render(values)
+
             print sql
             df = query_to_data_frame(sql)
             data_frames.append(('%.2d-%s' % (table, classifier),
@@ -106,7 +120,9 @@ def performance_bar_chart(tables, classifiers, width=0.2, cv=25):
     ax.set_ylim([0., 1.])
     exp_range = '-'.join(map(str, tables))
     classifiers = '-'.join([x[:5] for x in classifiers])
-    plt.savefig('figures/exp%s-%s-performa.png' % (exp_range, classifiers),
+    plt.savefig('figures/exp%s-%s-%s-perf.png' % (exp_range,
+                                                  classifiers,
+                                                  '_'.join(wheres)),
                 format='png',
                 dpi=300)
 
@@ -192,11 +208,31 @@ def coverage_bar_chart(experiments, width=0.13, cv=25,
 
 # coverage_bar_chart([6, 8], cv=5, legend_position='upper center')
 
+
 for keep, use in product([0, 1], [0, 1]):
     coverage_bar_chart([22],
                        x_columns=['sample_size'],
                        wheres=[
                            'keep_only_it=%d' % keep,
                            'use_signifier_only=%d' % use])
+
+for use in [0, 1]:
+    for keep in [0, 1]:
+        performance_bar_chart([22],
+                              ['BernoulliNB'],
+                              wheres=[
+                                  'use_signifier_only=%d' % use,
+                                  'keep_only_it=%d' % keep,
+                                  'sample_size>=40'])
+# this is the same information as above, but in different order- makes it
+# easier to see the change we are interested in when browsing images
+for keep in [0, 1]:
+    for use in [1, 0]:
+        performance_bar_chart([22],
+                              ['BernoulliNB'],
+                              wheres=[
+                                  'keep_only_it=%d' % keep,
+                                  'use_signifier_only=%d' % use,
+                                  'sample_size>=40'])
 
 print 'done'
