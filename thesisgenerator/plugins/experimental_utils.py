@@ -138,51 +138,51 @@ def _write_exp2_to_14_conf_file(base_conf_file, exp_id, run_id,
     return new_conf_file, log_dir
 
 
-def _write_exp22conf_file(base_conf_file, exp_id, run_id, sample_size,
-                          keep_only_IT, use_signifier_only):
-    """
-    Prepares conf files for exp22 by altering the sample_size,
-    use_signifier_only and keep_only_IT  parameters in the provided base
-    conf file
-    """
-    log_dir, new_conf_file = _prepare_conf_files(base_conf_file, exp_id,
-                                                 run_id)
+# def _write_exp22conf_file(base_conf_file, exp_id, run_id, sample_size,
+#                           keep_only_IT, use_signifier_only):
+#     """
+#     Prepares conf files for exp22 by altering the sample_size,
+#     use_signifier_only and keep_only_IT  parameters in the provided base
+#     conf file
+#     """
+#     log_dir, new_conf_file = _prepare_conf_files(base_conf_file, exp_id,
+#                                                  run_id)
+#
+#     replace_in_file(new_conf_file, 'name', 'exp%d-%d' % (exp_id, run_id))
+#     replace_in_file(new_conf_file, ['crossvalidation', 'sample_size'],
+#                     sample_size)
+#     replace_in_file(new_conf_file, ['feature_extraction', 'use_signifier_only'],
+#                     use_signifier_only)
+#     replace_in_file(new_conf_file, ['tokenizer', 'keep_only_IT'], keep_only_IT)
+#     replace_in_file(new_conf_file, 'debug', False)
+#     return new_conf_file, log_dir
 
-    replace_in_file(new_conf_file, 'name', 'exp%d-%d' % (exp_id, run_id))
-    replace_in_file(new_conf_file, ['crossvalidation', 'sample_size'],
-                    sample_size)
-    replace_in_file(new_conf_file, ['feature_extraction', 'use_signifier_only'],
-                    use_signifier_only)
-    replace_in_file(new_conf_file, ['tokenizer', 'keep_only_IT'], keep_only_IT)
-    replace_in_file(new_conf_file, 'debug', False)
-    return new_conf_file, log_dir
 
-
-def _exp2_to_14_file_iterator(sizes, exp_id, conf_file):
-    for id, size in enumerate(sizes):
+def _vary_training_size_file_iterator(sizes, exp_id, conf_file):
+    for sub_id, size in enumerate(sizes):
         new_conf_file, log_file = _write_exp2_to_14_conf_file(conf_file,
-
                                                               exp_id,
-                                                              id, size)
+                                                              sub_id,
+                                                              size)
         print 'Yielding %s, %s' % (new_conf_file, new_conf_file)
         yield new_conf_file, log_file
     raise StopIteration
 
 
-def _exp22_file_iterator(sizes, exp_id, conf_file):
-    id = 0
-    for size in sizes:
-        for keep_only_IT in [True, False]:
-            for use_signifier_only in [True, False]:
-                new_conf_file, log_file = _write_exp22conf_file(conf_file,
-                                                                exp_id,
-                                                                id, size,
-                                                                keep_only_IT,
-                                                                use_signifier_only)
-                print 'Yielding %s, %s' % (new_conf_file, new_conf_file)
-                yield new_conf_file, log_file
-                id += 1
-    raise StopIteration
+# def _exp22_file_iterator(sizes, exp_id, conf_file):
+#     sub_id = 0
+#     for size in sizes:
+#         for keep_only_IT in [True, False]:
+#             for use_signifier_only in [True, False]:
+#                 new_conf_file, log_file = _write_exp22conf_file(conf_file,
+#                                                                 exp_id,
+#                                                                 sub_id, size,
+#                                                                 keep_only_IT,
+#                                                                 use_signifier_only)
+#                 print 'Yielding %s, %s' % (new_conf_file, new_conf_file)
+#                 yield new_conf_file, log_file
+#                 sub_id += 1
+#     raise StopIteration
 
 
 def _write_exp15_conf_file(base_conf_file, exp_id, run_id, shuffle):
@@ -316,12 +316,8 @@ def run_experiment(i, num_workers=4,
                                  '%s/conf/exp1/exp1_base.conf' % prefix)
 
     # ----------- EXPERIMENTS 2-14 -----------
-    elif i == 0 or 1 < i <= 14 or 17 <= i <= 21:
-        # sizes = chain(range(100, 1000, 100), range(1000, 5000, 500))
-
-        it = _exp2_to_14_file_iterator(sizes, i, base_conf_file)
-    elif i == 22:
-        it = _exp22_file_iterator(sizes, i, base_conf_file)
+    elif i == 0 or 1 < i <= 14 or 17 <= i <= 25:
+        it = _vary_training_size_file_iterator(sizes, i, base_conf_file)
     elif i == 15:
         it = _exp15_file_iterator(base_conf_file)
         reload_data = True
