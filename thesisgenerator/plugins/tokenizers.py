@@ -142,6 +142,8 @@ class XmlTokenizer(object):
                     txt = txt.lower()
 
                 if self.keep_only_IT and txt not in thes_entries:
+                    logging.getLogger().debug('Tokenizer ignoring OOT token: '
+                                              '%s' % txt)
                     continue
                 tokens.append(txt)
 
