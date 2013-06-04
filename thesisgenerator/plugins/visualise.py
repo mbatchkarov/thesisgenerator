@@ -91,12 +91,6 @@ def performance_bar_chart(tables, classifiers, width=0.2, cv=25, wheres=[]):
     data_frames = []
     for table in tables:
         for classifier in classifiers:
-            sql = "SELECT sample_size,score_mean,score_std FROM data%.2d " \
-                  "where " \
-                  "metric = \"macroavg_f1\" and" \
-                  " classifier = \"%s\"" \
-                  "order by sample_size" % (table, classifier)
-
             values = {
                 'classifier': classifier,
                 'number': table,
