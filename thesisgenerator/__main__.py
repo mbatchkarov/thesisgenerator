@@ -5,8 +5,11 @@ Created on Oct 18, 2012
 
 @author: ml249
 """
-import os
+
+# if one tries to run this script from the main project directory the
+# thesisgenerator package would not be on the path, add it and try again
 import sys
+import os
 import shutil
 from glob import glob
 import logging
@@ -363,7 +366,7 @@ def _build_pipeline(id, classifier_name, feature_extr_conf, feature_sel_conf,
     return pipeline
 
 
-def _run_tasks(configuration, data=None):
+def _run_tasks(configuration, n_jobs, data=None):
     """
     Runs all commands specified in the configuration file
     """
@@ -460,7 +463,7 @@ def _run_tasks(configuration, data=None):
             cached_cross_val_score(pipeline, x_vals_seen, y_vals_seen,
                                    ChainCallable(
                                        configuration['evaluation']),
-                                   cv=cv_iterator, n_jobs=1,
+                                   cv=cv_iterator, n_jobs=n_jobs,
                                    verbose=0)
 
         for run_number in range(len(scores_this_clf)):
@@ -633,7 +636,7 @@ def _init_utilities_state(config):
     )
 
 
-def go(conf_file, log_dir, data=None, classpath='', clean=False):
+def go(conf_file, log_dir, data=None, classpath='', clean=False, n_jobs=1):
     if not os.path.exists(log_dir):
         os.makedirs(log_dir)
 
@@ -647,7 +650,7 @@ def go(conf_file, log_dir, data=None, classpath='', clean=False):
     output = config['output_dir']
     _prepare_output_directory(clean, output)
     _prepare_classpath(classpath)
-    status, msg = _run_tasks(config, data)
+    status, msg = _run_tasks(config, n_jobs, data)
     shutil.copy(conf_file, output)
     return status, msg
 
@@ -661,26 +664,4 @@ if __name__ == '__main__':
     classpath = args.classpath
     clean = args.clean
 
-    go(conf_file, log_dir, classpath=classpath, clean=clean)
-
-
-
-    # runs a full pipeline in-process for profiling purposes
-#    from thesis_generator.plugins.bov import ThesaurusVectorizer
-#    options = {}
-#    options['input'] = conf_parser['feature_extraction']['input']
-#    options['input_generator'] = conf_parser['feature_extraction'][
-#                                 'input_generator']
-#    options['source'] = args.source
-#    log.info('Loading raw training set')
-#    x_vals, y_vals = _get_data_iterators(**options)
-#    if args.test:
-#        log.info('Loading raw test set')
-#        #  change where we read files from
-#        options['source'] = args.test
-#        x_test, y_test = _get_data_iterators(**options)
-#    del options
-#
-#    v = ThesaurusVectorizer(conf_parser['feature_extraction']['thesaurus_files'])
-#    t = v.load_thesauri()
-#    v.fit(x_vals)
+    go(conf_file, log_dir, classpath=classpath, clean=clean, n_jobs=25)
