@@ -1,5 +1,4 @@
 # coding=utf-8
-from itertools import product
 from math import sqrt
 import operator
 from jinja2 import Template
@@ -209,30 +208,29 @@ def coverage_bar_chart(experiments, width=0.13, cv=25,
 # coverage_bar_chart([6, 8], cv=5, legend_position='upper center')
 
 
-for keep, use in product([0, 1], [0, 1]):
-    coverage_bar_chart([22],
-                       x_columns=['sample_size'],
-                       wheres=[
-                           'keep_only_it=%d' % keep,
-                           'use_signifier_only=%d' % use])
+# coverage_bar_chart([22],x_columns=['sample_size'])
+# coverage_bar_chart([23],x_columns=['sample_size'])
+# coverage_bar_chart([24],x_columns=['sample_size'])
+# coverage_bar_chart([25],x_columns=['sample_size'])
+#
+# performance_bar_chart([23, 22], ['BernoulliNB'])
+# performance_bar_chart([23, 22], ['MultinomialNB'])
+# performance_bar_chart([23, 22], ['LogisticRegression'])
+#
+# performance_bar_chart([25, 24], ['BernoulliNB'])
+# performance_bar_chart([25, 24], ['MultinomialNB'])
+# performance_bar_chart([25, 24], ['LogisticRegression'])
+#
+# performance_bar_chart([22, 24], ['BernoulliNB'])
+# performance_bar_chart([22, 24], ['MultinomialNB'])
+# performance_bar_chart([22, 24], ['LogisticRegression'])
+#
+# performance_bar_chart([23, 25], ['BernoulliNB'])
+# performance_bar_chart([23, 25], ['MultinomialNB'])
+# performance_bar_chart([23, 25], ['LogisticRegression'])
 
-for use in [0, 1]:
-    for keep in [0, 1]:
-        performance_bar_chart([22],
-                              ['BernoulliNB'],
-                              wheres=[
-                                  'use_signifier_only=%d' % use,
-                                  'keep_only_it=%d' % keep,
-                                  'sample_size>=40'])
-# this is the same information as above, but in different order- makes it
-# easier to see the change we are interested in when browsing images
-for keep in [0, 1]:
-    for use in [1, 0]:
-        performance_bar_chart([22],
-                              ['BernoulliNB'],
-                              wheres=[
-                                  'keep_only_it=%d' % keep,
-                                  'use_signifier_only=%d' % use,
-                                  'sample_size>=40'])
+performance_bar_chart([22, 23, 24, 25], ['BernoulliNB'])
+performance_bar_chart([22, 23, 24, 25], ['MultinomialNB'])
+performance_bar_chart([22, 23, 24, 25], ['LogisticRegression'])
 
 print 'done'
