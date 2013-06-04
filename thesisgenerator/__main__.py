@@ -526,7 +526,7 @@ def analyze(scores, output_dir, name):
     return csv
 
 
-def _config_logger(output_path=None, name='log'):
+def _config_logger(output_path=None, name='log', debug=False):
     newly_created_logger = logging.getLogger()
 
     # for parallelisation purposes we need to remove all the handlers that were
@@ -565,7 +565,10 @@ def _config_logger(output_path=None, name='log'):
     if output_path is not None:
         log_file = os.path.join(output_path, '%s.log' % name)
         fh = logging.FileHandler(log_file, mode='w')
-        fh.setLevel(logging.DEBUG)
+        if debug:
+            fh.setLevel(logging.DEBUG)
+        else:
+            fh.setLevel(logging.INFO)
         fh.setFormatter(fmt)
         #        fh.addFilter(MyFilter(logging.DEBUG))
         #   fh1 = logging.FileHandler(os.path.join(output_path, 'log-info.txt'),
@@ -648,7 +651,7 @@ def go(conf_file, log_dir, data=None, classpath='', clean=False, n_jobs=1):
 
     config, configspec_file = parse_config_file(conf_file)
 
-    log = _config_logger(log_dir, config['name'])
+    log = _config_logger(log_dir, name=config['name'], debug=config['debug'])
     log.info(
         'Reading configuration file from \'%s\', conf spec from \'%s\''
         % (glob(conf_file)[0], configspec_file))

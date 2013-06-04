@@ -32,18 +32,16 @@ class StatsRecorder(object):
     def register_token(self, token, iv, it):
         if iv and it:
             self.iv_it.append(token)
-            # logging.getLogger().debug('IV IT token %s' % token)
+            logging.getLogger().debug('IV IT token %s' % token)
         elif iv and not it:
             self.iv_oot.append(token)
-            # logging.getLogger().debug('IV OOT token %s' % token)
+            logging.getLogger().debug('IV OOT token %s' % token)
         elif not iv and it:
             self.oov_it.append(token)
-            # logging.getLogger().debug('OOV IT token %s' % token)
+            logging.getLogger().debug('OOV IT token %s' % token)
         else:
             self.oov_oot.append(token)
-            # logging.getLogger().debug('OOV OOT token %s' % token)
-            # self.all_types.add(token)
-            # self.num_tokens += 1
+            logging.getLogger().debug('OOV OOT token %s' % token)
 
     def print_coverage_stats(self):
         logging.getLogger().info('Vectorizer: '

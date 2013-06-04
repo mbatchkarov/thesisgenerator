@@ -134,7 +134,7 @@ def _write_exp2_to_14_conf_file(base_conf_file, exp_id, run_id,
     replace_in_file(new_conf_file, 'name', 'exp%d-%d' % (exp_id, run_id))
     replace_in_file(new_conf_file, ['crossvalidation', 'sample_size'],
                     sample_size)
-    replace_in_file(new_conf_file, 'debug', False)
+    # replace_in_file(new_conf_file, 'debug', False)
     return new_conf_file, log_dir
 
 
