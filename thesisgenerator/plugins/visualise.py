@@ -53,6 +53,15 @@ def _grouped_bar_chart(data_frames, width, x_columns, y_columns,
      sqrt(cv) to get std error from stdev
 
     """
+
+    def autolabel(rects):
+        # attach some text labels
+        for rect in rects:
+            height = rect.get_height()
+            plt.text(rect.get_x() + rect.get_width() / 2., 1.05 * height,
+                     '%.2f' % height,
+                     ha='center', va='bottom', size=5, rotation=90)
+
     x_columns, y_columns, yerr_columns = _safe_column_names(data_frames,
                                                             x_columns,
                                                             y_columns,
@@ -76,10 +85,12 @@ def _grouped_bar_chart(data_frames, width, x_columns, y_columns,
         x = numpy.arange(len(df[x_columns[i]]))
         y = df[y_columns[i]]
         yerr = df[yerr_columns[i]] / sqrt(cv)
-        ax.bar(x + i * width, y, width, yerr=yerr, color=color, ecolor='black',
-               linewidth=0, hatch=hatches[i % len(data_frames)])
+        rects = ax.bar(x + i * width, y, width, yerr=yerr, color=color,
+                       ecolor='black',
+                       linewidth=0, hatch=hatches[i % len(data_frames)])
         ax.set_xticks(x + (i / 2) * width + width)
         ax.set_xticklabels(tuple(df[x_columns[i]]), rotation=-30)
+        autolabel(rects)
     return ax
 
 
@@ -202,26 +213,26 @@ def coverage_bar_chart(experiments, width=0.13, cv=25,
 # coverage_bar_chart([6, 8], cv=5, legend_position='upper center')
 
 
-# coverage_bar_chart([22],x_columns=['sample_size'])
-# coverage_bar_chart([23],x_columns=['sample_size'])
-# coverage_bar_chart([24],x_columns=['sample_size'])
-# coverage_bar_chart([25],x_columns=['sample_size'])
-#
-# performance_bar_chart([23, 22], ['BernoulliNB'])
-# performance_bar_chart([23, 22], ['MultinomialNB'])
-# performance_bar_chart([23, 22], ['LogisticRegression'])
-#
-# performance_bar_chart([25, 24], ['BernoulliNB'])
-# performance_bar_chart([25, 24], ['MultinomialNB'])
-# performance_bar_chart([25, 24], ['LogisticRegression'])
-#
-# performance_bar_chart([22, 24], ['BernoulliNB'])
-# performance_bar_chart([22, 24], ['MultinomialNB'])
-# performance_bar_chart([22, 24], ['LogisticRegression'])
-#
-# performance_bar_chart([23, 25], ['BernoulliNB'])
-# performance_bar_chart([23, 25], ['MultinomialNB'])
-# performance_bar_chart([23, 25], ['LogisticRegression'])
+coverage_bar_chart([22], x_columns=['sample_size'])
+coverage_bar_chart([23], x_columns=['sample_size'])
+coverage_bar_chart([24], x_columns=['sample_size'])
+coverage_bar_chart([25], x_columns=['sample_size'])
+
+performance_bar_chart([23, 22], ['BernoulliNB'])
+performance_bar_chart([23, 22], ['MultinomialNB'])
+performance_bar_chart([23, 22], ['LogisticRegression'])
+
+performance_bar_chart([25, 24], ['BernoulliNB'])
+performance_bar_chart([25, 24], ['MultinomialNB'])
+performance_bar_chart([25, 24], ['LogisticRegression'])
+
+performance_bar_chart([22, 24], ['BernoulliNB'])
+performance_bar_chart([22, 24], ['MultinomialNB'])
+performance_bar_chart([22, 24], ['LogisticRegression'])
+
+performance_bar_chart([23, 25], ['BernoulliNB'])
+performance_bar_chart([23, 25], ['MultinomialNB'])
+performance_bar_chart([23, 25], ['LogisticRegression'])
 
 performance_bar_chart([22, 23, 24, 25], ['BernoulliNB'])
 performance_bar_chart([22, 23, 24, 25], ['MultinomialNB'])
