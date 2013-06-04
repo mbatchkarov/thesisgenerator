@@ -9,6 +9,12 @@ Created on Oct 18, 2012
 # if one tries to run this script from the main project directory the
 # thesisgenerator package would not be on the path, add it and try again
 import sys
+
+
+sys.path.append('.')
+sys.path.append('..')
+sys.path.append('../..')
+
 import os
 import shutil
 from glob import glob
