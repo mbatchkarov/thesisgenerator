@@ -76,6 +76,11 @@ class Test_tokenizer(TestCase):
         tokens = self.tokenizer(ET.tostring(tree))
         self.assertListEqual(tokens, ['Cats', 'dogs'])
 
+        self.tokenizer.use_pos = True
+        self.tokenizer.coarse_pos = True
+        tokens = self.tokenizer(ET.tostring(tree))
+        self.assertListEqual(tokens, ['Cats/N', 'dogs/N'])
+
     def test_xml_tokenizer_short_words(self):
         """
         tests xml_tokenizer's short word removal facility
@@ -84,6 +89,11 @@ class Test_tokenizer(TestCase):
         self.tokenizer.remove_short_words = True
         tokens = self.tokenizer(self.doc)
         self.assertListEqual(tokens, ['like'])
+
+        self.tokenizer.use_pos = True
+        self.tokenizer.coarse_pos = True
+        tokens = self.tokenizer(self.doc)
+        self.assertListEqual(tokens, ['like/V'])
 
     def test_xml_tokenizer_pos(self):
         """
