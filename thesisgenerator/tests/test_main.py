@@ -26,7 +26,7 @@ class Test_ThesaurusVectorizer(TestCase):
         self._thesaurus_opts = {
             'thesaurus_files': ['thesisgenerator/resources/exp0-0a.strings'],
             'sim_threshold': 0,
-            'k': 10,
+            # 'k': 10,
             'include_self': False
         }
 
@@ -187,6 +187,7 @@ class Test_ThesaurusVectorizer(TestCase):
                 """
             compare_csv(expected, 'ev')
 
+    @skip("Do not use replace_all for now")
     def test_replaceAll_True_includeSelf_False(self):
         self.feature_extraction_conf['replace_all'] = True
         self._thesaurus_opts['include_self'] = False
@@ -222,6 +223,9 @@ class Test_ThesaurusVectorizer(TestCase):
             )
         )
 
+    @skip("include_self makes no sense with replace_all at decode time. "
+          "The nearest neighbour of each unknown token is going to be itself,"
+          " which is OOV and will not be inserted")
     def test_replaceAll_True_includeSelf_True(self):
         self.feature_extraction_conf['replace_all'] = True
         self._thesaurus_opts['include_self'] = True
@@ -262,7 +266,7 @@ class Test_ThesaurusVectorizer(TestCase):
         self.feature_extraction_conf['use_signifier_only'] = True
         self._thesaurus_opts['thesaurus_files'] = \
             ['thesisgenerator/resources/exp0-0b.strings']
-        self._thesaurus_opts['k'] = 1
+        # self._thesaurus_opts['k'] = 1 # todo needs fixing
         self._reload_thesaurus()
 
         self.x_tr, self.y_tr, self.x_ev, self.y_ev = self. \
@@ -299,7 +303,7 @@ class Test_ThesaurusVectorizer(TestCase):
         self.feature_extraction_conf['use_signifier_only'] = True
         self._thesaurus_opts['thesaurus_files'] = \
             ['thesisgenerator/resources/exp0-0b.strings']
-        self._thesaurus_opts['k'] = 1
+        # self._thesaurus_opts['k'] = 1
         self._reload_thesaurus()
 
         self.x_tr, self.y_tr, self.x_ev, self.y_ev = self. \
@@ -334,7 +338,7 @@ class Test_ThesaurusVectorizer(TestCase):
         self.feature_extraction_conf['use_signifier_only'] = False
         self._thesaurus_opts['thesaurus_files'] = \
             ['thesisgenerator/resources/exp0-0b.strings']
-        self._thesaurus_opts['k'] = 1
+        # self._thesaurus_opts['k'] = 1
         self._reload_thesaurus()
 
         self.x_tr, self.y_tr, self.x_ev, self.y_ev = self. \
@@ -371,7 +375,7 @@ class Test_ThesaurusVectorizer(TestCase):
         self.feature_extraction_conf['use_signifier_only'] = False
         self._thesaurus_opts['thesaurus_files'] = \
             ['thesisgenerator/resources/exp0-0b.strings']
-        self._thesaurus_opts['k'] = 1 # equivalent to max
+        # self._thesaurus_opts['k'] = 1 # equivalent to max
         self._reload_thesaurus()
 
         self.x_tr, self.y_tr, self.x_ev, self.y_ev = self. \

@@ -7,14 +7,15 @@ def get_stats_recorder(enabled=False):
     return StatsRecorder() if enabled else NoopStatsRecorder()
 
 
-def get_token_handler(replace_all, use_signifier_only):
+def get_token_handler(replace_all, use_signifier_only, k):
     if replace_all:
-        return ReplaceAllFeatureHandler()
+        raise ValueError('Do not use replace all')
+        # return ReplaceAllFeatureHandler(k)
     else:
         if use_signifier_only:
             return BaseFeatureHandler()
         else:
-            return SignifierSignifiedFeatureHandler()
+            return SignifierSignifiedFeatureHandler(k)
 
 
 class StatsRecorder(object):
@@ -99,7 +100,7 @@ class BaseFeatureHandler():
 
     def _insert_thesaurus_neighbours(self, doc_id, doc_id_indices,
                                      document_term, term_indices,
-                                     values, vocabulary):
+                                     values, vocabulary, k):
         """
         Replace term with its k nearest neighbours from the thesaurus
         """
@@ -107,20 +108,19 @@ class BaseFeatureHandler():
         # logger.info below demonstrates that unseen words exist,
         # i.e. vectorizer is not reducing the test set to the
         # training vocabulary
-        neighbours = get_thesaurus().get(document_term)
+        neighbours = get_thesaurus()[document_term]
 
         # if there are any neighbours filter the list of
         # neighbours so that it contains only pairs where
         # the neighbour has been seen
-        neighbours = [(neighbour, sim) for neighbour, sim in
-                      neighbours if
-                      neighbour in vocabulary] if neighbours \
-            else []
-        for neighbour, sim in neighbours:
-            # logging.getLogger().debug(
-            #     'Replacement. Doc %d: %s --> %s, '
-            #     'sim = %f' % (
-            #         doc_id, document_term, neighbour, sim))
+        neighbours = [(neighbour, sim) for neighbour, sim in neighbours
+                      if neighbour in vocabulary]
+
+        logging.info('neighbours list has %d %d' % (len(neighbours), k))
+        for neighbour, sim in neighbours[:k]:
+            logging.getLogger().debug(
+                'Replacement. Doc %d: %s --> %s, sim = %f' % (
+                    doc_id, document_term, neighbour, sim))
 
             # todo the document may already contain the feature we
             # are about to insert into it,
@@ -160,33 +160,39 @@ class BaseFeatureHandler():
 class SignifierSignifiedFeatureHandler(BaseFeatureHandler):
     """
     Handles features the way standard Naive Bayes does, except
-        - OOV, IT: insert K neighbours from thesaurus instead of ignoring the
-        feature
+        - OOV, IT: insert the first K IV neighbours from thesaurus instead of
+        ignoring the feature
     """
+
+    def __init__(self, k):
+        self.k = k
 
     def handle_OOV_IT_feature(self, doc_id, doc_id_indices, document_term,
                               term_indices, term_index_in_vocab, values, count,
                               vocabulary):
         self._insert_thesaurus_neighbours(doc_id, doc_id_indices,
                                           document_term, term_indices,
-                                          values, vocabulary)
+                                          values, vocabulary, self.k)
 
 
 class ReplaceAllFeatureHandler(BaseFeatureHandler):
     """
     Handles features the way standard Naive Bayes does, except
-        - OOV, IT: insert K neighbours from thesaurus
-        - IV, IT: insert K neighbours from thesaurus
+        - OOV, IT: insert the first K IV neighbours from thesaurus
+        - IV, IT: insert the first K IV neighbours from thesaurus
 
         Note: no token can ever be IV and OOT in this setting
     """
+
+    def __init__(self, k):
+        self.k = k
 
     def handle_IV_IT_feature(self, doc_id, doc_id_indices, document_term,
                              term_indices, term_index_in_vocab, values, count,
                              vocabulary):
         self._insert_thesaurus_neighbours(doc_id, doc_id_indices,
                                           document_term, term_indices,
-                                          values, vocabulary)
+                                          values, vocabulary, self.k)
 
     handle_OOV_IT_feature = handle_IV_IT_feature
 

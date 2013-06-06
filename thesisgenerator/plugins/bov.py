@@ -24,7 +24,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
                  max_features=None, vocabulary=None, binary=False, dtype=float,
                  norm='l2', use_idf=True, smooth_idf=True,
                  sublinear_tf=False, use_tfidf=True, replace_all=False,
-                 use_signifier_only=False, record_stats=False):
+                 use_signifier_only=False, record_stats=False, k=1):
         """
         Builds a vectorizer the way a TfidfVectorizer is built, and takes one
         extra param specifying the path the the Byblo-generated thesaurus.
@@ -43,6 +43,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
         self.replace_all = replace_all
         self.use_signifier_only = use_signifier_only
         self.record_stats = record_stats
+        self.k = k
 
         super(ThesaurusVectorizer, self).__init__(input=input,
                                                   charset=charset,
@@ -87,7 +88,8 @@ class ThesaurusVectorizer(TfidfVectorizer):
 
     def fit_transform(self, raw_documents, y=None):
         self.handler = get_token_handler(self.replace_all,
-                                         self.use_signifier_only)
+                                         self.use_signifier_only,
+                                         self.k)
         self.stats = get_stats_recorder(self.record_stats)
         # a different stats recorder will be used for the testing data
 

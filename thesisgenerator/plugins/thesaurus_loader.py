@@ -22,11 +22,9 @@ def get_thesaurus():
 
 
 class Thesaurus(defaultdict):
-    def __init__(self, thesaurus_files='', sim_threshold=0, k=1,
-                 include_self=False):
+    def __init__(self, thesaurus_files='', sim_threshold=0, include_self=False):
         self.thesaurus_files = thesaurus_files
         self.sim_threshold = sim_threshold
-        self.k = k
         self.include_self = include_self
         # make this class act like a defaultdict(list)
         self.default_factory = list
@@ -58,8 +56,6 @@ class Thesaurus(defaultdict):
         for path in self.thesaurus_files:
             logging.getLogger().info(
                 'Loading thesaurus %s from disk' % path)
-            logging.getLogger().debug(
-                'threshold %r, k=%r' % (self.sim_threshold, self.k))
 
             FILTERED = '___FILTERED___'.lower()
             with open(path) as infile:
@@ -73,8 +69,7 @@ class Thesaurus(defaultdict):
                         to_insert = [(word.lower(), float(sim)) for
                                      (word, sim)
                                      in
-                                     _iterate_nonoverlapping_pairs(
-                                         tokens, 1, self.k)
+                                     _iterate_nonoverlapping_pairs(tokens, 1)
                                      if
                                      word != FILTERED and
                                      float(sim) > self.sim_threshold]
@@ -96,7 +91,7 @@ class Thesaurus(defaultdict):
 
 
 # END OF CLASS
-def _iterate_nonoverlapping_pairs(iterable, beg, num_pairs):
-    for i in xrange(beg, min(len(iterable) - 1, 2 * num_pairs),
+def _iterate_nonoverlapping_pairs(iterable, beg):
+    for i in xrange(beg, min(len(iterable) - 1, len(iterable)),
                     2):  # step size 2
         yield (iterable[i], iterable[i + 1])

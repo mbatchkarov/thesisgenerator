@@ -16,7 +16,7 @@ class TestLoad_thesauri(TestCase):
         self.params = {
             'thesaurus_files': ['thesisgenerator/resources/exp0-0a.strings'],
             'sim_threshold': 0,
-            'k': 10,
+            # 'k': 10,
             'include_self': False
         }
 
@@ -45,11 +45,11 @@ class TestLoad_thesauri(TestCase):
             self._reload_thesaurus()
             self._reload_and_assert(j, k)
 
-    def test_k(self):
-        for i, j, k in zip([3, 2, 1, 0], [7, 7, 7, 0], [14, 12, 7, 0]):
-            self.params['k'] = i
-            self._reload_thesaurus()
-            self._reload_and_assert(j, k)
+    # def test_k(self):
+    #     for i, j, k in zip([3, 2, 1, 0], [7, 7, 7, 0], [14, 12, 7, 0]):
+    #         self.params['k'] = i
+    #         self._reload_thesaurus()
+    #         self._reload_and_assert(j, k)
 
     def test_include_self(self):
         for i, j, k in zip([False, True], [7, 7], [14, 21]):
@@ -70,7 +70,5 @@ class TestLoad_thesauri(TestCase):
 
     def test_iterate_nonoverlapping_pairs(self):
         inp = [0, 1, 2, 3, 4, 5, 6, 7, 8]
-        output1 = [x for x in _iterate_nonoverlapping_pairs(inp, 1, 4)]
-        output2 = [x for x in _iterate_nonoverlapping_pairs(inp, 1, 2)]
+        output1 = [x for x in _iterate_nonoverlapping_pairs(inp, 1)]
         self.assertListEqual([(1, 2), (3, 4), (5, 6), (7, 8)], output1)
-        self.assertListEqual([(1, 2), (3, 4)], output2)

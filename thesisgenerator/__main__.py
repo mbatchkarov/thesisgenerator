@@ -631,7 +631,6 @@ def _init_utilities_state(config):
     thesaurus_loader.read_thesaurus(
         thesaurus_files=config['feature_extraction']['thesaurus_files'],
         sim_threshold=config['feature_extraction']['sim_threshold'],
-        k=config['feature_extraction']['k'],
         include_self=config['feature_extraction']['include_self'])
 
     tokenizers.build_tokenizer(

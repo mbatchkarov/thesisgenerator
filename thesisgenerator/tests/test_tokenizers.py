@@ -124,7 +124,7 @@ class Test_tokenizer(TestCase):
         thesaurus_loader.read_thesaurus(
             thesaurus_files=['thesisgenerator/resources/exp0-0a.strings'],
             sim_threshold=0,
-            k=10,
+            # k=10,
             include_self=False)
 
         tokens = self.tokenizer(self.doc)
