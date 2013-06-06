@@ -2,7 +2,14 @@
 from collections import defaultdict
 # import locale
 import logging
+from sklearn.feature_extraction.stop_words import ENGLISH_STOP_WORDS
 from thesisgenerator.plugins.thesaurus_loader import get_thesaurus
+
+try:
+    import xml.etree.cElementTree as ET
+except ImportError:
+    logging.getLogger().warn('cElementTree not available')
+    import xml.etree.ElementTree as ET
 
 
 def build_tokenizer(**kwargs):
@@ -70,13 +77,16 @@ class XmlTokenizer(object):
 
     def __init__(self, normalise_entities=False, use_pos=True,
                  coarse_pos=True, lemmatize=True,
-                 lowercase=True, keep_only_IT=False):
+                 lowercase=True, keep_only_IT=False,
+                 remove_stopwords=False, remove_short_words=False):
         self.normalise_entities = normalise_entities
         self.use_pos = use_pos
         self.coarse_pos = coarse_pos
         self.lemmatize = lemmatize
         self.lowercase = lowercase
         self.keep_only_IT = keep_only_IT
+        self.remove_stopwords = remove_stopwords
+        self.remove_short_words = remove_short_words
 
     def __call__(self, doc):
         return self.tokenize(doc)
@@ -94,11 +104,6 @@ class XmlTokenizer(object):
             thes_entries = set(get_thesaurus().keys())
             if not thes_entries:
                 raise Exception('A thesaurus is required with keep_only_IT')
-        try:
-            import xml.etree.cElementTree as ET
-        except ImportError:
-            logging.getLogger().warn('cElementTree not available')
-            import xml.etree.ElementTree as ET
 
         try:
             tree = ET.fromstring(doc.encode("utf8"))
@@ -109,9 +114,15 @@ class XmlTokenizer(object):
                 else:
                     txt = element.find('word').text
 
-                # check if the token is a number before things have been done
-                #  to it
+                # check if the token is a number/stopword before things have
+                # been done to it
                 am_i_a_number = self._is_number(txt)
+
+                if self.remove_stopwords and txt.lower() in ENGLISH_STOP_WORDS:
+                    continue
+
+                if self.remove_short_words and len(txt) <= 3:
+                    continue
 
                 pos = element.find('POS').text.upper()
                 if self.use_pos:

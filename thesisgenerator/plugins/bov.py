@@ -101,7 +101,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
         return super(ThesaurusVectorizer, self).transform(raw_documents)
 
 
-    def my_feature_extractor(self, tokens, stop_words=None, ngram_range=(1, 1)):
+    def my_feature_extractor(self, tokens, ngram_range=(1, 1)):
         """
         Turn a document( a list of tokens) into a sequence of features. These
         include n-grams after stop words filtering,
@@ -110,13 +110,6 @@ class ThesaurusVectorizer(TfidfVectorizer):
         """
 
         # todo add/enable feature functions here
-        # handle stop words and lowercasing- this is needed because thesaurus
-        # only contains lowercase entries
-        if stop_words is not None:
-            tokens = [w for w in tokens if w.lower() not in stop_words and
-                                           len(w) > 3]
-            # todo this needs to be moved to tokenizers module
-
         #    last_chars = ['**suffix(%s)' % token[-1] for token in tokens]
         #    shapes = ['**shape(%s)' % "".join(
         #        'x' if l.islower() else '#' if l.isdigit()  else 'X' for l in
@@ -175,8 +168,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
             tokenize = tokenizers.get_tokenizer()
 
             return lambda doc: self.my_feature_extractor(
-                tokenize(preprocess(self.decode(doc))), stop_words,
-                self.ngram_range)
+                tokenize(preprocess(self.decode(doc))), self.ngram_range)
 
         else:
             raise ValueError('%s is not a valid tokenization scheme/analyzer' %

@@ -641,7 +641,9 @@ def _init_utilities_state(config):
         lemmatize=config['feature_extraction']['lemmatize'],
 
         lowercase=config['tokenizer']['lowercase'],
-        keep_only_IT=config['tokenizer']['keep_only_IT']
+        keep_only_IT=config['tokenizer']['keep_only_IT'],
+        remove_stopwords=config['tokenizer']['remove_stopwords'],
+        remove_short_words=config['tokenizer']['remove_short_words']
     )
 
 

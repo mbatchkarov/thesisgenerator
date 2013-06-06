@@ -43,6 +43,8 @@ shuffle_targets=boolean(default=False)
 [tokenizer] 
 	lowercase=boolean
     keep_only_IT=boolean(default=False)
+    remove_stopwords=boolean(default=False)
+	remove_short_words=boolean(default=False)
         
 [crossvalidation]
 	run=boolean()

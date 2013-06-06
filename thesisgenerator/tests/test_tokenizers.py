@@ -3,7 +3,10 @@ from unittest import TestCase
 from thesisgenerator.plugins import thesaurus_loader
 from thesisgenerator.plugins.tokenizers import XmlTokenizer
 
-__author__ = 'mmb28'
+try:
+    import xml.etree.cElementTree as ET
+except ImportError:
+    import xml.etree.ElementTree as ET
 
 
 class Test_tokenizer(TestCase):
@@ -55,6 +58,32 @@ class Test_tokenizer(TestCase):
         self.tokenizer.lowercase = True
         tokens = self.tokenizer(self.doc)
         self.assertListEqual(tokens, ['cats', 'like', 'dogs'])
+
+    def test_xml_tokenizer_stopwords(self):
+        """
+                tests xml_tokenizer's stopword removal facility
+        """
+
+        # replace one of the words with a stopword
+        tree = ET.fromstring(self.doc.encode("utf8"))
+        for element in tree.findall('.//token'):
+            txt = element.find('lemma').text
+            if txt == 'like':
+                element.find('lemma').text = 'the'
+                element.find('word').text = 'the'
+
+        self.tokenizer.remove_stopwords = True
+        tokens = self.tokenizer(ET.tostring(tree))
+        self.assertListEqual(tokens, ['Cats', 'dogs'])
+
+    def test_xml_tokenizer_short_words(self):
+        """
+        tests xml_tokenizer's short word removal facility
+        """
+        self.tokenizer.lemmatize = True
+        self.tokenizer.remove_short_words = True
+        tokens = self.tokenizer(self.doc)
+        self.assertListEqual(tokens, ['like'])
 
     def test_xml_tokenizer_pos(self):
         """
