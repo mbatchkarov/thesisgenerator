@@ -21,7 +21,10 @@ class Test_ThesaurusVectorizer(TestCase):
             coarse_pos=True,
             lemmatize=True,
             lowercase=True,
-            keep_only_IT=False)
+            keep_only_IT=False,
+            remove_stopwords=False,
+            remove_short_words=False
+        )
 
         self._thesaurus_opts = {
             'thesaurus_files': ['thesisgenerator/resources/exp0-0a.strings'],
@@ -35,7 +38,10 @@ class Test_ThesaurusVectorizer(TestCase):
             'use_tfidf': False,
             'min_df': 1,
             'lowercase': False,
-            'replace_all': False
+            'replace_all': False,
+            'record_stats': True,
+            'k': 10, # use all thesaurus entries
+            'use_signifier_only': False
         }
 
         self.default_prefix = 'thesisgenerator/resources/test'
@@ -97,10 +103,17 @@ class Test_ThesaurusVectorizer(TestCase):
     def _reload_thesaurus(self):
         thesaurus_loader.read_thesaurus(**self._thesaurus_opts)
 
-    @skip(
-        "Not sure how the old algorithm below fits with our new thinking of"
-        " what should happen when not using replace_all")
-    def test_replaceAll_False_includeSelf_TrueFalse(self):
+
+    def test_replaceAll_False_includeSelf_TrueFalse_use_signified(self):
+        """
+        Similar to self.test_baseline_use_all_features_with_signified_D in
+        that the vectorizer is set to use a SignifierSignifiedFeatureHandler
+        and all tokens are kept (incl. OOT ones)
+
+        The difference is self.test_baseline_use_all_features_with_signified_D
+        only inserts the nearest in-thesaurus neighbour instead of all of the
+        neighbours it can find
+        """
         self.feature_extraction_conf['replace_all'] = False
 
         for inc_self in [True, False]:
@@ -111,9 +124,9 @@ class Test_ThesaurusVectorizer(TestCase):
 
             x1, x2, voc = self._vectorize_data()
 
-            # check vocabulary. For some reason it does not come out in the order
-            #  in which words are put in, but that is fine as long as its the
-            # same order every time
+            # check vocabulary. For some reason it does not come out in the
+            # order in which words are put in, but that is fine as long as it's
+            #  the same order every time- I've added a sort to ensure that
             self.assertDictEqual({'cat/n': 0, 'dog/n': 1, 'game/n': 2,
                                   'kid/n': 3, 'like/v': 4, 'play/v': 5},
                                  voc)
@@ -133,7 +146,7 @@ class Test_ThesaurusVectorizer(TestCase):
 
             t.assert_array_equal(
                 x2.todense(),
-                np.array(
+                np.matrix(
                     [
                         [.06, .05, 0, 0, 1, 0],
                         [.06, .05, 0, 0, 1, 0],
@@ -336,9 +349,9 @@ class Test_ThesaurusVectorizer(TestCase):
     def test_baseline_use_all_features_with_signified_D(self):
         self.tokenizer.keep_only_IT = False
         self.feature_extraction_conf['use_signifier_only'] = False
+        self.feature_extraction_conf['k'] = 1 # equivalent to max
         self._thesaurus_opts['thesaurus_files'] = \
             ['thesisgenerator/resources/exp0-0b.strings']
-        # self._thesaurus_opts['k'] = 1
         self._reload_thesaurus()
 
         self.x_tr, self.y_tr, self.x_ev, self.y_ev = self. \
@@ -373,9 +386,9 @@ class Test_ThesaurusVectorizer(TestCase):
     def test_baseline_ignore_nonthesaurus_features_with_signified_C(self):
         self.tokenizer.keep_only_IT = True
         self.feature_extraction_conf['use_signifier_only'] = False
+        self.feature_extraction_conf['k'] = 1 # equivalent to max
         self._thesaurus_opts['thesaurus_files'] = \
             ['thesisgenerator/resources/exp0-0b.strings']
-        # self._thesaurus_opts['k'] = 1 # equivalent to max
         self._reload_thesaurus()
 
         self.x_tr, self.y_tr, self.x_ev, self.y_ev = self. \
