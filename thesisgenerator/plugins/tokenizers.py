@@ -8,7 +8,7 @@ from thesisgenerator.plugins.thesaurus_loader import get_thesaurus
 try:
     import xml.etree.cElementTree as ET
 except ImportError:
-    logging.getLogger().warn('cElementTree not available')
+    logging.warn('cElementTree not available')
     import xml.etree.ElementTree as ET
 
 
@@ -119,9 +119,11 @@ class XmlTokenizer(object):
                 am_i_a_number = self._is_number(txt)
 
                 if self.remove_stopwords and txt.lower() in ENGLISH_STOP_WORDS:
+                    logging.debug('Tokenizer ignoring stopword %s' % txt)
                     continue
 
                 if self.remove_short_words and len(txt) <= 3:
+                    logging.debug('Tokenizer ignoring short word %s' % txt)
                     continue
 
                 pos = element.find('POS').text.upper()
@@ -134,10 +136,9 @@ class XmlTokenizer(object):
                     try:
                         iob_tag = element.find('NER').text.upper()
                     except AttributeError:
-                        logging.getLogger().error(
-                            'You have requested named entity normalisation,'
-                            ' but the input data is not annotated for '
-                            'entities')
+                        logging.error('You have requested named entity '
+                                      'normalisation, but the input data are '
+                                      'not annotated for entities')
                         raise ValueError('Data not annotated for named '
                                          'entities')
 
@@ -153,8 +154,7 @@ class XmlTokenizer(object):
                     txt = txt.lower()
 
                 if self.keep_only_IT and txt not in thes_entries:
-                    logging.getLogger().debug('Tokenizer ignoring OOT token: '
-                                              '%s' % txt)
+                    logging.debug('Tokenizer ignoring OOT token: %s' % txt)
                     continue
                 tokens.append(txt)
 

@@ -83,7 +83,7 @@ def _get_data_iterators(**kwargs):
             input_gen = kwargs['input_generator']
             source = kwargs['source']
             try:
-                logging.getLogger().debug(
+                logging.debug(
                     'Retrieving input generator for name '
                     '\'%(input_gen)s\'' % locals())
 
@@ -93,7 +93,7 @@ def _get_data_iterators(**kwargs):
                     dtype=np.int)
                 data_iterable = data_iterable.documents()
             except (ValueError, ImportError):
-                logging.getLogger().warn(
+                logging.warn(
                     'No input generator found for name '
                     '\'%(input_gen)s\'. Using a file content '
                     'generator with source \'%(source)s\'' % locals())
@@ -109,13 +109,12 @@ def _get_data_iterators(**kwargs):
                                      '\'content\'')
 
                 dataset = load_files(source, shuffle=False)
-                logging.getLogger().info(
-                    'Targets are: %s' % dataset.target_names)
+                logging.info('Targets are: %s' % dataset.target_names)
                 data_iterable = dataset.data
                 if kwargs['shuffle_targets']:
                     import random
 
-                    logging.getLogger().warn('RANDOMIZING TARGETS')
+                    logging.warn('RANDOMIZING TARGETS')
                     random.shuffle(dataset.target)
                 targets_iterable = dataset.target
         except KeyError:
@@ -154,7 +153,7 @@ def _build_crossvalidation_iterator(config, x_vals, y_vals, x_test=None,
     The full text is provided as a parameter so that joblib can cache the
     call to this function.
     """
-    logging.getLogger().info('Building crossvalidation iterator')
+    logging.info('Building crossvalidation iterator')
     cv_type = config['type']
     k = config['k']
 
@@ -173,13 +172,10 @@ def _build_crossvalidation_iterator(config, x_vals, y_vals, x_test=None,
                                 validation_data, [])
 
     if x_test is not None and y_test is not None:
-        logging.getLogger().warn('You have requested test set to be '
-                                 'used for evaluation.')
+        logging.warn('You have requested test set to be used for evaluation.')
         if cv_type != 'test_set' and cv_type != 'subsampled_test_set':
-            logging.getLogger().error('Wrong crossvalidation type. '
-                                      'Only test_set or '
-                                      'subsampled_test_set are '
-                                      'permitted with a test set')
+            logging.error('Wrong crossvalidation type. Only test_set '
+                          'or subsampled_test_set are permitted with a test set')
             sys.exit(1)
 
         x_vals = list(x_vals)
@@ -196,7 +192,7 @@ def _build_crossvalidation_iterator(config, x_vals, y_vals, x_test=None,
     dataset_size = np.sum(seen_data_mask)
     targets_seen = y_vals[seen_data_mask]
     if k < 0:
-        logging.getLogger().warn(
+        logging.warn(
             'crossvalidation.k not specified, defaulting to 1')
         k = 1
     if cv_type == 'kfold':
@@ -208,7 +204,7 @@ def _build_crossvalidation_iterator(config, x_vals, y_vals, x_test=None,
     elif cv_type == 'bootstrap':
         ratio = config['ratio']
         if k < 0:
-            logging.getLogger().warn(
+            logging.warn(
                 'crossvalidation.ratio not specified,defaulting to 0.8')
             ratio = 0.8
         iterator = cross_validation.Bootstrap(dataset_size,
@@ -284,7 +280,7 @@ def _build_vectorizer(id, call_args, feature_extraction_conf, pipeline_list,
 
     # global postvect_dumper_added_already
     if debug:# and not postvect_dumper_added_already:
-        logging.getLogger().info('Will perform post-vectorizer data dump')
+        logging.info('Will perform post-vectorizer data dump')
         pipeline_list.append(
             ('dumper', FeatureVectorsCsvDumper(id, output_dir)))
         # postvect_dumper_added_already = True
@@ -368,7 +364,7 @@ def _build_pipeline(id, classifier_name, feature_extr_conf, feature_sel_conf,
     pipeline = Pipeline(pipeline_list)
     pipeline.set_params(**call_args)
 
-    logging.getLogger().debug('Pipeline is:\n %s', pipeline)
+    logging.debug('Pipeline is:\n %s', pipeline)
     return pipeline
 
 
@@ -376,7 +372,7 @@ def _run_tasks(configuration, n_jobs, data=None):
     """
     Runs all commands specified in the configuration file
     """
-    logging.getLogger().info('running tasks')
+    logging.info('running tasks')
     # get a reference to the joblib cache object, if caching is not disabled
     # else build a dummy object which just returns its arguments unchanged
     if configuration['joblib_caching']:
@@ -401,7 +397,7 @@ def _run_tasks(configuration, n_jobs, data=None):
         # because joblib uses the hashed argument list to lookup cached results
         # of computations that have been executed previously
         if data:
-            logging.getLogger().info('Using pre-loaded raw data set')
+            logging.info('Using pre-loaded raw data set')
             x_vals, y_vals, x_test, y_test = data
         else:
             options = {'input': configuration['feature_extraction']['input'],
@@ -413,10 +409,10 @@ def _run_tasks(configuration, n_jobs, data=None):
                 options['input_generator'] = ''
             options['source'] = configuration['training_data']
 
-            logging.getLogger().info('Loading raw training set')
+            logging.info('Loading raw training set')
             x_vals, y_vals = cached_get_data_generators(**options)
             if configuration['test_data']:
-                logging.getLogger().info('Loading raw test set')
+                logging.info('Loading raw test set')
                 #  change where we read files from
                 options['source'] = configuration['test_data']
                 # ensure that only the training data targets are shuffled
@@ -447,12 +443,11 @@ def _run_tasks(configuration, n_jobs, data=None):
 
         #  ignore disabled classifiers
         if not configuration['classifiers'][clf_name]['run']:
-            logging.getLogger().warn('Ignoring classifier %s' % clf_name)
+            logging.warn('Ignoring classifier %s' % clf_name)
             continue
 
-        logging.getLogger().info(
-            '------------------------------------------------------------')
-        logging.getLogger().info('Building pipeline')
+        logging.info('--------------------------------------------------------')
+        logging.info('Building pipeline')
         pipeline = _build_pipeline(i, clf_name,
                                    configuration['feature_extraction'],
                                    configuration['feature_selection'],
@@ -462,7 +457,7 @@ def _run_tasks(configuration, n_jobs, data=None):
                                    configuration['debug'])
 
         # pass the (feature selector + classifier) pipeline for evaluation
-        logging.getLogger().info(
+        logging.info(
             '***Fitting pipeline for %s' % clf_name)
         cached_cross_val_score = mem_cache.cache(cross_val_score)
         scores_this_clf = \
@@ -485,7 +480,7 @@ def _run_tasks(configuration, n_jobs, data=None):
                      score])
         del pipeline
         del scores_this_clf
-    logging.getLogger().info('Classifier scores are %s' % scores)
+    logging.info('Classifier scores are %s' % scores)
     return 0, analyze(scores, configuration['output_dir'],
                       configuration['name'])
 
@@ -495,7 +490,7 @@ def analyze(scores, output_dir, name):
     Stores a csv and xls representation of the data set. Requires pandas
     """
 
-    logging.getLogger().info(
+    logging.info(
         "Analysing results and saving to %s" % output_dir)
 
     from pandas import DataFrame
@@ -588,16 +583,14 @@ def _prepare_output_directory(clean, output):
     # CLEAN OUTPUT DIRECTORY
     # **********************************
     if clean and os.path.exists(output):
-        logging.getLogger().info(
-            'Cleaning output directory %s' % glob(output))
+        logging.info('Cleaning output directory %s' % glob(output))
         shutil.rmtree(output)
 
     # **********************************
     # CREATE OUTPUT DIRECTORY
     # **********************************
     if not os.path.exists(output):
-        logging.getLogger().info(
-            'Creating output directory %s' % glob(output))
+        logging.info('Creating output directory %s' % glob(output))
         os.makedirs(output)
 
 
@@ -606,8 +599,7 @@ def _prepare_classpath(classpath):
     # ADD classpath TO SYSTEM PATH
     # **********************************
     for path in classpath.split(os.pathsep):
-        logging.getLogger().info(
-            'Adding (%s) to system path' % glob(path))
+        logging.info('Adding (%s) to system path' % glob(path))
         sys.path.append(os.path.abspath(path))
 
 

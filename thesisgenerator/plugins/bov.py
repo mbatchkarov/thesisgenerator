@@ -72,9 +72,8 @@ class ThesaurusVectorizer(TfidfVectorizer):
 
     def try_to_set_vocabulary_from_thesaurus_keys(self):
         if self.replace_all:
-            logging.getLogger().warn('Replace_all is enabled, '
-                                     'setting vocabulary to thesaurus '
-                                     'entries')
+            logging.warn('Replace_all is enabled, setting vocabulary to '
+                         'thesaurus entries')
             # if self.vocab_from_thes:
             # self.vocab_from_thes = True
 
@@ -144,8 +143,6 @@ class ThesaurusVectorizer(TfidfVectorizer):
         invokes self.my_feature_extractor, a more general function than
         CountVectorizer._word_ngrams()
         """
-        logging.getLogger().info(
-            'Building and starting analysis (tokenize, stopw, feature extract)')
         if hasattr(self.analyzer, '__call__'):
             return self.analyzer
 
@@ -192,21 +189,19 @@ class ThesaurusVectorizer(TfidfVectorizer):
         Current version copied without functional modification from sklearn
         .feature_extraction.text.CountVectorizer
         """
-        logging.getLogger().info(
-            'Converting features to vectors (with thesaurus lookup)')
+        logging.info('Converting features to vectors (with thesaurus lookup)')
         self._dump_vocabulary_for_debugging()
 
         if not self.use_tfidf:
             self._tfidf = NoopTransformer()
 
-        logging.getLogger().info(
-            'Using TF-IDF: %s, transformer is %s' % (self.use_tfidf,
-                                                     self._tfidf))
+        logging.info('Using TF-IDF: %s, transformer is %s' % (self.use_tfidf,
+                                                              self._tfidf))
 
         if not get_thesaurus():
             # no thesaurus was loaded in the constructor,
             # fall back to super behaviour
-            logging.getLogger().warn("No thesaurus, reverting to super")
+            logging.warn("No thesaurus, reverting to super")
             return super(ThesaurusVectorizer, self) \
                 ._term_count_dicts_to_matrix(term_count_dicts)
 
@@ -218,9 +213,8 @@ class ThesaurusVectorizer(TfidfVectorizer):
 
         vocabulary = self.vocabulary_
         num_documents = 0
-        logging.getLogger().debug(
-            "Building feature vectors, current vocab size is %d" %
-            len(vocabulary))
+        logging.debug("Building feature vectors, current vocab size is %d" %
+                      len(vocabulary))
 
         for doc_id, term_count_dict in enumerate(term_count_dicts):
             num_documents += 1
@@ -255,10 +249,9 @@ class ThesaurusVectorizer(TfidfVectorizer):
         # remove frequencies if binary feature were requested
         if self.binary:
             spmatrix.data.fill(1)
-        logging.getLogger().debug(
-            'Vectorizer: Data shape is %s' % (str(spmatrix.shape)))
+        logging.debug('Vectorizer: Data shape is %s' % (str(spmatrix.shape)))
         self.stats.print_coverage_stats()
-        logging.getLogger().info('Done converting features to vectors')
+        logging.info('Done converting features to vectors')
 
         return spmatrix
 

@@ -50,12 +50,11 @@ class Thesaurus(defaultdict):
         """
 
         if not self.thesaurus_files:
-            logging.getLogger().warn("No thesaurus specified")
+            logging.warn("No thesaurus specified")
 
         result = {}
         for path in self.thesaurus_files:
-            logging.getLogger().info(
-                'Loading thesaurus %s from disk' % path)
+            logging.info('Loading thesaurus %s from disk' % path)
 
             FILTERED = '___FILTERED___'.lower()
             with open(path) as infile:
@@ -80,9 +79,8 @@ class Thesaurus(defaultdict):
                             # adding it
                         if len(to_insert) > 0:
                             if tokens[0] in self:
-                                logging.getLogger().error(
-                                    'Multiple entries for "%s" found' %
-                                    tokens[0])
+                                logging.error('Multiple entries for "%s" '
+                                              'found' % tokens[0])
                             self[tokens[0].lower()].extend(to_insert)
 
                             # note- do not attempt to lowercase if the thesaurus

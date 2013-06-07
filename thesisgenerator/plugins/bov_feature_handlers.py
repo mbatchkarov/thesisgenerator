@@ -33,39 +33,39 @@ class StatsRecorder(object):
     def register_token(self, token, iv, it):
         if iv and it:
             self.iv_it.append(token)
-            logging.getLogger().debug('IV IT token %s' % token)
+            logging.debug('IV IT token %s' % token)
         elif iv and not it:
             self.iv_oot.append(token)
-            logging.getLogger().debug('IV OOT token %s' % token)
+            logging.debug('IV OOT token %s' % token)
         elif not iv and it:
             self.oov_it.append(token)
-            logging.getLogger().debug('OOV IT token %s' % token)
+            logging.debug('OOV IT token %s' % token)
         else:
             self.oov_oot.append(token)
-            logging.getLogger().debug('OOV OOT token %s' % token)
+            logging.debug('OOV OOT token %s' % token)
 
     def print_coverage_stats(self):
-        logging.getLogger().info('Vectorizer: '
-                                 'IV IT tokens: %d, '
-                                 'IV OOT tokens: %d, '
-                                 'OOV IT tokens: %d, '
-                                 'OOV OOT tokens: %d, '
-                                 'IV IT types: %d, '
-                                 'IV OOT types: %d, '
-                                 'OOV IT types: %d, '
-                                 'OOV OOT types: %d ' % (
-                                     len(self.iv_it),
-                                     len(self.iv_oot),
-                                     len(self.oov_it),
-                                     len(self.oov_oot),
-                                     len(set(self.iv_it)),
-                                     len(set(self.iv_oot)),
-                                     len(set(self.oov_it)),
-                                     len(set(self.oov_oot))))
-        # logging.getLogger().debug('IV IT %s'% self.iv_it)
-        # logging.getLogger().debug('IV 00T %s' % self.iv_oot)
-        # logging.getLogger().debug('OOV IT %s' % self.oov_it)
-        # logging.getLogger().debug('OOV OOT %s' % self.oov_oot)
+        logging.info('Vectorizer: '
+                     'IV IT tokens: %d, '
+                     'IV OOT tokens: %d, '
+                     'OOV IT tokens: %d, '
+                     'OOV OOT tokens: %d, '
+                     'IV IT types: %d, '
+                     'IV OOT types: %d, '
+                     'OOV IT types: %d, '
+                     'OOV OOT types: %d ' % (
+                         len(self.iv_it),
+                         len(self.iv_oot),
+                         len(self.oov_it),
+                         len(self.oov_oot),
+                         len(set(self.iv_it)),
+                         len(set(self.iv_oot)),
+                         len(set(self.oov_it)),
+                         len(set(self.oov_oot))))
+        # logging.debug('IV IT %s'% self.iv_it)
+        # logging.debug('IV 00T %s' % self.iv_oot)
+        # logging.debug('OOV IT %s' % self.oov_it)
+        # logging.debug('OOV OOT %s' % self.oov_oot)
 
 
 class NoopStatsRecorder(StatsRecorder):
@@ -87,14 +87,14 @@ class BaseFeatureHandler():
 
     def _insert_feature_only(self, doc_id, doc_id_indices, document_term,
                              term_indices, term_index_in_vocab, values, count):
-        logging.getLogger().debug('Inserting feature in doc %d: %s' % (
+        logging.debug('Inserting feature in doc %d: %s' % (
             doc_id, document_term))
         doc_id_indices.append(doc_id)
         term_indices.append(term_index_in_vocab)
         values.append(count)
 
     def _ignore_feature(self, doc_id, document_term):
-        logging.getLogger().debug('Ignoring feature in doc %d: %s' % (
+        logging.debug('Ignoring feature in doc %d: %s' % (
             doc_id, document_term))
         pass
 
@@ -115,9 +115,8 @@ class BaseFeatureHandler():
 
         logging.debug('Using %d/%d neighbours' % (k, len(neighbours)))
         for neighbour, sim in neighbours[:k]:
-            logging.getLogger().debug(
-                'Replacement: %s --> %s, sim = %f' % (document_term, neighbour,
-                                                      sim))
+            logging.debug('Replacement: %s --> %s, sim = %f' % (
+                document_term, neighbour, sim))
 
             # todo the document may already contain the feature we
             # are about to insert into it,
