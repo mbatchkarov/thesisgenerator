@@ -95,7 +95,7 @@ shuffle_targets=boolean(default=False)
     [[sklearn.svm.LinearSVC]]
     	run=boolean(default=False)
     	
-	[[classifiers.MostCommonLabelClassifier]]
+	[[thesisgenerator.classifiers.MostCommonLabelClassifier]]
 	    run=boolean(default=False)
 	    
 [evaluation]
