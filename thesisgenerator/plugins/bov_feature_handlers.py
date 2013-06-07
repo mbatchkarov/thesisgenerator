@@ -87,15 +87,15 @@ class BaseFeatureHandler():
 
     def _insert_feature_only(self, doc_id, doc_id_indices, document_term,
                              term_indices, term_index_in_vocab, values, count):
-        # logging.getLogger().debug(
-        #     'Inserting feature in doc %d: %s' % (doc_id, document_term))
+        logging.getLogger().debug('Inserting feature in doc %d: %s' % (
+            doc_id, document_term))
         doc_id_indices.append(doc_id)
         term_indices.append(term_index_in_vocab)
         values.append(count)
 
     def _ignore_feature(self, doc_id, document_term):
-        # logging.getLogger().debug(
-        #     'Ignoring feature in doc %d: %s' % (doc_id, document_term))
+        logging.getLogger().debug('Ignoring feature in doc %d: %s' % (
+            doc_id, document_term))
         pass
 
     def _insert_thesaurus_neighbours(self, doc_id, doc_id_indices,
@@ -105,9 +105,6 @@ class BaseFeatureHandler():
         Replace term with its k nearest neighbours from the thesaurus
         """
 
-        # logger.info below demonstrates that unseen words exist,
-        # i.e. vectorizer is not reducing the test set to the
-        # training vocabulary
         neighbours = get_thesaurus()[document_term]
 
         # if there are any neighbours filter the list of
@@ -116,11 +113,11 @@ class BaseFeatureHandler():
         neighbours = [(neighbour, sim) for neighbour, sim in neighbours
                       if neighbour in vocabulary]
 
-        logging.info('neighbours list has %d %d' % (len(neighbours), k))
+        logging.debug('Using %d/%d neighbours' % (k, len(neighbours)))
         for neighbour, sim in neighbours[:k]:
             logging.getLogger().debug(
-                'Replacement. Doc %d: %s --> %s, sim = %f' % (
-                    doc_id, document_term, neighbour, sim))
+                'Replacement: %s --> %s, sim = %f' % (document_term, neighbour,
+                                                      sim))
 
             # todo the document may already contain the feature we
             # are about to insert into it,
