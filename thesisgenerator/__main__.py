@@ -274,6 +274,7 @@ def _build_vectorizer(id, call_args, feature_extraction_conf, pipeline_list,
     call_args.update({'vect__%s' % arg: val
                       for arg, val in feature_extraction_conf.items()
                       if val != '' and arg in initialize_args})
+    call_args['vect__exp_name'] = exp_name
 
     pipeline_list.append(('vect', vectorizer()))
     call_args['vect__log_vocabulary'] = False

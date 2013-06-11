@@ -15,7 +15,8 @@ class ThesaurusVectorizer(TfidfVectorizer):
     their k nearest neighbours in the thesaurus
     """
 
-    def __init__(self, pipe_id=0, log_vocabulary=False, lowercase=True,
+    def __init__(self, exp_name='', pipe_id=0, log_vocabulary=False,
+                 lowercase=True,
                  input='content', charset='utf-8', charset_error='strict',
                  strip_accents=None,
                  preprocessor=None, tokenizer=None, analyzer='better',
@@ -40,6 +41,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
         self.log_vocabulary_already = False # have I done it already
         self.use_tfidf = use_tfidf
         self.pipe_id = pipe_id
+        self.exp_name = exp_name
         self.replace_all = replace_all
         self.use_signifier_only = use_signifier_only
         self.record_stats = record_stats
@@ -175,7 +177,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
 
     def _dump_vocabulary_for_debugging(self):
         # temporarily store vocabulary
-        f = './tmp_vocabulary%d' % self.pipe_id
+        f = './tmp_vocabulary_%s_%d' % (self.exp_name, self.pipe_id)
         if self.log_vocabulary and not self.log_vocabulary_already:
             with open(f, 'w') as out:
                 pickle.dump(self.vocabulary_, out)

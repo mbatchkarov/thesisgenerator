@@ -34,7 +34,8 @@ class FeatureVectorsCsvDumper(TransformerMixin):
 
         We only want to dump after stages 1.2 and 2.1
         """
-        vocab_file = './tmp_vocabulary%d' % self.pipe_id
+        vocab_file = './tmp_vocabulary_%s_%d' % (self.exp_name, self.pipe_id)
+        logging.info('reading %s' % vocab_file)
         with open(vocab_file, 'r') as f:
             vocabulary_ = pickle.load(f)
             if len(y) < 1:
