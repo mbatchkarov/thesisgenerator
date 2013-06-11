@@ -85,14 +85,15 @@ class Test_ThesaurusVectorizer(TestCase):
 
     def _vectorize_data(self):
         pipeline = __main__._build_pipeline(
-            12345, #id, for naming debug files
+            12345, #id for naming debug files
             None, # classifier
             self.feature_extraction_conf,
             {'run': False}, # feature selection conf
             {'run': False}, # dim re. conf
             None, # classifier options
             '.', # temp files dir
-            True                # debug mode
+            True, # debug mode
+            'tests' # name of experiments
         )
         x1 = pipeline.fit_transform(self.x_tr, self.y_tr)
         voc = pipeline.named_steps['vect'].vocabulary_
@@ -162,7 +163,7 @@ class Test_ThesaurusVectorizer(TestCase):
             # ===============================================================
             def compare_csv(expected, stage):
                 expected = [x.strip() for x in expected.split()]
-                filename = 'PostVectDump-%s12345.csv' % stage
+                filename = 'PostVectDump_tests_%s12345.csv' % stage
                 with open(filename) as infile:
                     csv_file_contents = [x.strip() for x in
                                          infile.readlines()]

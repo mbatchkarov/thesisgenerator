@@ -17,7 +17,8 @@ class FeatureVectorsCsvDumper(TransformerMixin):
     Saves the vectorized input to file for inspection
     """
 
-    def __init__(self, pipe_id=0, prefix='.'):
+    def __init__(self, exp_name, pipe_id=0, prefix='.'):
+        self.exp_name = exp_name
         self.pipe_id = pipe_id
         self.prefix = prefix
         self._tranform_call_count = 0
@@ -49,6 +50,7 @@ class FeatureVectorsCsvDumper(TransformerMixin):
             row = X.todense()[i, :].tolist()[0]
             vals = ['%1.2f' % x for x in row]
             c.writerow([i, y[i], sum(row), count_nonzero(row)] + vals)
+        logging.info('Saved debug infor to %s' % new_file)
 
     def fit(self, X, y=None, **fit_params):
         self.y = y
@@ -61,13 +63,15 @@ class FeatureVectorsCsvDumper(TransformerMixin):
             self.y = defaultdict(str)
 
         if 1 <= self._tranform_call_count <= 2:
-            self._dump(X, self.y, file_name='PostVectDump-%s%d.csv' % (
+            self._dump(X, self.y, file_name='PostVectDump_%s_%s%d.csv' % (
+                self.exp_name,
                 suffix[self._tranform_call_count],
                 self.pipe_id))
         return X
 
     def get_params(self, deep=True):
-        return {'pipe_id': self.pipe_id}
+        return {'pipe_id': self.pipe_id,
+                'exp_name': self.exp_name}
 
 
 columns = [('name', 'TEXT'),

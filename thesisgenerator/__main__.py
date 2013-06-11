@@ -242,7 +242,7 @@ def _build_crossvalidation_iterator(config, x_vals, y_vals, x_test=None,
 
 
 def _build_vectorizer(id, call_args, feature_extraction_conf, pipeline_list,
-                      output_dir, debug):
+                      output_dir, debug=False, exp_name=''):
     """
     Builds a vectorized that converts raw text to feature vectors. The
     parameters for the vectorizer are specified in the *feature extraction*
@@ -282,7 +282,7 @@ def _build_vectorizer(id, call_args, feature_extraction_conf, pipeline_list,
     if debug:# and not postvect_dumper_added_already:
         logging.info('Will perform post-vectorizer data dump')
         pipeline_list.append(
-            ('dumper', FeatureVectorsCsvDumper(id, output_dir)))
+            ('dumper', FeatureVectorsCsvDumper(exp_name, id, output_dir)))
         # postvect_dumper_added_already = True
         call_args['vect__log_vocabulary'] = True # tell the vectorizer it
         # needs to persist some information (used by the postvect dumper)
@@ -333,7 +333,8 @@ def _build_dimensionality_reducer(call_args, dimensionality_reduction_conf,
 
 
 def _build_pipeline(id, classifier_name, feature_extr_conf, feature_sel_conf,
-                    dim_red_conf, classifier_conf, output_dir, debug):
+                    dim_red_conf, classifier_conf, output_dir, debug,
+                    exp_name=''):
     """
     Builds a pipeline consisting of
         - feature extractor
@@ -345,7 +346,7 @@ def _build_pipeline(id, classifier_name, feature_extr_conf, feature_sel_conf,
     pipeline_list = []
 
     _build_vectorizer(id, call_args, feature_extr_conf,
-                      pipeline_list, output_dir, debug)
+                      pipeline_list, output_dir, debug, exp_name=exp_name)
 
     _build_feature_selector(call_args, feature_sel_conf,
                             pipeline_list)
@@ -454,7 +455,8 @@ def _run_tasks(configuration, n_jobs, data=None):
                                    configuration['dimensionality_reduction'],
                                    configuration['classifiers'],
                                    configuration['output_dir'],
-                                   configuration['debug'])
+                                   configuration['debug'],
+                                   exp_name=configuration['name'])
 
         # pass the (feature selector + classifier) pipeline for evaluation
         logging.info(
@@ -490,8 +492,7 @@ def analyze(scores, output_dir, name):
     Stores a csv and xls representation of the data set. Requires pandas
     """
 
-    logging.info(
-        "Analysing results and saving to %s" % output_dir)
+    logging.info("Analysing results and saving to %s" % output_dir)
 
     from pandas import DataFrame
 
@@ -643,6 +644,12 @@ def go(conf_file, log_dir, data=None, classpath='', clean=False, n_jobs=1):
         os.makedirs(log_dir)
 
     config, configspec_file = parse_config_file(conf_file)
+
+    if config['debug'] and config['crossvalidation']['run'] and \
+                    config['crossvalidation']['k'] > 1:
+        raise ValueError('Cannot crossvalidate and debug at the same time')
+        # because all folds run at the same time and write to the same debug
+        # file
 
     log = _config_logger(log_dir, name=config['name'], debug=config['debug'])
     log.info(

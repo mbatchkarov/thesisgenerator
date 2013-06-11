@@ -98,9 +98,9 @@ class BaseFeatureHandler():
             doc_id, document_term))
         pass
 
-    def _insert_thesaurus_neighbours(self, doc_id, doc_id_indices,
-                                     document_term, term_indices,
-                                     values, vocabulary, k):
+    def _paraphrase(self, doc_id, doc_id_indices,
+                    document_term, term_indices,
+                    values, vocabulary, k):
         """
         Replace term with its k nearest neighbours from the thesaurus
         """
@@ -126,7 +126,7 @@ class BaseFeatureHandler():
             # scipy uses addition
             doc_id_indices.append(doc_id)
             term_indices.append(vocabulary.get(neighbour))
-            values.append(sim)
+            values.append(sim) # todo multiply by document_term frequency
 
     def handle_IV_IT_feature(self, doc_id, doc_id_indices, document_term,
                              term_indices, term_index_in_vocab, values,
@@ -166,9 +166,9 @@ class SignifierSignifiedFeatureHandler(BaseFeatureHandler):
     def handle_OOV_IT_feature(self, doc_id, doc_id_indices, document_term,
                               term_indices, term_index_in_vocab, values, count,
                               vocabulary):
-        self._insert_thesaurus_neighbours(doc_id, doc_id_indices,
-                                          document_term, term_indices,
-                                          values, vocabulary, self.k)
+        self._paraphrase(doc_id, doc_id_indices,
+                         document_term, term_indices,
+                         values, vocabulary, self.k)
 
 
 class ReplaceAllFeatureHandler(BaseFeatureHandler):
@@ -186,9 +186,9 @@ class ReplaceAllFeatureHandler(BaseFeatureHandler):
     def handle_IV_IT_feature(self, doc_id, doc_id_indices, document_term,
                              term_indices, term_index_in_vocab, values, count,
                              vocabulary):
-        self._insert_thesaurus_neighbours(doc_id, doc_id_indices,
-                                          document_term, term_indices,
-                                          values, vocabulary, self.k)
+        self._paraphrase(doc_id, doc_id_indices,
+                         document_term, term_indices,
+                         values, vocabulary, self.k)
 
     handle_OOV_IT_feature = handle_IV_IT_feature
 
