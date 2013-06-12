@@ -145,10 +145,8 @@ class XmlTokenizer(object):
                     if iob_tag != 'O':
                         txt = '__NER-%s__' % iob_tag
 
-                if pos == 'PUNCT':
-                    txt = '__PUNCT__'
-                elif am_i_a_number:
-                    txt = '__NUMBER__'
+                if pos == 'PUNCT' or am_i_a_number:
+                    logging.debug('Tokenizer ignoring stopword %s' % txt)
 
                 if self.lowercase:
                     txt = txt.lower()
