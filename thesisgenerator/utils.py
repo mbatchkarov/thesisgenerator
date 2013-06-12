@@ -72,6 +72,19 @@ def replace_in_file(file_name, search_exp, replace_exp):
     fh.close()
 
 
+def linear_compress(x):
+    if x <= 0.1:
+        return 0.
+    elif x >= 0.3:
+        return 1.
+    else:
+        return 5 * x - 0.5 # f(0.1) = 0 and f(0.3) = 1
+
+
+def noop(x):
+    return x
+
+
 class LeaveNothingOut(object):
     """A modified version of sklearn.cross_validation.LeavePOut which leaves
     nothing out, i.e. the whole dataset it used for both testing and training
@@ -221,3 +234,4 @@ class ChainCallable(object):
             result[func_name.strip()] = (
                 func(true_labels, predicted_labels, **call_args))
         return result
+

@@ -39,6 +39,7 @@ shuffle_targets=boolean(default=False)
     include_self=boolean(default=True)
 	use_signifier_only=boolean(default=False)
 	record_stats=boolean(default=False)
+	sim_compressor=string(default='thesisgenerator.utils.noop')
 
 [tokenizer] 
 	lowercase=boolean

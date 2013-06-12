@@ -1,13 +1,14 @@
 from collections import deque
 import logging
 from thesisgenerator.plugins.thesaurus_loader import get_thesaurus
+from thesisgenerator.utils import get_named_object
 
 
 def get_stats_recorder(enabled=False):
     return StatsRecorder() if enabled else NoopStatsRecorder()
 
 
-def get_token_handler(replace_all, use_signifier_only, k):
+def get_token_handler(replace_all, use_signifier_only, k, sim_transformer):
     if replace_all:
         raise ValueError('Do not use replace all')
         # return ReplaceAllFeatureHandler(k)
@@ -15,7 +16,8 @@ def get_token_handler(replace_all, use_signifier_only, k):
         if use_signifier_only:
             return BaseFeatureHandler()
         else:
-            return SignifierSignifiedFeatureHandler(k)
+            sim_transformer = get_named_object(sim_transformer)
+            return SignifierSignifiedFeatureHandler(k, sim_transformer)
 
 
 class StatsRecorder(object):
@@ -76,6 +78,52 @@ class NoopStatsRecorder(StatsRecorder):
         pass
 
 
+def _insert_feature_only(doc_id, doc_id_indices, document_term,
+                         term_indices, term_index_in_vocab, values, count):
+    logging.debug('Inserting feature in doc %d: %s' % (
+        doc_id, document_term))
+    doc_id_indices.append(doc_id)
+    term_indices.append(term_index_in_vocab)
+    values.append(count)
+
+
+def _ignore_feature(doc_id, document_term):
+    logging.debug('Ignoring feature in doc %d: %s' % (
+        doc_id, document_term))
+    pass
+
+
+def _paraphrase(doc_id, doc_id_indices,
+                document_term, count, term_indices,
+                values, vocabulary, k, sim_transformer):
+    """
+    Replace term with its k nearest neighbours from the thesaurus
+    """
+
+    neighbours = get_thesaurus()[document_term]
+
+    # if there are any neighbours filter the list of
+    # neighbours so that it contains only pairs where
+    # the neighbour has been seen
+    neighbours = [(neighbour, sim) for neighbour, sim in neighbours
+                  if neighbour in vocabulary]
+
+    logging.debug('Using %d/%d neighbours' % (k, len(neighbours)))
+    for neighbour, sim in neighbours[:k]:
+        logging.debug('Replacement: %s --> %s, sim = %f' % (
+            document_term, neighbour, sim))
+
+        # todo the document may already contain the feature we
+        # are about to insert into it,
+        # a mergin strategy is required,
+        # e.g. what do we do if the document has the word X
+        # in it and we encounter X again. By default,
+        # scipy uses addition
+        doc_id_indices.append(doc_id)
+        term_indices.append(vocabulary.get(neighbour))
+        values.append(count * sim_transformer(sim))
+
+
 class BaseFeatureHandler():
     """
     Handles features the way standard Naive Bayes does:
@@ -85,72 +133,29 @@ class BaseFeatureHandler():
         - OOV, OOT: ignore feature
     """
 
-    def _insert_feature_only(self, doc_id, doc_id_indices, document_term,
-                             term_indices, term_index_in_vocab, values, count):
-        logging.debug('Inserting feature in doc %d: %s' % (
-            doc_id, document_term))
-        doc_id_indices.append(doc_id)
-        term_indices.append(term_index_in_vocab)
-        values.append(count)
-
-    def _ignore_feature(self, doc_id, document_term):
-        logging.debug('Ignoring feature in doc %d: %s' % (
-            doc_id, document_term))
-        pass
-
-    def _paraphrase(self, doc_id, doc_id_indices,
-                    document_term, term_indices,
-                    values, vocabulary, k):
-        """
-        Replace term with its k nearest neighbours from the thesaurus
-        """
-
-        neighbours = get_thesaurus()[document_term]
-
-        # if there are any neighbours filter the list of
-        # neighbours so that it contains only pairs where
-        # the neighbour has been seen
-        neighbours = [(neighbour, sim) for neighbour, sim in neighbours
-                      if neighbour in vocabulary]
-
-        logging.debug('Using %d/%d neighbours' % (k, len(neighbours)))
-        for neighbour, sim in neighbours[:k]:
-            logging.debug('Replacement: %s --> %s, sim = %f' % (
-                document_term, neighbour, sim))
-
-            # todo the document may already contain the feature we
-            # are about to insert into it,
-            # a mergin strategy is required,
-            # e.g. what do we do if the document has the word X
-            # in it and we encounter X again. By default,
-            # scipy uses addition
-            doc_id_indices.append(doc_id)
-            term_indices.append(vocabulary.get(neighbour))
-            values.append(sim) # todo multiply by document_term frequency
-
     def handle_IV_IT_feature(self, doc_id, doc_id_indices, document_term,
                              term_indices, term_index_in_vocab, values,
                              count, vocabulary):
-        self._insert_feature_only(doc_id, doc_id_indices, document_term,
-                                  term_indices, term_index_in_vocab, values,
-                                  count)
+        _insert_feature_only(doc_id, doc_id_indices, document_term,
+                             term_indices, term_index_in_vocab, values,
+                             count)
 
     def handle_IV_OOT_feature(self, doc_id, doc_id_indices, document_term,
                               term_indices, term_index_in_vocab, values, count,
                               vocabulary):
-        self._insert_feature_only(doc_id, doc_id_indices, document_term,
-                                  term_indices, term_index_in_vocab, values,
-                                  count)
+        _insert_feature_only(doc_id, doc_id_indices, document_term,
+                             term_indices, term_index_in_vocab, values,
+                             count)
 
     def handle_OOV_IT_feature(self, doc_id, doc_id_indices, document_term,
                               term_indices, term_index_in_vocab, values, count,
                               vocabulary):
-        self._ignore_feature(doc_id, document_term)
+        _ignore_feature(doc_id, document_term)
 
     def handle_OOV_OOT_feature(self, doc_id, doc_id_indices, document_term,
                                term_indices, term_index_in_vocab, values,
                                count, vocabulary):
-        self._ignore_feature(doc_id, document_term)
+        _ignore_feature(doc_id, document_term)
 
 
 class SignifierSignifiedFeatureHandler(BaseFeatureHandler):
@@ -160,15 +165,16 @@ class SignifierSignifiedFeatureHandler(BaseFeatureHandler):
         ignoring the feature
     """
 
-    def __init__(self, k):
+    def __init__(self, k, sim_transformer):
         self.k = k
+        self.sim_transformer = sim_transformer
 
     def handle_OOV_IT_feature(self, doc_id, doc_id_indices, document_term,
                               term_indices, term_index_in_vocab, values, count,
                               vocabulary):
-        self._paraphrase(doc_id, doc_id_indices,
-                         document_term, term_indices,
-                         values, vocabulary, self.k)
+        _paraphrase(doc_id, doc_id_indices, document_term, count,
+                    term_indices, values, vocabulary, self.k,
+                    self.sim_transformer)
 
 
 class ReplaceAllFeatureHandler(BaseFeatureHandler):
@@ -180,15 +186,16 @@ class ReplaceAllFeatureHandler(BaseFeatureHandler):
         Note: no token can ever be IV and OOT in this setting
     """
 
-    def __init__(self, k):
+    def __init__(self, k, sim_transformer):
         self.k = k
+        self.sim_transformer = sim_transformer
 
     def handle_IV_IT_feature(self, doc_id, doc_id_indices, document_term,
                              term_indices, term_index_in_vocab, values, count,
                              vocabulary):
-        self._paraphrase(doc_id, doc_id_indices,
-                         document_term, term_indices,
-                         values, vocabulary, self.k)
+        _paraphrase(doc_id, doc_id_indices,
+                    document_term, count, term_indices,
+                    values, vocabulary, self.k, self.sim_transformer)
 
     handle_OOV_IT_feature = handle_IV_IT_feature
 
