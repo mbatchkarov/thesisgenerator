@@ -41,8 +41,10 @@ def consolidate_results(writer, conf_dir, log_dir, output_dir,
 
         exp_name = config_obj['name']
         keep_only_IT = config_obj['tokenizer']['keep_only_IT']
-        use_signifier_only = config_obj['feature_extraction'] \
-            ['use_signifier_only']
+        train_handler = config_obj['feature_extraction'][
+            'train_token_handler'].split('.')[-1]
+        decode_handler = config_obj['feature_extraction'][
+            'decode_token_handler'].split('.')[-1]
         use_tfidf = config_obj['feature_extraction']['use_tfidf']
 
         # find out thesaurus information
@@ -120,7 +122,8 @@ def consolidate_results(writer, conf_dir, log_dir, output_dir,
                     #  because mysql stores booleans as a tinyint and complains
                     #  if you pass in a python boolean
                     int(keep_only_IT),
-                    int(use_signifier_only),
+                    train_handler,
+                    decode_handler,
                     int(use_tfidf),
 
                     # token status

@@ -24,9 +24,11 @@ class ThesaurusVectorizer(TfidfVectorizer):
                  max_n=None, ngram_range=(1, 1), max_df=1.0, min_df=2,
                  max_features=None, vocabulary=None, binary=False, dtype=float,
                  norm='l2', use_idf=True, smooth_idf=True,
-                 sublinear_tf=False, use_tfidf=True, replace_all=False,
+                 sublinear_tf=False, use_tfidf=True,
                  use_signifier_only=False, record_stats=False, k=1,
-                 sim_compressor='thesisgenerator.utils.noop'):
+                 sim_compressor='thesisgenerator.utils.noop',
+                 train_token_handler='thesisgenerator.plugins.bov_feature_handlers.BaseFeatureHandler',
+                 decode_token_handler='thesisgenerator.plugins.bov_feature_handlers.BaseFeatureHandler'):
         """
         Builds a vectorizer the way a TfidfVectorizer is built, and takes one
         extra param specifying the path the the Byblo-generated thesaurus.
@@ -43,11 +45,12 @@ class ThesaurusVectorizer(TfidfVectorizer):
         self.use_tfidf = use_tfidf
         self.pipe_id = pipe_id
         self.exp_name = exp_name
-        self.replace_all = replace_all
         self.use_signifier_only = use_signifier_only
         self.record_stats = record_stats
         self.k = k
         self.sim_compressor = sim_compressor
+        self.train_token_handler = train_token_handler
+        self.decode_token_handler = decode_token_handler
 
         super(ThesaurusVectorizer, self).__init__(input=input,
                                                   charset=charset,
@@ -74,36 +77,40 @@ class ThesaurusVectorizer(TfidfVectorizer):
                                                   dtype=dtype
         )
 
-    def try_to_set_vocabulary_from_thesaurus_keys(self):
-        if self.replace_all:
-            logging.warn('Replace_all is enabled, setting vocabulary to '
-                         'thesaurus entries')
-            # if self.vocab_from_thes:
-            # self.vocab_from_thes = True
-
-            if not get_thesaurus():
-                raise ValueError(
-                    'A thesaurus is required when using vocab_from_thes')
-            self.vocabulary_ = {k: v for v, k in
-                                enumerate(
-                                    sorted(get_thesaurus().keys()))}
-            self.fixed_vocabulary = True
+    # def try_to_set_vocabulary_from_thesaurus_keys(self):
+    #     if self.replace_all:
+    #         logging.warn('Replace_all is enabled, setting vocabulary to '
+    #                      'thesaurus entries')
+    #         # if self.vocab_from_thes:
+    #         # self.vocab_from_thes = True
+    #
+    #         if not get_thesaurus():
+    #             raise ValueError(
+    #                 'A thesaurus is required when using vocab_from_thes')
+    #         self.vocabulary_ = {k: v for v, k in
+    #                             enumerate(
+    #                                 sorted(get_thesaurus().keys()))}
+    #         self.fixed_vocabulary = True
 
     def fit_transform(self, raw_documents, y=None):
-        self.handler = get_token_handler(self.replace_all,
-                                         self.use_signifier_only,
+        self.handler = get_token_handler(self.train_token_handler,
                                          self.k,
                                          self.sim_compressor)
         self.stats = get_stats_recorder(self.record_stats)
         # a different stats recorder will be used for the testing data
 
-        self.try_to_set_vocabulary_from_thesaurus_keys()
+        # self.try_to_set_vocabulary_from_thesaurus_keys()
         return super(ThesaurusVectorizer, self).fit_transform(raw_documents,
                                                               y)
 
     def transform(self, raw_documents):
         # record stats separately for the test set
         self.stats = get_stats_recorder(self.record_stats)
+
+        self.handler = get_token_handler(self.decode_token_handler,
+                                         self.k,
+                                         self.sim_compressor)
+
         return super(ThesaurusVectorizer, self).transform(raw_documents)
 
 

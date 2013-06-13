@@ -8,16 +8,12 @@ def get_stats_recorder(enabled=False):
     return StatsRecorder() if enabled else NoopStatsRecorder()
 
 
-def get_token_handler(replace_all, use_signifier_only, k, sim_transformer):
-    if replace_all:
-        raise ValueError('Do not use replace all')
-        # return ReplaceAllFeatureHandler(k)
-    else:
-        if use_signifier_only:
-            return BaseFeatureHandler()
-        else:
-            sim_transformer = get_named_object(sim_transformer)
-            return SignifierSignifiedFeatureHandler(k, sim_transformer)
+def get_token_handler(name, k, sim_transformer):
+    # k- parameter for _paraphrase
+    # sim_transformer- callable that transforms the raw sim scores in
+    # _paraphrase
+    # todo replace k with a named object
+    return get_named_object(name)(k, get_named_object(sim_transformer))
 
 
 class StatsRecorder(object):
@@ -132,6 +128,10 @@ class BaseFeatureHandler():
         - OOV, IT: ignore feature
         - OOV, OOT: ignore feature
     """
+
+    def __init__(self, k, sim_transformer):
+        # contructor takes parameters for compatibility with other
+        pass
 
     def handle_IV_IT_feature(self, doc_id, doc_id_indices, document_term,
                              term_indices, term_index_in_vocab, values,

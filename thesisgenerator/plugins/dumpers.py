@@ -89,7 +89,8 @@ columns = [('name', 'TEXT'),
            ('sample_size', 'INTEGER'),
            ('classifier', 'TEXT'),
            ('keep_only_IT', 'BOOLEAN'),
-           ('use_signifier_only', 'BOOLEAN'),
+           ('train_token_handler', 'TEXT'),
+           ('decode_token_handler', 'TEXT'),
            ('use_tfidf', 'BOOLEAN'),
 
            # token  statistics

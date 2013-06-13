@@ -38,10 +38,10 @@ class Test_ThesaurusVectorizer(TestCase):
             'use_tfidf': False,
             'min_df': 1,
             'lowercase': False,
-            'replace_all': False,
             'record_stats': True,
             'k': 10, # use all thesaurus entries
-            'use_signifier_only': False
+            'train_token_handler': 'thesisgenerator.plugins.bov_feature_handlers.BaseFeatureHandler',
+            'decode_token_handler': 'thesisgenerator.plugins.bov_feature_handlers.BaseFeatureHandler'
         }
 
         self.default_prefix = 'thesisgenerator/resources/test'
@@ -105,6 +105,7 @@ class Test_ThesaurusVectorizer(TestCase):
         thesaurus_loader.read_thesaurus(**self._thesaurus_opts)
 
 
+    @skip('Do not use replace_all')
     def test_replaceAll_False_includeSelf_TrueFalse_use_signified(self):
         """
         Similar to self.test_baseline_use_all_features_with_signified_D in
@@ -275,9 +276,9 @@ class Test_ThesaurusVectorizer(TestCase):
             )
         )
 
-    def test_baseline_use_all_features_signifier_only_B(self):
+    def test_baseline_use_all_features_signifier_only_22(self):
         self.feature_extraction_conf['vocab_from_thes'] = False
-        self.feature_extraction_conf['use_signifier_only'] = True
+        # self.feature_extraction_conf['use_signifier_only'] = True
         self._thesaurus_opts['thesaurus_files'] = \
             ['thesisgenerator/resources/exp0-0b.strings']
         # self._thesaurus_opts['k'] = 1 # todo needs fixing
@@ -312,9 +313,9 @@ class Test_ThesaurusVectorizer(TestCase):
             )
         )
 
-    def test_baseline_ignore_nonthesaurus_features_signifier_only_A(self):
+    def test_baseline_ignore_nonthesaurus_features_signifier_only_22(self):
         self.tokenizer.keep_only_IT = True
-        self.feature_extraction_conf['use_signifier_only'] = True
+        # self.feature_extraction_conf['decode_token_handler'] = 'thesisgenerator.plugins.bov_feature_handlers.SignifierSignifiedFeatureHandler'
         self._thesaurus_opts['thesaurus_files'] = \
             ['thesisgenerator/resources/exp0-0b.strings']
         # self._thesaurus_opts['k'] = 1
@@ -347,9 +348,10 @@ class Test_ThesaurusVectorizer(TestCase):
             )
         )
 
-    def test_baseline_use_all_features_with_signified_D(self):
+    def test_baseline_use_all_features_with_signified_25(self):
         self.tokenizer.keep_only_IT = False
-        self.feature_extraction_conf['use_signifier_only'] = False
+        self.feature_extraction_conf['decode_token_handler'] = \
+            'thesisgenerator.plugins.bov_feature_handlers.SignifierSignifiedFeatureHandler'
         self.feature_extraction_conf['k'] = 1 # equivalent to max
         self._thesaurus_opts['thesaurus_files'] = \
             ['thesisgenerator/resources/exp0-0b.strings']
@@ -384,9 +386,10 @@ class Test_ThesaurusVectorizer(TestCase):
             )
         )
 
-    def test_baseline_ignore_nonthesaurus_features_with_signified_C(self):
+    def test_baseline_ignore_nonthesaurus_features_with_signified_24(self):
         self.tokenizer.keep_only_IT = True
-        self.feature_extraction_conf['use_signifier_only'] = False
+        self.feature_extraction_conf['decode_token_handler'] = \
+            'thesisgenerator.plugins.bov_feature_handlers.SignifierSignifiedFeatureHandler'
         self.feature_extraction_conf['k'] = 1 # equivalent to max
         self._thesaurus_opts['thesaurus_files'] = \
             ['thesisgenerator/resources/exp0-0b.strings']

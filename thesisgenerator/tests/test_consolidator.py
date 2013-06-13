@@ -43,9 +43,11 @@ class TestConsolidator(TestCase):
             'fef': '?',
             'use_tfidf': 0,
             'keep_only_IT': 0,
-            'use_signifier_only': 1 # changing this to 1 will not affect the
-            # vector of the third test document, i.e. will not change
+            'train_token_handler': 'BaseFeatureHandler',
+            # changing this to SignifierSignifiedFeatureHandler will not affect
+            #  the vector of the third test document, i.e. will not change
             # performance
+            'train_token_handler': 'BaseFeatureHandler'
         }
         for variable, exp_mean in exp.items():
             cursor.execute('SELECT DISTINCT %s from data00;' % variable)

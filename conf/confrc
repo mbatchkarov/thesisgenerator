@@ -7,13 +7,13 @@ shuffle_targets=boolean(default=False)
     run=boolean(default=True)
     vectorizer=string(default="")
     input_generator=string(default="")
-	
+
 	# The below options have defaults in the scikit Vectorizer init
     input=option('content', 'filename', 'file')
     charset=string
     charset_error=string
     strip_accents=string
-    lowercase=boolean(default=False)	
+    lowercase=boolean(default=False)
     token_pattern=string
     min_n=integer
     max_n=integer
@@ -26,7 +26,7 @@ shuffle_targets=boolean(default=False)
     vocabulary=string
     binary=boolean
     use_tfidf=boolean
-    
+
     # extra options required by the Bag-of-Vectors project Vectorizer
     thesaurus_files=list
     k=integer(min=0)
@@ -35,18 +35,20 @@ shuffle_targets=boolean(default=False)
     use_pos=boolean(default=True)
 	coarse_pos=boolean(default=True)
 	normalise_entities=boolean(default=False)
-	replace_all=boolean(default=False)
     include_self=boolean(default=True)
-	use_signifier_only=boolean(default=False)
 	record_stats=boolean(default=False)
 	sim_compressor=string(default='thesisgenerator.utils.noop')
 
-[tokenizer] 
+	train_token_handler=string(default='thesisgenerator.plugins.bov_feature_handlers.BaseFeatureHandler')
+	decode_token_handler=string(default='thesisgenerator.plugins.bov_feature_handlers.BaseFeatureHandler')
+
+
+[tokenizer]
 	lowercase=boolean
     keep_only_IT=boolean(default=False)
     remove_stopwords=boolean(default=False)
 	remove_short_words=boolean(default=False)
-        
+
 [crossvalidation]
 	run=boolean()
 	type = option('kfold', 'skfold', 'loo', 'bootstrap', 'oracle', default = 'kfold')
@@ -54,7 +56,7 @@ shuffle_targets=boolean(default=False)
 	ratio=float()
     sample_size=integer()
     random_state=integer(default=0)
-	
+
 [split_data]
     run=boolean()
     stream_data=boolean()
@@ -66,20 +68,20 @@ shuffle_targets=boolean(default=False)
     k=integer
     alpha=float
     percentile=int
-    
+
 [dimensionality_reduction]
     run=boolean(default=False)
     method=string(default=sklearn.decomposition.ProjectedGradientNMF)
     n_components=integer(min=0)
     whiten=boolean
-    
+
 [classifiers]
     [[sklearn.naive_bayes.MultinomialNB]]
-    	run=boolean(default=False) 
+    	run=boolean(default=False)
 		alpha=float()
-	
+
 	[[sklearn.naive_bayes.BernoulliNB]]
-    	run=boolean(default=False) 
+    	run=boolean(default=False)
 		alpha=float()
 
     [[sklearn.neighbors.KNeighborsClassifier]]
@@ -88,49 +90,49 @@ shuffle_targets=boolean(default=False)
 
     [[sklearn.linear_model.LogisticRegression]]
 		run=boolean(default=False)
-		
+
     [[sklearn.svm.SVC]]
     	run=boolean(default=False)
     	kernel=option('linear','rbf', 'poly')
 
     [[sklearn.svm.LinearSVC]]
     	run=boolean(default=False)
-    	
+
 	[[thesisgenerator.classifiers.MostCommonLabelClassifier]]
 	    run=boolean(default=False)
-	    
+
 [evaluation]
     [[sklearn.metrics.precision_score]]
         run=boolean(default=False)
 		average=option('micro', 'macro', 'weighted', default=None)
-	
+
 	[[sklearn.metrics.recall_score]]
 		run=boolean(default=False)
 		average=option('micro', 'macro', 'weighted', default=None)
-	
+
 	[[sklearn.metrics.f1_score]]
 		run=boolean(default=False)
         average=option('micro', 'macro', 'weighted', default=None)
 
 	[[thesisgenerator.metrics.macroavg_prec]]
     	run=boolean(default=False)
-	
+
 	[[thesisgenerator.metrics.macroavg_rec]]
     	run=boolean(default=False)
-	
+
 	[[thesisgenerator.metrics.macroavg_f1]]
     	run=boolean(default=False)
 
     [[thesisgenerator.metrics.microavg_prec]]
     	run=boolean(default=False)
-	
+
 	[[thesisgenerator.metrics.microavg_rec]]
     	run=boolean(default=False)
-	
+
 	[[thesisgenerator.metrics.microavg_f1]]
     	run=boolean(default=False)
-    	
+
     [[sklearn.metrics.accuracy_score]]
         run=boolean(default=False)
-        
-        
+
+
