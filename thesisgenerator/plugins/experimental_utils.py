@@ -316,7 +316,7 @@ def run_experiment(i, num_workers=4,
                                  '%s/conf/exp1/exp1_base.conf' % prefix)
 
     # ----------- EXPERIMENTS 2-14 -----------
-    elif i == 0 or 1 < i <= 14 or 17 <= i <= 25:
+    elif i == 0 or 1 < i <= 14 or 17 <= i <= 27:
         it = _vary_training_size_file_iterator(sizes, i, base_conf_file)
     elif i == 15:
         it = _exp15_file_iterator(base_conf_file)
