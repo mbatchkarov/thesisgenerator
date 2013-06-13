@@ -177,6 +177,31 @@ class SignifierSignifiedFeatureHandler(BaseFeatureHandler):
                     self.sim_transformer)
 
 
+class SignifiedOnlyFeatureHandler(BaseFeatureHandler):
+    """
+    Ignores all OOT features and inserts the first K IV neighbours from
+    thesaurus for all IT features
+    """
+
+    def __init__(self, k, sim_transformer):
+        self.k = k
+        self.sim_transformer = sim_transformer
+
+    def handle_OOV_IT_feature(self, doc_id, doc_id_indices, document_term,
+                              term_indices, term_index_in_vocab, values, count,
+                              vocabulary):
+        _paraphrase(doc_id, doc_id_indices, document_term, count,
+                    term_indices, values, vocabulary, self.k,
+                    self.sim_transformer)
+
+    handle_IV_IT_feature = handle_OOV_IT_feature
+
+    def handle_IV_OOT_feature(self, doc_id, doc_id_indices, document_term,
+                              term_indices, term_index_in_vocab, values, count,
+                              vocabulary):
+        _ignore_feature(doc_id, document_term)
+
+
 class ReplaceAllFeatureHandler(BaseFeatureHandler):
     """
     Handles features the way standard Naive Bayes does, except

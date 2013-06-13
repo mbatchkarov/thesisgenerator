@@ -315,7 +315,6 @@ class Test_ThesaurusVectorizer(TestCase):
 
     def test_baseline_ignore_nonthesaurus_features_signifier_only_22(self):
         self.tokenizer.keep_only_IT = True
-        # self.feature_extraction_conf['decode_token_handler'] = 'thesisgenerator.plugins.bov_feature_handlers.SignifierSignifiedFeatureHandler'
         self._thesaurus_opts['thesaurus_files'] = \
             ['thesisgenerator/resources/exp0-0b.strings']
         # self._thesaurus_opts['k'] = 1
@@ -418,6 +417,80 @@ class Test_ThesaurusVectorizer(TestCase):
             np.array(
                 [
                     [1, 0, 0.7],
+                ]
+            )
+        )
+
+    def test_baseline_use_all_features_with_signified_27(self):
+        self.tokenizer.keep_only_IT = False
+        self.feature_extraction_conf['decode_token_handler'] = \
+            'thesisgenerator.plugins.bov_feature_handlers.SignifiedOnlyFeatureHandler'
+        self.feature_extraction_conf['k'] = 1 # equivalent to max
+        self._thesaurus_opts['thesaurus_files'] = \
+            ['thesisgenerator/resources/exp0-0b.strings']
+        self._reload_thesaurus()
+
+        self.x_tr, self.y_tr, self.x_ev, self.y_ev = self. \
+            _load_data('thesisgenerator/resources/test-baseline')
+
+        x1, x2, voc = self._vectorize_data()
+
+        self.assertDictEqual({'a/n': 0, 'b/n': 1, 'c/n': 2,
+                              'd/n': 3, 'e/n': 4, 'f/n': 5},
+                             voc)
+
+        self.assertIsInstance(x1, sp.spmatrix)
+        t.assert_array_equal(
+            x1.toarray(),
+            np.array(
+                [
+                    [1, 1, 1, 0, 0, 0],
+                    [0, 0, 0, 1, 1, 1],
+                ]
+            )
+        )
+
+        t.assert_array_equal(
+            x2.toarray(),
+            np.array(
+                [
+                    [0, 0, 0, 1.2, 0, 0],
+                ]
+            )
+        )
+
+    def test_baseline_ignore_nonthesaurus_features_with_signified_26(self):
+        self.tokenizer.keep_only_IT = True
+        self.feature_extraction_conf['decode_token_handler'] = \
+            'thesisgenerator.plugins.bov_feature_handlers.SignifiedOnlyFeatureHandler'
+        self.feature_extraction_conf['k'] = 1 # equivalent to max
+        self._thesaurus_opts['thesaurus_files'] = \
+            ['thesisgenerator/resources/exp0-0b.strings']
+        self._reload_thesaurus()
+
+        self.x_tr, self.y_tr, self.x_ev, self.y_ev = self. \
+            _load_data('thesisgenerator/resources/test-baseline')
+
+        x1, x2, voc = self._vectorize_data()
+
+        self.assertDictEqual({'a/n': 0, 'b/n': 1, 'd/n': 2}, voc)
+
+        self.assertIsInstance(x1, sp.spmatrix)
+        t.assert_array_equal(
+            x1.toarray(),
+            np.array(
+                [
+                    [1, 1, 0],
+                    [0, 0, 1],
+                ]
+            )
+        )
+
+        t.assert_array_equal(
+            x2.toarray(),
+            np.array(
+                [
+                    [0, 0, 1.2],
                 ]
             )
         )

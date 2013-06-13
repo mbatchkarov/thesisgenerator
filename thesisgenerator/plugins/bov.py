@@ -74,8 +74,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
                                                   sublinear_tf=sublinear_tf,
                                                   binary=binary,
                                                   norm=norm,
-                                                  dtype=dtype
-        )
+                                                  dtype=dtype)
 
     # def try_to_set_vocabulary_from_thesaurus_keys(self):
     #     if self.replace_all:
