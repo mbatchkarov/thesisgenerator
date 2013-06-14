@@ -1,5 +1,6 @@
 # coding=utf-8
 from collections import Counter
+from joblib import hashing
 from numpy import array
 from sklearn.base import BaseEstimator
 from sklearn.linear_model import LogisticRegression
@@ -30,6 +31,13 @@ def score_equals_prediction(true, predicted):
 
 
 class DataHashingClassifierMixin(object):
+    """
+    A classifier that keeps track of what is was trained and evaluated on
+    and when asked to predict return a hash of that data. Multiple instances
+    of this class can be used to verify if the same data is consistently
+    being passed in by crossvalidation iterators with a random element
+    """
+
     def fit(self, X, y, sample_weight=None, class_prior=None):
         self.train_data = X
         return self
@@ -39,10 +47,21 @@ class DataHashingClassifierMixin(object):
         return self
 
     def predict(self, X):
-        return hash(self.train_data) * hash(X)
+        h1 = hashing.hash(X.todense())
+        h1 = ''.join([str(ord(x)) for x in h1])
+
+        h2 = hashing.hash(self.train_data.todense())
+        h2 = ''.join([str(ord(x)) for x in h2])
+
+        return hash(h1 + h2)
 
 
 class DataHashingNaiveBayes(DataHashingClassifierMixin, MultinomialNB):
+    """
+    Dummy class, the current pipeline can only work with one instance of a
+    classifier type, so to get two identical classifiers we need to create
+    two different subclasses
+    """
     pass
 
 

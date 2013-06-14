@@ -146,7 +146,7 @@ class TestUtils(TestCase):
         from thesisgenerator.plugins.experimental_utils import run_experiment
         from pandas import read_csv
 
-        run_experiment(14, num_workers=1, predefined_sized=[3],
+        run_experiment(14, num_workers=1, predefined_sized=[2],
                        prefix='thesisgenerator/resources')
 
         df = read_csv('thesisgenerator/resources/conf/exp14/output/exp14-0'
