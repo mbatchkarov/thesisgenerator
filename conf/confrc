@@ -100,6 +100,11 @@ shuffle_targets=boolean(default=False)
 
 	[[thesisgenerator.classifiers.MostCommonLabelClassifier]]
 	    run=boolean(default=False)
+	    
+    [[thesisgenerator.classifiers.MultinomialNBWithBinaryFeatures]]
+	    run=boolean(default=False)
+		alpha=float()
+		threshold=float(default=0.0)
 
 [evaluation]
     [[sklearn.metrics.precision_score]]

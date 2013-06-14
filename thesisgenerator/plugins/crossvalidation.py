@@ -67,8 +67,7 @@ def _cross_val_score(cv_number, estimator, X, y, score_func, train, test,
 
 
 def naming_cross_val_score(estimator, X, y=None, score_func=None, cv=None,
-                           n_jobs=1,
-                           verbose=0, fit_params=None):
+                           n_jobs=1, verbose=0, fit_params=None):
     """Evaluate a score by cross-validation
 
     Parameters

@@ -200,6 +200,8 @@ class ThesaurusVectorizer(TfidfVectorizer):
         Current version copied without functional modification from sklearn
         .feature_extraction.text.CountVectorizer
         """
+        if hasattr(self, 'cv_number'):
+            logging.info('cv_number=%s' % self.cv_number)
         logging.info('Converting features to vectors (with thesaurus lookup)')
         self._dump_vocabulary_for_debugging()
 
