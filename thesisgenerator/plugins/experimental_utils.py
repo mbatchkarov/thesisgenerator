@@ -304,7 +304,7 @@ def run_experiment(i, num_workers=4,
     sizes = chain(range(2, 11, 2), range(20, 101, 10))
     if i == 0:
         # exp0 is for debugging only, we don't have to do much
-        sizes = [20]#range(10, 31, 10)
+        sizes = [10, 20]#range(10, 31, 10)
     if predefined_sized:
         sizes = predefined_sized
 

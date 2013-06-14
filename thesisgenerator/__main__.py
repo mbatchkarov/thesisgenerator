@@ -10,7 +10,6 @@ Created on Oct 18, 2012
 # thesisgenerator package would not be on the path, add it and try again
 import sys
 
-
 sys.path.append('.')
 sys.path.append('..')
 sys.path.append('../..')
@@ -28,7 +27,6 @@ from numpy.ma import hstack
 import validate
 from configobj import ConfigObj
 from sklearn import cross_validation
-from sklearn.cross_validation import cross_val_score
 from sklearn.pipeline import Pipeline
 from sklearn.datasets import load_files
 from joblib import Memory
@@ -36,6 +34,7 @@ from joblib import Memory
 from thesisgenerator import config
 from thesisgenerator.plugins import tokenizers, thesaurus_loader
 from thesisgenerator.plugins.dumpers import FeatureVectorsCsvDumper
+from thesisgenerator.plugins.crossvalidation import naming_cross_val_score
 from thesisgenerator.utils import (get_named_object,
                                    LeaveNothingOut,
                                    ChainCallable,
@@ -462,7 +461,7 @@ def _run_tasks(configuration, n_jobs, data=None):
         # pass the (feature selector + classifier) pipeline for evaluation
         logging.info(
             '***Fitting pipeline for %s' % clf_name)
-        cached_cross_val_score = mem_cache.cache(cross_val_score)
+        cached_cross_val_score = mem_cache.cache(naming_cross_val_score)
         scores_this_clf = \
             cached_cross_val_score(pipeline, x_vals_seen, y_vals_seen,
                                    ChainCallable(
@@ -484,11 +483,11 @@ def _run_tasks(configuration, n_jobs, data=None):
         del pipeline
         del scores_this_clf
     logging.info('Classifier scores are %s' % scores)
-    return 0, analyze(scores, configuration['output_dir'],
-                      configuration['name'])
+    return 0, _analyze(scores, configuration['output_dir'],
+                       configuration['name'])
 
 
-def analyze(scores, output_dir, name):
+def _analyze(scores, output_dir, name):
     """
     Stores a csv and xls representation of the data set. Requires pandas
     """
@@ -509,7 +508,12 @@ def analyze(scores, output_dir, name):
                 # todo verify the correct class id is inserted here
                 cleaned_scores.append([clf, '%s-class%d' % (metric, id), val])
 
+    # save raw results
     df = DataFrame(cleaned_scores, columns=['classifier', 'metric', 'score'])
+    csv = os.path.join(output_dir, '%s.out-raw.csv' % name)
+    df.to_csv(csv, na_rep='-1')
+
+    # now calculate mean and std
     grouped = df.groupby(['classifier', 'metric'])
     from numpy import mean, std
 
