@@ -37,6 +37,10 @@ class TestUtils(TestCase):
         }
 
     def test_get_crossvalidation_iterator_with_test_set(self):
+        """
+        Test that the test_set CV iterator always yields a single pair of
+        train-test data (which are known in advance), regardless of the seed
+        """
 
         # with a test set the random seed should make no difference
         for seed in range(10):
@@ -59,14 +63,14 @@ class TestUtils(TestCase):
                              'one pair of (train, test) data sets')
 
     def test_get_crossvalidation_iterator_with_kfold(self):
-        def go(kfold=False):
+        def go(subsampling=False):
             train_sets = {}
             test_sets = {}
 
             # should get the same result if using the same seed
             for seed in [1, 2, 3, 1, 2, 3, 1, 2, 3]:
                 self.conf['random_state'] = seed
-                if not kfold:
+                if not subsampling:
                     it, _, all_x, all_y = \
                         _build_crossvalidation_iterator(self.conf,
                                                         self.x_train,
@@ -83,7 +87,7 @@ class TestUtils(TestCase):
                     tr = array(all_x)[train]
                     ev = array(all_x)[test]
 
-                    if not kfold:
+                    if not subsampling:
                         # 2-fold CV, iterator should yield train/test segments
                         #  half as long as the full data set
                         self.assertEqual(len(tr),
@@ -105,7 +109,7 @@ class TestUtils(TestCase):
                         # after that, check for equality
                         assert_array_equal(train_sets[(seed, id)], tr)
 
-            if not kfold:
+            if not subsampling:
                 # for a given seed, all fold produces must be distinct
                 for seed, train_lists_keys in groupby(train_sets.keys(),
                                                       itemgetter(0)):
@@ -131,4 +135,31 @@ class TestUtils(TestCase):
 
         self.conf['type'] = 'subsampled_test_set'
         self.conf['sample_size'] = 120
-        go(kfold=True)
+        go(subsampling=True)
+
+    def test_seed_consistency(self):
+        """
+        Test that all estimators in a run receive the same data, so that their
+        results are comparable
+        """
+
+        from thesisgenerator.plugins.experimental_utils import run_experiment
+        from pandas import read_csv
+
+        run_experiment(14, num_workers=1, predefined_sized=[3],
+                       prefix='thesisgenerator/resources')
+
+        df = read_csv('thesisgenerator/resources/conf/exp14/output/exp14-0'
+                      '.out-raw.csv', index_col=0)
+        grouped = df.groupby(['cv_no', 'metric'])
+        for name, group in grouped:
+            classifiers, scores = group['classifier'], group['score']
+
+            # only two classifier have been run
+            self.assertSetEqual(set(classifiers),
+                                set(['DataHashingNaiveBayes',
+                                     'DataHashingLR']))
+
+            # the hashes obtained by the two classifiers must be the same
+            score1, score2 = [score for score in scores.to_dict().values()]
+            self.assertEqual(score1, score2)

@@ -46,7 +46,7 @@ def get_confrc(conf_file):
     """
 
     for subdir in ['.', 'conf']:
-        for i in range(6):
+        for i in range(7):
             my_list = [path.dirname(conf_file)] + ['..'] * i + \
                       [subdir] + ['confrc']
             candidate = path.join(*my_list)

@@ -459,10 +459,8 @@ def _run_tasks(configuration, n_jobs, data=None):
                                    exp_name=configuration['name'])
 
         # pass the (feature selector + classifier) pipeline for evaluation
-        logging.info(
-            '***Fitting pipeline for %s' % clf_name)
-        cached_cross_val_score = mem_cache.cache(naming_cross_val_score)
-        scores_this_clf = cached_cross_val_score(
+        logging.info('***Fitting pipeline for %s' % clf_name)
+        scores_this_clf = naming_cross_val_score(
             pipeline, x_vals_seen,
             y_vals_seen,
             ChainCallable(configuration['evaluation']),
@@ -500,7 +498,7 @@ def _analyze(scores, output_dir, name):
     cleaned_scores = []
     for result in scores:
         clf, run_no, metric, vals = result
-        if len(result[3].shape) < 1:
+        if np.isscalar(vals):
             # the value is a scalar, let it be
             cleaned_scores.append(result)
         else:

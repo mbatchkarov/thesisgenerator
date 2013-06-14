@@ -2,6 +2,8 @@
 from collections import Counter
 from numpy import array
 from sklearn.base import BaseEstimator
+from sklearn.linear_model import LogisticRegression
+from sklearn.naive_bayes import MultinomialNB
 
 __author__ = 'mmb28'
 
@@ -22,3 +24,27 @@ class MostCommonLabelClassifier(BaseEstimator):
     def predict(self, X):
         return array([self.decision] * X.shape[0])
 
+
+def score_equals_prediction(true, predicted):
+    return predicted
+
+
+class DataHashingClassifierMixin(object):
+    def fit(self, X, y, sample_weight=None, class_prior=None):
+        self.train_data = X
+        return self
+
+    def fit_transform(self, X, y, sample_weight=None, class_prior=None):
+        self.train_data = X
+        return self
+
+    def predict(self, X):
+        return hash(self.train_data) * hash(X)
+
+
+class DataHashingNaiveBayes(DataHashingClassifierMixin, MultinomialNB):
+    pass
+
+
+class DataHashingLR(DataHashingClassifierMixin, LogisticRegression):
+    pass
