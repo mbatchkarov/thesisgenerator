@@ -51,7 +51,7 @@ class FeatureVectorsCsvDumper(TransformerMixin):
             row = X.todense()[i, :].tolist()[0]
             vals = ['%1.2f' % x for x in row]
             c.writerow([i, y[i], sum(row), count_nonzero(row)] + vals)
-        logging.info('Saved debug infor to %s' % new_file)
+        logging.info('Saved debug info to %s' % new_file)
 
     def fit(self, X, y=None, **fit_params):
         self.y = y

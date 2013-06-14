@@ -445,6 +445,7 @@ def _run_tasks(configuration, n_jobs, data=None):
                 configuration['crossvalidation'], x_vals, y_vals, x_test,
                 y_test)
 
+        logging.info('Assigning id %d to classifier %s' % (i, clf_name))
         pipeline = _build_pipeline(i, clf_name,
                                    configuration['feature_extraction'],
                                    configuration['feature_selection'],

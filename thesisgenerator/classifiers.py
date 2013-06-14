@@ -5,6 +5,7 @@ from numpy import array
 from sklearn.base import BaseEstimator
 from sklearn.linear_model import LogisticRegression
 from sklearn.naive_bayes import MultinomialNB
+from sklearn.preprocessing import binarize
 
 __author__ = 'mmb28'
 
@@ -67,3 +68,27 @@ class DataHashingNaiveBayes(DataHashingClassifierMixin, MultinomialNB):
 
 class DataHashingLR(DataHashingClassifierMixin, LogisticRegression):
     pass
+
+
+class MultinomialNBWithBinaryFeatures(MultinomialNB):
+    """
+    A Multinomial Naive Bayes with binary features, as described in
+    Metsis et al (2006)
+    """
+
+    def __init__(self, alpha=1.0, fit_prior=True, class_prior=None,
+                 threshold=0.):
+        self.threshold = threshold
+        super(MultinomialNBWithBinaryFeatures, self).__init__(alpha, fit_prior,
+                                                              class_prior)
+
+    def fit(self, X, y, sample_weight=None, class_prior=None):
+        X = binarize(X, threshold=self.threshold)
+        return super(MultinomialNBWithBinaryFeatures, self).fit(X, y,
+                                                                sample_weight,
+                                                                class_prior)
+
+    def predict(self, X):
+        X = binarize(X, threshold=self.threshold)
+        return super(MultinomialNBWithBinaryFeatures, self).predict(X)
+
