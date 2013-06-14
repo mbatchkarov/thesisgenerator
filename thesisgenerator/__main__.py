@@ -421,21 +421,9 @@ def _run_tasks(configuration, n_jobs, data=None):
                 x_test, y_test = cached_get_data_generators(**options)
             del options
 
-
     # **********************************
     # CROSSVALIDATION
     # **********************************
-    # todo need to make sure that for several classifier the crossvalidation
-    # iterator stays consistent across all classifiers
-
-    # CREATE CROSSVALIDATION ITERATOR
-    crossvalidate_cached = mem_cache.cache(_build_crossvalidation_iterator)
-    cv_iterator, validate_indices, x_vals_seen, y_vals_seen = \
-        crossvalidate_cached(
-            configuration['crossvalidation'], x_vals, y_vals, x_test, y_test)
-
-    del x_vals
-    del y_vals # only the non-validation data should be used from now on
 
     scores = []
     for i, clf_name in enumerate(configuration['classifiers']):
@@ -449,6 +437,14 @@ def _run_tasks(configuration, n_jobs, data=None):
 
         logging.info('--------------------------------------------------------')
         logging.info('Building pipeline')
+
+        # CREATE CROSSVALIDATION ITERATOR
+        crossvalidate_cached = mem_cache.cache(_build_crossvalidation_iterator)
+        cv_iterator, validate_indices, x_vals_seen, y_vals_seen = \
+            crossvalidate_cached(
+                configuration['crossvalidation'], x_vals, y_vals, x_test,
+                y_test)
+
         pipeline = _build_pipeline(i, clf_name,
                                    configuration['feature_extraction'],
                                    configuration['feature_selection'],
