@@ -462,15 +462,14 @@ def _run_tasks(configuration, n_jobs, data=None):
         logging.info(
             '***Fitting pipeline for %s' % clf_name)
         cached_cross_val_score = mem_cache.cache(naming_cross_val_score)
-        scores_this_clf = \
-            cached_cross_val_score(pipeline, x_vals_seen, y_vals_seen,
-                                   ChainCallable(
-                                       configuration['evaluation']),
-                                   cv=cv_iterator, n_jobs=n_jobs,
-                                   verbose=0)
+        scores_this_clf = cached_cross_val_score(
+            pipeline, x_vals_seen,
+            y_vals_seen,
+            ChainCallable(configuration['evaluation']),
+            cv=cv_iterator, n_jobs=n_jobs,
+            verbose=0)
 
-        for run_number in range(len(scores_this_clf)):
-            a = scores_this_clf[run_number]
+        for run_number, a in scores_this_clf:
             # If there is just one metric specified in the conf file a is a
             # 0-D numpy array and needs to be indexed as [()]. Otherwise it
             # is a dict
@@ -478,7 +477,9 @@ def _run_tasks(configuration, n_jobs, data=None):
                 a.shape) < 1 else a
             for metric, score in mydict.items():
                 scores.append(
-                    [clf_name.split('.')[-1], metric.split('.')[-1],
+                    [clf_name.split('.')[-1],
+                     run_number,
+                     metric.split('.')[-1],
                      score])
         del pipeline
         del scores_this_clf
@@ -498,18 +499,22 @@ def _analyze(scores, output_dir, name):
 
     cleaned_scores = []
     for result in scores:
-        clf, metric, vals = result
-        if len(result[2].shape) < 1:
+        clf, run_no, metric, vals = result
+        if len(result[3].shape) < 1:
             # the value is a scalar, let it be
             cleaned_scores.append(result)
         else:
             # the value is a list, e.g. per-class precision/recall/F1
             for id, val in enumerate(vals):
                 # todo verify the correct class id is inserted here
-                cleaned_scores.append([clf, '%s-class%d' % (metric, id), val])
+                cleaned_scores.append([clf,
+                                       run_no,
+                                       '%s-class%d' % (metric, id),
+                                       val])
 
     # save raw results
-    df = DataFrame(cleaned_scores, columns=['classifier', 'metric', 'score'])
+    df = DataFrame(cleaned_scores,
+                   columns=['classifier', 'cv_no', 'metric', 'score'])
     csv = os.path.join(output_dir, '%s.out-raw.csv' % name)
     df.to_csv(csv, na_rep='-1')
 

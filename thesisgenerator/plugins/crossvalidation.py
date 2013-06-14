@@ -63,7 +63,7 @@ def _cross_val_score(cv_number, estimator, X, y, score_func, train, test,
             score = score_func(y[test], estimator.predict(X_test))
     if verbose > 1:
         print("score: %f" % score)
-    return score
+    return cv_number, score
 
 
 def naming_cross_val_score(estimator, X, y=None, score_func=None, cv=None,
@@ -126,4 +126,4 @@ def naming_cross_val_score(estimator, X, y=None, score_func=None, cv=None,
                                   clone(estimator), X, y, score_func,
                                   train, test, verbose, fit_params)
         for (cv_number, (train, test)) in izip(count(), cv))
-    return np.array(scores)
+    return scores
