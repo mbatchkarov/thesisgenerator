@@ -119,11 +119,11 @@ class XmlTokenizer(object):
                 am_i_a_number = self._is_number(txt)
 
                 if self.remove_stopwords and txt.lower() in ENGLISH_STOP_WORDS:
-                    logging.debug('Tokenizer ignoring stopword %s' % txt)
+                    # logging.debug('Tokenizer ignoring stopword %s' % txt)
                     continue
 
                 if self.remove_short_words and len(txt) <= 3:
-                    logging.debug('Tokenizer ignoring short word %s' % txt)
+                    # logging.debug('Tokenizer ignoring short word %s' % txt)
                     continue
 
                 pos = element.find('POS').text.upper()
@@ -146,13 +146,14 @@ class XmlTokenizer(object):
                         txt = '__NER-%s__' % iob_tag
 
                 if pos == 'PUNCT' or am_i_a_number:
-                    logging.debug('Tokenizer ignoring stopword %s' % txt)
+                    # logging.debug('Tokenizer ignoring stopword %s' % txt)
+                    continue
 
                 if self.lowercase:
                     txt = txt.lower()
 
                 if self.keep_only_IT and txt not in thes_entries:
-                    logging.debug('Tokenizer ignoring OOT token: %s' % txt)
+                    # logging.debug('Tokenizer ignoring OOT token: %s' % txt)
                     continue
                 tokens.append(txt)
 
