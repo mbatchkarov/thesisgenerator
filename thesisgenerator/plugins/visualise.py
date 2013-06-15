@@ -1,6 +1,5 @@
 # coding=utf-8
 from math import sqrt
-import operator
 from jinja2 import Template
 
 import numpy
@@ -120,7 +119,17 @@ def performance_bar_chart(tables, classifiers, width=0.2, cv=25, wheres=[]):
     ax.set_xlabel('Sample size')
     ax.set_ylabel('Macroavg F1')
     ax.set_title('Classifier performance')
-    ax.legend(map(operator.itemgetter(0), data_frames), 'best')
+
+    def get_descr(frames):
+        name = frames[0]
+        global table_descr
+        number, clf = name.split('-')
+        try:
+            return '{}({})-{}'.format(number, table_descr[int(number)], clf)
+        except KeyError:
+            return name
+
+    ax.legend(map(get_descr, data_frames), 'lower right', prop={'size': 6})
     ax.set_ylim([0., 1.])
     exp_range = '-'.join(map(str, tables))
     classifiers = '-'.join([x[:5] for x in classifiers])
@@ -212,30 +221,22 @@ def coverage_bar_chart(experiments, width=0.13, cv=25,
 
 # coverage_bar_chart([6, 8], cv=5, legend_position='upper center')
 
+table_descr = {
+    22: 'IT tokens, signifier',
+    23: 'all tokens, signifier',
+    24: 'IT tokens, signifier + signified',
+    25: 'all token, signifier + signified',
+    26: 'IT tokens, signified',
+    27: 'all tokens, signified'
+}
 
-coverage_bar_chart([22], x_columns=['sample_size'])
-coverage_bar_chart([23], x_columns=['sample_size'])
-coverage_bar_chart([24], x_columns=['sample_size'])
-coverage_bar_chart([25], x_columns=['sample_size'])
+for i in range(22, 28):
+    coverage_bar_chart([i], x_columns=['sample_size'])
 
-performance_bar_chart([23, 22], ['BernoulliNB'])
-performance_bar_chart([23, 22], ['MultinomialNB'])
-performance_bar_chart([23, 22], ['LogisticRegression'])
-
-performance_bar_chart([25, 24], ['BernoulliNB'])
-performance_bar_chart([25, 24], ['MultinomialNB'])
-performance_bar_chart([25, 24], ['LogisticRegression'])
-
-performance_bar_chart([22, 24], ['BernoulliNB'])
-performance_bar_chart([22, 24], ['MultinomialNB'])
-performance_bar_chart([22, 24], ['LogisticRegression'])
-
-performance_bar_chart([23, 25], ['BernoulliNB'])
-performance_bar_chart([23, 25], ['MultinomialNB'])
-performance_bar_chart([23, 25], ['LogisticRegression'])
-
-performance_bar_chart([22, 23, 24, 25], ['BernoulliNB'])
-performance_bar_chart([22, 23, 24, 25], ['MultinomialNB'])
-performance_bar_chart([22, 23, 24, 25], ['LogisticRegression'])
+for clf in ['BernoulliNB', 'MultinomialNB',
+            'LogisticRegression', 'MultinomialNBWithBinaryFeatures']:
+    for experiments in [[23, 22], [25, 24], [22, 24],
+                        [23, 25], [22, 23, 24, 25]]:
+        performance_bar_chart(experiments, [clf])
 
 print 'done'
