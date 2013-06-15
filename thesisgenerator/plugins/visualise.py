@@ -57,7 +57,7 @@ def _grouped_bar_chart(data_frames, width, x_columns, y_columns,
         # attach some text labels
         for rect in rects:
             height = rect.get_height()
-            plt.text(rect.get_x() + rect.get_width() / 2., 1.05 * height,
+            plt.text(rect.get_x() + rect.get_width(), height,
                      '%.2f' % height,
                      ha='center', va='bottom', size=5, rotation=90)
 
