@@ -57,7 +57,7 @@ def _grouped_bar_chart(data_frames, width, x_columns, y_columns,
         # attach some text labels
         for rect in rects:
             height = rect.get_height()
-            plt.text(rect.get_x() + rect.get_width(), height,
+            plt.text(rect.get_x() + rect.get_width() / 2., 1.05 * height,
                      '%.2f' % height,
                      ha='center', va='bottom', size=5, rotation=90)
 
@@ -70,7 +70,7 @@ def _grouped_bar_chart(data_frames, width, x_columns, y_columns,
            len(yerr_columns)
     fig = plt.figure()
     ax = fig.add_subplot(111)
-    cm = plt.get_cmap('gist_rainbow')
+    cm = plt.get_cmap('Accent')
     num_groups = len(data_frames)
     # todo either predefine a set of colors of a set of hatch styles, not both
     ax.set_color_cycle([cm(1. * i / num_groups) for i in range(num_groups)])
@@ -93,7 +93,7 @@ def _grouped_bar_chart(data_frames, width, x_columns, y_columns,
     return ax
 
 
-def performance_bar_chart(tables, classifiers, width=0.2, cv=25, wheres=[]):
+def performance_bar_chart(tables, classifiers, width=0.1, cv=25, wheres=[]):
     x_columns = ['sample_size']
     y_columns = ['score_mean']
     yerr_columns = ['score_std']
@@ -132,7 +132,7 @@ def performance_bar_chart(tables, classifiers, width=0.2, cv=25, wheres=[]):
     ax.legend(map(get_descr, data_frames), 'lower right', prop={'size': 6})
     ax.set_ylim([0., 1.])
     exp_range = '-'.join(map(str, tables))
-    classifiers = '-'.join([x[:5] for x in classifiers])
+    classifiers = '-'.join(classifiers)
     plt.savefig('figures/exp%s-%s-%s-perf.png' % (exp_range,
                                                   classifiers,
                                                   '_'.join(wheres)),
@@ -235,8 +235,8 @@ for i in range(22, 28):
 
 for clf in ['BernoulliNB', 'MultinomialNB',
             'LogisticRegression', 'MultinomialNBWithBinaryFeatures']:
-    for experiments in [[23, 22], [25, 24], [22, 24],
-                        [23, 25], [22, 23, 24, 25]]:
+    for experiments in [[23, 22], [25, 24], [27, 26], [22, 26, 24],
+                        [23, 27, 25], range(22, 28)]:
         performance_bar_chart(experiments, [clf])
 
 print 'done'
