@@ -8,12 +8,18 @@ def get_stats_recorder(enabled=False):
     return StatsRecorder() if enabled else NoopStatsRecorder()
 
 
-def get_token_handler(name, k, sim_transformer):
+def get_token_handler(handler_name, k, transformer_name):
     # k- parameter for _paraphrase
     # sim_transformer- callable that transforms the raw sim scores in
     # _paraphrase
     # todo replace k with a named object
-    return get_named_object(name)(k, get_named_object(sim_transformer))
+    handler = get_named_object(handler_name)
+    transformer = get_named_object(transformer_name)
+    logging.info('Returning token handler %s (k=%s, sim transformer=%s' % (
+        handler,
+        k,
+        transformer))
+    return handler(k, transformer)
 
 
 class StatsRecorder(object):
@@ -104,7 +110,7 @@ def _paraphrase(doc_id, doc_id_indices,
     neighbours = [(neighbour, sim) for neighbour, sim in neighbours
                   if neighbour in vocabulary]
 
-    logging.debug('Using %d/%d neighbours' % (k, len(neighbours)))
+    logging.debug('Using %d/%d IV neighbours' % (k, len(neighbours)))
     for neighbour, sim in neighbours[:k]:
         logging.debug('Replacement: %s --> %s, sim = %f' % (
             document_term, neighbour, sim))
@@ -202,33 +208,33 @@ class SignifiedOnlyFeatureHandler(BaseFeatureHandler):
         _ignore_feature(doc_id, document_term)
 
 
-class ReplaceAllFeatureHandler(BaseFeatureHandler):
-    """
-    Handles features the way standard Naive Bayes does, except
-        - OOV, IT: insert the first K IV neighbours from thesaurus
-        - IV, IT: insert the first K IV neighbours from thesaurus
-
-        Note: no token can ever be IV and OOT in this setting
-    """
-
-    def __init__(self, k, sim_transformer):
-        self.k = k
-        self.sim_transformer = sim_transformer
-
-    def handle_IV_IT_feature(self, doc_id, doc_id_indices, document_term,
-                             term_indices, term_index_in_vocab, values, count,
-                             vocabulary):
-        _paraphrase(doc_id, doc_id_indices,
-                    document_term, count, term_indices,
-                    values, vocabulary, self.k, self.sim_transformer)
-
-    handle_OOV_IT_feature = handle_IV_IT_feature
-
-    def handle_IV_OOT_feature(self, doc_id, doc_id_indices, document_term,
-                              term_indices, term_index_in_vocab, values, count,
-                              vocabulary):
-        raise Exception('This must never be reached because set(vocabulary)=='
-                        ' set(thesaurus.keys()). It is not possible for a '
-                        'feature to be IV and OOT')
+# class ReplaceAllFeatureHandler(BaseFeatureHandler):
+#     """
+#     Handles features the way standard Naive Bayes does, except
+#         - OOV, IT: insert the first K IV neighbours from thesaurus
+#         - IV, IT: insert the first K IV neighbours from thesaurus
+#
+#         Note: no token can ever be IV and OOT in this setting
+#     """
+#
+#     def __init__(self, k, sim_transformer):
+#         self.k = k
+#         self.sim_transformer = sim_transformer
+#
+#     def handle_IV_IT_feature(self, doc_id, doc_id_indices, document_term,
+#                              term_indices, term_index_in_vocab, values, count,
+#                              vocabulary):
+#         _paraphrase(doc_id, doc_id_indices,
+#                     document_term, count, term_indices,
+#                     values, vocabulary, self.k, self.sim_transformer)
+#
+#     handle_OOV_IT_feature = handle_IV_IT_feature
+#
+#     def handle_IV_OOT_feature(self, doc_id, doc_id_indices, document_term,
+#                               term_indices, term_index_in_vocab, values, count,
+#                               vocabulary):
+#         raise Exception('This must never be reached because set(vocabulary)=='
+#                         ' set(thesaurus.keys()). It is not possible for a '
+#                         'feature to be IV and OOT')
 
 

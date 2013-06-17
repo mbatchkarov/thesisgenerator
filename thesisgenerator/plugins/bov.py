@@ -209,7 +209,8 @@ class ThesaurusVectorizer(TfidfVectorizer):
         logging.info('Using TF-IDF: %s, transformer is %s' % (self.use_tfidf,
                                                               self._tfidf))
 
-        if not get_thesaurus():
+        thesaurus = get_thesaurus()
+        if not thesaurus:
             # no thesaurus was loaded in the constructor,
             # fall back to super behaviour
             logging.warn("No thesaurus, reverting to super")
@@ -234,7 +235,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
                 term_index_in_vocab = vocabulary.get(document_term)
                 is_in_vocabulary = term_index_in_vocab is not None
                 # None if term is not in seen vocabulary
-                is_in_th = get_thesaurus().get(document_term) is not None
+                is_in_th = bool(thesaurus[document_term])
 
                 self.stats.register_token(document_term, is_in_vocabulary, \
                                           is_in_th)

@@ -5,7 +5,7 @@ shuffle_targets=boolean(default=False)
 
 [feature_extraction]
     run=boolean(default=True)
-    vectorizer=string(default="")
+    vectorizer=string
     input_generator=string(default="")
 
 	# The below options have defaults in the scikit Vectorizer init
@@ -35,8 +35,8 @@ shuffle_targets=boolean(default=False)
     use_pos=boolean(default=True)
 	coarse_pos=boolean(default=True)
 	normalise_entities=boolean(default=False)
-    include_self=boolean(default=True)
-	record_stats=boolean(default=False)
+    include_self=boolean(default=False)
+	record_stats=boolean(default=True)
 	sim_compressor=string(default='thesisgenerator.utils.noop')
 
 	train_token_handler=string(default='thesisgenerator.plugins.bov_feature_handlers.BaseFeatureHandler')
@@ -52,7 +52,7 @@ shuffle_targets=boolean(default=False)
 [crossvalidation]
 	run=boolean()
 	type = option('kfold', 'skfold', 'loo', 'bootstrap', 'oracle', default = 'kfold')
-	k=integer(min=1,max=100,default=1)
+	k=integer(min=1,max=100)
 	ratio=float()
     sample_size=integer()
     random_state=integer(default=0)
