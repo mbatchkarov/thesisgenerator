@@ -11,12 +11,13 @@ from sklearn.externals.joblib import Parallel, delayed
 from sklearn.utils import check_arrays, safe_mask
 import numpy as np
 import scipy.sparse as sp
+from thesisgenerator.plugins import joblib_cache
 
 __author__ = 'mmb28'
 
 
-def _cross_val_score(cv_number, estimator, X, y, score_func, train, test,
-                     verbose, fit_params):
+def _cross_val_score(key_params, cv_number, estimator, X, y,
+                     score_func, train, test, verbose, fit_params):
     """Inner loop for cross validation"""
 
     # set the cv_number on the estimator
@@ -28,9 +29,10 @@ def _cross_val_score(cv_number, estimator, X, y, score_func, train, test,
             est.cv_number = cv_number
 
     n_samples = X.shape[0] if sp.issparse(X) else len(X)
-    fit_params = dict([(k, np.asarray(v)[train]
-    if hasattr(v, '__len__')
-    and len(v) == n_samples else v)
+    fit_params = dict([(k,
+                        np.asarray(v)[train]
+                        if hasattr(v, '__len__') and len(v) == n_samples
+                        else v)
                        for k, v in fit_params.items()])
     if not hasattr(X, "shape"):
         if getattr(estimator, "_pairwise", False):
@@ -56,7 +58,28 @@ def _cross_val_score(cv_number, estimator, X, y, score_func, train, test,
         else:
             score = score_func(X_test)
     else:
-        estimator.fit(X_train, y[train], **fit_params)
+        memory = joblib_cache.get_memory()
+
+
+        def _train_estimator(estimator, X_train, y, train, fit_params,
+                             key_params):
+            print 'Training estimator with params:'
+            for name in ['train', 'fit_params']:
+                print "\t%s = %s" % (name, locals()[name])
+            for name, value in key_params.items():
+                print "\t%s = %s" % (name, value)
+            print
+
+            estimator.fit(X_train, y[train], **fit_params)
+            return estimator
+
+        _train_cached = memory.cache(_train_estimator,
+                                     ignore=['estimator', 'X_train'])
+        key_params['classifier'] = estimator.named_steps['clf']
+        key_params['cv_number'] = cv_number
+        estimator = _train_cached(estimator, X_train, y, train, fit_params,
+                                  # all params below are used a joblib keys
+                                  key_params)
         if score_func is None:
             score = estimator.score(X_test, y[test])
         else:
@@ -66,8 +89,9 @@ def _cross_val_score(cv_number, estimator, X, y, score_func, train, test,
     return cv_number, score
 
 
-def naming_cross_val_score(estimator, X, y=None, score_func=None, cv=None,
-                           n_jobs=1, verbose=0, fit_params=None):
+def naming_cross_val_score(key_params, estimator, X, y=None,
+                           score_func=None, cv=None, n_jobs=1, verbose=0,
+                           fit_params=None):
     """Evaluate a score by cross-validation
 
     Parameters
@@ -121,7 +145,7 @@ def naming_cross_val_score(estimator, X, y=None, score_func=None, cv=None,
             # independent, and that it is pickle-able.
     fit_params = fit_params if fit_params is not None else {}
     scores = Parallel(n_jobs=n_jobs, verbose=verbose)(
-        delayed(_cross_val_score)(cv_number,
+        delayed(_cross_val_score)(key_params, cv_number,
                                   clone(estimator), X, y, score_func,
                                   train, test, verbose, fit_params)
         for (cv_number, (train, test)) in izip(count(), cv))

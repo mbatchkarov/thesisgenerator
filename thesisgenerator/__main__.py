@@ -29,10 +29,9 @@ from configobj import ConfigObj
 from sklearn import cross_validation
 from sklearn.pipeline import Pipeline
 from sklearn.datasets import load_files
-from joblib import Memory
 
 from thesisgenerator import config
-from thesisgenerator.plugins import tokenizers, thesaurus_loader
+from thesisgenerator.plugins import tokenizers, thesaurus_loader, joblib_cache
 from thesisgenerator.plugins.dumpers import FeatureVectorsCsvDumper
 from thesisgenerator.plugins.crossvalidation import naming_cross_val_score
 from thesisgenerator.utils import (get_named_object,
@@ -40,7 +39,6 @@ from thesisgenerator.utils import (get_named_object,
                                    ChainCallable,
                                    PredefinedIndicesIterator,
                                    SubsamplingPredefinedIndicesIterator,
-                                   NoopTransformer,
                                    get_confrc)
 
 
@@ -369,6 +367,44 @@ def _build_pipeline(id, classifier_name, feature_extr_conf, feature_sel_conf,
     return pipeline
 
 
+def get_keys_for_training(configuration):
+    '''
+    Fetch all the parameters from a conf file that uniquely identify a
+    trained  classifier, so that we can cache and retrieve it later. There
+    may be some other params that can be added to the result of this function
+    '''
+
+    key_params = {
+        # token handler options
+        'train_handler': configuration['feature_extraction'][
+            'train_token_handler'],
+        # 'sim_compressor': configuration['feature_extraction']['sim_compressor'],
+        # 'k': configuration['feature_extraction']['k'],
+
+        # stats options
+        'record_stats': configuration['feature_extraction']['record_stats'],
+        # tf-idf options
+        'use_tfidf': configuration['feature_extraction']['use_tfidf'],
+        # thesauri
+        'thesaurus_files': frozenset(configuration['feature_extraction'][
+            'thesaurus_files']),
+        # tokenizer options
+        'tok_lower': configuration['tokenizer']['lowercase'],
+        'tok_only_it': configuration['tokenizer']['keep_only_IT'],
+        'tok_stop': configuration['tokenizer']['remove_stopwords'],
+        'tok_short': configuration['tokenizer']['remove_short_words'],
+        'tok_lemma': configuration['feature_extraction']['lemmatize'],
+        'tok_pos': configuration['feature_extraction']['use_pos'],
+        'tok_coarse_pos': configuration['feature_extraction']['coarse_pos'],
+        'tok_entities': configuration['feature_extraction'][
+            'normalise_entities'],
+        # random seed, train data
+        'seed': configuration['crossvalidation']['random_state'],
+        'tr_data': configuration['training_data']
+    }
+    return key_params
+
+
 def _run_tasks(configuration, n_jobs, data=None):
     """
     Runs all commands specified in the configuration file
@@ -376,10 +412,7 @@ def _run_tasks(configuration, n_jobs, data=None):
     logging.info('running tasks')
     # get a reference to the joblib cache object, if caching is not disabled
     # else build a dummy object which just returns its arguments unchanged
-    if configuration['joblib_caching']:
-        mem_cache = Memory(cachedir=configuration['output_dir'], verbose=0)
-    else:
-        mem_cache = NoopTransformer()
+    mem_cache = joblib_cache.init_cache(configuration['joblib_caching'])
 
     # retrieve the actions that should be run by the framework
     actions = configuration.keys()
@@ -391,7 +424,6 @@ def _run_tasks(configuration, n_jobs, data=None):
             configuration['feature_extraction']['run']):
         # todo should figure out which values to ignore,
         # currently use all (args + section_options)
-        cached_get_data_generators = mem_cache.cache(_get_data_iterators)
 
         # create the keyword argument list the action should be run with, it is
         # very important that all relevant argument:value pairs are present
@@ -411,14 +443,14 @@ def _run_tasks(configuration, n_jobs, data=None):
             options['source'] = configuration['training_data']
 
             logging.info('Loading raw training set')
-            x_vals, y_vals = cached_get_data_generators(**options)
+            x_vals, y_vals = _get_data_iterators(**options)
             if configuration['test_data']:
                 logging.info('Loading raw test set')
                 #  change where we read files from
                 options['source'] = configuration['test_data']
                 # ensure that only the training data targets are shuffled
                 options['shuffle_targets'] = False
-                x_test, y_test = cached_get_data_generators(**options)
+                x_test, y_test = _get_data_iterators(**options)
             del options
 
     # **********************************
@@ -439,11 +471,10 @@ def _run_tasks(configuration, n_jobs, data=None):
         logging.info('Building pipeline')
 
         # CREATE CROSSVALIDATION ITERATOR
-        crossvalidate_cached = mem_cache.cache(_build_crossvalidation_iterator)
         cv_iterator, validate_indices, x_vals_seen, y_vals_seen = \
-            crossvalidate_cached(
-                configuration['crossvalidation'], x_vals, y_vals, x_test,
-                y_test)
+            _build_crossvalidation_iterator(configuration['crossvalidation'],
+                                            x_vals, y_vals, x_test,
+                                            y_test)
 
         logging.info('Assigning id %d to classifier %s' % (i, clf_name))
         pipeline = _build_pipeline(i, clf_name,
@@ -458,6 +489,7 @@ def _run_tasks(configuration, n_jobs, data=None):
         # pass the (feature selector + classifier) pipeline for evaluation
         logging.info('***Fitting pipeline for %s' % clf_name)
         scores_this_clf = naming_cross_val_score(
+            get_keys_for_training(configuration),
             pipeline, x_vals_seen,
             y_vals_seen,
             ChainCallable(configuration['evaluation']),

@@ -184,14 +184,15 @@ class NoopTransformer(BaseEstimator, TransformerMixin):
     Also functions as a joblib cache object that does nothing
     """
 
+    def cache(self, func, ignore=None, verbose=None, mmap_mode=False):
+        return func
+        # for joblib caching, act as a identity decorator
+
     def fit(self, X, y=None):
         return self
 
     def transform(self, X, copy=True):
         return X
-
-    def cache(self, x):
-        return x
 
 
 class ChainCallable(object):

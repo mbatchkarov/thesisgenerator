@@ -25,7 +25,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
                  max_features=None, vocabulary=None, binary=False, dtype=float,
                  norm='l2', use_idf=True, smooth_idf=True,
                  sublinear_tf=False, use_tfidf=True,
-                 use_signifier_only=False, record_stats=False, k=1,
+                 record_stats=False, k=1,
                  sim_compressor='thesisgenerator.utils.noop',
                  train_token_handler='thesisgenerator.plugins.bov_feature_handlers.BaseFeatureHandler',
                  decode_token_handler='thesisgenerator.plugins.bov_feature_handlers.BaseFeatureHandler'):
@@ -45,7 +45,6 @@ class ThesaurusVectorizer(TfidfVectorizer):
         self.use_tfidf = use_tfidf
         self.pipe_id = pipe_id
         self.exp_name = exp_name
-        self.use_signifier_only = use_signifier_only
         self.record_stats = record_stats
         self.k = k
         self.sim_compressor = sim_compressor
@@ -140,7 +139,6 @@ class ThesaurusVectorizer(TfidfVectorizer):
                 for i in xrange(n_original_tokens - n + 1):
                     tokens.append(u" ".join(original_tokens[i: i + n]))
         return tokens  # + last_chars + shapes
-
 
     def my_analyzer(self):
         return lambda doc: self.my_feature_extractor(doc, None, None)
