@@ -261,7 +261,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
         # remove frequencies if binary feature were requested
         if self.binary:
             spmatrix.data.fill(1)
-        logging.debug('Vectorizer: Data shape is %s' % (str(spmatrix.shape)))
+        logging.info('Vectorizer: Data shape is %s' % (str(spmatrix.shape)))
         self.stats.print_coverage_stats()
         logging.info('Done converting features to vectors')
 
