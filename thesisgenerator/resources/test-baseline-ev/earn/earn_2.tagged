@@ -11,19 +11,78 @@
             <POS>NN</POS>
             <NER>O</NER>
           </token>
+
           <token id="2">
             <word>c</word>
             <lemma>c</lemma>
             <POS>NN</POS>
             <NER>O</NER>
           </token>
+
           <token id="3">
             <word>g</word>
             <lemma>g</lemma>
             <POS>NN</POS>
             <NER>O</NER>
           </token>
-        </tokens>
+
+            <token id="4">
+              <word>x</word>
+              <lemma>x</lemma>
+              <POS>NN</POS>
+              <NER>O</NER>
+            </token>
+
+            <token id="5">
+                <word>c</word>
+                <lemma>c</lemma>
+                <POS>NN</POS>
+                <NER>O</NER>
+              </token>
+
+          <token id="6">
+              <word>g</word>
+              <lemma>g</lemma>
+              <POS>NN</POS>
+              <NER>O</NER>
+            </token>
+
+            <token id="7">
+                <word>g</word>
+                <lemma>g</lemma>
+                <POS>NN</POS>
+                <NER>O</NER>
+             </token>
+
+            <token id="8">
+              <word>a</word>
+              <lemma>a</lemma>
+              <POS>NN</POS>
+              <NER>O</NER>
+            </token>
+
+            <token id="9">
+                <word>a</word>
+                <lemma>a</lemma>
+                <POS>NN</POS>
+                <NER>O</NER>
+          </token>
+
+          <token id="10">
+              <word>a</word>
+              <lemma>a</lemma>
+              <POS>NN</POS>
+              <NER>O</NER>
+           </token>
+
+        <token id="11">
+            <word>b</word>
+            <lemma>b</lemma>
+            <POS>NN</POS>
+            <NER>O</NER>
+          </token>
+
+    </tokens>
       </sentence>
     </sentences>
   </document>
