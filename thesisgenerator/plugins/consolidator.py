@@ -97,6 +97,11 @@ def consolidate_results(writer, conf_dir, log_dir, output_dir,
         # find out the classifier score from the final csv file
         output_file = os.path.join(output_dir, '%s.out.csv' % exp_name)
 
+        import git
+
+        git_hash = git.Repo('.').head.commit.hexsha
+        import datetime
+
         try:
             reader = csv.reader(open(output_file, 'r'))
             _ = reader.next()   # skip over header
@@ -105,6 +110,8 @@ def consolidate_results(writer, conf_dir, log_dir, output_dir,
 
                 writer.writerow([
                     exp_name,
+                    git_hash,
+                    datetime.datetime.now().isoformat(),
 
                     int(my_mean(data_shape_y)), # train_voc_mean
                     int(my_std(data_shape_y)), # train_voc_std
