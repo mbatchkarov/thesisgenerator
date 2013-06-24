@@ -3,10 +3,12 @@
 """
 A collection of random useful utilities
 """
+from collections import defaultdict
 import fileinput
 import inspect
 from itertools import combinations
 import logging
+from random import choice
 import re
 import sys
 import os.path as path
@@ -236,3 +238,22 @@ class ChainCallable(object):
                 func(true_labels, predicted_labels, **call_args))
         return result
 
+
+def _vocab_neighbour_source(vocab):
+    """
+    Returns a thesaurus-like object which has a single neighbour for every
+    possible entry. That neighbour is chosen from the vocabulary that is
+    passed in (as a dict {feature:index} )
+    """
+
+    logging.info('Vocab contains %d features' % len(vocab))
+
+    def one_iv_token():
+        v = choice(vocab.keys())
+        logging.info('Dummy IV-only thesaurus returning %s as neighbour' % v)
+        return [(v, 1.0)]
+
+    thes = defaultdict(one_iv_token)
+    thes['some_long_non_existant_key'] = 0
+    # so that the thesaurus-like object does not appear empty
+    return thes

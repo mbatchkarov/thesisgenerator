@@ -28,7 +28,7 @@ shuffle_targets=boolean(default=False)
     use_tfidf=boolean
 
     # extra options required by the Bag-of-Vectors project Vectorizer
-    thesaurus_files=list
+    thesaurus_files=list(default=list())
     k=integer(min=0)
     sim_threshold=float(default=0.0)
     lemmatize=boolean(default=True)
@@ -41,6 +41,7 @@ shuffle_targets=boolean(default=False)
 
 	train_token_handler=string(default='thesisgenerator.plugins.bov_feature_handlers.BaseFeatureHandler')
 	decode_token_handler=string(default='thesisgenerator.plugins.bov_feature_handlers.BaseFeatureHandler')
+	thesaurus_getter_to_set=string(default='')
 
 
 [tokenizer]

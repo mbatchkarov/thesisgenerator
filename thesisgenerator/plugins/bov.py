@@ -6,7 +6,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from thesisgenerator.plugins import tokenizers
 from thesisgenerator.plugins.bov_feature_handlers import get_token_handler, get_stats_recorder
 from thesisgenerator.plugins.thesaurus_loader import get_thesaurus
-from thesisgenerator.utils import NoopTransformer
+from thesisgenerator.utils import NoopTransformer, get_named_object
 
 
 class ThesaurusVectorizer(TfidfVectorizer):
@@ -28,7 +28,8 @@ class ThesaurusVectorizer(TfidfVectorizer):
                  record_stats=False, k=1,
                  sim_compressor='thesisgenerator.utils.noop',
                  train_token_handler='thesisgenerator.plugins.bov_feature_handlers.BaseFeatureHandler',
-                 decode_token_handler='thesisgenerator.plugins.bov_feature_handlers.BaseFeatureHandler'):
+                 decode_token_handler='thesisgenerator.plugins.bov_feature_handlers.BaseFeatureHandler',
+                 thesaurus_getter_to_set=''):
         """
         Builds a vectorizer the way a TfidfVectorizer is built, and takes one
         extra param specifying the path the the Byblo-generated thesaurus.
@@ -50,6 +51,18 @@ class ThesaurusVectorizer(TfidfVectorizer):
         self.sim_compressor = sim_compressor
         self.train_token_handler = train_token_handler
         self.decode_token_handler = decode_token_handler
+        # by default access the thesaurus through get_thesaurus. clients can
+        # change this for unit testing, etc
+        self.thesaurus_getter = get_thesaurus
+
+        # in case we want to mock the thesaurus (for unit testing or to
+        # get a baseline). With this we can programatically build
+        # "constant" thesauri that return the same for all possible
+        # entries.
+        # This access method should only be used at decode time,
+        # so for now we just store it and rely on the vectorizer to
+        # "activate" it after training is done
+        self.thesaurus_getter_to_set = thesaurus_getter_to_set
 
         super(ThesaurusVectorizer, self).__init__(input=input,
                                                   charset=charset,
@@ -93,13 +106,19 @@ class ThesaurusVectorizer(TfidfVectorizer):
     def fit_transform(self, raw_documents, y=None):
         self.handler = get_token_handler(self.train_token_handler,
                                          self.k,
-                                         self.sim_compressor)
+                                         self.sim_compressor,
+                                         self.thesaurus_getter)
         self.stats = get_stats_recorder(self.record_stats)
         # a different stats recorder will be used for the testing data
 
         # self.try_to_set_vocabulary_from_thesaurus_keys()
-        return super(ThesaurusVectorizer, self).fit_transform(raw_documents,
-                                                              y)
+        res = super(ThesaurusVectorizer, self).fit_transform(raw_documents, y)
+
+        if self.thesaurus_getter_to_set:
+            self.thesaurus_getter = get_named_object(
+                self.thesaurus_getter_to_set)
+
+        return res
 
     def transform(self, raw_documents):
         # record stats separately for the test set
@@ -107,7 +126,8 @@ class ThesaurusVectorizer(TfidfVectorizer):
 
         self.handler = get_token_handler(self.decode_token_handler,
                                          self.k,
-                                         self.sim_compressor)
+                                         self.sim_compressor,
+                                         self.thesaurus_getter)
 
         return super(ThesaurusVectorizer, self).transform(raw_documents)
 
@@ -208,8 +228,8 @@ class ThesaurusVectorizer(TfidfVectorizer):
 
         logging.info('Using TF-IDF: %s, transformer is %s' % (self.use_tfidf,
                                                               self._tfidf))
-
-        thesaurus = get_thesaurus()
+        vocabulary = self.vocabulary_
+        thesaurus = self.thesaurus_getter(vocabulary)
         if not thesaurus:
             # no thesaurus was loaded in the constructor,
             # fall back to super behaviour
@@ -223,7 +243,6 @@ class ThesaurusVectorizer(TfidfVectorizer):
         term_indices = []   # which term id appeared
         values = []         # values[i] = frequency(term[i]) in document[i]
 
-        vocabulary = self.vocabulary_
         num_documents = 0
         logging.debug("Building feature vectors, current vocab size is %d" %
                       len(vocabulary))

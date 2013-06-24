@@ -688,6 +688,10 @@ def go(conf_file, log_dir, data=None, classpath='', clean=False, n_jobs=1):
         # because all folds run at the same time and write to the same debug
         # file
 
+    if config['tokenizer']['keep_only_IT'] and not \
+        config['feature_extraction']['thesaurus_files']:
+        raise ValueError('keep_only_IT requires a thesaurus')
+
     log = _config_logger(log_dir, name=config['name'], debug=config['debug'])
     log.info(
         'Reading configuration file from \'%s\', conf spec from \'%s\''

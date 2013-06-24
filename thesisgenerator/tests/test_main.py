@@ -1,4 +1,5 @@
 # coding=utf-8
+from collections import defaultdict
 
 from unittest import TestCase, skip
 
@@ -8,6 +9,7 @@ import scipy.sparse as sp
 
 from thesisgenerator.plugins import tokenizers, thesaurus_loader
 from thesisgenerator import __main__
+from thesisgenerator.utils import _vocab_neighbour_source
 
 
 class Test_ThesaurusVectorizer(TestCase):
@@ -52,8 +54,8 @@ class Test_ThesaurusVectorizer(TestCase):
             'input_generator': '',
         }
 
-        self.x_tr, self.y_tr, self.x_ev, self.y_ev = self.\
-        _load_data(self.default_prefix)
+        self.x_tr, self.y_tr, self.x_ev, self.y_ev = self. \
+            _load_data(self.default_prefix)
 
     def _load_data(self, prefix):
         """
@@ -83,7 +85,7 @@ class Test_ThesaurusVectorizer(TestCase):
             self.assertEqual(y[1], 0)
             self.assertEqual(y[2], 1)
 
-    def _vectorize_data(self):
+    def _vectorize_data(self, thesaurus_getter=None):
         pipeline = __main__._build_pipeline(
             12345, #id for naming debug files
             None, # classifier
@@ -96,6 +98,8 @@ class Test_ThesaurusVectorizer(TestCase):
             'tests' # name of experiments
         )
         x1 = pipeline.fit_transform(self.x_tr, self.y_tr)
+        if thesaurus_getter:
+            pipeline.named_steps['vect'].thesaurus_getter = thesaurus_getter
         voc = pipeline.named_steps['vect'].vocabulary_
         x2 = pipeline.transform(self.x_ev)
 
@@ -131,7 +135,7 @@ class Test_ThesaurusVectorizer(TestCase):
             #  the same order every time- I've added a sort to ensure that
             self.assertDictEqual({'cat/n': 0, 'dog/n': 1, 'game/n': 2,
                                   'kid/n': 3, 'like/v': 4, 'play/v': 5},
-                voc)
+                                 voc)
 
             # test output when not replacing all feature (old model)
             self.assertIsInstance(x1, sp.spmatrix)
@@ -172,9 +176,9 @@ class Test_ThesaurusVectorizer(TestCase):
                 # headers must be identical character for character
                 self.assertEqual(expected[0], csv_file_contents[0])
                 for line1, line2 in zip(expected[1:],
-                    csv_file_contents[1:]):
+                                        csv_file_contents[1:]):
                     for token1, token2 in zip(line1.split(','),
-                        line2.split(',')):
+                                              line2.split(',')):
                         try:
                             print token1, token2
                             self.assertEqual(float(token1), float(token2))
@@ -184,22 +188,22 @@ class Test_ThesaurusVectorizer(TestCase):
                             self.assertEqual(token1, token2)
                             self.assertEqual(token1.strip(), '')
 
-            expected =\
-            """
-id,target,total_feat_weight,nonzero_feats,cat/n,dog/n,game/n,kid/n,like/v,play/v
-0,0,3,3,1,1,0,0,1,0
-1,0,3,3,1,1,0,0,1,0
-2,1,3,3,0,0,1,1,0,1
-            """
+            expected = \
+                """
+    id,target,total_feat_weight,nonzero_feats,cat/n,dog/n,game/n,kid/n,like/v,play/v
+    0,0,3,3,1,1,0,0,1,0
+    1,0,3,3,1,1,0,0,1,0
+    2,1,3,3,0,0,1,1,0,1
+                """
             compare_csv(expected, 'tr')
 
-            expected =\
-            """
-id,target,total_feat_weight,nonzero_feats,cat/n,dog/n,game/n,kid/n,like/v,play/v
-0,,1.11,3,0.06,0.05,0,0,1,0
-1,,1.11,3,0.06,0.05,0,0,1,0
-2,,1,1,0,1,0,0,0,0
-            """
+            expected = \
+                """
+    id,target,total_feat_weight,nonzero_feats,cat/n,dog/n,game/n,kid/n,like/v,play/v
+    0,,1.11,3,0.06,0.05,0,0,1,0
+    1,,1.11,3,0.06,0.05,0,0,1,0
+    2,,1,1,0,1,0,0,0,0
+                """
             compare_csv(expected, 'ev')
 
     @skip("Do not use replace_all for now")
@@ -213,7 +217,7 @@ id,target,total_feat_weight,nonzero_feats,cat/n,dog/n,game/n,kid/n,like/v,play/v
         self.assertDictEqual({'cat/n': 0, 'dog/n': 1, 'fruit/n': 2,
                               'game/n': 3, 'kid/n': 4, 'like/v': 5,
                               'play/v': 6},
-            voc)
+                             voc)
 
         self.assertIsInstance(x1, sp.spmatrix)
         t.assert_array_equal(
@@ -251,7 +255,7 @@ id,target,total_feat_weight,nonzero_feats,cat/n,dog/n,game/n,kid/n,like/v,play/v
         self.assertDictEqual({'cat/n': 0, 'dog/n': 1, 'fruit/n': 2,
                               'game/n': 3, 'kid/n': 4, 'like/v': 5,
                               'play/v': 6},
-            voc)
+                             voc)
 
         self.assertIsInstance(x1, sp.spmatrix)
         t.assert_array_equal(
@@ -279,19 +283,19 @@ id,target,total_feat_weight,nonzero_feats,cat/n,dog/n,game/n,kid/n,like/v,play/v
     def test_baseline_use_all_features_signifier_only_23(self):
         self.feature_extraction_conf['vocab_from_thes'] = False
         # self.feature_extraction_conf['use_signifier_only'] = True
-        self._thesaurus_opts['thesaurus_files'] =\
-        ['thesisgenerator/resources/exp0-0b.strings']
+        self._thesaurus_opts['thesaurus_files'] = \
+            ['thesisgenerator/resources/exp0-0b.strings']
         # self._thesaurus_opts['k'] = 1 # todo needs fixing
         self._reload_thesaurus()
 
-        self.x_tr, self.y_tr, self.x_ev, self.y_ev = self.\
-        _load_data('thesisgenerator/resources/test-baseline')
+        self.x_tr, self.y_tr, self.x_ev, self.y_ev = self. \
+            _load_data('thesisgenerator/resources/test-baseline')
 
         x1, x2, voc = self._vectorize_data()
 
         self.assertDictEqual({'a/n': 0, 'b/n': 1, 'c/n': 2,
                               'd/n': 3, 'e/n': 4, 'f/n': 5},
-            voc)
+                             voc)
 
         self.assertIsInstance(x1, sp.spmatrix)
         t.assert_array_equal(
@@ -315,13 +319,13 @@ id,target,total_feat_weight,nonzero_feats,cat/n,dog/n,game/n,kid/n,like/v,play/v
 
     def test_baseline_ignore_nonthesaurus_features_signifier_only_22(self):
         self.tokenizer.keep_only_IT = True
-        self._thesaurus_opts['thesaurus_files'] =\
-        ['thesisgenerator/resources/exp0-0b.strings']
+        self._thesaurus_opts['thesaurus_files'] = \
+            ['thesisgenerator/resources/exp0-0b.strings']
         # self._thesaurus_opts['k'] = 1
         self._reload_thesaurus()
 
-        self.x_tr, self.y_tr, self.x_ev, self.y_ev = self.\
-        _load_data('thesisgenerator/resources/test-baseline')
+        self.x_tr, self.y_tr, self.x_ev, self.y_ev = self. \
+            _load_data('thesisgenerator/resources/test-baseline')
 
         x1, x2, voc = self._vectorize_data()
 
@@ -349,21 +353,21 @@ id,target,total_feat_weight,nonzero_feats,cat/n,dog/n,game/n,kid/n,like/v,play/v
 
     def test_baseline_use_all_features_with__signifier_signified_25(self):
         self.tokenizer.keep_only_IT = False
-        self.feature_extraction_conf['decode_token_handler'] =\
-        'thesisgenerator.plugins.bov_feature_handlers.SignifierSignifiedFeatureHandler'
+        self.feature_extraction_conf['decode_token_handler'] = \
+            'thesisgenerator.plugins.bov_feature_handlers.SignifierSignifiedFeatureHandler'
         self.feature_extraction_conf['k'] = 1 # equivalent to max
-        self._thesaurus_opts['thesaurus_files'] =\
-        ['thesisgenerator/resources/exp0-0b.strings']
+        self._thesaurus_opts['thesaurus_files'] = \
+            ['thesisgenerator/resources/exp0-0b.strings']
         self._reload_thesaurus()
 
-        self.x_tr, self.y_tr, self.x_ev, self.y_ev = self.\
-        _load_data('thesisgenerator/resources/test-baseline')
+        self.x_tr, self.y_tr, self.x_ev, self.y_ev = self. \
+            _load_data('thesisgenerator/resources/test-baseline')
 
         x1, x2, voc = self._vectorize_data()
 
         self.assertDictEqual({'a/n': 0, 'b/n': 1, 'c/n': 2,
                               'd/n': 3, 'e/n': 4, 'f/n': 5},
-            voc)
+                             voc)
 
         self.assertIsInstance(x1, sp.spmatrix)
         t.assert_array_equal(
@@ -388,15 +392,15 @@ id,target,total_feat_weight,nonzero_feats,cat/n,dog/n,game/n,kid/n,like/v,play/v
     def test_baseline_ignore_nonthesaurus_features_with_signifier_signified_24(
             self):
         self.tokenizer.keep_only_IT = True
-        self.feature_extraction_conf['decode_token_handler'] =\
-        'thesisgenerator.plugins.bov_feature_handlers.SignifierSignifiedFeatureHandler'
+        self.feature_extraction_conf['decode_token_handler'] = \
+            'thesisgenerator.plugins.bov_feature_handlers.SignifierSignifiedFeatureHandler'
         self.feature_extraction_conf['k'] = 1 # equivalent to max
-        self._thesaurus_opts['thesaurus_files'] =\
-        ['thesisgenerator/resources/exp0-0b.strings']
+        self._thesaurus_opts['thesaurus_files'] = \
+            ['thesisgenerator/resources/exp0-0b.strings']
         self._reload_thesaurus()
 
-        self.x_tr, self.y_tr, self.x_ev, self.y_ev = self.\
-        _load_data('thesisgenerator/resources/test-baseline')
+        self.x_tr, self.y_tr, self.x_ev, self.y_ev = self. \
+            _load_data('thesisgenerator/resources/test-baseline')
 
         x1, x2, voc = self._vectorize_data()
 
@@ -424,21 +428,21 @@ id,target,total_feat_weight,nonzero_feats,cat/n,dog/n,game/n,kid/n,like/v,play/v
 
     def test_baseline_use_all_features_with_signified_27(self):
         self.tokenizer.keep_only_IT = False
-        self.feature_extraction_conf['decode_token_handler'] =\
-        'thesisgenerator.plugins.bov_feature_handlers.SignifiedOnlyFeatureHandler'
+        self.feature_extraction_conf['decode_token_handler'] = \
+            'thesisgenerator.plugins.bov_feature_handlers.SignifiedOnlyFeatureHandler'
         self.feature_extraction_conf['k'] = 1 # equivalent to max
-        self._thesaurus_opts['thesaurus_files'] =\
-        ['thesisgenerator/resources/exp0-0b.strings']
+        self._thesaurus_opts['thesaurus_files'] = \
+            ['thesisgenerator/resources/exp0-0b.strings']
         self._reload_thesaurus()
 
-        self.x_tr, self.y_tr, self.x_ev, self.y_ev = self.\
-        _load_data('thesisgenerator/resources/test-baseline')
+        self.x_tr, self.y_tr, self.x_ev, self.y_ev = self. \
+            _load_data('thesisgenerator/resources/test-baseline')
 
         x1, x2, voc = self._vectorize_data()
 
         self.assertDictEqual({'a/n': 0, 'b/n': 1, 'c/n': 2,
                               'd/n': 3, 'e/n': 4, 'f/n': 5},
-            voc)
+                             voc)
 
         self.assertIsInstance(x1, sp.spmatrix)
         t.assert_array_equal(
@@ -457,21 +461,20 @@ id,target,total_feat_weight,nonzero_feats,cat/n,dog/n,game/n,kid/n,like/v,play/v
                 [
                     [0, 0, 0, 4.4, 0, 0],
                 ]
-            ),
-            verbose=True
+            )
         )
 
     def test_baseline_ignore_nonthesaurus_features_with_signified_26(self):
         self.tokenizer.keep_only_IT = True
-        self.feature_extraction_conf['decode_token_handler'] =\
-        'thesisgenerator.plugins.bov_feature_handlers.SignifiedOnlyFeatureHandler'
+        self.feature_extraction_conf['decode_token_handler'] = \
+            'thesisgenerator.plugins.bov_feature_handlers.SignifiedOnlyFeatureHandler'
         self.feature_extraction_conf['k'] = 1 # equivalent to max
-        self._thesaurus_opts['thesaurus_files'] =\
-        ['thesisgenerator/resources/exp0-0b.strings']
+        self._thesaurus_opts['thesaurus_files'] = \
+            ['thesisgenerator/resources/exp0-0b.strings']
         self._reload_thesaurus()
 
-        self.x_tr, self.y_tr, self.x_ev, self.y_ev = self.\
-        _load_data('thesisgenerator/resources/test-baseline')
+        self.x_tr, self.y_tr, self.x_ev, self.y_ev = self. \
+            _load_data('thesisgenerator/resources/test-baseline')
 
         x1, x2, voc = self._vectorize_data()
 
@@ -496,3 +499,70 @@ id,target,total_feat_weight,nonzero_feats,cat/n,dog/n,game/n,kid/n,like/v,play/v
                 ]
             )
         )
+
+
+    def test_baseline_use_all_features_with_signified_random_28(self):
+        def _constant_neighbour_source(vocab=None):
+            """
+            Returns a thesaurus-like object which has a single neighbour for
+            every possible entry
+            """
+
+            def constant_thesaurus():
+                return [('b/n', 1)]
+
+            thes = defaultdict(constant_thesaurus)
+            thes['some_long_non_existant_key'] = 0
+            # so that the thesaurus-like object does not appear empty
+            return thes
+
+        self.tokenizer.keep_only_IT = False
+        self.feature_extraction_conf['decode_token_handler'] = \
+            'thesisgenerator.plugins.bov_feature_handlers.SignifierBaselineFeatureHandler'
+        self.feature_extraction_conf['k'] = 1    # equivalent to max
+        self.feature_extraction_conf['neighbour_source'] = \
+            'thesisgenerator.tests.test_main._constant_neighbour_source'
+        self.x_tr, self.y_tr, self.x_ev, self.y_ev = self. \
+            _load_data('thesisgenerator/resources/test-baseline')
+
+        x1, x2, voc = self._vectorize_data(_constant_neighbour_source)
+
+        self.assertDictEqual({'a/n': 0, 'b/n': 1, 'c/n': 2,
+                              'd/n': 3, 'e/n': 4, 'f/n': 5},
+                             voc)
+
+        self.assertIsInstance(x1, sp.spmatrix)
+        t.assert_array_equal(
+            x1.toarray(),
+            np.array(
+                [
+                    [1, 1, 1, 0, 0, 0],
+                    [0, 0, 0, 1, 1, 1],
+                ]
+            )
+        )
+
+        t.assert_array_almost_equal(
+            x2.toarray(),
+            np.array(
+                [
+                    [0, 11.0, 0, 0, 0, 0],
+                ]
+            )
+        )
+        # the thesaurus will always say the neighbour for something is
+        #  b/n with a similarity of 1, and we look up 11 tokens overall in
+        #  the test document
+
+
+        self.feature_extraction_conf['neighbour_source'] = \
+            'thesisgenerator.tests.test_main._vocab_neighbour_source'
+
+        self.x_tr, self.y_tr, self.x_ev, self.y_ev = self. \
+            _load_data('thesisgenerator/resources/test-baseline')
+
+        x1, x2, voc = self._vectorize_data(_vocab_neighbour_source)
+        self.assertAlmostEqual(x2.sum(), 11.0)
+        # seven tokens will be looked up, with random in-vocabulary neighbours
+        # returned each time
+        print x2

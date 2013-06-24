@@ -8,18 +8,20 @@ def get_stats_recorder(enabled=False):
     return StatsRecorder() if enabled else NoopStatsRecorder()
 
 
-def get_token_handler(handler_name, k, transformer_name):
+def get_token_handler(handler_name, k, transformer_name, thesaurus_source):
     # k- parameter for _paraphrase
     # sim_transformer- callable that transforms the raw sim scores in
     # _paraphrase
     # todo replace k with a named object
     handler = get_named_object(handler_name)
     transformer = get_named_object(transformer_name)
-    logging.info('Returning token handler %s (k=%s, sim transformer=%s' % (
-        handler,
-        k,
-        transformer))
-    return handler(k, transformer)
+    logging.info('Returning token handler %s (k=%s, sim transformer=%s), '
+                 'thesaurus source=%s' % (
+                     handler,
+                     k,
+                     transformer,
+                     thesaurus_source))
+    return handler(k, transformer, thesaurus_source)
 
 
 class StatsRecorder(object):
@@ -97,12 +99,23 @@ def _ignore_feature(doc_id, document_term):
 
 def _paraphrase(doc_id, doc_id_indices,
                 document_term, count, term_indices,
-                values, vocabulary, k, sim_transformer):
+                values, vocabulary, k, sim_transformer,
+                neighbour_source=get_thesaurus):
     """
-    Replace term with its k nearest neighbours from the thesaurus
+    Replaces term with its k nearest neighbours from the thesaurus
+
+    Parameters
+    ----------
+    neighbour_source : callable, returns a thesaurus-like object (a list of
+      (neighbour, sim) tuples, sorted by highest sim first,
+      acts as a defaultdict(list) ). The callable takes one parameter for
+      compatibility purposes- one of the possible callables I want to
+      use here requires access to the vocabulary.
+       The default behaviour is to return a callable pointing to the
+       currently loaded thesaurus.
     """
 
-    neighbours = get_thesaurus()[document_term]
+    neighbours = neighbour_source(vocabulary)[document_term]
 
     # if there are any neighbours filter the list of
     # neighbours so that it contains only pairs where
@@ -135,8 +148,8 @@ class BaseFeatureHandler():
         - OOV, OOT: ignore feature
     """
 
-    def __init__(self, k, sim_transformer):
-        # contructor takes parameters for compatibility with other
+    def __init__(self, k, sim_transformer, source):
+        # contructor takes parameters for compatibility with others
         pass
 
     def handle_IV_IT_feature(self, doc_id, doc_id_indices, document_term,
@@ -171,7 +184,7 @@ class SignifierSignifiedFeatureHandler(BaseFeatureHandler):
         ignoring the feature
     """
 
-    def __init__(self, k, sim_transformer):
+    def __init__(self, k, sim_transformer, source):
         self.k = k
         self.sim_transformer = sim_transformer
 
@@ -189,7 +202,7 @@ class SignifiedOnlyFeatureHandler(BaseFeatureHandler):
     thesaurus for all IT features
     """
 
-    def __init__(self, k, sim_transformer):
+    def __init__(self, k, sim_transformer, source):
         self.k = k
         self.sim_transformer = sim_transformer
 
@@ -207,6 +220,26 @@ class SignifiedOnlyFeatureHandler(BaseFeatureHandler):
                               vocabulary):
         _ignore_feature(doc_id, document_term)
 
+
+class SignifierBaselineFeatureHandler(SignifiedOnlyFeatureHandler):
+    """
+    Ignores all OOT features and inserts K random IV tokens for all IT features
+    """
+
+    def __init__(self, k, sim_transformer, neghbour_source):
+        self.k = k
+        self.sim_transformer = sim_transformer
+        self.neighbour_source = neghbour_source
+
+    def handle_OOV_IT_feature(self, doc_id, doc_id_indices, document_term,
+                              term_indices, term_index_in_vocab, values, count,
+                              vocabulary):
+        _paraphrase(doc_id, doc_id_indices, document_term, count,
+                    term_indices, values, vocabulary, self.k,
+                    self.sim_transformer,
+                    neighbour_source=self.neighbour_source)
+
+    handle_IV_IT_feature = handle_OOV_IT_feature
 
 # class ReplaceAllFeatureHandler(BaseFeatureHandler):
 #     """

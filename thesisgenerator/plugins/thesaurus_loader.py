@@ -12,13 +12,17 @@ def read_thesaurus(**kwargs):
     return last_read_thesaurus
 
 
-def get_thesaurus():
+def get_thesaurus(vocab=None):
     """
     returns the last thesaurus that was read
     NB! If you change the settings (e.g. last_read_thesaurus.k=1) you must
     also invoke read_thesaurus
     """
-    return last_read_thesaurus
+    try:
+        return last_read_thesaurus
+    except NameError:
+        # if a thesaurus has never been read
+        return None
 
 
 class Thesaurus(defaultdict):
