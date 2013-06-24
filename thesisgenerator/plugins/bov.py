@@ -115,6 +115,8 @@ class ThesaurusVectorizer(TfidfVectorizer):
         res = super(ThesaurusVectorizer, self).fit_transform(raw_documents, y)
 
         if self.thesaurus_getter_to_set:
+            logging.warn('Will be accessing thesaurus through %s at decode '
+                         'time' % self.thesaurus_getter_to_set)
             self.thesaurus_getter = get_named_object(
                 self.thesaurus_getter_to_set)
 
@@ -229,13 +231,9 @@ class ThesaurusVectorizer(TfidfVectorizer):
         logging.info('Using TF-IDF: %s, transformer is %s' % (self.use_tfidf,
                                                               self._tfidf))
         vocabulary = self.vocabulary_
+        # the result of thesaurus_getter must ensure lookups for non-existent
+        # keys return an empty list and not not raise an exception
         thesaurus = self.thesaurus_getter(vocabulary)
-        if not thesaurus:
-            # no thesaurus was loaded in the constructor,
-            # fall back to super behaviour
-            logging.warn("No thesaurus, reverting to super")
-            return super(ThesaurusVectorizer, self) \
-                ._term_count_dicts_to_matrix(term_count_dicts)
 
         # sparse storage for document-term matrix (terminology note: term ==
         # feature)

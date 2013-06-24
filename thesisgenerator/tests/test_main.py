@@ -4,6 +4,7 @@ from collections import defaultdict
 from unittest import TestCase, skip
 
 import numpy as np
+from numpy.ma import std
 import numpy.testing as t
 import scipy.sparse as sp
 
@@ -502,7 +503,7 @@ class Test_ThesaurusVectorizer(TestCase):
 
 
     def test_baseline_use_all_features_with_signified_random_28(self):
-        def _constant_neighbour_source(vocab=None):
+        def _get_constant_thesaurus(vocab=None):
             """
             Returns a thesaurus-like object which has a single neighbour for
             every possible entry
@@ -511,21 +512,18 @@ class Test_ThesaurusVectorizer(TestCase):
             def constant_thesaurus():
                 return [('b/n', 1)]
 
-            thes = defaultdict(constant_thesaurus)
-            thes['some_long_non_existant_key'] = 0
-            # so that the thesaurus-like object does not appear empty
-            return thes
+            return defaultdict(constant_thesaurus)
 
         self.tokenizer.keep_only_IT = False
         self.feature_extraction_conf['decode_token_handler'] = \
-            'thesisgenerator.plugins.bov_feature_handlers.SignifierBaselineFeatureHandler'
+            'thesisgenerator.plugins.bov_feature_handlers.SignifierRandomBaselineFeatureHandler'
         self.feature_extraction_conf['k'] = 1    # equivalent to max
         self.feature_extraction_conf['neighbour_source'] = \
-            'thesisgenerator.tests.test_main._constant_neighbour_source'
+            'thesisgenerator.tests.test_main._get_constant_thesaurus'
         self.x_tr, self.y_tr, self.x_ev, self.y_ev = self. \
             _load_data('thesisgenerator/resources/test-baseline')
 
-        x1, x2, voc = self._vectorize_data(_constant_neighbour_source)
+        x1, x2, voc = self._vectorize_data(_get_constant_thesaurus)
 
         self.assertDictEqual({'a/n': 0, 'b/n': 1, 'c/n': 2,
                               'd/n': 3, 'e/n': 4, 'f/n': 5},
@@ -563,6 +561,8 @@ class Test_ThesaurusVectorizer(TestCase):
 
         x1, x2, voc = self._vectorize_data(_vocab_neighbour_source)
         self.assertAlmostEqual(x2.sum(), 11.0)
+        self.assertGreater(std(x2.todense()), 0)
         # seven tokens will be looked up, with random in-vocabulary neighbours
+        # returned each time. Std>0 shows that it's not the same thing
         # returned each time
         print x2

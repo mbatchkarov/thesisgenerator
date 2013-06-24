@@ -221,7 +221,7 @@ class SignifiedOnlyFeatureHandler(BaseFeatureHandler):
         _ignore_feature(doc_id, document_term)
 
 
-class SignifierBaselineFeatureHandler(SignifiedOnlyFeatureHandler):
+class SignifierRandomBaselineFeatureHandler(SignifiedOnlyFeatureHandler):
     """
     Ignores all OOT features and inserts K random IV tokens for all IT features
     """

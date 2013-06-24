@@ -21,8 +21,10 @@ def get_thesaurus(vocab=None):
     try:
         return last_read_thesaurus
     except NameError:
-        # if a thesaurus has never been read
-        return None
+        # if a thesaurus has never been read, return an empty one
+        # must not be None, because bov vectorizer expects not exceptions to
+        # be raised when looking things up
+        return defaultdict(list)
 
 
 class Thesaurus(defaultdict):
@@ -56,7 +58,6 @@ class Thesaurus(defaultdict):
         if not self.thesaurus_files:
             logging.warn("No thesaurus specified")
 
-        result = {}
         for path in self.thesaurus_files:
             logging.info('Loading thesaurus %s from disk' % path)
 

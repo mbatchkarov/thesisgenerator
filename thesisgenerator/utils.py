@@ -246,14 +246,11 @@ def _vocab_neighbour_source(vocab):
     passed in (as a dict {feature:index} )
     """
 
-    logging.info('Vocab contains %d features' % len(vocab))
+    logging.debug('Vocab contains %d features' % len(vocab))
 
     def one_iv_token():
         v = choice(vocab.keys())
-        logging.info('Dummy IV-only thesaurus returning %s as neighbour' % v)
+        logging.debug('Dummy IV-only thesaurus returning %s as neighbour' % v)
         return [(v, 1.0)]
 
-    thes = defaultdict(one_iv_token)
-    thes['some_long_non_existant_key'] = 0
-    # so that the thesaurus-like object does not appear empty
-    return thes
+    return defaultdict(one_iv_token)
