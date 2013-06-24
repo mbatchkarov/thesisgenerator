@@ -1,5 +1,7 @@
 # coding=utf-8
 from math import sqrt
+import os
+import errno
 from jinja2 import Template
 
 import numpy
@@ -133,9 +135,12 @@ def performance_bar_chart(tables, classifiers, width=0.1, cv=25, wheres=[]):
     ax.set_ylim([0., 1.])
     exp_range = '-'.join(map(str, tables))
     classifiers = '-'.join(classifiers)
-    plt.savefig('figures/exp%s-%s-%s-perf.png' % (exp_range,
-                                                  classifiers,
-                                                  '_'.join(wheres)),
+    directory = get_hash_and_date(experiments[0])
+    plt.savefig('%s/exp%s-%s-%s-perf.png' % (
+        directory,
+        exp_range,
+        classifiers,
+        '_'.join(wheres)),
                 format='png',
                 dpi=300)
 
@@ -155,10 +160,6 @@ def coverage_bar_chart(experiments, width=0.13, cv=25,
 
     for experiment in experiments:
         for stat in stats:
-            # sql = "SELECT DISTINCT name, sample_size,total_tok,total_typ,%s " \
-            #       "FROM data%.2d order by sample_size " % (','.join(stat),
-            #                                                experiment)
-
             values = {
                 'variables': stat,
                 'number': experiment,
@@ -185,10 +186,42 @@ def coverage_bar_chart(experiments, width=0.13, cv=25,
     ax.set_title('Thesaurus coverage')
     ax.legend(y_columns, legend_position, ncol=len(y_columns),
               prop={'size': 6})
-    plt.savefig('figures/exp%s-%s-coverage.png' % (experiment,
-                                                   '_'.join(wheres)),
+
+    directory = get_hash_and_date(experiments[0])
+    plt.savefig('{}/exp{}-{}-coverage.png'.format(
+        directory,
+        experiment,
+        '_'.join(wheres)),
                 format='png',
                 dpi=300)
+
+
+def get_hash_and_date(exp_no):
+    """
+    Fetches information about the git commit used to produce these
+    experimental results and the date they were put into the database,
+    creates and returns a directory in ./figures/ corresponding to that
+    information
+    """
+    c = utils.get_susx_mysql_conn().cursor()
+    c.execute('SELECT DISTINCT date from data%d' % exp_no)
+    res = c.fetchall()
+    date = res[0][0]
+
+    c.execute('SELECT DISTINCT git_hash from data%d' % exp_no)
+    res = c.fetchall()
+    hash = res[0][0]
+
+    directory = 'figures/{}-{}'.format(date.date(), hash[:10])
+    try:
+        os.mkdir(directory)
+    except OSError as exc:
+        if exc.errno == errno.EEXIST and os.path.isdir(directory):
+            pass
+        else:
+            raise
+
+    return directory
 
 
 # performance_bar_chart([7, 8], ['LinearSVC'], cv=5)

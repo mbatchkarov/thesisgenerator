@@ -111,7 +111,7 @@ def consolidate_results(writer, conf_dir, log_dir, output_dir,
                 writer.writerow([
                     exp_name,
                     git_hash,
-                    datetime.datetime.now().isoformat(),
+                    datetime.datetime.now().date().isoformat(),
 
                     int(my_mean(data_shape_y)), # train_voc_mean
                     int(my_std(data_shape_y)), # train_voc_std
