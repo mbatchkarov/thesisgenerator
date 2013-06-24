@@ -55,6 +55,9 @@ class TestConsolidatedResultsSqlWriter(TestCase):
         self.assertEqual(1, len(rows))
         self.assertEqual(len(header_list), len(rows[0]))
         for i, val in enumerate(rows[0]):
+            if i == 2:
+                # the third column is a timestamp, cannot convert to float
+                continue
             self.assertEqual(float(i), float(val))
 
     def test_mysql(self):
