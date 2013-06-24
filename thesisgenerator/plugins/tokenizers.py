@@ -101,8 +101,8 @@ class XmlTokenizer(object):
         """
 
         if not self.thes_entries and self.keep_only_IT:
-            thes_entries = set(get_thesaurus().keys())
-            if not thes_entries:
+            self.thes_entries = set(get_thesaurus().keys())
+            if not self.thes_entries:
                 raise Exception('A thesaurus is required with keep_only_IT')
 
         try:
@@ -152,7 +152,7 @@ class XmlTokenizer(object):
                 if self.lowercase:
                     txt = txt.lower()
 
-                if self.keep_only_IT and txt not in thes_entries:
+                if self.keep_only_IT and txt not in self.thes_entries:
                     # logging.debug('Tokenizer ignoring OOT token: %s' % txt)
                     continue
                 tokens.append(txt)
