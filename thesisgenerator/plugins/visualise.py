@@ -41,8 +41,31 @@ def _safe_column_names(data_frames, x_columns, y_columns, yerr_columns):
     return x_columns, y_columns, yerr_columns
 
 
-def _grouped_bar_chart(data_frames, width, x_columns, y_columns,
-                       yerr_columns, cv=25, hatch=False):
+def _plot_bars(ax, i, x, y, yerr, width, labels, color):
+    rects = ax.bar(x + i * width, y, width, yerr=yerr, color=color,
+                   ecolor='black',
+                   linewidth=0)
+    # ax.errorbar(x, y, yerr=yerr)
+    ax.set_xticks(x + (i / 2) * width + width)
+    ax.set_xticklabels(labels, rotation=-30)
+    _autolabel(rects)
+
+
+def _plot_lines(ax, i, x, y, yerr, width, labels, color):
+    ax.errorbar(x, y, yerr=yerr, linewidth=1.5)
+
+
+def _autolabel(rects):
+    # attach some text labels
+    for rect in rects:
+        height = rect.get_height()
+        plt.text(rect.get_x() + rect.get_width() / 2., 1.05 * height,
+                 '%.2f' % height,
+                 ha='center', va='bottom', size=5, rotation=90)
+
+
+def _do_chart(data_frames, width, x_columns, y_columns,
+              yerr_columns, cv=25):
     """
     parameters:
     data_frames- where to extra information from
@@ -55,14 +78,6 @@ def _grouped_bar_chart(data_frames, width, x_columns, y_columns,
 
     """
 
-    def autolabel(rects):
-        # attach some text labels
-        for rect in rects:
-            height = rect.get_height()
-            plt.text(rect.get_x() + rect.get_width() / 2., 1.05 * height,
-                     '%.2f' % height,
-                     ha='center', va='bottom', size=5, rotation=90)
-
     x_columns, y_columns, yerr_columns = _safe_column_names(data_frames,
                                                             x_columns,
                                                             y_columns,
@@ -72,26 +87,23 @@ def _grouped_bar_chart(data_frames, width, x_columns, y_columns,
            len(yerr_columns)
     fig = plt.figure()
     ax = fig.add_subplot(111)
-    cm = plt.get_cmap('Accent')
+    cm = plt.get_cmap('flag')
     num_groups = len(data_frames)
     # todo either predefine a set of colors of a set of hatch styles, not both
-    ax.set_color_cycle([cm(1. * i / num_groups) for i in range(num_groups)])
+    # ax.set_color_cycle([cm(1. * i / num_groups) for i in range(num_groups)])
 
-    hatches = " " * len(data_frames)
-    if hatch:
-        hatches = "\\-/x*."
+    # hatches = " " * len(data_frames)
+    # if hatch:
+    #     hatches = "\\-/x*."
 
     for (i, (name, df)) in enumerate(data_frames):
         color = cm(1. * i / num_groups)
         x = numpy.arange(len(df[x_columns[i]]))
         y = df[y_columns[i]]
         yerr = df[yerr_columns[i]] / sqrt(cv)
-        rects = ax.bar(x + i * width, y, width, yerr=yerr, color=color,
-                       ecolor='black',
-                       linewidth=0, hatch=hatches[i % len(data_frames)])
-        ax.set_xticks(x + (i / 2) * width + width)
-        ax.set_xticklabels(tuple(df[x_columns[i]]), rotation=-30)
-        autolabel(rects)
+        labels = tuple(df[x_columns[i]])
+        # _plot_bars(ax,i, x, y, yerr, width, labels, color)
+        _plot_lines(ax, i, x, y, yerr, width, labels, color)
     return ax
 
 
@@ -115,8 +127,8 @@ def performance_bar_chart(tables, classifiers, width=0.1, cv=25, wheres=[]):
             data_frames.append(('%.2d-%s' % (table, classifier),
                                 df))
 
-    ax = _grouped_bar_chart(data_frames, width, x_columns, y_columns,
-                            yerr_columns, cv)
+    ax = _do_chart(data_frames, width, x_columns, y_columns,
+                   yerr_columns, cv)
 
     ax.set_xlabel('Sample size')
     ax.set_ylabel('Macroavg F1')
@@ -135,7 +147,7 @@ def performance_bar_chart(tables, classifiers, width=0.1, cv=25, wheres=[]):
     ax.set_ylim([0., 1.])
     exp_range = '-'.join(map(str, tables))
     classifiers = '-'.join(classifiers)
-    directory = get_hash_and_date(experiments[0])
+    directory = get_hash_and_date(tables[0])
     plt.savefig('%s/exp%s-%s-%s-perf.png' % (
         directory,
         exp_range,
@@ -178,8 +190,8 @@ def coverage_bar_chart(experiments, width=0.13, cv=25,
     y_columns = [x[0] for x in stats]
     yerr_columns = [x[1] for x in stats]
 
-    ax = _grouped_bar_chart(data_frames, width, x_columns, y_columns,
-                            yerr_columns, hatch=False, cv=cv)
+    ax = _do_chart(data_frames, width, x_columns, y_columns,
+                   yerr_columns, cv=cv)
 
     ax.set_xlabel(xlabel)
     ax.set_ylabel('Proportion of total tokens/types')
@@ -260,16 +272,28 @@ table_descr = {
     24: 'IT tokens, signifier + signified',
     25: 'all token, signifier + signified',
     26: 'IT tokens, signified',
-    27: 'all tokens, signified'
+    27: 'all tokens, signified',
+    28: 'all tokens, signified random baseline'
 }
 
-for i in range(22, 28):
-    coverage_bar_chart([i], x_columns=['sample_size'])
+from joblib import Parallel, delayed
 
-for clf in ['BernoulliNB', 'MultinomialNB',
-            'LogisticRegression', 'MultinomialNBWithBinaryFeatures']:
-    for experiments in [[23, 22], [25, 24], [27, 26], [22, 26, 24],
-                        [23, 27, 25], range(22, 28)]:
-        performance_bar_chart(experiments, [clf])
+Parallel(n_jobs=8)(delayed(coverage_bar_chart)([i], x_columns=['sample_size'])
+                   for i in range(22, 29))
+
+# for i in range(22, 29):
+#     coverage_bar_chart([i], x_columns=['sample_size'])
+
+classifiers = ['BernoulliNB', 'MultinomialNB', 'LogisticRegression',
+               'MultinomialNBWithBinaryFeatures']
+experiment_sets = [[23, 22], [25, 24], [27, 26], [22, 26, 24], [23, 27, 25,
+                                                                28],
+                   [27, 28], range(22, 28)]
+
+Parallel(n_jobs=8)(delayed(performance_bar_chart)(experiments, [clf])
+                   for clf in classifiers for experiments in experiment_sets)
+# for clf in classifiers:
+#     for experiments in experiments:
+#         performance_bar_chart(experiments, [clf])
 
 print 'done'
