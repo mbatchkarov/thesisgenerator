@@ -1,9 +1,14 @@
+import sys
+
+sys.path.append('.')
+sys.path.append('..')
+sys.path.append('../..')
+
 from collections import defaultdict
 import logging
 import os
 
 from operator import itemgetter
-import sys
 
 from joblib import Parallel, delayed, Memory
 from iterpipes import cmd, run

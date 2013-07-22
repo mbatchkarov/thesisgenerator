@@ -10,6 +10,7 @@ setup(
     author=['Matti Lyra', 'Miroslav Batchkarov'],
     author_email=['M.Lyra@sussex.ac.uk', 'M.Batchkarov@sussex.ac.uk'],
     requires=['iterpipes', 'pandas', 'matplotlib', 'numpy', 'scipy',
-              'scikit-learn', 'joblib', 'configobj', 'validate', 'jinja2']
+              'scikit-learn', 'joblib', 'configobj', 'validate', 'jinja2',
+              'gitpython']
 )
 

@@ -4,7 +4,6 @@ import os
 import errno
 from jinja2 import Template
 
-import numpy
 from thesisgenerator import utils
 
 __author__ = 'mmb28'
@@ -45,14 +44,17 @@ def _plot_bars(ax, i, x, y, yerr, width, labels, color):
     rects = ax.bar(x + i * width, y, width, yerr=yerr, color=color,
                    ecolor='black',
                    linewidth=0)
-    # ax.errorbar(x, y, yerr=yerr)
     ax.set_xticks(x + (i / 2) * width + width)
     ax.set_xticklabels(labels, rotation=-30)
     _autolabel(rects)
 
 
 def _plot_lines(ax, i, x, y, yerr, width, labels, color):
+    # ax.plot(x, y)
+    # ax.scatter(x, y)
     ax.errorbar(x, y, yerr=yerr, linewidth=1.5)
+    ax.set_xticks(x)
+    ax.set_xticklabels(labels)
 
 
 def _autolabel(rects):
@@ -89,16 +91,10 @@ def _do_chart(data_frames, width, x_columns, y_columns,
     ax = fig.add_subplot(111)
     cm = plt.get_cmap('flag')
     num_groups = len(data_frames)
-    # todo either predefine a set of colors of a set of hatch styles, not both
-    # ax.set_color_cycle([cm(1. * i / num_groups) for i in range(num_groups)])
-
-    # hatches = " " * len(data_frames)
-    # if hatch:
-    #     hatches = "\\-/x*."
 
     for (i, (name, df)) in enumerate(data_frames):
         color = cm(1. * i / num_groups)
-        x = numpy.arange(len(df[x_columns[i]]))
+        x = df['sample_size']
         y = df[y_columns[i]]
         yerr = df[yerr_columns[i]] / sqrt(cv)
         labels = tuple(df[x_columns[i]])
