@@ -75,7 +75,7 @@ class Thesaurus(defaultdict):
                                      in
                                      _iterate_nonoverlapping_pairs(tokens, 1)
                                      if
-                                     word != FILTERED and
+                                     word.lower() != FILTERED and
                                      float(sim) > self.sim_threshold]
                         if self.include_self:
                             to_insert.insert(0, (tokens[0].lower(), 1.0))
