@@ -7,21 +7,24 @@ sys.path.append('../..')
 from collections import defaultdict
 import logging
 import os
+import platform
 
 from operator import itemgetter
 
-from joblib import Parallel, delayed, Memory
+from joblib import Parallel, delayed
 from iterpipes import cmd, run
 
 from thesisgenerator.plugins.thesaurus_loader import read_thesaurus
 
+hostname = platform.node()
+if 'apollo' in hostname or 'node' in hostname:
+    orig_f = '/FeatureExtrationToolkit/feoutput-deppars/exp6-collated/exp6'
+    byblo_path = '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/Byblo-2.2.0'
+else:
+    orig_f = '/Volumes/LocalDataHD/mmb28/Desktop/down/exp6-transfer'
+    byblo_path = '/Volumes/LocalDataHD/mmb28/NetBeansProjects/Byblo-2.2.0'
 
-orig_f = '/Volumes/LocalDataHD/mmb28/Desktop/down/e6h'
-byblo_path = '/Volumes/LocalDataHD/mmb28/NetBeansProjects/Byblo-2.2.0'
-memory = Memory(cachedir=os.path.dirname(orig_f), verbose=0)
 
-
-@memory.cache
 def remove_punctuation(fin):
     fout = fin + '-clean'
     logging.info('Removing punctuation from %s, output will be %s' % (
@@ -41,7 +44,6 @@ def remove_punctuation(fin):
     return fout
 
 
-@memory.cache
 def specialise_token_occurences(fin):
     fout = fin + '-split'
     logging.info('Splitting vectors from %s, output will be %s' % (
@@ -62,16 +64,27 @@ def specialise_token_occurences(fin):
                 # mark noun occurrences as subject, direct/indirect object
                 # todo all other occurrences are conflated as "generic"---
                 # this is not how verbs are handled
+                # motivation: substitutability in context, differentiate
+                # between the subject and object use of a noun: democracy can
+                #  be upheld (object) but cannot uphold things
+                # normal dependency thesaurus lists nouns of different degree
+                #  of abstractness as neighbours
                 for relation in ['dobj-HEAD:', 'iobj-HEAD:',
                                  'nsubj-HEAD:', 'nsubjpass-HEAD']: #pobj
                     if relation in line:
                         things[0] = '{}/{}'.format(things[0], relation[1:4])
                         # conflate direct/indirect object, active/passive subj
 
-                # # identify substantiated adjectives
-                # if '/J' in things[0] and 'nsubj-DEP:the' in line:
+                # identify substantiated adjectives
+                # if '/J' in things[0] and 'nsubj-DEP' in line \
+                #     and 'det-HEAD' in line and 'amod-HEAD' not in line:
                 #     print 'substantiated adjective ', i, line.strip()
-                #
+
+                if things[0].count('/') > 2:
+                    # sometimes because of parsing errors a verb is be
+                    # marked as an object of another verb, ignore such weird
+                    # cases
+                    continue
 
                 outfile.write('\t'.join(things))
                 # "I get scared" - scare is a passive verb, I is the subject
@@ -97,7 +110,6 @@ def _do_work_byblo(features_file):
     return outfile
 
 
-@memory.cache
 def byblo_unindex_both(orig_file, split_file, byblo_path):
     logging.info(
         'Unindexing %s and %s with %s' % (orig_f, split_file, byblo_path))
@@ -133,8 +145,7 @@ def get_changed_entries(before, after):
     def _sum(it):
         return sum(map(itemgetter(1), it))
 
-        # sometimes the splitting does not cover all the uses of a word, e.g.
-
+    # sometimes the splitting does not cover all the uses of a word, e.g.
     # freedom/n -> freedom/n/obj, freedom/n; i.e. not all uses of freedom/n
     # are of the classes captured by specialise_token_occurences
     unsplit = 0
@@ -154,7 +165,10 @@ def get_changed_entries(before, after):
             outfh.write('\n')
 
             # check that features are not lost or added in the splitting
-            assert old_num_features == new_num_features
+            if old_num_features != new_num_features:
+                logging.warn('Features removed for %s' % old_entry)
+                # can't assert that because some features might have been removed
+
         logging.debug('Un-split: %d/%d matching entries' % (unsplit,
                                                             len(entry_map)))
     return outfile
@@ -172,11 +186,4 @@ if __name__ == '__main__':
     clean_f = remove_punctuation(orig_f)
     specialised_f = specialise_token_occurences(clean_f)
     events = byblo_unindex_both(clean_f, specialised_f, byblo_path)
-    # events = go(sys.argv[1])
-
-    print events
-    print get_changed_entries(*events)
-    # with open(events) as inf:
-    #     for line in inf:
-    #         print line
-    #         break
+    get_changed_entries(*events)
