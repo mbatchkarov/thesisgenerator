@@ -21,7 +21,8 @@ if 'apollo' in hostname or 'node' in hostname:
     orig_f = '/FeatureExtrationToolkit/feoutput-deppars/exp6-collated/exp6'
     byblo_path = '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/Byblo-2.2.0'
 else:
-    orig_f = '/Volumes/LocalDataHD/mmb28/Desktop/down/exp6-transfer'
+    # orig_f = '/Volumes/LocalDataHD/mmb28/Desktop/down/exp6-transfer'
+    orig_f = '/Volumes/LocalDataHD/mmb28/Desktop/down/e6h'
     byblo_path = '/Volumes/LocalDataHD/mmb28/NetBeansProjects/Byblo-2.2.0'
 
 
@@ -29,10 +30,27 @@ def remove_punctuation(fin):
     fout = fin + '-clean'
     logging.info('Removing punctuation from %s, output will be %s' % (
         fin, fout))
+    with open('words') as infile:
+        # todo assume a dictionary file exists in cwd
+        all_words = set(map(str.strip, infile.readlines()))
+    map(str.lower, all_words)
+    print len(all_words)
+
     with open(fin) as infile:
         with open(fout, 'w') as outfile:
             for i, line in enumerate(infile):
                 things = line.split('\t')
+
+                word = things[0].split('/')[0]
+                if word.lower() not in all_words:
+                    continue
+                    # 33.6k --> 38.8k entry occurrences without this filter,
+                # 5.6k --> 8k total entries (30% of entries across all PoS
+                # not in dictionary). For comparison, 14571/76866=19% of nouns
+                # in the 6-12a thesaurus are in the dict, and 3585/4103=87%
+                # of verbs in 6-12b. All missing verbs are missing (as far as
+                #  I can see) because of spelling error, British/American
+                # spelling or PoS tagger errors
 
                 # clean up punctuation-only features and entries
                 if '/UNK' in things[0] or '/PUNCT' in things[0]:
@@ -45,6 +63,7 @@ def remove_punctuation(fin):
 
 
 def specialise_token_occurences(fin):
+    # this does not very much- 200/33k new entries appear
     fout = fin + '-split'
     logging.info('Splitting vectors from %s, output will be %s' % (
         fin, fout))
@@ -86,6 +105,7 @@ def specialise_token_occurences(fin):
                     # cases
                     continue
 
+                # todo adverbs the modify a verb/adjective
                 outfile.write('\t'.join(things))
                 # "I get scared" - scare is a passive verb, I is the subject
 
@@ -94,7 +114,8 @@ def specialise_token_occurences(fin):
 
 def _do_work_byblo(features_file):
     c1 = cmd(
-        './byblo.sh -s enumerate,count,filter -i {} -o {} -ffp ".*(-DEP|-HEAD):''.+"',
+        './byblo.sh -s enumerate,count,filter -i {} -o {} -ffp '
+        '".*(-DEP|-HEAD):''.+" -t 30',
         features_file, os.path.dirname(features_file))
     c2 = cmd('./unindex-events.sh {}', features_file)
     outfile = features_file + '.events.strings'
