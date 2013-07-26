@@ -63,17 +63,17 @@ class TestConsolidator(TestCase):
         # this is because of the higher prior of class 0 and the fact that
         # the only feature of the test document of class 1 has only occurred
         # in class 0
-        exp = {
-            'precision_score-class0': (2. / 3, -1),
-            'precision_score-class1': (0, -1),
-            'recall_score-class0': (1, -1),
-            'recall_score-class1': (0, -1),
-            'f1_score-class0': (0.8, -1),
-            'f1_score-class1': (0, -1)
-        }
+        exp = (
+            ('precision_score-class0', (2. / 3, 0)),
+            ('precision_score-class1', (0, 0)),
+            ('recall_score-class0', (1, 0)),
+            ('recall_score-class1', (0, 0)),
+            ('f1_score-class0', (0.8, 0)),
+            ('f1_score-class1', (0, 0))
+        )
         # all std set to -1 to indicate only a single experiment was run
         # 0 may have suggested multiple experiments with identical results
-        for variable, (exp_mean, exp_std) in exp.items():
+        for variable, (exp_mean, exp_std) in exp:
             sql = 'select score_mean, score_std from data00 WHERE ' \
                   'metric = "{}";'.format(variable)
             cursor.execute(sql)
@@ -83,6 +83,7 @@ class TestConsolidator(TestCase):
                                                              exp_std))
             self.assertAlmostEqual(res[0][0], exp_mean, 5)
             self.assertAlmostEqual(res[0][1], exp_std, 5)
+            logging.info('OK')
 
 
 
