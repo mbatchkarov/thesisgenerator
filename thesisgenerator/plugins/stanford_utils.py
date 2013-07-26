@@ -1,12 +1,10 @@
 # coding=utf-8
+from math import ceil
 import os
 import sys
 import subprocess
-import traceback
 import datetime as dt
 import xml.etree.cElementTree as ET
-
-from concurrent.futures import ProcessPoolExecutor, as_completed
 
 
 ################
@@ -14,6 +12,9 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 # Utilities
 #
 ################
+from joblib import Parallel, delayed
+
+
 def current_time(): #for reporting purposes.
     return dt.datetime.ctime(dt.datetime.now())
 
@@ -163,24 +164,13 @@ def _process_xml_to_conll(path_to_data, processes=1):
     """
     logger.print_info("<%s> Beginning formatting to CoNLL: %s" % (
         current_time(), path_to_data))
-    jobs = {}
-    with ProcessPoolExecutor(max_workers=processes) as executor:
-        for data_file in os.listdir(path_to_data):
-            if not (data_file.startswith(".") or data_file.endswith(".conll")):
-                input_path = os.path.join(path_to_data, data_file)
-                jobs[executor.submit(_process_single_xml_to_conll,
-                                     input_path)] = data_file
-        for job in as_completed(jobs):
-            try:
-                job.result() #Propagates any exceptions.
-            except Exception as e:
-                logger.print_info(
-                    " Exception during formatting: %s" % jobs[job])
-                logger.print_info(
-                    ''.join(traceback.format_exception(*sys.exc_info())),
-                    printstdin=False)
-                raise
-            logger.print_info(" Formatting complete: %s" % jobs[job])
+    # jobs = {}
+    Parallel(n_jobs=processes)(delayed(_process_single_xml_to_conll)(
+        os.path.join(path_to_data, data_file))
+                               for data_file in os.listdir(path_to_data)
+                               if not (data_file.startswith(".") or
+                                       data_file.endswith(".conll")))
+
     logger.print_info("<%s> All formatting complete." % current_time())
 
 
@@ -217,11 +207,12 @@ def dependency_parse_directory(data_dir, parser_project_path, liblinear_path,
 
     #Add to python path location of dependency parser and liblinear
     sys.path.append(os.path.join(parser_project_path, "src"))
-    sys.path.append(liblinear_path)
+    sys.path.append(
+        'Volumes/LocalDataHD/mmb28/Library/Enthought/Canopy_32bit/System/lib/python2.7/site-packages/sklearn/svm/')
 
     def chunks(items, no_of_chunks):
         """Split *items* into a number (no_of_chunks) of equal chunks."""
-        chunksize = (len(items) + no_of_chunks // 2) // no_of_chunks
+        chunksize = int(ceil((len(items) + no_of_chunks / 2.) / no_of_chunks))
         return (items[i:i + chunksize] for i in xrange(0, len(items),
                                                        chunksize))
 
@@ -247,33 +238,22 @@ def dependency_parse_directory(data_dir, parser_project_path, liblinear_path,
         logger.print_info("<%s> Parsing: %s" % (current_time(), input_sub_dir))
 
         #Create a number (processes) of individual processes for executing parsers.
-        with ProcessPoolExecutor(max_workers=processes) as executor:
-            jobs = {} #Keep record of jobs and their input
-            #Split data into chunks, submit a parsing job for each chunk
-            for files in chunks([name for name in os.listdir(input_sub_dir) if
-                                 not name.startswith('.') and name.endswith(
-                                         ".conll")], processes):
-                jobs[executor.submit(run_parser, input_sub_dir, files,
-                                     output_sub_dir,
-                                     parser_project_path)] = files
-                #As each job completes, check for success, print details of input
-            for job in as_completed(jobs.keys()):
-                try:
-                    pfiles, info = job.result()
-                    logger.print_info(
-                        " Success. Files processed: \n-- %s" % "\n-- ".join(
-                            pfiles))
-                    logger.print_info(info)
-                except Exception as exc:
-                    logger.print_info(
-                        " Exception encountered in: \n-- %s" % "\n-- ".join(
-                            jobs[job]))
-                    logger.print_info(
-                        ''.join(traceback.format_exception(*sys.exc_info())),
-                        printstdin=False)
-                    raise
+        files_chunks = chunks([name for name in os.listdir(input_sub_dir) if
+                               not name.startswith('.') and
+                               name.endswith(".conll")], processes)
+        files_chunks = list(files_chunks)
 
-    logger.print_info("<%s> Parsing Complete." % current_time())
+        # for f in files_chunks:
+        #     run_parser(input_sub_dir, f, output_sub_dir,parser_project_path)
+
+        # run parsing in parallel
+        Parallel(n_jobs=processes)(delayed(run_parser)(input_sub_dir,
+                                                       f,
+                                                       output_sub_dir,
+                                                       parser_project_path)
+                                   for f in files_chunks)
+
+        logger.print_info("<%s> Parsing Complete." % current_time())
 
 
 def run_parser(input_dir, input_files, output_dir, parser_project_path):
@@ -320,12 +300,12 @@ def remove_temp_files(path_to_corpora):
 # Methods of invocation
 #
 ##################
-def execute_pipeline(path_to_corpora, #Required for all
-                     path_to_stanford="", #Required for stanford pipeline
-                     path_to_filelistdir="", #optional
-                     path_to_depparser="", #Required for dependency parsing
-                     log="", #optional
-                     path_to_liblinear="", #Required if liblinear not in path
+def execute_pipeline(path_to_corpora, # Required for all
+                     path_to_stanford="", # Required for stanford pipeline
+                     path_to_filelistdir="", # optional
+                     path_to_depparser="", # Required for dependency parsing
+                     log="", # optional
+                     path_to_liblinear="", # Required if liblinear not in path
                      run=frozenset(["stanford", "formatting", "parsing"]),
                      stanford_java_threads=40,
                      formatting_python_processes=40,
@@ -358,17 +338,154 @@ def execute_pipeline(path_to_corpora, #Required for all
 
 
 if __name__ == "__main__":
-    """
-    Email Andy or Miro for a copy of the readme for this script
-    """
+    '''
+    ---- Resources Required ----
+
+    This section lists software required to
+    run annotate_corpora.py.
+
+    	1. AR's Dependency Parsing Project
+    	2. Python 2.6 or Python 2.7
+    	3. Liblinear installation with Python interface
+    	4. Stanford CoreNLP pipeline
+    	5. Python's joblib package
+
+    	- How to acquire resources:
+    		1. AR's Dependency Parsing Project
+    			- Clone git repository at .../data3/adr27/DEPPARSE/parse_suite_repo, or
+    			- Ask for a copy, or
+    			- Github coming soon.
+
+    		2. Python 2.6 of Python 2.7
+    			- Download from: http://www.python.org/download/releases/<VERSION>/
+
+    		3. Liblinear installation with Python interface
+    			- Download liblinear package from:
+    				http://www.csie.ntu.edu.tw/~cjlin/liblinear/
+    			- CD to extracted directory. Make.
+    			- CD to python directory within. Make.
+    			- Create a "liblinear" folder in your Python installation's site-packages
+    			- Copy liblinear.py and liblinearutil.py from the python folder to site-packages
+    			- Copy liblinear.so.1 from the main liblinear download directory to site-packages
+    			- Create empty "__init__.py" file in site-packages
+    			- Open liblinear.py, around line 19, there's be a path like:
+    				'../liblinear.so.1'
+    			  Change it to "./liblinear.so.1" (the new location of it in your site-packages)
+    			- IMPORTANT NOTE: Ensure you perform the make process on the machine you intend
+    			  to run liblinear on. And place in the relevant python site-packages.
+
+    		4. Stanford CoreNLP pipeline
+    			- Download from: http://nlp.stanford.edu/software/corenlp.shtml
+
+    		5. Joblib
+    			- Download from: http://pypi.python.org/pypi/joblib or
+    			install with pip
+
+
+    ---- Execution ----
+
+    This section explains how to run stanford_utils.py
+
+    	- Expected Input
+
+    		The pipeline expects input data in the following structure:
+    			- A directory containing corpora, where
+    			- Each corpus is a directory of files, where
+    			- Each file contains raw text.
+
+    	- Output
+
+    		After running the full pipeline on a directory called "corpora"
+    		You should see the following output:
+
+    			- A directory called "corpora-tagged" contains a version of
+    			  your data in CoNLL style format after the execution of the
+    			  following parts of stanford corenlp:
+
+    			  	- Tokenization
+    			  	- Sentence segmenation
+    			  	- Lemmatisation
+    			  	- PoS tagging
+
+    			- A directory called "corpora-tagged-parsed" which adds the
+    			  annotations of AR's dependency parser to the data.
+
+    	- Invokation using "execute_pipeline" function
+
+    		This function allows you to run all or individual parts of the pipeline.
+
+    		Currently, you should call the function with the appropriate parameters
+    		by writing the arguments in a call to the function at the bottom of the
+    		script.
+
+    		Perhaps a config script parser would make things better...
+
+    		It requires the following arguments (some are optional with defaults):
+
+    		- run
+    			A sequence or collection of strings which specify which parts of the
+    			pipeline to run. There are 4 options:
+
+    			stanford   : run the stanford pipeline
+    			formatting : convert stanford XML output to CoNLL
+    			parsing    : dependency parse CoNLL format text
+    			cleanup    : delete stanford XML files
+
+    		- path_to_corpora
+    			This is the full path to the directory containing your corpora.
+
+    		- path_to_stanford
+    			This is the full path to the directory containing Stanford CoreNLP
+
+    		- path_to_filelistdir
+    			Before running Stanford, a list of files to be processed is created
+    			and saved to disk, to be passed as an argument to stanford. This
+    			is the path to the DIRECTORY where this file should be saved (1 per
+    			corpus)
+
+    			DEFAULT: The stanford corenlp directory
+
+    		- stanford_java_threads
+    			The number of threads to be used when running stanford corenlp
+
+    			DEFAULT: 40
+
+    		- formatting_python_processes
+    			The number of python processes to run in parallel when
+    			converting XML to CoNLL.
+
+    			DEFAULT: 40
+
+    		- parsing_python_processes
+    			The number of python processes to run in parallel when
+    			dependency parsing. Each requires about 1-2gb of RAM.
+
+    			DEFAULT: 40
+
+    		- path_to_depparser
+    			Path to AR's dependency parsing project.
+
+    		- path_to_liblinear
+    			Path to liblinear installation, required if not located
+    			in the Python Path already.
+
+    		- log
+    			Path to logfile.
+
+    			DEFAULT: no logging.
+    '''
 
     #Pipeline examples:
-    #    run = set("stanford formatting parsing cleanup".split())
-    run = set("stanford".split())
+    # run = set("stanford formatting parsing cleanup".split())
+    # run = set("formatting parsing cleanup".split())
+    run = set("parsing".split())
+    # run = set("stanford".split())
 
     #Fill arguments below, for example:
     execute_pipeline(
-        '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/thesisgenerator/sample-data/sts',
-        path_to_stanford='/Volumes/LocalScratchHD/LocalHome/Downloads/stanford-corenlp-full-2012-11-12',
+        '/Volumes/LocalDataHD/mmb28/NetBeansProjects/thesisgenerator/sample-data/web',
+        path_to_stanford='/Volumes/LocalDataHD/mmb28/Downloads/stanford-corenlp-full-2012-11-12',
+        path_to_depparser='/Volumes/LocalDataHD/mmb28/Desktop/parser_test_version',
         stanford_java_threads=8,
         run=run)
+
