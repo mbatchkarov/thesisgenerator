@@ -3,6 +3,7 @@ from collections import defaultdict
 # import locale
 import logging
 from sklearn.feature_extraction.stop_words import ENGLISH_STOP_WORDS
+from thesisgenerator.plugins import joblib_cache
 from thesisgenerator.plugins.thesaurus_loader import get_thesaurus
 
 try:
@@ -78,7 +79,8 @@ class XmlTokenizer(object):
     def __init__(self, normalise_entities=False, use_pos=True,
                  coarse_pos=True, lemmatize=True,
                  lowercase=True, keep_only_IT=False,
-                 remove_stopwords=False, remove_short_words=False):
+                 remove_stopwords=False, remove_short_words=False,
+                 use_cache=False):
         self.normalise_entities = normalise_entities
         self.use_pos = use_pos
         self.coarse_pos = coarse_pos
@@ -88,10 +90,18 @@ class XmlTokenizer(object):
         self.remove_stopwords = remove_stopwords
         self.remove_short_words = remove_short_words
 
-    def __call__(self, doc):
-        return self.tokenize(doc)
+        self.mem_cache = joblib_cache.init_cache(use_cache)
 
-    def tokenize(self, doc):
+    def __call__(self, doc):
+        if not hasattr(self, 'cached_tokenize'):
+            self.cached_tokenize = self.mem_cache.cache(self.tokenize,
+                                                        ignore=['self', 'doc'])
+            # use the first 200 chars of the document as cache key,
+        # ignore the identity of the XmlTokenizer object
+        return self.cached_tokenize(doc, doc[:2000])
+        # return self.tokenize(doc)
+
+    def tokenize(self, doc, doc_beg):
         """
         Tokenizes a Stanford Core NLP processed document by parsing the XML and
         extracting tokens and their lemmas, with optional lowercasing
@@ -99,7 +109,7 @@ class XmlTokenizer(object):
          type, e.g. PERSON or ORG, otherwise numbers and punctuation will be
          canonicalised
         """
-
+        # print 'tokenizing ', doc[-50:]
         if not self.thes_entries and self.keep_only_IT:
             self.thes_entries = set(get_thesaurus().keys())
             if not self.thes_entries:

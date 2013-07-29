@@ -11,7 +11,6 @@ from sklearn.externals.joblib import Parallel, delayed
 from sklearn.utils import check_arrays, safe_mask
 import numpy as np
 import scipy.sparse as sp
-from thesisgenerator.plugins import joblib_cache
 
 __author__ = 'mmb28'
 
@@ -58,28 +57,27 @@ def _cross_val_score(key_params, cv_number, estimator, X, y,
         else:
             score = score_func(X_test)
     else:
-        memory = joblib_cache.get_memory()
+    #     memory = joblib_cache.get_memory()
+    #
+    #
+        # def _train_estimator(estimator, X_train, y, train, fit_params,
+        #                      key_params):
+        #     print 'Training estimator with params:'
+        #     for name in ['train', 'fit_params']:
+        #         print "\t%s = %s" % (name, locals()[name])
+        #     for name, value in key_params.items():
+        #         print "\t%s = %s" % (name, value)
+        #     print
+        #
+        #     estimator.fit(X_train, y[train], **fit_params)
+        #     return estimator
+        #
+        # _train_cached = memory.cache(_train_estimator,
+        #                              ignore=['estimator', 'X_train'])
+        # key_params['classifier'] = estimator.named_steps['clf']
+        # key_params['cv_number'] = cv_number
+        estimator = estimator.fit(X_train, y[train], **fit_params)
 
-
-        def _train_estimator(estimator, X_train, y, train, fit_params,
-                             key_params):
-            print 'Training estimator with params:'
-            for name in ['train', 'fit_params']:
-                print "\t%s = %s" % (name, locals()[name])
-            for name, value in key_params.items():
-                print "\t%s = %s" % (name, value)
-            print
-
-            estimator.fit(X_train, y[train], **fit_params)
-            return estimator
-
-        _train_cached = memory.cache(_train_estimator,
-                                     ignore=['estimator', 'X_train'])
-        key_params['classifier'] = estimator.named_steps['clf']
-        key_params['cv_number'] = cv_number
-        estimator = _train_cached(estimator, X_train, y, train, fit_params,
-                                  # all params below are used a joblib keys
-                                  key_params)
         if score_func is None:
             score = estimator.score(X_test, y[test])
         else:

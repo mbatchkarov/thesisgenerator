@@ -18,7 +18,7 @@ import itertools
 
 from numpy import nonzero
 
-from thesisgenerator.__main__ import go, _get_data_iterators, parse_config_file
+from thesisgenerator.__main__ import go, parse_config_file, read_data_from_disk
 from thesisgenerator.utils import get_susx_mysql_conn
 from thesisgenerator.plugins.dumpers import *
 from thesisgenerator.plugins.consolidator import consolidate_results
@@ -255,15 +255,13 @@ def evaluate_thesauri(base_conf_file, file_iterator,
         except KeyError:
             options['input_generator'] = ''
         options['source'] = config_obj['training_data']
+        if config_obj['test_data']:
+            options['test_data'] = config_obj['test_data']
 
         print 'Loading training data'
-        x_vals, y_vals = _get_data_iterators(**options)
-        # todo this only makes sense when we are using a pre-defined test set
-        if config_obj['test_data']:
-            print 'Loading test data'
-            options['source'] = config_obj['test_data']
-            x_test, y_test = _get_data_iterators(**options)
-        data = (x_vals, y_vals, x_test, y_test)
+
+        x_tr, y_tr, x_test, y_test = read_data_from_disk(options)
+        data = (x_tr, y_tr, x_test, y_test)
 
     Parallel(n_jobs=pool_size)(delayed(go)(new_conf_file, log_file,
                                            data=deepcopy(data)) for
@@ -284,7 +282,7 @@ def _clear_old_files(i, prefix):
 
 def run_experiment(i, num_workers=4,
                    predefined_sized=[],
-                   prefix='/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/thesisgenerator'):
+                   prefix='/Volumes/LocalDataHD/mmb28/NetBeansProjects/thesisgenerator'):
     print 'RUNNING EXPERIMENT %d' % i
     # on local machine
 

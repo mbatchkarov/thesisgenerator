@@ -405,6 +405,19 @@ def get_keys_for_training(configuration):
     return key_params
 
 
+def read_data_from_disk(options):
+    logging.info('Loading raw training set')
+    x_train, y_train = _get_data_iterators(**options)
+    if options['test_data']:
+        logging.info('Loading raw test set')
+        #  change where we read files from
+        options['source'] = options['test_data']
+        # ensure that only the training data targets are shuffled
+        options['shuffle_targets'] = False
+        x_test, y_test = _get_data_iterators(**options)
+    return x_train, y_train, x_test, y_test
+
+
 def _run_tasks(configuration, n_jobs, data=None):
     """
     Runs all commands specified in the configuration file
@@ -412,7 +425,7 @@ def _run_tasks(configuration, n_jobs, data=None):
     logging.info('running tasks')
     # get a reference to the joblib cache object, if caching is not disabled
     # else build a dummy object which just returns its arguments unchanged
-    mem_cache = joblib_cache.init_cache(configuration['joblib_caching'])
+    joblib_cache.init_cache(configuration['joblib_caching'])
 
     # retrieve the actions that should be run by the framework
     actions = configuration.keys()
@@ -431,7 +444,7 @@ def _run_tasks(configuration, n_jobs, data=None):
         # of computations that have been executed previously
         if data:
             logging.info('Using pre-loaded raw data set')
-            x_vals, y_vals, x_test, y_test = data
+            x_tr, y_tr, x_test, y_test = data
         else:
             options = {'input': configuration['feature_extraction']['input'],
                        'shuffle_targets': configuration['shuffle_targets']}
@@ -441,22 +454,16 @@ def _run_tasks(configuration, n_jobs, data=None):
             except KeyError:
                 options['input_generator'] = ''
             options['source'] = configuration['training_data']
-
-            logging.info('Loading raw training set')
-            x_vals, y_vals = _get_data_iterators(**options)
             if configuration['test_data']:
-                logging.info('Loading raw test set')
-                #  change where we read files from
-                options['source'] = configuration['test_data']
-                # ensure that only the training data targets are shuffled
-                options['shuffle_targets'] = False
-                x_test, y_test = _get_data_iterators(**options)
-            del options
+                options['test_data'] = configuration['test_data']
 
+            x_tr, y_tr, x_test, y_test = read_data_from_disk(options)
+
+    # that no concurrency
     # **********************************
     # CROSSVALIDATION
     # **********************************
-
+    cached_tokenized_data = False
     scores = []
     for i, clf_name in enumerate(configuration['classifiers']):
         if not configuration['classifiers'][clf_name]:
@@ -473,7 +480,7 @@ def _run_tasks(configuration, n_jobs, data=None):
         # CREATE CROSSVALIDATION ITERATOR
         cv_iterator, validate_indices, x_vals_seen, y_vals_seen = \
             _build_crossvalidation_iterator(configuration['crossvalidation'],
-                                            x_vals, y_vals, x_test,
+                                            x_tr, y_tr, x_test,
                                             y_test)
 
         logging.info('Assigning id %d to classifier %s' % (i, clf_name))
@@ -485,6 +492,17 @@ def _run_tasks(configuration, n_jobs, data=None):
                                    configuration['output_dir'],
                                    configuration['debug'],
                                    exp_name=configuration['name'])
+
+        if not cached_tokenized_data:
+            analyzer = pipeline.named_steps['vect'].build_analyzer()
+            # pre-tokenize all documents (train and test) and store results in a
+            # joblib cache. We're doing it single-threaded so that no conflicts occur
+            # later
+            logging.info('Tokenising all data in one go')
+            map(analyzer, x_tr)
+            map(analyzer, x_test)
+            cached_tokenized_data = True
+
 
         # pass the (feature selector + classifier) pipeline for evaluation
         logging.info('***Fitting pipeline for %s' % clf_name)
@@ -672,7 +690,8 @@ def _init_utilities_state(config):
         lowercase=config['tokenizer']['lowercase'],
         keep_only_IT=config['tokenizer']['keep_only_IT'],
         remove_stopwords=config['tokenizer']['remove_stopwords'],
-        remove_short_words=config['tokenizer']['remove_short_words']
+        remove_short_words=config['tokenizer']['remove_short_words'],
+        use_cache=config['joblib_caching']
     )
 
 
@@ -714,4 +733,4 @@ if __name__ == '__main__':
     classpath = args.classpath
     clean = args.clean
 
-    go(conf_file, log_dir, classpath=classpath, clean=clean, n_jobs=25)
+    go(conf_file, log_dir, classpath=classpath, clean=clean)

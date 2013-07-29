@@ -26,7 +26,8 @@ class Test_ThesaurusVectorizer(TestCase):
             lowercase=True,
             keep_only_IT=False,
             remove_stopwords=False,
-            remove_short_words=False
+            remove_short_words=False,
+            use_cache=False
         )
 
         self._thesaurus_opts = {
