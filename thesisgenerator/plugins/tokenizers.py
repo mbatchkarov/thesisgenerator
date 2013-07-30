@@ -1,6 +1,7 @@
 # coding=utf-8
 from collections import defaultdict
 # import locale
+from copy import deepcopy
 import logging
 from sklearn.feature_extraction.stop_words import ENGLISH_STOP_WORDS
 from thesisgenerator.plugins import joblib_cache
@@ -90,18 +91,20 @@ class XmlTokenizer(object):
         self.remove_stopwords = remove_stopwords
         self.remove_short_words = remove_short_words
 
+        self.param_values = deepcopy(self.__dict__)
         self.mem_cache = joblib_cache.init_cache(use_cache)
 
     def __call__(self, doc):
         if not hasattr(self, 'cached_tokenize'):
             self.cached_tokenize = self.mem_cache.cache(self.tokenize,
                                                         ignore=['self', 'doc'])
-            # use the first 200 chars of the document as cache key,
+            # use the first 3000 chars of the document as cache key,
         # ignore the identity of the XmlTokenizer object
-        return self.cached_tokenize(doc, doc[:2000])
+        # also use the tokenizer settings
+        return self.cached_tokenize(doc, doc[:3000], **self.param_values)
         # return self.tokenize(doc)
 
-    def tokenize(self, doc, doc_beg):
+    def tokenize(self, doc, *args, **kwargs):
         """
         Tokenizes a Stanford Core NLP processed document by parsing the XML and
         extracting tokens and their lemmas, with optional lowercasing
