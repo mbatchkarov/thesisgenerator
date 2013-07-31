@@ -218,7 +218,7 @@ def _extract_thesausus_coverage_info(log_txt):
 
 
 def _infer_thesaurus_name(config_obj):
-    thesauri = config_obj['feature_extraction']['thesaurus_files']
+    thesauri = config_obj['feature_extraction']['train_thesaurus_files']
 
     corpus, features, pos, fef = [], [], [], []
     if thesauri:
