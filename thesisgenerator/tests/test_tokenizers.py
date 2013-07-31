@@ -121,7 +121,7 @@ class Test_tokenizer(TestCase):
         self.tokenizer.lemmatize = True
         self.tokenizer.thes_entries = None
 
-        thesaurus_loader.read_thesaurus(
+        thesaurus_loader.read_thesaurus_with_caching(
             thesaurus_files=['thesisgenerator/resources/exp0-0a.strings'],
             sim_threshold=0,
             # k=10,

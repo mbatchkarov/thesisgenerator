@@ -10,6 +10,7 @@ import scipy.sparse as sp
 
 from thesisgenerator.plugins import tokenizers, thesaurus_loader
 from thesisgenerator import __main__
+from thesisgenerator.plugins.experimental_utils import _get_data_iterators
 from thesisgenerator.utils import _vocab_neighbour_source
 
 
@@ -64,9 +65,9 @@ class Test_ThesaurusVectorizer(TestCase):
         Loads a predefined dataset from disk
         """
         self.data_options['source'] = '%s-tr' % prefix
-        x_tr, y_tr = __main__._get_data_iterators(**self.data_options)
+        x_tr, y_tr = _get_data_iterators(**self.data_options)
         self.data_options['source'] = '%s-ev' % prefix
-        x_ev, y_ev = __main__._get_data_iterators(**self.data_options)
+        x_ev, y_ev = _get_data_iterators(**self.data_options)
         return x_tr, y_tr, x_ev, y_ev
 
     def test_get_data_iterators(self):
@@ -108,7 +109,7 @@ class Test_ThesaurusVectorizer(TestCase):
         return x1, x2, voc
 
     def _reload_thesaurus(self):
-        thesaurus_loader.read_thesaurus(**self._thesaurus_opts)
+        thesaurus_loader.read_thesaurus_with_caching(**self._thesaurus_opts)
 
 
     @skip('Do not use replace_all')

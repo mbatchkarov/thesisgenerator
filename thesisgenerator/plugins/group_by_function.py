@@ -14,7 +14,7 @@ from operator import itemgetter
 from joblib import Parallel, delayed
 from iterpipes import cmd, run
 
-from thesisgenerator.plugins.thesaurus_loader import read_thesaurus
+from thesisgenerator.plugins.thesaurus_loader import read_thesaurus_with_caching
 
 hostname = platform.node()
 if 'apollo' in hostname or 'node' in hostname:
@@ -147,8 +147,8 @@ def get_changed_entries(before, after):
         before, after, outfile
     ))
 
-    th1 = read_thesaurus(thesaurus_files=[before])
-    th2 = read_thesaurus(thesaurus_files=[after])
+    th1 = read_thesaurus_with_caching(thesaurus_files=[before])
+    th2 = read_thesaurus_with_caching(thesaurus_files=[after])
     entry_map = defaultdict(list)
 
     old_keys = set(th1.keys())

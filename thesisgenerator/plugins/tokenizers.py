@@ -4,8 +4,6 @@ from collections import defaultdict
 from copy import deepcopy
 import logging
 from sklearn.feature_extraction.stop_words import ENGLISH_STOP_WORDS
-from thesisgenerator.plugins import joblib_cache
-from thesisgenerator.plugins.thesaurus_loader import get_thesaurus
 
 try:
     import xml.etree.cElementTree as ET
@@ -75,11 +73,9 @@ class XmlTokenizer(object):
         "-RRB-": "PUNCT",
     })
 
-    thes_entries = None
-
-    def __init__(self, normalise_entities=False, use_pos=True,
+    def __init__(self, memory, normalise_entities=False, use_pos=True,
                  coarse_pos=True, lemmatize=True,
-                 lowercase=True, keep_only_IT=False,
+                 lowercase=True, keep_only_IT=False, thesaurus=defaultdict(list),
                  remove_stopwords=False, remove_short_words=False,
                  use_cache=False):
         self.normalise_entities = normalise_entities
@@ -87,28 +83,32 @@ class XmlTokenizer(object):
         self.coarse_pos = coarse_pos
         self.lemmatize = lemmatize
         self.lowercase = lowercase
-        self.keep_only_IT = keep_only_IT
         self.remove_stopwords = remove_stopwords
         self.remove_short_words = remove_short_words
-        self.thes_files = tuple(get_thesaurus().thesaurus_files)
+        try:
+            self.thes_names = tuple(thesaurus.thesaurus_names)
+        except AttributeError:
+            self.thes_names = ''
+        self.keep_only_IT = keep_only_IT
+
+        # guard against using an empty thesaurus
+        if not thesaurus and keep_only_IT:
+            raise Exception('A thesaurus is required with keep_only_IT')
 
         self.param_values = deepcopy(self.__dict__)
         if not self.keep_only_IT:
             # thesaurus names are unimportant if tokenizer isn't using them
-            del self.param_values['thes_files']
-        self.mem_cache = joblib_cache.init_cache(use_cache)
+            del self.param_values['thes_names']
 
-    def __call__(self, doc):
-        if not hasattr(self, 'cached_tokenize'):
-            self.cached_tokenize = self.mem_cache.cache(self.tokenize,
-                                                        ignore=['self', 'doc'])
-            # use the first 3000 chars of the document as cache key,
+        self.thes_entries = set(thesaurus.keys())
+        self.cached_tokenize = memory.cache(self.noncached_tokenize, ignore=['self'])
+
+    def tokenize(self, doc):
+        # also use the tokenizer settings as cache key,
         # ignore the identity of the XmlTokenizer object
-        # also use the tokenizer settings
-        return self.cached_tokenize(doc, doc[:3000], **self.param_values)
-        # return self.tokenize(doc)
+        return self.cached_tokenize(doc, **self.param_values)
 
-    def tokenize(self, doc, *args, **kwargs):
+    def noncached_tokenize(self, doc, **kwargs):
         """
         Tokenizes a Stanford Core NLP processed document by parsing the XML and
         extracting tokens and their lemmas, with optional lowercasing
@@ -116,11 +116,8 @@ class XmlTokenizer(object):
          type, e.g. PERSON or ORG, otherwise numbers and punctuation will be
          canonicalised
         """
-        # print 'tokenizing ', doc[-50:]
-        if not self.thes_entries and self.keep_only_IT:
-            self.thes_entries = set(get_thesaurus().keys())
-            if not self.thes_entries:
-                raise Exception('A thesaurus is required with keep_only_IT')
+
+        print 'called with **', kwargs
 
         try:
             tree = ET.fromstring(doc.encode("utf8"))

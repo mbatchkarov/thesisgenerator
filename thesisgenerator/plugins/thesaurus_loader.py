@@ -1,35 +1,13 @@
 # coding=utf-8
 from collections import defaultdict
 import logging
-
-
-def read_thesaurus(**kwargs):
-    """
-    reads from disk, must be invoked before get_thesaurus
-    """
-    global last_read_thesaurus
-    last_read_thesaurus = Thesaurus(**kwargs)
-    return last_read_thesaurus
-
-
-def get_thesaurus(vocab=None):
-    """
-    returns the last thesaurus that was read
-    NB! If you change the settings (e.g. last_read_thesaurus.k=1) you must
-    also invoke read_thesaurus
-    """
-    try:
-        return last_read_thesaurus
-    except NameError:
-        # if a thesaurus has never been read, return an empty one
-        # must not be None, because bov vectorizer expects not exceptions to
-        # be raised when looking things up
-        return defaultdict(list)
+from os.path import basename
 
 
 class Thesaurus(defaultdict):
-    def __init__(self, thesaurus_files='', sim_threshold=0, include_self=False):
+    def __init__(self, thesaurus_files, sim_threshold=0, include_self=False):
         self.thesaurus_files = thesaurus_files
+        self.thesaurus_names = map(basename, thesaurus_files)
         self.sim_threshold = sim_threshold
         self.include_self = include_self
         # make this class act like a defaultdict(list)

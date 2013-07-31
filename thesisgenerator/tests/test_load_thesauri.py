@@ -21,7 +21,7 @@ class TestLoad_thesauri(TestCase):
         }
 
     def _reload_thesaurus(self):
-        thesaurus_loader.read_thesaurus(**self.params)
+        thesaurus_loader.read_thesaurus_with_caching(**self.params)
 
     def test_empty_thesaurus(self):
         self.params['thesaurus_files'] = []
@@ -33,7 +33,7 @@ class TestLoad_thesauri(TestCase):
         self.assertListEqual([], th['kasdjhfka'])
 
     def _reload_and_assert(self, entry_count, neighbour_count):
-        th = thesaurus_loader.read_thesaurus(**self.params)
+        th = thesaurus_loader.read_thesaurus_with_caching(**self.params)
         all_neigh = [x for v in th.values() for x in v]
         self.assertEqual(len(th), entry_count)
         self.assertEqual(len(all_neigh), neighbour_count)

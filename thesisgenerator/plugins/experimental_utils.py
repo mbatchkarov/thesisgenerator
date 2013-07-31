@@ -3,11 +3,17 @@
 
 # if one tries to run this script from the main project directory the
 # thesisgenerator package would not be on the path, add it and try again
+import logging
 import sys
 
 sys.path.append('.')
 sys.path.append('..')
 sys.path.append('../..')
+
+from joblib import Memory
+import numpy as np
+from sklearn.datasets import load_files
+from thesisgenerator.plugins import thesaurus_loader, tokenizers
 
 from copy import deepcopy
 import glob
@@ -18,10 +24,47 @@ import itertools
 
 from numpy import nonzero
 
-from thesisgenerator.__main__ import go, parse_config_file, read_data_from_disk
-from thesisgenerator.utils import get_susx_mysql_conn
+from thesisgenerator.__main__ import go, parse_config_file
+from thesisgenerator.utils import get_susx_mysql_conn, get_named_object, NoopTransformer
 from thesisgenerator.plugins.dumpers import *
 from thesisgenerator.plugins.consolidator import consolidate_results
+
+
+def _init_utilities_state(config):
+    """
+    Initialises the state of helper modules from a config object
+    """
+
+    if config['joblib_caching']:
+        memory = Memory(cachedir='.', verbose=0)
+    else:
+        memory = NoopTransformer()
+
+    th = thesaurus_loader.Thesaurus(
+        config['feature_extraction']['thesaurus_files'],
+        sim_threshold=config['feature_extraction']['sim_threshold'],
+        include_self=config['feature_extraction']['include_self'])
+
+    print th.__dict__
+    #import cPickle as p
+    #x = p.dumps(th)
+    #th1 = p.loads(x)
+    #print th1.__dict__
+
+    tok = tokenizers.XmlTokenizer(
+        memory,
+        normalise_entities=config['feature_extraction']['normalise_entities'],
+        use_pos=config['feature_extraction']['use_pos'],
+        coarse_pos=config['feature_extraction']['coarse_pos'],
+        lemmatize=config['feature_extraction']['lemmatize'],
+        thesaurus=th,
+        lowercase=config['tokenizer']['lowercase'],
+        keep_only_IT=config['tokenizer']['keep_only_IT'],
+        remove_stopwords=config['tokenizer']['remove_stopwords'],
+        remove_short_words=config['tokenizer']['remove_short_words'],
+        use_cache=config['joblib_caching']
+    )
+    return th, tok
 
 
 def _nested_set(dic, key_list, value):
@@ -235,6 +278,107 @@ def _exp16_file_iterator(conf_file):
     raise StopIteration
 
 
+def load_text_data_into_memory(options):
+    logging.info('Loading raw training set')
+    x_train, y_train = _get_data_iterators(**options)
+    if options['test_data']:
+        logging.info('Loading raw test set')
+        #  change where we read files from
+        options['source'] = options['test_data']
+        # ensure that only the training data targets are shuffled
+        options['shuffle_targets'] = False
+        x_test, y_test = _get_data_iterators(**options)
+    return x_train, y_train, x_test, y_test
+
+
+def _get_data_iterators(**kwargs):
+    """
+    Returns iterators over the text of the data.
+
+    The *input_generator* option in the main configuration file is an
+    optional argument for *feature_extract*. It should specify
+    the fully qualified name of a generator class with two
+    methods *documents* and *classes*. If the vectorizer's
+    *input* value 'content' the *input_generator* will be used to
+    feed the raw documents to the vectorizer.
+
+    If the *input_generator* is not defined and the *input* field is
+    *content* the source folder specified on the command line will be used
+    as the input.  The source folder should in this case contain data in the
+     mallet format. The same applies if the value of *input* is *filename*.
+
+    See the documentation of the CountVectorizer in
+    sklearn.feature_extraction.text for details on the parameter values.
+    """
+
+    def _filename_generator(file_list):
+        for f in file_list:
+            yield f
+
+    def _content_generator(file_list):
+        for f in file_list:
+            with open(f, 'rb') as fh:
+                yield fh.read()
+
+    if kwargs['input'] == 'content' or kwargs['input'] == '':
+        try:
+            input_gen = kwargs['input_generator']
+            source = kwargs['source']
+            try:
+                logging.debug(
+                    'Retrieving input generator for name '
+                    '\'%(input_gen)s\'' % locals())
+
+                data_iterable = get_named_object(input_gen)(kwargs['source'])
+                targets_iterable = np.asarray(
+                    [t for t in data_iterable.targets()],
+                    dtype=np.int)
+                data_iterable = data_iterable.documents()
+            except (ValueError, ImportError):
+                logging.warn(
+                    'No input generator found for name '
+                    '\'%(input_gen)s\'. Using a file content '
+                    'generator with source \'%(source)s\'' % locals())
+                if not os.path.isdir(source):
+                    raise ValueError('The provided source path (%s) has to be '
+                                     'a directory containing data in the '
+                                     'mallet '
+                                     'format (class per directory, document '
+                                     'per file). If you intended to load the '
+                                     'contents of the file (%s) instead '
+                                     'change '
+                                     'the input type in main.conf to '
+                                     '\'content\'')
+
+                dataset = load_files(source, shuffle=False)
+                logging.info('Targets are: %s' % dataset.target_names)
+                data_iterable = dataset.data
+                if kwargs['shuffle_targets']:
+                    import random
+
+                    logging.warn('RANDOMIZING TARGETS')
+                    random.shuffle(dataset.target)
+                targets_iterable = dataset.target
+        except KeyError:
+            raise ValueError('Can not find a name for an input generator. '
+                             'When the input type for feature extraction is '
+                             'defined as content, an input_generator must '
+                             'also '
+                             'be defined. The defined input_generator should '
+                             'produce raw documents.')
+    elif kwargs['input'] == 'filename':
+        raise NotImplementedError("The order of data and targets is wrong, "
+                                  "do not use this keyword")
+    elif kwargs['input'] == 'file':
+        raise NotImplementedError(
+            'The input type \'file\' is not supported yet.')
+    else:
+        raise NotImplementedError(
+            'The input type \'%s\' is not supported yet.' % kwargs['input'])
+
+    return data_iterable, targets_iterable
+
+
 def evaluate_thesauri(base_conf_file, file_iterator,
                       reload_data=False, pool_size=1):
     config_obj, configspec_file = parse_config_file(base_conf_file)
@@ -260,8 +404,13 @@ def evaluate_thesauri(base_conf_file, file_iterator,
 
         print 'Loading training data'
 
-        x_tr, y_tr, x_test, y_test = read_data_from_disk(options)
+        x_tr, y_tr, x_test, y_test = load_text_data_into_memory(options)
         data = (x_tr, y_tr, x_test, y_test)
+
+    th, tok = _init_utilities_state(config_obj)
+    tok.tokenize(x_tr[0])
+    tok.tokenize(x_tr[10])
+    #tok(x_tr[10])
 
     Parallel(n_jobs=pool_size)(delayed(go)(new_conf_file, log_file,
                                            data=deepcopy(data)) for
@@ -348,3 +497,4 @@ def run_experiment(i, num_workers=4,
 
 if __name__ == '__main__':
     run_experiment(int(sys.argv[1]))
+
