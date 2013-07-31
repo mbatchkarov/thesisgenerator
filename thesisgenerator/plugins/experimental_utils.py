@@ -408,9 +408,8 @@ def evaluate_thesauri(base_conf_file, file_iterator,
         data = (x_tr, y_tr, x_test, y_test)
 
     th, tok = _init_utilities_state(config_obj)
-    tok.tokenize(x_tr[0])
-    tok.tokenize(x_tr[10])
-    #tok(x_tr[10])
+    x_tr = map(tok.tokenize, x_tr)
+    x_test = map(tok.tokenize, x_test)
 
     Parallel(n_jobs=pool_size)(delayed(go)(new_conf_file, log_file,
                                            data=deepcopy(data)) for

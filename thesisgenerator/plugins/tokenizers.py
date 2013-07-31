@@ -100,6 +100,8 @@ class XmlTokenizer(object):
             # thesaurus names are unimportant if tokenizer isn't using them
             del self.param_values['thes_names']
 
+        self.charset = 'utf8'
+        self.charset_error = 'replace'
         self.thes_entries = set(thesaurus.keys())
         self.cached_tokenize = memory.cache(self.noncached_tokenize, ignore=['self'])
 
@@ -117,8 +119,9 @@ class XmlTokenizer(object):
          canonicalised
         """
 
-        print 'called with **', kwargs
-
+        # decode document
+        doc = doc.decode(self.charset, self.charset_error)
+        #doc = preprocess(self.decode(doc))
         try:
             tree = ET.fromstring(doc.encode("utf8"))
             tokens = []

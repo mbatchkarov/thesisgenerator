@@ -5,7 +5,6 @@ import scipy.sparse as sp
 from sklearn.feature_extraction.text import TfidfVectorizer
 from thesisgenerator.plugins import tokenizers
 from thesisgenerator.plugins.bov_feature_handlers import get_token_handler, get_stats_recorder
-from thesisgenerator.plugins.thesaurus_loader import get_thesaurus
 from thesisgenerator.utils import NoopTransformer, get_named_object
 
 
@@ -200,6 +199,10 @@ class ThesaurusVectorizer(TfidfVectorizer):
             return lambda doc: self.my_feature_extractor(
                 tokenize(preprocess(self.decode(doc))), self.ngram_range)
 
+        elif self.analyzer == 'ngram':
+            #assume input already tokenized
+            return lambda token_list: self.my_feature_extractor(token_list, self.ngram_range)
+
         else:
             raise ValueError('%s is not a valid tokenization scheme/analyzer' %
                              self.analyzer)
@@ -211,7 +214,6 @@ class ThesaurusVectorizer(TfidfVectorizer):
             with open(f, 'w') as out:
                 pickle.dump(self.vocabulary_, out)
                 self.log_vocabulary_already = True
-
 
     def _term_count_dicts_to_matrix(self, term_count_dicts):
         """
