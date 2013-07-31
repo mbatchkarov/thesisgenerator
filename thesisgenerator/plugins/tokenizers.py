@@ -90,8 +90,12 @@ class XmlTokenizer(object):
         self.keep_only_IT = keep_only_IT
         self.remove_stopwords = remove_stopwords
         self.remove_short_words = remove_short_words
+        self.thes_files = tuple(get_thesaurus().thesaurus_files)
 
         self.param_values = deepcopy(self.__dict__)
+        if not self.keep_only_IT:
+            # thesaurus names are unimportant if tokenizer isn't using them
+            del self.param_values['thes_files']
         self.mem_cache = joblib_cache.init_cache(use_cache)
 
     def __call__(self, doc):
