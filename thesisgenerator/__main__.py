@@ -145,7 +145,7 @@ def _build_crossvalidation_iterator(config, x_vals, y_vals, x_test=None,
     return iterator, validation_indices, x_vals, y_vals
 
 
-def _build_vectorizer(thesauri, id, call_args, feature_extraction_conf, pipeline_list,
+def _build_vectorizer(thesaurus, id, call_args, feature_extraction_conf, pipeline_list,
                       output_dir, debug=False, exp_name=''):
     """
     Builds a vectorized that converts raw text to feature vectors. The
@@ -179,8 +179,7 @@ def _build_vectorizer(thesauri, id, call_args, feature_extraction_conf, pipeline
                       for arg, val in feature_extraction_conf.items()
                       if val != '' and arg in initialize_args})
     call_args['vect__exp_name'] = exp_name
-    call_args['vect__train_thesaurus'] = thesauri[0]
-    call_args['vect__decode_thesaurus'] = thesauri[0]
+    call_args['vect__train_thesaurus'] = thesaurus
 
     pipeline_list.append(('vect', vectorizer()))
     call_args['vect__log_vocabulary'] = False
@@ -239,7 +238,7 @@ def _build_dimensionality_reducer(call_args, dimensionality_reduction_conf,
         pipeline_list.append(('dr', dr_method()))
 
 
-def _build_pipeline(thesauri, id, classifier_name, feature_extr_conf, feature_sel_conf,
+def _build_pipeline(thesaurus, id, classifier_name, feature_extr_conf, feature_sel_conf,
                     dim_red_conf, classifier_conf, output_dir, debug,
                     exp_name=''):
     """
@@ -252,7 +251,7 @@ def _build_pipeline(thesauri, id, classifier_name, feature_extr_conf, feature_se
     call_args = {}
     pipeline_list = []
 
-    _build_vectorizer(thesauri, id, call_args, feature_extr_conf,
+    _build_vectorizer(thesaurus, id, call_args, feature_extr_conf,
                       pipeline_list, output_dir, debug, exp_name=exp_name)
 
     _build_feature_selector(call_args, feature_sel_conf,
@@ -314,7 +313,7 @@ def _build_pipeline(thesauri, id, classifier_name, feature_extr_conf, feature_se
 #    return key_params
 
 
-def _run_tasks(configuration, n_jobs, data, thesauri):
+def _run_tasks(configuration, n_jobs, data, thesaurus):
     """
     Runs all commands specified in the configuration file
     """
@@ -378,7 +377,7 @@ def _run_tasks(configuration, n_jobs, data, thesauri):
                                             y_test)
 
         logging.info('Assigning id %d to classifier %s' % (i, clf_name))
-        pipeline = _build_pipeline(thesauri, i, clf_name,
+        pipeline = _build_pipeline(thesaurus, i, clf_name,
                                    configuration['feature_extraction'],
                                    configuration['feature_selection'],
                                    configuration['dimensionality_reduction'],
@@ -565,7 +564,7 @@ def parse_config_file(conf_file):
     return config, configspec_file
 
 
-def go(conf_file, log_dir, data, thesauri, classpath='', clean=False, n_jobs=1):
+def go(conf_file, log_dir, data, thesaurus, classpath='', clean=False, n_jobs=1):
     if not os.path.exists(log_dir):
         os.makedirs(log_dir)
 
@@ -588,7 +587,7 @@ def go(conf_file, log_dir, data, thesauri, classpath='', clean=False, n_jobs=1):
     output = config['output_dir']
     _prepare_output_directory(clean, output)
     _prepare_classpath(classpath)
-    status, msg = _run_tasks(config, n_jobs, data, thesauri)
+    status, msg = _run_tasks(config, n_jobs, data, thesaurus)
     shutil.copy(conf_file, output)
     return status, msg
 

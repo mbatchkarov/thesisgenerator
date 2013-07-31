@@ -253,4 +253,5 @@ def _vocab_neighbour_source(vocab):
         logging.debug('Dummy IV-only thesaurus returning %s as neighbour' % v)
         return [(v, 1.0)]
 
+    # todo: repeated invocations of this defaultdict with the same parameter return the same result
     return defaultdict(one_iv_token)

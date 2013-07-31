@@ -5,7 +5,7 @@ import scipy.sparse as sp
 from sklearn.feature_extraction.text import TfidfVectorizer
 from thesisgenerator.plugins import tokenizers
 from thesisgenerator.plugins.bov_feature_handlers import get_token_handler, get_stats_recorder
-from thesisgenerator.utils import NoopTransformer
+from thesisgenerator.utils import NoopTransformer, get_named_object
 
 
 class ThesaurusVectorizer(TfidfVectorizer):
@@ -59,8 +59,9 @@ class ThesaurusVectorizer(TfidfVectorizer):
         # This access method should only be used at decode time,
         # so for now we just store it and rely on the vectorizer to
         # "activate" it after training is done
-        self.train_thesaurus = train_thesaurus
-        self.decode_thesaurus = decode_thesaurus
+        self.train_thesaurus = train_thesaurus # a dict-like object
+        self.decode_thesaurus = decode_thesaurus # a fully qualified name of a dict-like object,
+        # instantiated through reflection
         self.thesaurus = train_thesaurus
 
         self.stats = None
@@ -118,7 +119,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
 
         if self.decode_thesaurus:
             logging.warn('Will be using a different thesaurus through at decode time')
-            self.thesaurus = self.decode_thesaurus
+            self.thesaurus = get_named_object(self.decode_thesaurus)(self.vocabulary_)
 
         return res
 

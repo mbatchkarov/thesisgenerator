@@ -44,20 +44,6 @@ def _init_utilities_state(config):
         sim_threshold=config['feature_extraction']['sim_threshold'],
         include_self=config['feature_extraction']['include_self'])
 
-    try:
-        th2 = thesaurus_loader.Thesaurus(
-            config['feature_extraction']['decode_thesaurus_files'],
-            sim_threshold=config['feature_extraction']['sim_threshold'],
-            include_self=config['feature_extraction']['include_self'])
-    except KeyError:
-        th2 = th1
-
-    #print th1.__dict__
-    #import cPickle as p
-    #x = p.dumps(th1)
-    #th1 = p.loads(x)
-    #print th1.__dict__
-
     tok = tokenizers.XmlTokenizer(
         memory,
         normalise_entities=config['feature_extraction']['normalise_entities'],
@@ -71,7 +57,7 @@ def _init_utilities_state(config):
         remove_short_words=config['tokenizer']['remove_short_words'],
         use_cache=config['joblib_caching']
     )
-    return th1, th2, tok
+    return th1, tok
 
 
 def _nested_set(dic, key_list, value):
@@ -413,13 +399,13 @@ def evaluate_thesauri(base_conf_file, file_iterator,
 
         x_tr, y_tr, x_test, y_test = load_text_data_into_memory(options)
 
-    th1, th2, tok = _init_utilities_state(config_obj)
+    th1, tok = _init_utilities_state(config_obj)
     x_tr = map(tok.tokenize, x_tr)
     x_test = map(tok.tokenize, x_test)
     data = (x_tr, y_tr, x_test, y_test)
 
     Parallel(n_jobs=pool_size)(delayed(go)(new_conf_file, log_file,
-                                           data, (th1, th2)) for
+                                           data, th1) for
                                new_conf_file, log_file in file_iterator)
 
 
