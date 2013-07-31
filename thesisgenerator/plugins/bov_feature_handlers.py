@@ -1,6 +1,5 @@
 from collections import deque
 import logging
-from thesisgenerator.plugins.thesaurus_loader import get_thesaurus
 from thesisgenerator.utils import get_named_object
 
 
@@ -8,7 +7,7 @@ def get_stats_recorder(enabled=False):
     return StatsRecorder() if enabled else NoopStatsRecorder()
 
 
-def get_token_handler(handler_name, k, transformer_name, thesaurus_source):
+def get_token_handler(handler_name, k, transformer_name, thesaurus):
     # k- parameter for _paraphrase
     # sim_transformer- callable that transforms the raw sim scores in
     # _paraphrase
@@ -16,12 +15,12 @@ def get_token_handler(handler_name, k, transformer_name, thesaurus_source):
     handler = get_named_object(handler_name)
     transformer = get_named_object(transformer_name)
     logging.info('Returning token handler %s (k=%s, sim transformer=%s), '
-                 'thesaurus source=%s' % (
+                 'thesaurus size=%d' % (
                      handler,
                      k,
                      transformer,
-                     thesaurus_source))
-    return handler(k, transformer, thesaurus_source)
+                     len(thesaurus)))
+    return handler(k, transformer, thesaurus)
 
 
 class StatsRecorder(object):
@@ -100,7 +99,7 @@ def _ignore_feature(doc_id, document_term):
 def _paraphrase(doc_id, doc_id_indices,
                 document_term, count, term_indices,
                 values, vocabulary, k, sim_transformer,
-                neighbour_source=get_thesaurus):
+                thesaurus):
     """
     Replaces term with its k nearest neighbours from the thesaurus
 
@@ -115,7 +114,7 @@ def _paraphrase(doc_id, doc_id_indices,
        currently loaded thesaurus.
     """
 
-    neighbours = neighbour_source(vocabulary)[document_term]
+    neighbours = thesaurus(vocabulary)[document_term]
 
     # if there are any neighbours filter the list of
     # neighbours so that it contains only pairs where
@@ -184,7 +183,7 @@ class SignifierSignifiedFeatureHandler(BaseFeatureHandler):
         ignoring the feature
     """
 
-    def __init__(self, k, sim_transformer, source):
+    def __init__(self, k, sim_transformer, thesaurus):
         self.k = k
         self.sim_transformer = sim_transformer
 
@@ -202,7 +201,7 @@ class SignifiedOnlyFeatureHandler(BaseFeatureHandler):
     thesaurus for all IT features
     """
 
-    def __init__(self, k, sim_transformer, source):
+    def __init__(self, k, sim_transformer, thesaurus):
         self.k = k
         self.sim_transformer = sim_transformer
 
@@ -226,10 +225,10 @@ class SignifierRandomBaselineFeatureHandler(SignifiedOnlyFeatureHandler):
     Ignores all OOT features and inserts K random IV tokens for all IT features
     """
 
-    def __init__(self, k, sim_transformer, neghbour_source):
+    def __init__(self, k, sim_transformer, thesaurus):
         self.k = k
         self.sim_transformer = sim_transformer
-        self.neighbour_source = neghbour_source
+        self.thesaurus = thesaurus
 
     def handle_OOV_IT_feature(self, doc_id, doc_id_indices, document_term,
                               term_indices, term_index_in_vocab, values, count,
@@ -237,7 +236,7 @@ class SignifierRandomBaselineFeatureHandler(SignifiedOnlyFeatureHandler):
         _paraphrase(doc_id, doc_id_indices, document_term, count,
                     term_indices, values, vocabulary, self.k,
                     self.sim_transformer,
-                    neighbour_source=self.neighbour_source)
+                    thesaurus=self.thesaurus)
 
     handle_IV_IT_feature = handle_OOV_IT_feature
 

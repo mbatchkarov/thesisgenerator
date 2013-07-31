@@ -5,7 +5,7 @@ import scipy.sparse as sp
 from sklearn.feature_extraction.text import TfidfVectorizer
 from thesisgenerator.plugins import tokenizers
 from thesisgenerator.plugins.bov_feature_handlers import get_token_handler, get_stats_recorder
-from thesisgenerator.utils import NoopTransformer, get_named_object
+from thesisgenerator.utils import NoopTransformer
 
 
 class ThesaurusVectorizer(TfidfVectorizer):
@@ -28,7 +28,8 @@ class ThesaurusVectorizer(TfidfVectorizer):
                  sim_compressor='thesisgenerator.utils.noop',
                  train_token_handler='thesisgenerator.plugins.bov_feature_handlers.BaseFeatureHandler',
                  decode_token_handler='thesisgenerator.plugins.bov_feature_handlers.BaseFeatureHandler',
-                 thesaurus_getter_to_set=''):
+                 train_thesaurus='',
+                 decode_thesaurus=''):
         """
         Builds a vectorizer the way a TfidfVectorizer is built, and takes one
         extra param specifying the path the the Byblo-generated thesaurus.
@@ -50,9 +51,6 @@ class ThesaurusVectorizer(TfidfVectorizer):
         self.sim_compressor = sim_compressor
         self.train_token_handler = train_token_handler
         self.decode_token_handler = decode_token_handler
-        # by default access the thesaurus through get_thesaurus. clients can
-        # change this for unit testing, etc
-        self.thesaurus_getter = get_thesaurus
 
         # in case we want to mock the thesaurus (for unit testing or to
         # get a baseline). With this we can programatically build
@@ -61,7 +59,12 @@ class ThesaurusVectorizer(TfidfVectorizer):
         # This access method should only be used at decode time,
         # so for now we just store it and rely on the vectorizer to
         # "activate" it after training is done
-        self.thesaurus_getter_to_set = thesaurus_getter_to_set
+        self.train_thesaurus = train_thesaurus
+        self.decode_thesaurus = decode_thesaurus
+        self.thesaurus = train_thesaurus
+
+        self.stats = None
+        self.handler = None
 
         super(ThesaurusVectorizer, self).__init__(input=input,
                                                   charset=charset,
@@ -106,18 +109,16 @@ class ThesaurusVectorizer(TfidfVectorizer):
         self.handler = get_token_handler(self.train_token_handler,
                                          self.k,
                                          self.sim_compressor,
-                                         self.thesaurus_getter)
+                                         self.train_thesaurus)
         self.stats = get_stats_recorder(self.record_stats)
         # a different stats recorder will be used for the testing data
 
         # self.try_to_set_vocabulary_from_thesaurus_keys()
         res = super(ThesaurusVectorizer, self).fit_transform(raw_documents, y)
 
-        if self.thesaurus_getter_to_set:
-            logging.warn('Will be accessing thesaurus through %s at decode '
-                         'time' % self.thesaurus_getter_to_set)
-            self.thesaurus_getter = get_named_object(
-                self.thesaurus_getter_to_set)
+        if self.decode_thesaurus:
+            logging.warn('Will be using a different thesaurus through at decode time')
+            self.thesaurus = self.decode_thesaurus
 
         return res
 
@@ -128,7 +129,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
         self.handler = get_token_handler(self.decode_token_handler,
                                          self.k,
                                          self.sim_compressor,
-                                         self.thesaurus_getter)
+                                         self.thesaurus)
 
         return super(ThesaurusVectorizer, self).transform(raw_documents)
 
@@ -233,9 +234,9 @@ class ThesaurusVectorizer(TfidfVectorizer):
         logging.info('Using TF-IDF: %s, transformer is %s' % (self.use_tfidf,
                                                               self._tfidf))
         vocabulary = self.vocabulary_
-        # the result of thesaurus_getter must ensure lookups for non-existent
+        # thesaurus must ensure lookups for non-existent
         # keys return an empty list and not not raise an exception
-        thesaurus = self.thesaurus_getter(vocabulary)
+        th = self.thesaurus
 
         # sparse storage for document-term matrix (terminology note: term ==
         # feature)
@@ -254,7 +255,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
                 term_index_in_vocab = vocabulary.get(document_term)
                 is_in_vocabulary = term_index_in_vocab is not None
                 # None if term is not in seen vocabulary
-                is_in_th = bool(thesaurus[document_term])
+                is_in_th = bool(th.get(document_term))
 
                 self.stats.register_token(document_term, is_in_vocabulary, \
                                           is_in_th)

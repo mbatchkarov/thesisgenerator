@@ -15,7 +15,7 @@ import scipy.sparse as sp
 __author__ = 'mmb28'
 
 
-def _cross_val_score(key_params, cv_number, estimator, X, y,
+def _cross_val_score(cv_number, estimator, X, y,
                      score_func, train, test, verbose, fit_params):
     """Inner loop for cross validation"""
 
@@ -87,7 +87,7 @@ def _cross_val_score(key_params, cv_number, estimator, X, y,
     return cv_number, score
 
 
-def naming_cross_val_score(key_params, estimator, X, y=None,
+def naming_cross_val_score(estimator, X, y=None,
                            score_func=None, cv=None, n_jobs=1, verbose=0,
                            fit_params=None):
     """Evaluate a score by cross-validation
@@ -143,7 +143,7 @@ def naming_cross_val_score(key_params, estimator, X, y=None,
             # independent, and that it is pickle-able.
     fit_params = fit_params if fit_params is not None else {}
     scores = Parallel(n_jobs=n_jobs, verbose=verbose)(
-        delayed(_cross_val_score)(key_params, cv_number,
+        delayed(_cross_val_score)(cv_number,
                                   clone(estimator), X, y, score_func,
                                   train, test, verbose, fit_params)
         for (cv_number, (train, test)) in izip(count(), cv))

@@ -12,14 +12,14 @@ except ImportError:
     import xml.etree.ElementTree as ET
 
 
-def build_tokenizer(**kwargs):
-    global tokenizer
-    tokenizer = XmlTokenizer(**kwargs)
-    return tokenizer
-
-
-def get_tokenizer():
-    return tokenizer
+#def build_tokenizer(**kwargs):
+#    global tokenizer
+#    tokenizer = XmlTokenizer(**kwargs)
+#    return tokenizer
+#
+#
+#def get_tokenizer():
+#    return tokenizer
 
 
 class XmlTokenizer(object):

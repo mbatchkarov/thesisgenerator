@@ -1,17 +1,17 @@
 # coding=utf-8
-from collections import defaultdict
 import logging
 from os.path import basename
 
 
-class Thesaurus(defaultdict):
+class Thesaurus(dict):
     def __init__(self, thesaurus_files, sim_threshold=0, include_self=False):
         self.thesaurus_files = thesaurus_files
+        print 'thesaurus files', thesaurus_files
         self.thesaurus_names = map(basename, thesaurus_files)
         self.sim_threshold = sim_threshold
         self.include_self = include_self
         # make this class act like a defaultdict(list)
-        self.default_factory = list
+        #self.default_factory = list
 
         self._read_from_disk()
 
@@ -64,7 +64,10 @@ class Thesaurus(defaultdict):
                             if tokens[0] in self:
                                 logging.error('Multiple entries for "%s" '
                                               'found' % tokens[0])
-                            self[tokens[0].lower()].extend(to_insert)
+                            key = tokens[0].lower()
+                            if not self.has_key(key):
+                                self[key] = []
+                            self[key].extend(to_insert)
 
                             # note- do not attempt to lowercase if the thesaurus
                             #  has not already been lowercased- may result in

@@ -15,7 +15,6 @@ import numpy as np
 from sklearn.datasets import load_files
 from thesisgenerator.plugins import thesaurus_loader, tokenizers
 
-from copy import deepcopy
 import glob
 from itertools import chain
 import os
@@ -40,14 +39,22 @@ def _init_utilities_state(config):
     else:
         memory = NoopTransformer()
 
-    th = thesaurus_loader.Thesaurus(
-        config['feature_extraction']['thesaurus_files'],
+    th1 = thesaurus_loader.Thesaurus(
+        config['feature_extraction']['train_thesaurus_files'],
         sim_threshold=config['feature_extraction']['sim_threshold'],
         include_self=config['feature_extraction']['include_self'])
 
-    print th.__dict__
+    try:
+        th2 = thesaurus_loader.Thesaurus(
+            config['feature_extraction']['decode_thesaurus_files'],
+            sim_threshold=config['feature_extraction']['sim_threshold'],
+            include_self=config['feature_extraction']['include_self'])
+    except KeyError:
+        th2 = th1
+
+    #print th1.__dict__
     #import cPickle as p
-    #x = p.dumps(th)
+    #x = p.dumps(th1)
     #th1 = p.loads(x)
     #print th1.__dict__
 
@@ -57,14 +64,14 @@ def _init_utilities_state(config):
         use_pos=config['feature_extraction']['use_pos'],
         coarse_pos=config['feature_extraction']['coarse_pos'],
         lemmatize=config['feature_extraction']['lemmatize'],
-        thesaurus=th,
+        thesaurus=th1,
         lowercase=config['tokenizer']['lowercase'],
         keep_only_IT=config['tokenizer']['keep_only_IT'],
         remove_stopwords=config['tokenizer']['remove_stopwords'],
         remove_short_words=config['tokenizer']['remove_short_words'],
         use_cache=config['joblib_caching']
     )
-    return th, tok
+    return th1, th2, tok
 
 
 def _nested_set(dic, key_list, value):
@@ -405,14 +412,14 @@ def evaluate_thesauri(base_conf_file, file_iterator,
         print 'Loading training data'
 
         x_tr, y_tr, x_test, y_test = load_text_data_into_memory(options)
-        data = (x_tr, y_tr, x_test, y_test)
 
-    th, tok = _init_utilities_state(config_obj)
+    th1, th2, tok = _init_utilities_state(config_obj)
     x_tr = map(tok.tokenize, x_tr)
     x_test = map(tok.tokenize, x_test)
+    data = (x_tr, y_tr, x_test, y_test)
 
     Parallel(n_jobs=pool_size)(delayed(go)(new_conf_file, log_file,
-                                           data=deepcopy(data)) for
+                                           data, (th1, th2)) for
                                new_conf_file, log_file in file_iterator)
 
 
@@ -451,6 +458,7 @@ def run_experiment(i, num_workers=4,
     if i == 0:
         # exp0 is for debugging only, we don't have to do much
         sizes = [10, 20]#range(10, 31, 10)
+        num_workers = -1
     if predefined_sized:
         sizes = predefined_sized
 

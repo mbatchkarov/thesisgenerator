@@ -145,7 +145,7 @@ def _build_crossvalidation_iterator(config, x_vals, y_vals, x_test=None,
     return iterator, validation_indices, x_vals, y_vals
 
 
-def _build_vectorizer(id, call_args, feature_extraction_conf, pipeline_list,
+def _build_vectorizer(thesauri, id, call_args, feature_extraction_conf, pipeline_list,
                       output_dir, debug=False, exp_name=''):
     """
     Builds a vectorized that converts raw text to feature vectors. The
@@ -179,6 +179,8 @@ def _build_vectorizer(id, call_args, feature_extraction_conf, pipeline_list,
                       for arg, val in feature_extraction_conf.items()
                       if val != '' and arg in initialize_args})
     call_args['vect__exp_name'] = exp_name
+    call_args['vect__train_thesaurus'] = thesauri[0]
+    call_args['vect__decode_thesaurus'] = thesauri[0]
 
     pipeline_list.append(('vect', vectorizer()))
     call_args['vect__log_vocabulary'] = False
@@ -237,7 +239,7 @@ def _build_dimensionality_reducer(call_args, dimensionality_reduction_conf,
         pipeline_list.append(('dr', dr_method()))
 
 
-def _build_pipeline(id, classifier_name, feature_extr_conf, feature_sel_conf,
+def _build_pipeline(thesauri, id, classifier_name, feature_extr_conf, feature_sel_conf,
                     dim_red_conf, classifier_conf, output_dir, debug,
                     exp_name=''):
     """
@@ -250,7 +252,7 @@ def _build_pipeline(id, classifier_name, feature_extr_conf, feature_sel_conf,
     call_args = {}
     pipeline_list = []
 
-    _build_vectorizer(id, call_args, feature_extr_conf,
+    _build_vectorizer(thesauri, id, call_args, feature_extr_conf,
                       pipeline_list, output_dir, debug, exp_name=exp_name)
 
     _build_feature_selector(call_args, feature_sel_conf,
@@ -274,83 +276,84 @@ def _build_pipeline(id, classifier_name, feature_extr_conf, feature_sel_conf,
     return pipeline
 
 
-def get_keys_for_training(configuration):
-    '''
-    Fetch all the parameters from a conf file that uniquely identify a
-    trained  classifier, so that we can cache and retrieve it later. There
-    may be some other params that can be added to the result of this function
-    '''
+#def get_keys_for_training(configuration):
+#    '''
+#    Fetch all the parameters from a conf file that uniquely identify a
+#    trained  classifier, so that we can cache and retrieve it later. There
+#    may be some other params that can be added to the result of this function
+#    '''
+#
+#    key_params = {
+#        # token handler options
+#        'train_handler': configuration['feature_extraction'][
+#            'train_token_handler'],
+#        # 'sim_compressor': configuration['feature_extraction']['sim_compressor'],
+#        # 'k': configuration['feature_extraction']['k'],
+#
+#        # stats options
+#        'record_stats': configuration['feature_extraction']['record_stats'],
+#        # tf-idf options
+#        'use_tfidf': configuration['feature_extraction']['use_tfidf'],
+#        # thesauri
+#        'thesaurus_files': frozenset(configuration['feature_extraction'][
+#            'thesaurus_files']),
+#        # tokenizer options
+#        'tok_lower': configuration['tokenizer']['lowercase'],
+#        'tok_only_it': configuration['tokenizer']['keep_only_IT'],
+#        'tok_stop': configuration['tokenizer']['remove_stopwords'],
+#        'tok_short': configuration['tokenizer']['remove_short_words'],
+#        'tok_lemma': configuration['feature_extraction']['lemmatize'],
+#        'tok_pos': configuration['feature_extraction']['use_pos'],
+#        'tok_coarse_pos': configuration['feature_extraction']['coarse_pos'],
+#        'tok_entities': configuration['feature_extraction'][
+#            'normalise_entities'],
+#        # random seed, train data
+#        'seed': configuration['crossvalidation']['random_state'],
+#        'tr_data': configuration['training_data']
+#    }
+#    return key_params
 
-    key_params = {
-        # token handler options
-        'train_handler': configuration['feature_extraction'][
-            'train_token_handler'],
-        # 'sim_compressor': configuration['feature_extraction']['sim_compressor'],
-        # 'k': configuration['feature_extraction']['k'],
 
-        # stats options
-        'record_stats': configuration['feature_extraction']['record_stats'],
-        # tf-idf options
-        'use_tfidf': configuration['feature_extraction']['use_tfidf'],
-        # thesauri
-        'thesaurus_files': frozenset(configuration['feature_extraction'][
-            'thesaurus_files']),
-        # tokenizer options
-        'tok_lower': configuration['tokenizer']['lowercase'],
-        'tok_only_it': configuration['tokenizer']['keep_only_IT'],
-        'tok_stop': configuration['tokenizer']['remove_stopwords'],
-        'tok_short': configuration['tokenizer']['remove_short_words'],
-        'tok_lemma': configuration['feature_extraction']['lemmatize'],
-        'tok_pos': configuration['feature_extraction']['use_pos'],
-        'tok_coarse_pos': configuration['feature_extraction']['coarse_pos'],
-        'tok_entities': configuration['feature_extraction'][
-            'normalise_entities'],
-        # random seed, train data
-        'seed': configuration['crossvalidation']['random_state'],
-        'tr_data': configuration['training_data']
-    }
-    return key_params
-
-
-def _run_tasks(configuration, n_jobs, data):
+def _run_tasks(configuration, n_jobs, data, thesauri):
     """
     Runs all commands specified in the configuration file
     """
     logging.info('running tasks')
 
     # retrieve the actions that should be run by the framework
-    actions = configuration.keys()
+    #actions = configuration.keys()
 
     # **********************************
     # LOADING RAW TEXT
     # **********************************
-    if ('feature_extraction' in actions and
-            configuration['feature_extraction']['run']):
-        # todo should figure out which values to ignore,
-        # currently use all (args + section_options)
+    x_tr, y_tr, x_test, y_test = data
 
-        # create the keyword argument list the action should be run with, it is
-        # very important that all relevant argument:value pairs are present
-        # because joblib uses the hashed argument list to lookup cached results
-        # of computations that have been executed previously
-        if data:
-            logging.info('Using pre-loaded raw data set')
-            x_tr, y_tr, x_test, y_test = data
-        else:
-            options = {'input': configuration['feature_extraction']['input'],
-                       'shuffle_targets': configuration['shuffle_targets']}
-            try:
-                options['input_generator'] = \
-                    configuration['feature_extraction']['input_generator']
-            except KeyError:
-                options['input_generator'] = ''
-            options['source'] = configuration['training_data']
-            if configuration['test_data']:
-                options['test_data'] = configuration['test_data']
+    #if ('feature_extraction' in actions and
+    #        configuration['feature_extraction']['run']):
+    #    # todo should figure out which values to ignore,
+    #    # currently use all (args + section_options)
+    #
+    #    # create the keyword argument list the action should be run with, it is
+    #    # very important that all relevant argument:value pairs are present
+    #    # because joblib uses the hashed argument list to lookup cached results
+    #    # of computations that have been executed previously
+    #    if data:
+    #        logging.info('Using pre-loaded raw data set')
+    #
+    #    else:
+    #        options = {'input': configuration['feature_extraction']['input'],
+    #                   'shuffle_targets': configuration['shuffle_targets']}
+    #        try:
+    #            options['input_generator'] = \
+    #                configuration['feature_extraction']['input_generator']
+    #        except KeyError:
+    #            options['input_generator'] = ''
+    #        options['source'] = configuration['training_data']
+    #        if configuration['test_data']:
+    #            options['test_data'] = configuration['test_data']
+    #
+    #        x_tr, y_tr, x_test, y_test = load_text_data_into_memory(options)
 
-            x_tr, y_tr, x_test, y_test = load_text_data_into_memory(options)
-
-    # that no concurrency
     # **********************************
     # CROSSVALIDATION
     # **********************************
@@ -375,7 +378,7 @@ def _run_tasks(configuration, n_jobs, data):
                                             y_test)
 
         logging.info('Assigning id %d to classifier %s' % (i, clf_name))
-        pipeline = _build_pipeline(i, clf_name,
+        pipeline = _build_pipeline(thesauri, i, clf_name,
                                    configuration['feature_extraction'],
                                    configuration['feature_selection'],
                                    configuration['dimensionality_reduction'],
@@ -384,21 +387,20 @@ def _run_tasks(configuration, n_jobs, data):
                                    configuration['debug'],
                                    exp_name=configuration['name'])
 
-        if not cached_tokenized_data:
-            analyzer = pipeline.named_steps['vect'].build_analyzer()
-            # pre-tokenize all documents (train and test) and store results in a
-            # joblib cache. We're doing it single-threaded so that no conflicts occur
-            # later
-            logging.info('Tokenising all data in one go')
-            map(analyzer, x_tr)
-            map(analyzer, x_test)
-            cached_tokenized_data = True
+        #if not cached_tokenized_data:
+        #    analyzer = pipeline.named_steps['vect'].build_analyzer()
+        #    # pre-tokenize all documents (train and test) and store results in a
+        #    # joblib cache. We're doing it single-threaded so that no conflicts occur
+        #    # later
+        #    logging.info('Tokenising all data in one go')
+        #    map(analyzer, x_tr)
+        #    map(analyzer, x_test)
+        #    cached_tokenized_data = True
 
 
         # pass the (feature selector + classifier) pipeline for evaluation
         logging.info('***Fitting pipeline for %s' % clf_name)
         scores_this_clf = naming_cross_val_score(
-            get_keys_for_training(configuration),
             pipeline, x_vals_seen,
             y_vals_seen,
             ChainCallable(configuration['evaluation']),
@@ -563,10 +565,7 @@ def parse_config_file(conf_file):
     return config, configspec_file
 
 
-
-
-
-def go(conf_file, log_dir, data=None, classpath='', clean=False, n_jobs=1):
+def go(conf_file, log_dir, data, thesauri, classpath='', clean=False, n_jobs=1):
     if not os.path.exists(log_dir):
         os.makedirs(log_dir)
 
@@ -579,18 +578,17 @@ def go(conf_file, log_dir, data=None, classpath='', clean=False, n_jobs=1):
         # file
 
     if config['tokenizer']['keep_only_IT'] and not \
-        config['feature_extraction']['thesaurus_files']:
+        config['feature_extraction']['train_thesaurus_files']:
         raise ValueError('keep_only_IT requires a thesaurus')
 
     log = _config_logger(log_dir, name=config['name'], debug=config['debug'])
     log.info(
         'Reading configuration file from \'%s\', conf spec from \'%s\''
         % (glob(conf_file)[0], configspec_file))
-    _init_utilities_state(config)
     output = config['output_dir']
     _prepare_output_directory(clean, output)
     _prepare_classpath(classpath)
-    status, msg = _run_tasks(config, n_jobs, data)
+    status, msg = _run_tasks(config, n_jobs, data, thesauri)
     shutil.copy(conf_file, output)
     return status, msg
 
