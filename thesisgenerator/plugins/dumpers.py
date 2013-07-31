@@ -77,7 +77,7 @@ class FeatureVectorsCsvDumper(TransformerMixin):
 
 columns = [('name', 'TEXT'),
            ('git_hash', 'TEXT'),
-           ('date', 'TIMESTAMP'),
+           ('consolidation_date', 'TIMESTAMP'),
 
            ('train_voc_mean', 'INTEGER'),
            ('train_voc_std', 'INTEGER'),
