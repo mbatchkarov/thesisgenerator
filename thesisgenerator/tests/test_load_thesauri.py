@@ -19,21 +19,22 @@ class TestLoad_thesauri(TestCase):
             # 'k': 10,
             'include_self': False
         }
+        self.thesaurus = thesaurus_loader.Thesaurus(**self.params)
 
     def _reload_thesaurus(self):
-        thesaurus_loader.read_thesaurus_with_caching(**self.params)
+        self.thesaurus = thesaurus_loader.Thesaurus(**self.params)
 
     def test_empty_thesaurus(self):
         self.params['thesaurus_files'] = []
         self._reload_thesaurus()
         self._reload_and_assert(0, 0)
 
-        # should return an empty neighbour list for unknown tokens
-        th = thesaurus_loader.get_thesaurus()
-        self.assertListEqual([], th['kasdjhfka'])
+        # should raise KeyError for unknown tokens
+        with self.assertRaises(KeyError):
+            self.thesaurus['kasdjhfka']
 
     def _reload_and_assert(self, entry_count, neighbour_count):
-        th = thesaurus_loader.read_thesaurus_with_caching(**self.params)
+        th = thesaurus_loader.Thesaurus(**self.params)
         all_neigh = [x for v in th.values() for x in v]
         self.assertEqual(len(th), entry_count)
         self.assertEqual(len(all_neigh), neighbour_count)

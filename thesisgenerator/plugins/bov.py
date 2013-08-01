@@ -18,7 +18,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
                  lowercase=True,
                  input='content', charset='utf-8', charset_error='strict',
                  strip_accents=None,
-                 preprocessor=None, tokenizer=None, analyzer='better',
+                 preprocessor=None, tokenizer=None, analyzer='ngram',
                  stop_words=None, token_pattern=ur"(?u)\b\w\w+\b", min_n=None,
                  max_n=None, ngram_range=(1, 1), max_df=1.0, min_df=2,
                  max_features=None, vocabulary=None, binary=False, dtype=float,
