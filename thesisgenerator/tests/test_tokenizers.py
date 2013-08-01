@@ -54,8 +54,10 @@ class Test_tokenizer(TestCase):
                 tokens = tokenizer.tokenize(self.doc)
                 self.assertListEqual(tokens, ['Cats', 'like', 'dogs'])
                 if i == 1:
-                # with caching the tokenizer must only ever have one cache miss- the first time it is called
-                    self.assertEqual(tokenizer.cache_miss_count, 1)
+                    # with caching the tokenizer must only ever have one cache miss- the first time it is called
+                    # if tests have been run before in this directory, the cache will still be there and no cache
+                    # misses will occur
+                    self.assertLessEqual(tokenizer.cache_miss_count, 1)
                 else:
                     # without caching the tokenizer must miss every time
                     self.assertEqual(tokenizer.cache_miss_count, j + 1)
