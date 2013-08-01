@@ -395,7 +395,7 @@ def evaluate_thesauri(base_conf_file, file_iterator,
         if config_obj['test_data']:
             options['test_data'] = config_obj['test_data']
 
-        print 'Loading training data'
+        print 'Loading training data...'
 
         x_tr, y_tr, x_test, y_test = load_text_data_into_memory(options)
 
