@@ -12,7 +12,7 @@ class TestConsolidator(TestCase):
     @classmethod
     def setUpClass(cls):
         prefix = 'thesisgenerator/resources'
-        run_experiment(0, num_workers=1, predefined_sized=[3],
+        run_experiment(0, num_workers=1, predefined_sized=[3, 3, 3],
                        prefix=prefix)
 
     def test_extract_thesausus_coverage_info(self):
@@ -83,7 +83,13 @@ class TestConsolidator(TestCase):
                                                              exp_std))
             self.assertAlmostEqual(res[0][0], exp_mean, 5)
             self.assertAlmostEqual(res[0][1], exp_std, 5)
-            logging.info('OK')
+
+        sql = 'select distinct name from data00 ORDER BY name;'
+        cursor.execute(sql)
+        res = cursor.fetchall()
+        for i in range(3):
+            self.assertEqual(res[i][0], 'exp0-{}'.format(i))
+
 
 
 
