@@ -112,6 +112,7 @@ class XmlTokenizer(object):
         self.charset = 'utf8'
         self.charset_error = 'replace'
         self.cached_tokenize = memory.cache(self.noncached_tokenize, ignore=['self'])
+        self.cache_miss_count = 0
 
     def tokenize(self, doc):
         # also use the tokenizer settings as cache key,
@@ -126,6 +127,9 @@ class XmlTokenizer(object):
          type, e.g. PERSON or ORG, otherwise numbers and punctuation will be
          canonicalised
         """
+
+        # record how many times this tokenizer has had a cache miss
+        self.cache_miss_count += 1
 
         # decode document
         doc = doc.decode(self.charset, self.charset_error)

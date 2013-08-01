@@ -1,7 +1,9 @@
 # coding=utf-8
 from unittest import TestCase
+from joblib import Memory
 from thesisgenerator.plugins import thesaurus_loader
 from thesisgenerator.plugins.tokenizers import XmlTokenizer
+from thesisgenerator.utils import NoopTransformer
 
 try:
     import xml.etree.cElementTree as ET
@@ -39,12 +41,25 @@ class Test_tokenizer(TestCase):
         self.assertIn('<token id=', self.doc)
         self.assertIn('</token>', self.doc)
 
-    def test_setUp_method(self):
-        """
-        Tests if the setUp method has set all the parameter values to false
-        """
-        for key, val in self.params.items():
-            self.assertFalse(val)
+    def test_tokenizer_with_caching(self):
+        cache_memory = Memory(cachedir='.', verbose=0)
+        false_memory = NoopTransformer()
+
+        for i, memory in enumerate([false_memory, cache_memory]):
+            self.params['memory'] = memory
+            tokenizer = XmlTokenizer(**self.params)
+
+            # tokenize the same document repeatedly
+            for j in range(10):
+                tokens = tokenizer.tokenize(self.doc)
+                self.assertListEqual(tokens, ['Cats', 'like', 'dogs'])
+                if i == 1:
+                # with caching the tokenizer must only ever have one cache miss- the first time it is called
+                    self.assertEqual(tokenizer.cache_miss_count, 1)
+                else:
+                    # without caching the tokenizer must miss every time
+                    self.assertEqual(tokenizer.cache_miss_count, j + 1)
+
 
     def test_xml_tokenizer_lowercasing(self):
         """
