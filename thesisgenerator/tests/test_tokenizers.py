@@ -10,18 +10,17 @@ except ImportError:
 
 
 class Test_tokenizer(TestCase):
-    params = {'normalise_entities': False,
-              'use_pos': False,
-              'coarse_pos': False,
-              'lemmatize': False,
-              'lowercase': False,
-              'keep_only_IT': False}
-
     def setUp(self):
         """
         Sets the default parameters of the tokenizer and reads a sample file
         for processing
         """
+        self.params = {'normalise_entities': False,
+                       'use_pos': False,
+                       'coarse_pos': False,
+                       'lemmatize': False,
+                       'lowercase': False,
+                       'keep_only_IT': False}
 
         self.tokenizer = XmlTokenizer(**self.params)
 
@@ -52,11 +51,12 @@ class Test_tokenizer(TestCase):
         tests xml_tokenizer's lowercasing facility
         """
 
-        tokens = self.tokenizer(self.doc)
+        tokens = self.tokenizer.tokenize(self.doc)
         self.assertListEqual(tokens, ['Cats', 'like', 'dogs'])
 
-        self.tokenizer.lowercase = True
-        tokens = self.tokenizer(self.doc)
+        self.params['lowercase'] = True
+        self.tokenizer = XmlTokenizer(**self.params)
+        tokens = self.tokenizer.tokenize(self.doc)
         self.assertListEqual(tokens, ['cats', 'like', 'dogs'])
 
     def test_xml_tokenizer_stopwords(self):
@@ -73,12 +73,12 @@ class Test_tokenizer(TestCase):
                 element.find('word').text = 'the'
 
         self.tokenizer.remove_stopwords = True
-        tokens = self.tokenizer(ET.tostring(tree))
+        tokens = self.tokenizer.tokenize(ET.tostring(tree))
         self.assertListEqual(tokens, ['Cats', 'dogs'])
 
         self.tokenizer.use_pos = True
         self.tokenizer.coarse_pos = True
-        tokens = self.tokenizer(ET.tostring(tree))
+        tokens = self.tokenizer.tokenize(ET.tostring(tree))
         self.assertListEqual(tokens, ['Cats/N', 'dogs/N'])
 
     def test_xml_tokenizer_short_words(self):
@@ -87,51 +87,52 @@ class Test_tokenizer(TestCase):
         """
         self.tokenizer.lemmatize = True
         self.tokenizer.remove_short_words = True
-        tokens = self.tokenizer(self.doc)
+        tokens = self.tokenizer.tokenize(self.doc)
         self.assertListEqual(tokens, ['like'])
 
         self.tokenizer.use_pos = True
         self.tokenizer.coarse_pos = True
-        tokens = self.tokenizer(self.doc)
+        tokens = self.tokenizer.tokenize(self.doc)
         self.assertListEqual(tokens, ['like/V'])
 
     def test_xml_tokenizer_pos(self):
         """
         Tests xml_tokenizer's coarse_pos and use_pos facilities
         """
-        tokens = self.tokenizer(self.doc)
+        tokens = self.tokenizer.tokenize(self.doc)
         self.assertListEqual(tokens, ['Cats', 'like', 'dogs'])
 
         self.tokenizer.use_pos = True
-        tokens = self.tokenizer(self.doc)
+        tokens = self.tokenizer.tokenize(self.doc)
         self.assertListEqual(tokens, ['Cats/NNP', 'like/VB', 'dogs/NNP'])
 
         self.tokenizer.coarse_pos = True
-        tokens = self.tokenizer(self.doc)
+        tokens = self.tokenizer.tokenize(self.doc)
         self.assertListEqual(tokens, ['Cats/N', 'like/V', 'dogs/N'])
 
     def test_xml_tokenizer_keep_IT_only(self):
         """
         tests xml_tokenizer's ability to discard out-of-thesaurus tokens
         """
-        self.tokenizer.keep_only_IT = True
-        self.tokenizer.coarse_pos = True
-        self.tokenizer.use_pos = True
-        self.tokenizer.lowercase = True
-        self.tokenizer.lemmatize = True
-        self.tokenizer.thes_entries = None
 
-        thesaurus_loader.read_thesaurus_with_caching(
+        self.params.update({
+            'keep_only_IT': True,
+            'coarse_pos': True,
+            'use_pos': True,
+            'lowercase': True,
+            'lemmatize': True})
+
+        thesaurus = thesaurus_loader.Thesaurus(
             thesaurus_files=['thesisgenerator/resources/exp0-0a.strings'],
             sim_threshold=0,
-            # k=10,
             include_self=False)
+        self.params['thesaurus'] = thesaurus
+        self.tokenizer = XmlTokenizer(**self.params)
 
-        tokens = self.tokenizer(self.doc)
+        tokens = self.tokenizer.tokenize(self.doc)
         self.assertListEqual(tokens, ['cat/n', 'like/v', 'dog/n'])
 
-        self.tokenizer.thes_entries = None
-        tokens = self.tokenizer(self.other_doc)
+        tokens = self.tokenizer.tokenize(self.other_doc)
         self.assertListEqual(tokens, ['like/v', 'fruit/n'])
 
 
@@ -141,7 +142,7 @@ class Test_tokenizer(TestCase):
         """
 
         self.tokenizer.lemmatize = True
-        tokens = self.tokenizer(self.doc)
+        tokens = self.tokenizer.tokenize(self.doc)
         self.assertListEqual(tokens, ['Cat', 'like', 'dog'])
 
     def test_xml_tokenizer_common_settings(self):
@@ -156,11 +157,11 @@ class Test_tokenizer(TestCase):
         self.tokenizer.lowercase = True
         self.tokenizer.normalise_entities = True
 
-        tokens = self.tokenizer(self.doc)
+        tokens = self.tokenizer.tokenize(self.doc)
         self.assertListEqual(tokens, ['cat/n', 'like/v', '__ner-org__'])
 
         self.tokenizer.lowercase = False
-        tokens = self.tokenizer(self.doc)
+        tokens = self.tokenizer.tokenize(self.doc)
         self.assertListEqual(tokens, ['Cat/N', 'like/V', '__NER-ORG__'])
 
     def test_is_number(self):

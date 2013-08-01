@@ -14,32 +14,48 @@ from thesisgenerator.plugins.experimental_utils import _get_data_iterators
 from thesisgenerator.utils import _vocab_neighbour_source
 
 
+def _get_constant_thesaurus(vocab=None):
+    """
+    Returns a thesaurus-like object which has a single neighbour for
+    every possible entry
+    """
+
+    def constant_thesaurus():
+        return [('b/n', 1)]
+
+    return defaultdict(constant_thesaurus)
+
+
 class Test_ThesaurusVectorizer(TestCase):
     def setUp(self):
         """
         Initialises the state of helper modules to sensible defaults
         """
-        self.tokenizer = tokenizers.build_tokenizer(
-            normalise_entities=False,
-            use_pos=True,
-            coarse_pos=True,
-            lemmatize=True,
-            lowercase=True,
-            keep_only_IT=False,
-            remove_stopwords=False,
-            remove_short_words=False,
-            use_cache=False
-        )
-
         self._thesaurus_opts = {
             'thesaurus_files': ['thesisgenerator/resources/exp0-0a.strings'],
             'sim_threshold': 0,
-            # 'k': 10,
             'include_self': False
         }
+        self.thesaurus = thesaurus_loader.Thesaurus(**self._thesaurus_opts)
+
+        # todo should do tests with caching
+        self.tokenizer_opts = {
+            'normalise_entities': False,
+            'use_pos': True,
+            'coarse_pos': True,
+            'lemmatize': True,
+            'lowercase': True,
+            'keep_only_IT': False,
+            'remove_stopwords': False,
+            'remove_short_words': False,
+            'use_cache': False,
+            'thesaurus': self.thesaurus
+        }
+        self.tokenizer = tokenizers.XmlTokenizer(**self.tokenizer_opts)
 
         self.feature_extraction_conf = {
             'vectorizer': 'thesisgenerator.plugins.bov.ThesaurusVectorizer',
+            'analyzer': 'ngram',
             'use_tfidf': False,
             'min_df': 1,
             'lowercase': False,
@@ -89,7 +105,15 @@ class Test_ThesaurusVectorizer(TestCase):
             self.assertEqual(y[2], 1)
 
     def _vectorize_data(self, thesaurus_getter=None):
+        def fully_qualified_name(o):
+            return o.__module__ + "." + o.__name__
+
+        if thesaurus_getter:
+            #pipeline.named_steps['vect'].thesaurus_getter = thesaurus_getter
+            self.feature_extraction_conf['decode_thesaurus'] = fully_qualified_name(thesaurus_getter)
+
         pipeline = __main__._build_pipeline(
+            self.thesaurus,
             12345, #id for naming debug files
             None, # classifier
             self.feature_extraction_conf,
@@ -100,16 +124,20 @@ class Test_ThesaurusVectorizer(TestCase):
             True, # debug mode
             'tests' # name of experiments
         )
-        x1 = pipeline.fit_transform(self.x_tr, self.y_tr)
-        if thesaurus_getter:
-            pipeline.named_steps['vect'].thesaurus_getter = thesaurus_getter
+
+        tr_tokens = map(self.tokenizer.tokenize, self.x_tr)
+        ev_tokens = map(self.tokenizer.tokenize, self.x_ev)
+        x1 = pipeline.fit_transform(tr_tokens, self.y_tr)
+
         voc = pipeline.named_steps['vect'].vocabulary_
-        x2 = pipeline.transform(self.x_ev)
+        x2 = pipeline.transform(ev_tokens)
 
         return x1, x2, voc
 
-    def _reload_thesaurus(self):
-        thesaurus_loader.read_thesaurus_with_caching(**self._thesaurus_opts)
+    def _reload_thesaurus_and_tokenizer(self):
+        self.thesaurus = thesaurus_loader.Thesaurus(**self._thesaurus_opts)
+        self.tokenizer_opts['thesaurus'] = self.thesaurus
+        self.tokenizer = tokenizers.XmlTokenizer(**self.tokenizer_opts)
 
 
     @skip('Do not use replace_all')
@@ -129,7 +157,7 @@ class Test_ThesaurusVectorizer(TestCase):
             # the expected matrices are the same with and without
             # include_self when replace_all=False
             self._thesaurus_opts['include_self'] = inc_self
-            self._reload_thesaurus()
+            self.thesaurus = self._reload_thesaurus_and_tokenizer()
 
             x1, x2, voc = self._vectorize_data()
 
@@ -213,7 +241,7 @@ class Test_ThesaurusVectorizer(TestCase):
     def test_replaceAll_True_includeSelf_False(self):
         self.feature_extraction_conf['replace_all'] = True
         self._thesaurus_opts['include_self'] = False
-        self._reload_thesaurus()
+        self._reload_thesaurus_and_tokenizer()
 
         x1, x2, voc = self._vectorize_data()
 
@@ -251,7 +279,7 @@ class Test_ThesaurusVectorizer(TestCase):
     def test_replaceAll_True_includeSelf_True(self):
         self.feature_extraction_conf['replace_all'] = True
         self._thesaurus_opts['include_self'] = True
-        self._reload_thesaurus()
+        self._reload_thesaurus_and_tokenizer()
 
         x1, x2, voc = self._vectorize_data()
 
@@ -289,7 +317,7 @@ class Test_ThesaurusVectorizer(TestCase):
         self._thesaurus_opts['thesaurus_files'] = \
             ['thesisgenerator/resources/exp0-0b.strings']
         # self._thesaurus_opts['k'] = 1 # todo needs fixing
-        self._reload_thesaurus()
+        self._reload_thesaurus_and_tokenizer()
 
         self.x_tr, self.y_tr, self.x_ev, self.y_ev = self. \
             _load_data('thesisgenerator/resources/test-baseline')
@@ -321,11 +349,11 @@ class Test_ThesaurusVectorizer(TestCase):
         )
 
     def test_baseline_ignore_nonthesaurus_features_signifier_only_22(self):
-        self.tokenizer.keep_only_IT = True
+        self.tokenizer_opts['keep_only_IT'] = True
         self._thesaurus_opts['thesaurus_files'] = \
             ['thesisgenerator/resources/exp0-0b.strings']
         # self._thesaurus_opts['k'] = 1
-        self._reload_thesaurus()
+        self._reload_thesaurus_and_tokenizer()
 
         self.x_tr, self.y_tr, self.x_ev, self.y_ev = self. \
             _load_data('thesisgenerator/resources/test-baseline')
@@ -355,13 +383,13 @@ class Test_ThesaurusVectorizer(TestCase):
         )
 
     def test_baseline_use_all_features_with__signifier_signified_25(self):
-        self.tokenizer.keep_only_IT = False
+        self.tokenizer_opts['keep_only_IT'] = False
         self.feature_extraction_conf['decode_token_handler'] = \
             'thesisgenerator.plugins.bov_feature_handlers.SignifierSignifiedFeatureHandler'
         self.feature_extraction_conf['k'] = 1 # equivalent to max
         self._thesaurus_opts['thesaurus_files'] = \
             ['thesisgenerator/resources/exp0-0b.strings']
-        self._reload_thesaurus()
+        self._reload_thesaurus_and_tokenizer()
 
         self.x_tr, self.y_tr, self.x_ev, self.y_ev = self. \
             _load_data('thesisgenerator/resources/test-baseline')
@@ -394,13 +422,13 @@ class Test_ThesaurusVectorizer(TestCase):
 
     def test_baseline_ignore_nonthesaurus_features_with_signifier_signified_24(
             self):
-        self.tokenizer.keep_only_IT = True
+        self.tokenizer_opts['keep_only_IT'] = True
         self.feature_extraction_conf['decode_token_handler'] = \
             'thesisgenerator.plugins.bov_feature_handlers.SignifierSignifiedFeatureHandler'
         self.feature_extraction_conf['k'] = 1 # equivalent to max
         self._thesaurus_opts['thesaurus_files'] = \
             ['thesisgenerator/resources/exp0-0b.strings']
-        self._reload_thesaurus()
+        self._reload_thesaurus_and_tokenizer()
 
         self.x_tr, self.y_tr, self.x_ev, self.y_ev = self. \
             _load_data('thesisgenerator/resources/test-baseline')
@@ -430,13 +458,13 @@ class Test_ThesaurusVectorizer(TestCase):
         )
 
     def test_baseline_use_all_features_with_signified_27(self):
-        self.tokenizer.keep_only_IT = False
+        self.tokenizer_opts['keep_only_IT'] = False
         self.feature_extraction_conf['decode_token_handler'] = \
             'thesisgenerator.plugins.bov_feature_handlers.SignifiedOnlyFeatureHandler'
         self.feature_extraction_conf['k'] = 1 # equivalent to max
         self._thesaurus_opts['thesaurus_files'] = \
             ['thesisgenerator/resources/exp0-0b.strings']
-        self._reload_thesaurus()
+        self._reload_thesaurus_and_tokenizer()
 
         self.x_tr, self.y_tr, self.x_ev, self.y_ev = self. \
             _load_data('thesisgenerator/resources/test-baseline')
@@ -468,13 +496,13 @@ class Test_ThesaurusVectorizer(TestCase):
         )
 
     def test_baseline_ignore_nonthesaurus_features_with_signified_26(self):
-        self.tokenizer.keep_only_IT = True
+        self.tokenizer_opts['keep_only_IT'] = True
         self.feature_extraction_conf['decode_token_handler'] = \
             'thesisgenerator.plugins.bov_feature_handlers.SignifiedOnlyFeatureHandler'
         self.feature_extraction_conf['k'] = 1 # equivalent to max
         self._thesaurus_opts['thesaurus_files'] = \
             ['thesisgenerator/resources/exp0-0b.strings']
-        self._reload_thesaurus()
+        self._reload_thesaurus_and_tokenizer()
 
         self.x_tr, self.y_tr, self.x_ev, self.y_ev = self. \
             _load_data('thesisgenerator/resources/test-baseline')
@@ -503,25 +531,14 @@ class Test_ThesaurusVectorizer(TestCase):
             )
         )
 
-
     def test_baseline_use_all_features_with_signified_random_28(self):
-        def _get_constant_thesaurus(vocab=None):
-            """
-            Returns a thesaurus-like object which has a single neighbour for
-            every possible entry
-            """
-
-            def constant_thesaurus():
-                return [('b/n', 1)]
-
-            return defaultdict(constant_thesaurus)
-
-        self.tokenizer.keep_only_IT = False
+        self.tokenizer_opts['keep_only_IT'] = False
         self.feature_extraction_conf['decode_token_handler'] = \
             'thesisgenerator.plugins.bov_feature_handlers.SignifierRandomBaselineFeatureHandler'
         self.feature_extraction_conf['k'] = 1    # equivalent to max
         self.feature_extraction_conf['neighbour_source'] = \
             'thesisgenerator.tests.test_main._get_constant_thesaurus'
+        self._reload_thesaurus_and_tokenizer()
         self.x_tr, self.y_tr, self.x_ev, self.y_ev = self. \
             _load_data('thesisgenerator/resources/test-baseline')
 

@@ -114,7 +114,8 @@ def _paraphrase(doc_id, doc_id_indices,
        currently loaded thesaurus.
     """
 
-    neighbours = thesaurus(vocabulary)[document_term]
+    #neighbours = thesaurus(vocabulary)[document_term]
+    neighbours = thesaurus.get(document_term)
 
     # if there are any neighbours filter the list of
     # neighbours so that it contains only pairs where
@@ -147,7 +148,7 @@ class BaseFeatureHandler():
         - OOV, OOT: ignore feature
     """
 
-    def __init__(self, k, sim_transformer, source):
+    def __init__(self, k, sim_transformer, thesaurus):
         # contructor takes parameters for compatibility with others
         pass
 
@@ -186,13 +187,14 @@ class SignifierSignifiedFeatureHandler(BaseFeatureHandler):
     def __init__(self, k, sim_transformer, thesaurus):
         self.k = k
         self.sim_transformer = sim_transformer
+        self.thesaurus = thesaurus
 
     def handle_OOV_IT_feature(self, doc_id, doc_id_indices, document_term,
                               term_indices, term_index_in_vocab, values, count,
                               vocabulary):
         _paraphrase(doc_id, doc_id_indices, document_term, count,
                     term_indices, values, vocabulary, self.k,
-                    self.sim_transformer)
+                    self.sim_transformer, self.thesaurus)
 
 
 class SignifiedOnlyFeatureHandler(BaseFeatureHandler):
@@ -204,13 +206,14 @@ class SignifiedOnlyFeatureHandler(BaseFeatureHandler):
     def __init__(self, k, sim_transformer, thesaurus):
         self.k = k
         self.sim_transformer = sim_transformer
+        self.thesaurus = thesaurus
 
     def handle_OOV_IT_feature(self, doc_id, doc_id_indices, document_term,
                               term_indices, term_index_in_vocab, values, count,
                               vocabulary):
         _paraphrase(doc_id, doc_id_indices, document_term, count,
                     term_indices, values, vocabulary, self.k,
-                    self.sim_transformer)
+                    self.sim_transformer, self.thesaurus)
 
     handle_IV_IT_feature = handle_OOV_IT_feature
 

@@ -4,7 +4,7 @@ from os.path import basename
 
 
 class Thesaurus(dict):
-    def __init__(self, thesaurus_files, sim_threshold=0, include_self=False):
+    def __init__(self, thesaurus_files='', sim_threshold=0, include_self=False):
         self.thesaurus_files = thesaurus_files
         self.thesaurus_names = map(basename, thesaurus_files)
         self.sim_threshold = sim_threshold
@@ -34,6 +34,7 @@ class Thesaurus(dict):
 
         if not self.thesaurus_files:
             logging.warn("No thesaurus specified")
+            return {}
 
         for path in self.thesaurus_files:
             logging.info('Loading thesaurus %s from disk' % path)

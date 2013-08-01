@@ -107,6 +107,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
     #         self.fixed_vocabulary = True
 
     def fit_transform(self, raw_documents, y=None):
+        self.thesaurus = self.train_thesaurus
         self.handler = get_token_handler(self.train_token_handler,
                                          self.k,
                                          self.sim_compressor,
@@ -256,10 +257,15 @@ class ThesaurusVectorizer(TfidfVectorizer):
                 term_index_in_vocab = vocabulary.get(document_term)
                 is_in_vocabulary = term_index_in_vocab is not None
                 # None if term is not in seen vocabulary
-                is_in_th = bool(th.get(document_term))
 
-                self.stats.register_token(document_term, is_in_vocabulary, \
-                                          is_in_th)
+                try:
+                    # some thesauri are defaultdict-s, must be queried with []
+                    is_in_th = bool(th[document_term])
+                except KeyError:
+                    # some thesauri are plain dict-s and will raise a ValueError
+                    is_in_th = False
+
+                self.stats.register_token(document_term, is_in_vocabulary, is_in_th)
 
                 params = (doc_id, doc_id_indices, document_term, term_indices,
                           term_index_in_vocab, values, count, vocabulary)

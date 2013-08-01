@@ -4,6 +4,7 @@ from collections import defaultdict
 from copy import deepcopy
 import logging
 from sklearn.feature_extraction.stop_words import ENGLISH_STOP_WORDS
+from thesisgenerator.utils import NoopTransformer
 
 try:
     import xml.etree.cElementTree as ET
@@ -73,11 +74,12 @@ class XmlTokenizer(object):
         "-RRB-": "PUNCT",
     })
 
-    def __init__(self, memory, normalise_entities=False, use_pos=True,
+    def __init__(self, memory=NoopTransformer(), normalise_entities=False, use_pos=True,
                  coarse_pos=True, lemmatize=True,
                  lowercase=True, keep_only_IT=False, thesaurus=defaultdict(list),
                  remove_stopwords=False, remove_short_words=False,
                  use_cache=False):
+        #store all important parameteres
         self.normalise_entities = normalise_entities
         self.use_pos = use_pos
         self.coarse_pos = coarse_pos
@@ -85,24 +87,30 @@ class XmlTokenizer(object):
         self.lowercase = lowercase
         self.remove_stopwords = remove_stopwords
         self.remove_short_words = remove_short_words
-        try:
-            self.thes_names = tuple(thesaurus.thesaurus_names)
-        except AttributeError:
-            self.thes_names = ''
         self.keep_only_IT = keep_only_IT
 
-        # guard against using an empty thesaurus
+        # guard against an empty thesaurus
         if not thesaurus and keep_only_IT:
             raise Exception('A thesaurus is required with keep_only_IT')
 
+        if self.keep_only_IT:
+            # if we're using a thesaurus store some basic info about it
+            self.thes_entries = set(thesaurus.keys())
+            # thesaurus may be an empty dict or a dummy, i.e. may not have an associated file name
+            try:
+                self.thes_names = tuple(thesaurus.thesaurus_names)
+            except AttributeError:
+                self.thes_names = ''
+        else:
+            self.thes_entries = set()
+
+        # store the important parameters for use as joblib keys
         self.param_values = deepcopy(self.__dict__)
-        if not self.keep_only_IT:
-            # thesaurus names are unimportant if tokenizer isn't using them
-            del self.param_values['thes_names']
+        # remove self.thes_entries from key list, may be very large
+        del self.param_values['thes_entries']
 
         self.charset = 'utf8'
         self.charset_error = 'replace'
-        self.thes_entries = set(thesaurus.keys())
         self.cached_tokenize = memory.cache(self.noncached_tokenize, ignore=['self'])
 
     def tokenize(self, doc):
