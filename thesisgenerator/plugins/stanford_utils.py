@@ -185,12 +185,13 @@ def _process_single_xml_to_conll(path_to_file):
             if element.tag == "sentence": #If we've read an entire sentence
                 i = 1
                 #Output CoNLL style
-                for word, lemma, pos in zip(element.findall(".//word"),
-                                            element.findall(".//lemma"),
-                                            element.findall(".//POS")):
-                    outfile.write("%s\t%s\t%s\t%s\n" % (
+                for word, lemma, pos, ner in zip(element.findall(".//word"),
+                                                 element.findall(".//lemma"),
+                                                 element.findall(".//POS"),
+                                                 element.findall(".//NER")):
+                    outfile.write("%s\t%s\t%s\t%s\t%s\n" % (
                         i, word.text.encode('utf8'), lemma.text.encode('utf8'),
-                        pos.text))
+                        pos.text, ner.text))
                     i += 1
                 outfile.write("\n")
                 #Clear this section of the XML tree
@@ -207,8 +208,6 @@ def dependency_parse_directory(data_dir, parser_project_path, liblinear_path,
 
     #Add to python path location of dependency parser and liblinear
     sys.path.append(os.path.join(parser_project_path, "src"))
-    sys.path.append(
-        'Volumes/LocalDataHD/mmb28/Library/Enthought/Canopy_32bit/System/lib/python2.7/site-packages/sklearn/svm/')
 
     def chunks(items, no_of_chunks):
         """Split *items* into a number (no_of_chunks) of equal chunks."""
@@ -476,16 +475,20 @@ if __name__ == "__main__":
     '''
 
     #Pipeline examples:
-    # run = set("stanford formatting parsing cleanup".split())
+    run = set("stanford formatting parsing cleanup".split())
+
     # run = set("formatting parsing cleanup".split())
-    run = set("parsing".split())
+    # run = set("formatting".split())
+    # run = set("parsing".split())
     # run = set("stanford".split())
 
     #Fill arguments below, for example:
     execute_pipeline(
         '/Volumes/LocalDataHD/mmb28/NetBeansProjects/thesisgenerator/sample-data/web',
         path_to_stanford='/Volumes/LocalDataHD/mmb28/Downloads/stanford-corenlp-full-2012-11-12',
-        path_to_depparser='/Volumes/LocalDataHD/mmb28/Desktop/parser_test_version',
+        path_to_depparser='/Volumes/LocalDataHD/mmb28/NetBeansProjects/parser_repo',
+        # path_to_liblinear='/Volumes/LocalDataHD/mmb28/NetBeansProjects/liblinear',
         stanford_java_threads=8,
+        parsing_python_processes=4,
         run=run)
 
