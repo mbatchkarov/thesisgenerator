@@ -72,6 +72,13 @@ class XmlTokenizer(object):
         "'": "PUNCT",
         "-LRB-": "PUNCT",
         "-RRB-": "PUNCT",
+
+        # the four NE types that FET 0.3.6 may return as PoS tags
+        # not really needed in the classification pipeline yet
+        "PERSON": "PERSON",
+        "LOC": "LOC",
+        "ORG": "ORG",
+        "NUMBER": "NUMBER"
     })
 
     def __init__(self, memory=NoopTransformer(), normalise_entities=False, use_pos=True,
@@ -98,9 +105,9 @@ class XmlTokenizer(object):
             self.thes_entries = set(thesaurus.keys())
             # thesaurus may be an empty dict or a dummy, i.e. may not have an associated file name
             try:
-                self.thes_names = tuple(thesaurus.thesaurus_names)
+                self.thes_files = tuple(thesaurus.thesaurus_files)
             except AttributeError:
-                self.thes_names = ''
+                self.thes_files = ''
         else:
             self.thes_entries = set()
 

@@ -1,12 +1,10 @@
 # coding=utf-8
 import logging
-from os.path import basename
 
 
 class Thesaurus(dict):
     def __init__(self, thesaurus_files='', sim_threshold=0, include_self=False):
         self.thesaurus_files = thesaurus_files
-        self.thesaurus_names = map(basename, thesaurus_files)
         self.sim_threshold = sim_threshold
         self.include_self = include_self
         # make this class act like a defaultdict(list)

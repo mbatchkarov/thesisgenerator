@@ -5,12 +5,12 @@
 # thesisgenerator package would not be on the path, add it and try again
 import logging
 import sys
-from thesisgenerator.plugins.file_generators import _exp16_file_iterator, _exp1_file_iterator, _vary_training_size_file_iterator
 
 sys.path.append('.')
 sys.path.append('..')
 sys.path.append('../..')
 
+from thesisgenerator.plugins.file_generators import _exp16_file_iterator, _exp1_file_iterator, _vary_training_size_file_iterator
 from joblib import Memory
 import numpy as np
 from sklearn.datasets import load_files
@@ -245,7 +245,7 @@ def run_experiment(i, num_workers=4,
     if i == 0:
         # exp0 is for debugging only, we don't have to do much
         sizes = [10, 20]#range(10, 31, 10)
-        num_workers = -1
+        num_workers = 1
     if predefined_sized:
         sizes = predefined_sized
 
