@@ -1,5 +1,7 @@
 # coding=utf-8
 from collections import defaultdict
+import glob
+import os
 
 from unittest import TestCase, skip
 
@@ -139,6 +141,12 @@ class Test_ThesaurusVectorizer(TestCase):
         self.tokenizer_opts['thesaurus'] = self.thesaurus
         self.tokenizer = tokenizers.XmlTokenizer(**self.tokenizer_opts)
 
+
+    def tearDown(self):
+        files = glob.glob('PostVectDump_tests*')
+        for f in files:
+            if os.path.exists(f):
+                os.remove(f)
 
     @skip('Do not use replace_all')
     def test_replaceAll_False_includeSelf_TrueFalse_use_signified(self):
