@@ -485,7 +485,7 @@ if __name__ == "__main__":
     #Fill arguments below, for example:
     execute_pipeline(
         '/Volumes/LocalDataHD/mmb28/NetBeansProjects/thesisgenerator/sample-data/web',
-        path_to_stanford='/Volumes/LocalDataHD/mmb28/Downloads/stanford-corenlp-full-2012-11-12',
+        path_to_stanford='/Volumes/LocalDataHD/mmb28/Downloads/stanford-corenlp-full-2013-06-20',
         path_to_depparser='/Volumes/LocalDataHD/mmb28/NetBeansProjects/parser_repo',
         # path_to_liblinear='/Volumes/LocalDataHD/mmb28/NetBeansProjects/liblinear',
         stanford_java_threads=8,
