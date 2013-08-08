@@ -226,10 +226,18 @@ def _infer_thesaurus_name(config_obj):
             pattern = '.*exp(?P<corpus>\d+)-(?P<features>\d+)(?P<pos>[A-Za-z])' \
                       '(fef(?P<fef>\d+))?.*'
             m = re.match(pattern, t)
-            corpus.append(m.group('corpus'))
-            features.append(m.group('features'))
-            pos.append(m.group('pos'))
-            fef.append(m.group('fef') if m.group('fef') else '?')
+            try:
+                corpus.append(m.group('corpus'))
+                features.append(m.group('features'))
+                pos.append(m.group('pos'))
+                fef.append(m.group('fef') if m.group('fef') else '?')
+            except AttributeError:
+                # some of the named groups above are missing, try to find the name of the corpus
+                # this is a horrible stop-gap measure
+                if 'wiki' in t:
+                    corpus.append('wiki')
+                if 'giga' in t:
+                    corpus.append('giga')
 
     return '_'.join(corpus), \
            '_'.join(features), \
