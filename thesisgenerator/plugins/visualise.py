@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 import pandas.io.sql as psql
 
 coverage_sql = \
-    "    SELECT DISTINCT name, sample_size,total_tok,total_typ, " \
+    "SELECT DISTINCT name, sample_size,total_tok,total_typ, " \
     "{{ variables|join(', ') }} FROM data{{ '{:02d}'.format(number)}} " \
     "{% if wheres %} WHERE {{ wheres|join(' and ') }} {% endif %} " \
     "ORDER BY sample_size"
@@ -212,7 +212,7 @@ def get_hash_and_date(exp_no):
     information
     """
     c = utils.get_susx_mysql_conn().cursor()
-    c.execute('SELECT DISTINCT date from data%d' % exp_no)
+    c.execute('SELECT DISTINCT consolidation_date from data%d' % exp_no)
     res = c.fetchall()
     date = res[0][0]
 
@@ -269,12 +269,15 @@ table_descr = {
     25: 'all token, signifier + signified',
     26: 'IT tokens, signified',
     27: 'all tokens, signified',
-    28: 'all tokens, signified random baseline'
+    28: 'all tokens, signified random baseline',
+    29: 'IT tokens, signifier, wiki',
+    30: 'IT tokens, signified, wiki',
+    31: 'IT tokens, signifier + signified, wiki'
 }
 
 from joblib import Parallel, delayed
 
-Parallel(n_jobs=8)(delayed(coverage_bar_chart)([i], x_columns=['sample_size'])
+Parallel(n_jobs=1)(delayed(coverage_bar_chart)([i], x_columns=['sample_size'])
                    for i in range(22, 29))
 
 # for i in range(22, 29):
@@ -282,11 +285,10 @@ Parallel(n_jobs=8)(delayed(coverage_bar_chart)([i], x_columns=['sample_size'])
 
 classifiers = ['BernoulliNB', 'MultinomialNB', 'LogisticRegression',
                'MultinomialNBWithBinaryFeatures']
-experiment_sets = [[23, 22], [25, 24], [27, 26], [22, 26, 24], [23, 27, 25,
-                                                                28],
-                   [27, 28], range(22, 28)]
+experiment_sets = [[23, 22], [25, 24], [27, 26], [22, 26, 24], [23, 27, 25, 28],
+                   [22, 29], [26, 30], [24, 31], [27, 28], range(22, 32)]
 
-Parallel(n_jobs=8)(delayed(performance_bar_chart)(experiments, [clf])
+Parallel(n_jobs=1)(delayed(performance_bar_chart)(experiments, [clf])
                    for clf in classifiers for experiments in experiment_sets)
 # for clf in classifiers:
 #     for experiments in experiments:
