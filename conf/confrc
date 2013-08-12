@@ -38,7 +38,7 @@ shuffle_targets=boolean(default=False)
 	normalise_entities=boolean(default=False)
     include_self=boolean(default=False)
 	record_stats=boolean(default=False)
-	sim_compressor=string(default='thesisgenerator.utils.noop')
+	sim_compressor=string(default='thesisgenerator.utils.misc.noop')
 
 	train_token_handler=string(default='thesisgenerator.plugins.bov_feature_handlers.BaseFeatureHandler')
 	decode_token_handler=string(default='thesisgenerator.plugins.bov_feature_handlers.BaseFeatureHandler')

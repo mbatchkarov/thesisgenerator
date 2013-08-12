@@ -2,7 +2,7 @@ import glob
 import itertools
 import os
 import shutil
-from thesisgenerator.__main__ import parse_config_file
+from thesisgenerator.utils.conf_file_utils import set_in_conf_file
 
 __author__ = 'mmb28'
 
@@ -55,14 +55,18 @@ def _vary_training_size_file_iterator(sizes, exp_id, conf_file):
     raise StopIteration
 
 
+def get_specific_subexperiment_files(id, subid):
+    pass
+
+
 def _write_exp15_conf_file(base_conf_file, exp_id, run_id, shuffle):
     log_file, new_conf_file = _prepare_conf_files(base_conf_file, exp_id,
                                                   run_id)
-    replace_in_file(new_conf_file, 'name',
-                    'exp%d-%d' % (exp_id, run_id))
-    replace_in_file(new_conf_file, 'shuffle_targets',
-                    'shuffle_targets' % shuffle)
-    replace_in_file(new_conf_file, 'debug', False)
+    set_in_conf_file(new_conf_file, 'name',
+                     'exp%d-%d' % (exp_id, run_id))
+    set_in_conf_file(new_conf_file, 'shuffle_targets',
+                     'shuffle_targets' % shuffle)
+    set_in_conf_file(new_conf_file, 'debug', False)
     return new_conf_file, log_file
 
 
@@ -71,13 +75,13 @@ def _write_exp16_conf_file(base_conf_file, exp_id, run_id,
                            normalize):
     log_file, new_conf_file = _prepare_conf_files(base_conf_file, exp_id,
                                                   run_id)
-    replace_in_file(new_conf_file, 'name',
-                    'exp%d-%d' % (exp_id, run_id))
-    replace_in_file(new_conf_file, ['feature_extraction', 'thesaurus_files'],
-                    thesauri_list)
-    replace_in_file(new_conf_file, ['feature_extraction', 'normalise_entities'],
-                    normalize)
-    replace_in_file(new_conf_file, 'debug', False)
+    set_in_conf_file(new_conf_file, 'name',
+                     'exp%d-%d' % (exp_id, run_id))
+    set_in_conf_file(new_conf_file, ['feature_extraction', 'thesaurus_files'],
+                     thesauri_list)
+    set_in_conf_file(new_conf_file, ['feature_extraction', 'normalise_entities'],
+                     normalize)
+    set_in_conf_file(new_conf_file, 'debug', False)
     return new_conf_file, log_file
 
 
@@ -89,12 +93,12 @@ def _write_exp1_conf_file(base_conf_file, run_id, thes):
     log_file, new_conf_file = _prepare_conf_files(base_conf_file, 1,
                                                   run_id)
 
-    replace_in_file(new_conf_file, 'name', 'exp%d-%d' % (1, run_id))
-    replace_in_file(new_conf_file, 'debug', False)
+    set_in_conf_file(new_conf_file, 'name', 'exp%d-%d' % (1, run_id))
+    set_in_conf_file(new_conf_file, 'debug', False)
 
     # it is important that the list of thesaurus files in the conf file ends with a comma
-    replace_in_file(new_conf_file, ['feature_extraction', 'thesaurus_files'],
-                    thes)
+    set_in_conf_file(new_conf_file, ['feature_extraction', 'thesaurus_files'],
+                     thes)
     return new_conf_file, log_file
 
 
@@ -108,34 +112,11 @@ def _write_exp2_to_14_conf_file(base_conf_file, exp_id, run_id,
     log_dir, new_conf_file = _prepare_conf_files(base_conf_file, exp_id,
                                                  run_id)
 
-    replace_in_file(new_conf_file, 'name', 'exp%d-%d' % (exp_id, run_id))
-    replace_in_file(new_conf_file, ['crossvalidation', 'sample_size'],
-                    sample_size)
+    set_in_conf_file(new_conf_file, 'name', 'exp%d-%d' % (exp_id, run_id))
+    set_in_conf_file(new_conf_file, ['crossvalidation', 'sample_size'],
+                     sample_size)
     # replace_in_file(new_conf_file, 'debug', False)
     return new_conf_file, log_dir
-
-
-def replace_in_file(conf_file, keys, new_value):
-    if type(keys) is str:
-        # handle the case when there is a single key
-        keys = [keys]
-
-    config_obj, configspec_file = parse_config_file(conf_file)
-    _nested_set(config_obj, keys, new_value)
-    with open(conf_file, 'w') as outfile:
-        config_obj.write(outfile)
-
-
-def _nested_set(dic, key_list, value):
-    """
-    >>> d = {}
-    >>> nested_set(d, ['person', 'address', 'city'], 'New York')
-    >>> d
-    {'person': {'address': {'city': 'New York'}}}
-    """
-    for key in key_list[:-1]:
-        dic = dic.setdefault(key, {})
-    dic[key_list[-1]] = value
 
 
 def _prepare_conf_files(base_conf_file, exp_id, run_id):

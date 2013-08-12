@@ -12,8 +12,8 @@ import scipy.sparse as sp
 
 from thesisgenerator.plugins import tokenizers, thesaurus_loader
 from thesisgenerator import __main__
-from thesisgenerator.plugins.experimental_utils import _get_data_iterators
-from thesisgenerator.utils import _vocab_neighbour_source
+from thesisgenerator.utils.misc import _vocab_neighbour_source
+from thesisgenerator.utils.data_utils import _get_data_iterators
 
 
 def _get_constant_thesaurus(vocab=None):

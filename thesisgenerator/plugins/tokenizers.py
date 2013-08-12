@@ -4,7 +4,7 @@ from collections import defaultdict
 from copy import deepcopy
 import logging
 from sklearn.feature_extraction.stop_words import ENGLISH_STOP_WORDS
-from thesisgenerator.utils import NoopTransformer
+from thesisgenerator.classifiers import NoopTransformer
 
 try:
     import xml.etree.cElementTree as ET

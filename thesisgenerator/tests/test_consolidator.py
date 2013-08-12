@@ -3,7 +3,7 @@
 import logging
 from unittest import TestCase
 from thesisgenerator.plugins.experimental_utils import run_experiment
-from thesisgenerator.utils import get_susx_mysql_conn
+from thesisgenerator.utils.misc import get_susx_mysql_conn
 
 __author__ = 'mmb28'
 

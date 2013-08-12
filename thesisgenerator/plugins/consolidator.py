@@ -6,7 +6,7 @@ import os
 import re
 
 import numpy
-from thesisgenerator.__main__ import parse_config_file
+from thesisgenerator.utils.conf_file_utils import parse_config_file
 
 
 __author__ = 'mmb28'

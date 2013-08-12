@@ -1,9 +1,9 @@
 # coding=utf-8
 from unittest import TestCase
 from joblib import Memory
+from thesisgenerator.classifiers import NoopTransformer
 from thesisgenerator.plugins import thesaurus_loader
 from thesisgenerator.plugins.tokenizers import XmlTokenizer
-from thesisgenerator.utils import NoopTransformer
 
 try:
     import xml.etree.cElementTree as ET

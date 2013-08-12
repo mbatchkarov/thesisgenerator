@@ -9,7 +9,6 @@ Created on Oct 18, 2012
 # if one tries to run this script from the main project directory the
 # thesisgenerator package would not be on the path, add it and try again
 import sys
-#from thesisgenerator.plugins.experimental_utils import load_text_data_into_memory, _init_utilities_state
 
 sys.path.append('.')
 sys.path.append('..')
@@ -25,20 +24,16 @@ from time import sleep
 
 import numpy as np
 from numpy.ma import hstack
-import validate
-from configobj import ConfigObj
 from sklearn import cross_validation
 from sklearn.pipeline import Pipeline
 
+from thesisgenerator.utils.misc import ChainCallable
+from thesisgenerator.classifiers import LeaveNothingOut, PredefinedIndicesIterator, SubsamplingPredefinedIndicesIterator
+from thesisgenerator.utils.conf_file_utils import set_in_conf_file, parse_config_file
+from thesisgenerator.utils.data_utils import tokenize_data, get_named_object
 from thesisgenerator import config
 from thesisgenerator.plugins.dumpers import FeatureVectorsCsvDumper
 from thesisgenerator.plugins.crossvalidation import naming_cross_val_score
-from thesisgenerator.utils import (get_named_object,
-                                   LeaveNothingOut,
-                                   ChainCallable,
-                                   PredefinedIndicesIterator,
-                                   SubsamplingPredefinedIndicesIterator,
-                                   get_confrc)
 
 
 def _build_crossvalidation_iterator(config, x_vals, y_vals, x_test=None,
@@ -551,19 +546,6 @@ def _prepare_classpath(classpath):
         sys.path.append(os.path.abspath(path))
 
 
-def parse_config_file(conf_file):
-    configspec_file = get_confrc(conf_file)
-    config = ConfigObj(conf_file, configspec=configspec_file)
-    validator = validate.Validator()
-    result = config.validate(validator)
-    # todo add a more helpful guide to what exactly went wrong with the conf
-    # object
-    if not result:
-        print 'Invalid configuration'
-        sys.exit(1)
-    return config, configspec_file
-
-
 def go(conf_file, log_dir, data, thesaurus, classpath='', clean=False, n_jobs=1):
     if not os.path.exists(log_dir):
         os.makedirs(log_dir)
@@ -595,10 +577,24 @@ def go(conf_file, log_dir, data, thesaurus, classpath='', clean=False, n_jobs=1)
 postvect_dumper_added_already = False
 
 if __name__ == '__main__':
+    # for debugging single sub-experiments only
+
     args = config.arg_parser.parse_args()
     log_dir = args.log_path
     conf_file = args.configuration
     classpath = args.classpath
     clean = args.clean
 
-    go(conf_file, log_dir, classpath=classpath, clean=clean)
+    # set debug=True, disable crossvalidation and enable coverage recording
+    set_in_conf_file(conf_file, 'debug', True)
+    set_in_conf_file(conf_file, ['crossvalidation', 'k'], 1)
+    set_in_conf_file(conf_file, ['feature_extraction', 'record_stats'], True)
+    # only leave one classifier enabled to speed things up
+    set_in_conf_file(conf_file, ['classifiers', 'sklearn.naive_bayes.BernoulliNB', 'run'], True)
+    set_in_conf_file(conf_file, ['classifiers', 'sklearn.naive_bayes.MultinomialNB', 'run'], False)
+    set_in_conf_file(conf_file, ['classifiers', 'thesisgenerator.classifiers.MultinomialNBWithBinaryFeatures', 'run'],
+                     False)
+    set_in_conf_file(conf_file, ['classifiers', 'sklearn.linear_model.LogisticRegression', 'run'], False)
+
+    data, thesurus = tokenize_data(conf_file)
+    go(conf_file, log_dir, data, thesurus, classpath=classpath, clean=clean, n_jobs=1)

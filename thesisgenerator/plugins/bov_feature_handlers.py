@@ -1,6 +1,6 @@
 from collections import deque
 import logging
-from thesisgenerator.utils import get_named_object
+from thesisgenerator.utils.data_utils import get_named_object
 
 
 def get_stats_recorder(enabled=False):

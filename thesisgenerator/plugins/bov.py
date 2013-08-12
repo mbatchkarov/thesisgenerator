@@ -3,9 +3,10 @@ import logging
 import pickle
 import scipy.sparse as sp
 from sklearn.feature_extraction.text import TfidfVectorizer
+from thesisgenerator.classifiers import NoopTransformer
 from thesisgenerator.plugins import tokenizers
 from thesisgenerator.plugins.bov_feature_handlers import get_token_handler, get_stats_recorder
-from thesisgenerator.utils import NoopTransformer, get_named_object
+from thesisgenerator.utils.data_utils import get_named_object
 
 
 class ThesaurusVectorizer(TfidfVectorizer):
@@ -25,7 +26,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
                  norm='l2', use_idf=True, smooth_idf=True,
                  sublinear_tf=False, use_tfidf=True,
                  record_stats=False, k=1,
-                 sim_compressor='thesisgenerator.utils.noop',
+                 sim_compressor='thesisgenerator.utils.misc.noop',
                  train_token_handler='thesisgenerator.plugins.bov_feature_handlers.BaseFeatureHandler',
                  decode_token_handler='thesisgenerator.plugins.bov_feature_handlers.BaseFeatureHandler',
                  train_thesaurus='',

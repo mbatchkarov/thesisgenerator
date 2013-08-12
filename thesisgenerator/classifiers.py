@@ -1,11 +1,15 @@
 # coding=utf-8
 from collections import Counter
+from itertools import combinations
+import logging
 from joblib import hashing
 from numpy import array
-from sklearn.base import BaseEstimator
+import numpy as np
+from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.linear_model import LogisticRegression
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.preprocessing import binarize
+from sklearn.utils import check_random_state
 
 __author__ = 'mmb28'
 
@@ -92,3 +96,112 @@ class MultinomialNBWithBinaryFeatures(MultinomialNB):
         X = binarize(X, threshold=self.threshold)
         return super(MultinomialNBWithBinaryFeatures, self).predict(X)
 
+
+class LeaveNothingOut(object):
+    """A modified version of sklearn.cross_validation.LeavePOut which leaves
+    nothing out, i.e. the whole dataset it used for both testing and training
+    """
+
+    def __init__(self, n, indices=True):
+        self.n = n
+        self.indices = indices
+
+    def __iter__(self):
+        n = self.n
+        comb = combinations(range(n), n)
+        for idx in comb:
+            test_index = np.zeros(n, dtype=np.bool)
+            test_index[np.array(idx)] = True
+            #            train_index = np.logical_not(test_index)
+            train_index = test_index
+            if self.indices:
+                ind = np.arange(n)
+                train_index = ind[train_index]
+                test_index = ind[test_index]
+            yield train_index, test_index
+
+
+class PredefinedIndicesIterator(object):
+    """A scikits-compliant crossvalidation iterator which returns
+    a single pair of pre-defined train-test indices. To be used when the test
+     set is known in advance
+    """
+
+    def __init__(self, train, test):
+        self.train = train
+        self.test = test
+
+    def __iter__(self):
+        logging.info('Yielding a training set of size %d and a test set of '
+                     'size %d' % (len(self.train), len(self.test)))
+
+        yield self.train, self.test
+        raise StopIteration
+
+
+class SubsamplingPredefinedIndicesIterator(object):
+    """
+    A CV iterator that selects a stratified sample of all available training
+    documents, but returns all available test documents
+    """
+
+    def __init__(self, y_vals, train, test, num_samples, sample_size,
+                 random_state=0):
+        """
+        Parameters:
+        y_vals - all targets, for both train and test set
+        train/test- indices of the train/test set
+        num_sample- how many CV runs to perform
+        sample_size- how large a sample to take from the test set
+        random_state- int or numpy.RandomState, as per scikit's docs
+        """
+        self.y_vals = y_vals
+        self.train = train
+        self.test = test
+        self.num_samples = num_samples
+        self.sample_size = int(sample_size)
+        self.rng = check_random_state(random_state)
+        self.counts = np.bincount(y_vals) / float(len(y_vals))
+        logging.info('Will do %d runs, '
+                     'for each sampling %d documents from a '
+                     'training set of size %d' % (
+                         self.num_samples,
+                         self.sample_size,
+                         len(self.train)))
+
+    def __iter__(self):
+        for i in range(self.num_samples):
+            ind_train = np.zeros((0,), dtype=np.int)
+
+            for label, proportion in enumerate(list(self.counts)):
+                train_size = int(round(proportion * self.sample_size))
+
+                ind = np.nonzero(self.y_vals[self.train] == label)[0]
+                ind = self.rng.choice(ind, size=train_size, replace=False)
+
+                logging.debug('Selected %r for class %r' % (ind, label))
+                ind_train = np.concatenate((ind_train, ind), axis=0)
+            logging.info('Will train on collection of len %r - %r' % (
+                len(ind_train), ind_train))
+            yield ind_train, self.test
+        raise StopIteration
+
+    def __len__(self):
+        return self.num_samples
+
+
+class NoopTransformer(BaseEstimator, TransformerMixin):
+    """
+    A no-op base estimator, which does nothing to its input data
+    Also functions as a joblib cache object that does nothing
+    """
+
+    def cache(self, func, ignore=None, verbose=None, mmap_mode=False):
+        return func
+        # for joblib caching, act as a identity decorator
+
+    def fit(self, X, y=None):
+        return self
+
+    def transform(self, X, copy=True):
+        return X

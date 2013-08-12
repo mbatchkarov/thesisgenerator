@@ -1,10 +1,9 @@
 # coding=utf-8
 from unittest import TestCase
 import cStringIO
-from thesisgenerator.plugins.dumpers import ConsolidatedResultsCsvWriter, \
-    ConsolidatedResultsSqlWriter
+from thesisgenerator.plugins.dumpers import ConsolidatedResultsCsvWriter, ConsolidatedResultsSqlWriter
 import thesisgenerator.plugins.dumpers as d
-from thesisgenerator import utils
+from thesisgenerator.utils.misc import get_susx_mysql_conn
 
 header_list = [x[0] for x in d.columns]
 header_str = ','.join(header_list)
@@ -23,7 +22,7 @@ class TestConsolidatedResultsCsvWriter(TestCase):
 
 class TestConsolidatedResultsSqlWriter(TestCase):
     def setUp(self):
-        self.db_conn = utils.get_susx_mysql_conn()
+        self.db_conn = get_susx_mysql_conn()
 
         if not self.db_conn:
             self.fail("DB connection parameters file is missing. This is "
@@ -61,7 +60,7 @@ class TestConsolidatedResultsSqlWriter(TestCase):
             self.assertEqual(float(i), float(val))
 
     def test_mysql(self):
-        con = utils.get_susx_mysql_conn()
+        con = get_susx_mysql_conn()
 
         with con:
             cur = con.cursor()
