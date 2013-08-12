@@ -125,8 +125,8 @@ def _paraphrase(doc_id, doc_id_indices,
 
     logging.debug('Using %d/%d IV neighbours' % (k, len(neighbours)))
     for neighbour, sim in neighbours[:k]:
-        logging.debug('Replacement: %s --> %s, sim = %f' % (
-            document_term, neighbour, sim))
+        logging.debug('Replacement. Doc %d: %s --> %s, sim = %f' % (
+            doc_id, document_term, neighbour, sim))
 
         # todo the document may already contain the feature we
         # are about to insert into it,
