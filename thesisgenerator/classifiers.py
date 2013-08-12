@@ -2,12 +2,14 @@
 from collections import Counter
 from itertools import combinations
 import logging
+import cPickle as pickle
 from joblib import hashing
 from numpy import array
 import numpy as np
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.linear_model import LogisticRegression
 from sklearn.naive_bayes import MultinomialNB
+from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import binarize
 from sklearn.utils import check_random_state
 
@@ -33,6 +35,24 @@ class MostCommonLabelClassifier(BaseEstimator):
 
 def score_equals_prediction(true, predicted):
     return predicted
+
+
+class PicklingPipeline(Pipeline):
+    '''
+    A pipeline extension that saves itself when it is trained
+    '''
+
+    def __init__(self, steps, exp_name):
+        super(PicklingPipeline, self).__init__(steps)
+        self.exp_name = exp_name
+
+    def fit(self, X, y=None, **fit_params):
+        trained_pipeline = super(PicklingPipeline, self).fit(X, y, **fit_params)
+        outfile_name = '{}-pipeline.pickle'.format(self.exp_name)
+        logging.info('Saving trained pipeline {}'.format(outfile_name))
+        with open(outfile_name, 'w') as outfile:
+            pickle.dump(self, outfile)
+        return trained_pipeline
 
 
 class DataHashingClassifierMixin(object):

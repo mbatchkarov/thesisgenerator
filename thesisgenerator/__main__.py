@@ -28,7 +28,7 @@ from sklearn import cross_validation
 from sklearn.pipeline import Pipeline
 
 from thesisgenerator.utils.misc import ChainCallable
-from thesisgenerator.classifiers import LeaveNothingOut, PredefinedIndicesIterator, SubsamplingPredefinedIndicesIterator
+from thesisgenerator.classifiers import LeaveNothingOut, PredefinedIndicesIterator, SubsamplingPredefinedIndicesIterator, PicklingPipeline
 from thesisgenerator.utils.conf_file_utils import set_in_conf_file, parse_config_file
 from thesisgenerator.utils.data_utils import tokenize_data, get_named_object
 from thesisgenerator import config
@@ -263,49 +263,11 @@ def _build_pipeline(thesaurus, id, classifier_name, feature_extr_conf, feature_s
                           classifier_conf[classifier_name].items()
                           if val != '' and arg in initialize_args})
         pipeline_list.append(('clf', clf()))
-    pipeline = Pipeline(pipeline_list)
+    pipeline = PicklingPipeline(pipeline_list, exp_name) if debug else Pipeline(pipeline_list)
     pipeline.set_params(**call_args)
 
     logging.debug('Pipeline is:\n %s', pipeline)
     return pipeline
-
-
-#def get_keys_for_training(configuration):
-#    '''
-#    Fetch all the parameters from a conf file that uniquely identify a
-#    trained  classifier, so that we can cache and retrieve it later. There
-#    may be some other params that can be added to the result of this function
-#    '''
-#
-#    key_params = {
-#        # token handler options
-#        'train_handler': configuration['feature_extraction'][
-#            'train_token_handler'],
-#        # 'sim_compressor': configuration['feature_extraction']['sim_compressor'],
-#        # 'k': configuration['feature_extraction']['k'],
-#
-#        # stats options
-#        'record_stats': configuration['feature_extraction']['record_stats'],
-#        # tf-idf options
-#        'use_tfidf': configuration['feature_extraction']['use_tfidf'],
-#        # thesauri
-#        'thesaurus_files': frozenset(configuration['feature_extraction'][
-#            'thesaurus_files']),
-#        # tokenizer options
-#        'tok_lower': configuration['tokenizer']['lowercase'],
-#        'tok_only_it': configuration['tokenizer']['keep_only_IT'],
-#        'tok_stop': configuration['tokenizer']['remove_stopwords'],
-#        'tok_short': configuration['tokenizer']['remove_short_words'],
-#        'tok_lemma': configuration['feature_extraction']['lemmatize'],
-#        'tok_pos': configuration['feature_extraction']['use_pos'],
-#        'tok_coarse_pos': configuration['feature_extraction']['coarse_pos'],
-#        'tok_entities': configuration['feature_extraction'][
-#            'normalise_entities'],
-#        # random seed, train data
-#        'seed': configuration['crossvalidation']['random_state'],
-#        'tr_data': configuration['training_data']
-#    }
-#    return key_params
 
 
 def _run_tasks(configuration, n_jobs, data, thesaurus):
@@ -589,12 +551,15 @@ if __name__ == '__main__':
     set_in_conf_file(conf_file, 'debug', True)
     set_in_conf_file(conf_file, ['crossvalidation', 'k'], 1)
     set_in_conf_file(conf_file, ['feature_extraction', 'record_stats'], True)
+
     # only leave one classifier enabled to speed things up
-    set_in_conf_file(conf_file, ['classifiers', 'sklearn.naive_bayes.BernoulliNB', 'run'], True)
-    set_in_conf_file(conf_file, ['classifiers', 'sklearn.naive_bayes.MultinomialNB', 'run'], False)
+    set_in_conf_file(conf_file, ['classifiers', 'sklearn.naive_bayes.MultinomialNB', 'run'], True)
+    set_in_conf_file(conf_file, ['classifiers', 'sklearn.svm.LinearSVC', 'run'], False)
+    set_in_conf_file(conf_file, ['classifiers', 'sklearn.naive_bayes.BernoulliNB', 'run'], False)
     set_in_conf_file(conf_file, ['classifiers', 'thesisgenerator.classifiers.MultinomialNBWithBinaryFeatures', 'run'],
                      False)
     set_in_conf_file(conf_file, ['classifiers', 'sklearn.linear_model.LogisticRegression', 'run'], False)
+    set_in_conf_file(conf_file, ['classifiers', 'sklearn.neighbors.KNeighborsClassifier', 'run'], False)
 
     data, thesurus = tokenize_data(conf_file)
     go(conf_file, log_dir, data, thesurus, classpath=classpath, clean=clean, n_jobs=1)

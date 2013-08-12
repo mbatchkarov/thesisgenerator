@@ -92,21 +92,6 @@ class ThesaurusVectorizer(TfidfVectorizer):
                                                   norm=norm,
                                                   dtype=dtype)
 
-    # def try_to_set_vocabulary_from_thesaurus_keys(self):
-    #     if self.replace_all:
-    #         logging.warn('Replace_all is enabled, setting vocabulary to '
-    #                      'thesaurus entries')
-    #         # if self.vocab_from_thes:
-    #         # self.vocab_from_thes = True
-    #
-    #         if not get_thesaurus():
-    #             raise ValueError(
-    #                 'A thesaurus is required when using vocab_from_thes')
-    #         self.vocabulary_ = {k: v for v, k in
-    #                             enumerate(
-    #                                 sorted(get_thesaurus().keys()))}
-    #         self.fixed_vocabulary = True
-
     def fit_transform(self, raw_documents, y=None):
         self.thesaurus = self.train_thesaurus
         self.handler = get_token_handler(self.train_token_handler,
