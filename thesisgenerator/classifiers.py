@@ -50,8 +50,11 @@ class PicklingPipeline(Pipeline):
         trained_pipeline = super(PicklingPipeline, self).fit(X, y, **fit_params)
         outfile_name = '{}-pipeline.pickle'.format(self.exp_name)
         logging.info('Saving trained pipeline {}'.format(outfile_name))
+
+        # only save the classifier, the other stuff isn't really needed
         with open(outfile_name, 'w') as outfile:
-            pickle.dump(self, outfile)
+            pickle.dump(self.named_steps['clf'], outfile)
+        logging.info('Done saving')
         return trained_pipeline
 
 
