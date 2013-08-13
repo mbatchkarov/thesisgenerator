@@ -102,7 +102,7 @@ def run_experiment(expid, subexpid=None, num_workers=4,
         conf_file_iterator = _exp1_file_iterator(exp1_thes_pattern, '%s/conf/exp1/exp1_base.conf' % prefix)
 
     # ----------- EXPERIMENTS 2-14 -----------
-    elif expid == 0 or 1 < expid <= 14 or 17 <= expid <= 31:
+    elif expid == 0 or 1 < expid <= 14 or 17 <= expid:
         conf_file_iterator = _vary_training_size_file_iterator(sizes, expid, base_conf_file)
     elif expid == 16:
         conf_file_iterator = _exp16_file_iterator(base_conf_file)
