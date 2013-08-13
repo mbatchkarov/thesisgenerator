@@ -9,7 +9,8 @@ sys.path.append('.')
 sys.path.append('..')
 sys.path.append('../..')
 
-from thesisgenerator.utils.data_utils import tokenize_data
+from thesisgenerator.utils.data_utils import tokenize_data, load_text_data_into_memory, _init_utilities_state
+from thesisgenerator.utils.conf_file_utils import parse_config_file
 from thesisgenerator.utils.misc import get_susx_mysql_conn
 from thesisgenerator.plugins.file_generators import _exp16_file_iterator, _exp1_file_iterator, \
     _vary_training_size_file_iterator, get_specific_subexperiment_files
@@ -110,9 +111,14 @@ def run_experiment(expid, subexpid=None, num_workers=4,
         raise ValueError('No such experiment number: %d' % expid)
 
     _clear_old_files(expid, prefix)
-    data, thesurus = tokenize_data(base_conf_file)
+    conf, configspec_file = parse_config_file(base_conf_file)
+    raw_data = load_text_data_into_memory(conf)
+    thesaurus, tokenizer = _init_utilities_state(conf)
+    keep_only_IT = conf['tokenizer']['keep_only_IT']
+    tokenised_data = tokenize_data(raw_data, tokenizer, keep_only_IT)
+
     # run the data through the pipeline
-    Parallel(n_jobs=num_workers)(delayed(go)(new_conf_file, log_dir, data, thesurus) for
+    Parallel(n_jobs=num_workers)(delayed(go)(new_conf_file, log_dir, tokenised_data, thesaurus) for
                                  new_conf_file, log_dir in conf_file_iterator)
 
     # ----------- CONSOLIDATION -----------

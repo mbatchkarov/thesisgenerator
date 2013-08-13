@@ -30,7 +30,7 @@ from sklearn.pipeline import Pipeline
 from thesisgenerator.utils.misc import ChainCallable
 from thesisgenerator.classifiers import LeaveNothingOut, PredefinedIndicesIterator, SubsamplingPredefinedIndicesIterator, PicklingPipeline
 from thesisgenerator.utils.conf_file_utils import set_in_conf_file, parse_config_file
-from thesisgenerator.utils.data_utils import tokenize_data, get_named_object
+from thesisgenerator.utils.data_utils import tokenize_data, get_named_object, load_text_data_into_memory, _init_utilities_state
 from thesisgenerator import config
 from thesisgenerator.plugins.dumpers import FeatureVectorsCsvDumper
 from thesisgenerator.plugins.crossvalidation import naming_cross_val_score
@@ -561,5 +561,9 @@ if __name__ == '__main__':
     set_in_conf_file(conf_file, ['classifiers', 'sklearn.linear_model.LogisticRegression', 'run'], False)
     set_in_conf_file(conf_file, ['classifiers', 'sklearn.neighbors.KNeighborsClassifier', 'run'], False)
 
-    data, thesurus = tokenize_data(conf_file)
-    go(conf_file, log_dir, data, thesurus, classpath=classpath, clean=clean, n_jobs=1)
+    conf, configspec_file = parse_config_file(conf_file)
+    data = load_text_data_into_memory(conf)
+    thesaurus, tokenizer = _init_utilities_state(conf)
+    keep_only_IT = conf['tokenizer']['keep_only_IT']
+    data = tokenize_data(data, tokenizer, keep_only_IT)
+    go(conf_file, log_dir, data, thesaurus, classpath=classpath, clean=clean, n_jobs=1)

@@ -13,7 +13,7 @@ import scipy.sparse as sp
 from thesisgenerator.plugins import tokenizers, thesaurus_loader
 from thesisgenerator import __main__
 from thesisgenerator.utils.misc import _vocab_neighbour_source
-from thesisgenerator.utils.data_utils import _get_data_iterators
+from thesisgenerator.utils.data_utils import load_text_data_into_memory, tokenize_data
 
 
 def _get_constant_thesaurus(vocab=None):
@@ -40,7 +40,6 @@ class Test_ThesaurusVectorizer(TestCase):
         }
         self.thesaurus = thesaurus_loader.Thesaurus(**self._thesaurus_opts)
 
-        # todo should do tests with caching
         self.tokenizer_opts = {
             'normalise_entities': False,
             'use_pos': True,
@@ -82,11 +81,9 @@ class Test_ThesaurusVectorizer(TestCase):
         """
         Loads a predefined dataset from disk
         """
-        self.data_options['source'] = '%s-tr' % prefix
-        x_tr, y_tr = _get_data_iterators(**self.data_options)
-        self.data_options['source'] = '%s-ev' % prefix
-        x_ev, y_ev = _get_data_iterators(**self.data_options)
-        return x_tr, y_tr, x_ev, y_ev
+        self.data_options['training_data'] = '%s-tr' % prefix
+        self.data_options['test_data'] = '%s-ev' % prefix
+        return load_text_data_into_memory(self.data_options)
 
     def test_get_data_iterators(self):
         """
@@ -107,6 +104,9 @@ class Test_ThesaurusVectorizer(TestCase):
             self.assertEqual(y[2], 1)
 
     def _vectorize_data(self, thesaurus_getter=None):
+        # at this point self._load_data should have been called and as a result the fields
+        # self.x_tr, y_tr, x_test and y_test must have been initialised
+        # also, self.tokenizer and self.thesaurus must have been initialised
         def fully_qualified_name(o):
             return o.__module__ + "." + o.__name__
 
@@ -127,12 +127,14 @@ class Test_ThesaurusVectorizer(TestCase):
             'tests' # name of experiments
         )
 
-        tr_tokens = map(self.tokenizer.tokenize, self.x_tr)
-        ev_tokens = map(self.tokenizer.tokenize, self.x_ev)
-        x1 = pipeline.fit_transform(tr_tokens, self.y_tr)
+        raw_data = (self.x_tr, self.y_tr, self.x_test, self.y_test)
+        keep_only_IT = self.tokenizer_opts['keep_only_IT']
+        x_tr, y_tr, x_test, y_test = tokenize_data(raw_data, self.tokenizer, keep_only_IT)
+
+        x1 = pipeline.fit_transform(x_tr, y_tr)
 
         voc = pipeline.named_steps['vect'].vocabulary_
-        x2 = pipeline.transform(ev_tokens)
+        x2 = pipeline.transform(x_test)
 
         return x1, x2, voc
 

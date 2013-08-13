@@ -6,7 +6,7 @@ import validate
 __author__ = 'mmb28'
 
 
-def _nested_set(dic, key_list, value):
+def set_nested(dic, key_list, value):
     """
     >>> d = {}
     >>> nested_set(d, ['person', 'address', 'city'], 'New York')
@@ -24,7 +24,7 @@ def set_in_conf_file(conf_file, keys, new_value):
         keys = [keys]
 
     config_obj, configspec_file = parse_config_file(conf_file)
-    _nested_set(config_obj, keys, new_value)
+    set_nested(config_obj, keys, new_value)
     with open(conf_file, 'w') as outfile:
         config_obj.write(outfile)
 

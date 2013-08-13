@@ -5,7 +5,6 @@ import numpy as np
 from sklearn.datasets import load_files
 from thesisgenerator.classifiers import NoopTransformer
 from thesisgenerator.plugins import thesaurus_loader, tokenizers
-from thesisgenerator.utils.conf_file_utils import parse_config_file
 
 __author__ = 'mmb28'
 
@@ -21,39 +20,45 @@ def get_named_object(pathspec):
     return named_obj
 
 
-def tokenize_data(base_conf_file):
-    config_obj, configspec_file = parse_config_file(base_conf_file)
-    # read the raw text just once
-    options = {'input': config_obj['feature_extraction']['input'],
-               'shuffle_targets': config_obj['shuffle_targets']}
-    try:
-        options['input_generator'] = config_obj['feature_extraction'][
-            'input_generator']
-    except KeyError:
-        options['input_generator'] = ''
-    options['source'] = config_obj['training_data']
-    if config_obj['test_data']:
-        options['test_data'] = config_obj['test_data']
-    print 'Loading training data...'
-    x_tr, y_tr, x_test, y_test = load_text_data_into_memory(options)
-    thesaurus, tokenizer = _init_utilities_state(config_obj)
+def tokenize_data(data, tokenizer, keep_only_IT):
+    # param keep_only_IT: the training data should not depend on the thesaurus, ie the keep_only_IT
+    # intervention should only apply to decode time
+    x_tr, y_tr, x_test, y_test = data
+    tokenizer.keep_only_IT = False
     x_tr = map(tokenizer.tokenize, x_tr)
+    tokenizer.keep_only_IT = keep_only_IT
     x_test = map(tokenizer.tokenize, x_test)
     data = (x_tr, y_tr, x_test, y_test)
-    return data, thesaurus
+    return data
 
 
-def load_text_data_into_memory(options):
+def load_text_data_into_memory(config):
+    # read the raw text just once
+    try:
+        options = {'input': config['feature_extraction']['input'],
+                   'shuffle_targets': config['shuffle_targets'],
+                   'input_generator': config['feature_extraction']['input_generator']}
+    except KeyError:
+        # if the config dict is not created by configobj it may be missing some values
+        # set these to some reasonable defaults
+        options = {'input': 'content',
+                   'shuffle_targets': False,
+                   'input_generator': ''}
+    options['source'] = config['training_data']
+    if config['test_data']:
+        options['test_data'] = config['test_data']
+    print 'Loading training data...'
+
     logging.info('Loading raw training set')
     x_train, y_train = _get_data_iterators(**options)
     if options['test_data']:
         logging.info('Loading raw test set')
         #  change where we read files from
-        options['source'] = options['test_data']
+        options['source'] = config['test_data']
         # ensure that only the training data targets are shuffled
         options['shuffle_targets'] = False
         x_test, y_test = _get_data_iterators(**options)
-    return x_train, y_train, x_test, y_test
+    return (x_train, y_train, x_test, y_test)
 
 
 def _init_utilities_state(config):
