@@ -77,6 +77,11 @@ class Test_ThesaurusVectorizer(TestCase):
         self.x_tr, self.y_tr, self.x_ev, self.y_ev = self. \
             _load_data(self.default_prefix)
 
+        self.training_matrix = np.array([
+            [1, 1, 1, 0, 0, 0],
+            [0, 0, 0, 1, 1, 1],
+        ])
+
     def _load_data(self, prefix):
         """
         Loads a predefined dataset from disk
@@ -341,12 +346,7 @@ class Test_ThesaurusVectorizer(TestCase):
         self.assertIsInstance(x1, sp.spmatrix)
         t.assert_array_equal(
             x1.toarray(),
-            np.array(
-                [
-                    [1, 1, 1, 0, 0, 0],
-                    [0, 0, 0, 1, 1, 1],
-                ]
-            )
+            self.training_matrix
         )
 
         t.assert_array_equal(
@@ -370,24 +370,20 @@ class Test_ThesaurusVectorizer(TestCase):
 
         x1, x2, voc = self._vectorize_data()
 
-        self.assertDictEqual({'a/n': 0, 'b/n': 1, 'd/n': 2}, voc)
+        self.assertDictEqual({'a/n': 0, 'b/n': 1, 'c/n': 2,
+                              'd/n': 3, 'e/n': 4, 'f/n': 5}, voc)
 
         self.assertIsInstance(x1, sp.spmatrix)
         t.assert_array_equal(
             x1.toarray(),
-            np.array(
-                [
-                    [1, 1, 0],
-                    [0, 0, 1],
-                ]
-            )
+            self.training_matrix
         )
 
         t.assert_array_equal(
             x2.toarray(),
             np.array(
                 [
-                    [4, 1, 0]
+                    [4, 1, 0, 0, 0, 0]
                 ]
             )
         )
@@ -413,12 +409,7 @@ class Test_ThesaurusVectorizer(TestCase):
         self.assertIsInstance(x1, sp.spmatrix)
         t.assert_array_equal(
             x1.toarray(),
-            np.array(
-                [
-                    [1, 1, 1, 0, 0, 0],
-                    [0, 0, 0, 1, 1, 1],
-                ]
-            )
+            self.training_matrix
         )
 
         t.assert_array_almost_equal(
@@ -445,24 +436,20 @@ class Test_ThesaurusVectorizer(TestCase):
 
         x1, x2, voc = self._vectorize_data()
 
-        self.assertDictEqual({'a/n': 0, 'b/n': 1, 'd/n': 2}, voc)
+        self.assertDictEqual({'a/n': 0, 'b/n': 1, 'c/n': 2,
+                              'd/n': 3, 'e/n': 4, 'f/n': 5}, voc)
 
         self.assertIsInstance(x1, sp.spmatrix)
         t.assert_array_equal(
             x1.toarray(),
-            np.array(
-                [
-                    [1, 1, 0],
-                    [0, 0, 1]
-                ]
-            )
+            self.training_matrix
         )
 
         t.assert_array_almost_equal(
             x2.toarray(),
             np.array(
                 [
-                    [4, 1, 2.1]
+                    [4, 1, 0, 2.1, 0, 0]
                 ]
             )
         )
@@ -488,12 +475,7 @@ class Test_ThesaurusVectorizer(TestCase):
         self.assertIsInstance(x1, sp.spmatrix)
         t.assert_array_equal(
             x1.toarray(),
-            np.array(
-                [
-                    [1, 1, 1, 0, 0, 0],
-                    [0, 0, 0, 1, 1, 1],
-                ]
-            )
+            self.training_matrix
         )
 
         t.assert_array_almost_equal(
@@ -519,24 +501,20 @@ class Test_ThesaurusVectorizer(TestCase):
 
         x1, x2, voc = self._vectorize_data()
 
-        self.assertDictEqual({'a/n': 0, 'b/n': 1, 'd/n': 2}, voc)
+        self.assertDictEqual({'a/n': 0, 'b/n': 1, 'c/n': 2,
+                              'd/n': 3, 'e/n': 4, 'f/n': 5}, voc)
 
         self.assertIsInstance(x1, sp.spmatrix)
         t.assert_array_equal(
             x1.toarray(),
-            np.array(
-                [
-                    [1, 1, 0],
-                    [0, 0, 1],
-                ]
-            )
+            self.training_matrix
         )
 
         t.assert_array_almost_equal(
             x2.toarray(),
             np.array(
                 [
-                    [0, 0, 4.4]
+                    [0, 0, 0, 4.4, 0, 0]
                 ]
             )
         )
@@ -561,12 +539,7 @@ class Test_ThesaurusVectorizer(TestCase):
         self.assertIsInstance(x1, sp.spmatrix)
         t.assert_array_equal(
             x1.toarray(),
-            np.array(
-                [
-                    [1, 1, 1, 0, 0, 0],
-                    [0, 0, 0, 1, 1, 1],
-                ]
-            )
+            self.training_matrix
         )
 
         t.assert_array_almost_equal(
