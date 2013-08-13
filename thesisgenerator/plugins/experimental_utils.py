@@ -4,13 +4,13 @@
 # if one tries to run this script from the main project directory the
 # thesisgenerator package would not be on the path, add it and try again
 import sys
-from thesisgenerator.utils.data_utils import tokenize_data
-from thesisgenerator.utils.misc import get_susx_mysql_conn
 
 sys.path.append('.')
 sys.path.append('..')
 sys.path.append('../..')
 
+from thesisgenerator.utils.data_utils import tokenize_data
+from thesisgenerator.utils.misc import get_susx_mysql_conn
 from thesisgenerator.plugins.file_generators import _exp16_file_iterator, _exp1_file_iterator, \
     _vary_training_size_file_iterator, get_specific_subexperiment_files
 
