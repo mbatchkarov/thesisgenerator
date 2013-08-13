@@ -199,6 +199,9 @@ class XmlTokenizer(object):
             # just ignore it
         return tokens
 
+    def __str__(self):
+        return 'XmlTokenizer:{}'.format(self.param_values)
+
 
     def _is_number(self, s):
         """

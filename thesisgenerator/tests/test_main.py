@@ -127,7 +127,7 @@ class Test_ThesaurusVectorizer(TestCase):
             'tests' # name of experiments
         )
 
-        raw_data = (self.x_tr, self.y_tr, self.x_test, self.y_test)
+        raw_data = (self.x_tr, self.y_tr, self.x_ev, self.y_ev)
         keep_only_IT = self.tokenizer_opts['keep_only_IT']
         x_tr, y_tr, x_test, y_test = tokenize_data(raw_data, self.tokenizer, keep_only_IT)
 
