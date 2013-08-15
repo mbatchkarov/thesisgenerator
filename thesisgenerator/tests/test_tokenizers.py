@@ -48,7 +48,7 @@ class Test_tokenizer(TestCase):
         cache_memory = Memory(cachedir=joblib_cache_dir, verbose=0)
         false_memory = NoopTransformer()
 
-        for i, memory in enumerate([false_memory, cache_memory]):
+        for using_joblib, memory in enumerate([false_memory, cache_memory]):
             self.params['memory'] = memory
             tokenizer = XmlTokenizer(**self.params)
 
@@ -56,7 +56,7 @@ class Test_tokenizer(TestCase):
             for j in range(10):
                 tokens = tokenizer.tokenize(self.doc)
                 self.assertListEqual(tokens, ['Cats', 'like', 'dogs'])
-                if i == 1:
+                if using_joblib:
                     # with caching the tokenizer must only ever have one cache miss- the first time it is called
                     # if tests have been run before in this directory, the cache will still be there and no cache
                     # misses will occur
@@ -71,12 +71,25 @@ class Test_tokenizer(TestCase):
             tokenizer.use_pos = True
             self.assertTrue(tokenizer.use_pos)
             self.assertTrue(tokenizer.important_params['use_pos'])
+
             tokens = tokenizer.tokenize(self.doc)
             self.assertListEqual(tokens, ['Cats/NNP', 'like/VB', 'dogs/NNP'])
+
+            # changing the parameters of the tokenizer should cause a cache miss
+            self.assertEqual(tokenizer.cache_miss_count, 2 if using_joblib else j + 2)
 
             tokenizer.coarse_pos = True
             tokens = tokenizer.tokenize(self.doc)
             self.assertListEqual(tokens, ['Cats/N', 'like/V', 'dogs/N'])
+            # another cache miss
+            self.assertEqual(tokenizer.cache_miss_count, 3 if using_joblib else j + 3)
+
+            # changing a parameter back to what is was should cause a cache hit
+            tokenizer.use_pos = False
+            tokenizer.coarse_pos = False
+            tokens = tokenizer.tokenize(self.doc)
+            self.assertListEqual(tokens, ['Cats', 'like', 'dogs'])
+            self.assertEqual(tokenizer.cache_miss_count, 3 if using_joblib else j + 4)
 
         import shutil
 
