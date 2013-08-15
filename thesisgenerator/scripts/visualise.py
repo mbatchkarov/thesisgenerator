@@ -298,9 +298,11 @@ experiment_sets = [
     [23, 25, 27, 28], # gigaword with difference token handlers, all tokens + random
 
     [29, 30, 31], # wiki with difference token handlers, IT tokens
-    [32, 33, 34], # wiki with difference token handlers, all tokens
+    # [32, 33, 34], # wiki with difference token handlers, all tokens
 
-    range(22, 33) # all at once
+    [26, 27], # must be the same
+
+    # range(22, 33) # all at once
 ]
 
 Parallel(n_jobs=1)(delayed(performance_bar_chart)(experiments, [clf])
