@@ -301,6 +301,7 @@ experiment_sets = [
     # [32, 33, 34], # wiki with difference token handlers, all tokens
 
     [26, 27], # must be the same
+    [23, 32], # must be the same
 
     # range(22, 33) # all at once
 ]

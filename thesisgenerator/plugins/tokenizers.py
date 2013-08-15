@@ -112,19 +112,32 @@ class XmlTokenizer(object):
             self.thes_entries = set()
 
         # store the important parameters for use as joblib keys
-        self.param_values = deepcopy(self.__dict__)
+        self.important_params = deepcopy(self.__dict__)
         # remove self.thes_entries from key list, may be very large
-        del self.param_values['thes_entries']
+        del self.important_params['thes_entries']
 
         self.charset = 'utf8'
         self.charset_error = 'replace'
         self.cached_tokenize = memory.cache(self.noncached_tokenize, ignore=['self'])
         self.cache_miss_count = 0
 
+    def __setattr__(self, name, value):
+        self.__dict__[name] = value
+
+        # if we try to modify an essential field (one that affect the operation of the tokenizer) make sure to update
+        # that in self.important_params. This is needed because once a tokenizer is created any modifications to its
+        # important fields will not be propagated to self.important_params, practically undoing the modification if
+        # caching is used
+        if hasattr(self, 'important_params'):
+            # before constructor is done self.important_params does not exist
+            if name in self.important_params.keys():
+                self.important_params[name] = value
+
+
     def tokenize(self, doc):
         # also use the tokenizer settings as cache key,
         # ignore the identity of the XmlTokenizer object
-        return self.cached_tokenize(doc, **self.param_values)
+        return self.cached_tokenize(doc, **self.important_params)
 
     def noncached_tokenize(self, doc, **kwargs):
         """
@@ -200,7 +213,7 @@ class XmlTokenizer(object):
         return tokens
 
     def __str__(self):
-        return 'XmlTokenizer:{}'.format(self.param_values)
+        return 'XmlTokenizer:{}'.format(self.important_params)
 
 
     def _is_number(self, s):

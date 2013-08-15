@@ -42,7 +42,10 @@ class Test_tokenizer(TestCase):
         self.assertIn('</token>', self.doc)
 
     def test_tokenizer_with_caching(self):
-        cache_memory = Memory(cachedir='.', verbose=0)
+        from tempfile import mkdtemp
+
+        joblib_cache_dir = mkdtemp(prefix='joblib_cache', suffix='thesgen')
+        cache_memory = Memory(cachedir=joblib_cache_dir, verbose=0)
         false_memory = NoopTransformer()
 
         for i, memory in enumerate([false_memory, cache_memory]):
@@ -62,6 +65,22 @@ class Test_tokenizer(TestCase):
                     # without caching the tokenizer must miss every time
                     self.assertEqual(tokenizer.cache_miss_count, j + 1)
 
+            # modify the tokenizer and check if cache still works as expected
+            self.assertFalse(tokenizer.use_pos)
+            self.assertFalse(tokenizer.important_params['use_pos'])
+            tokenizer.use_pos = True
+            self.assertTrue(tokenizer.use_pos)
+            self.assertTrue(tokenizer.important_params['use_pos'])
+            tokens = tokenizer.tokenize(self.doc)
+            self.assertListEqual(tokens, ['Cats/NNP', 'like/VB', 'dogs/NNP'])
+
+            tokenizer.coarse_pos = True
+            tokens = tokenizer.tokenize(self.doc)
+            self.assertListEqual(tokens, ['Cats/N', 'like/V', 'dogs/N'])
+
+        import shutil
+
+        shutil.rmtree(joblib_cache_dir)
 
     def test_xml_tokenizer_lowercasing(self):
         """
