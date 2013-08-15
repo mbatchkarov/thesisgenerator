@@ -2,14 +2,13 @@
 from math import sqrt
 import os
 import errno
+
 from jinja2 import Template
-
-from thesisgenerator import utils
-
-__author__ = 'mmb28'
-
 import matplotlib.pyplot as plt
 import pandas.io.sql as psql
+
+from thesisgenerator.utils.misc import get_susx_mysql_conn
+
 
 coverage_sql = \
     "SELECT DISTINCT name, sample_size,total_tok,total_typ, " \
@@ -25,7 +24,7 @@ perf_sql = "SELECT sample_size,score_mean,score_std " \
 
 
 def query_to_data_frame(sql):
-    return psql.frame_query(sql, utils.get_susx_mysql_conn())
+    return psql.frame_query(sql, get_susx_mysql_conn())
 
 
 # <codecell>
@@ -144,9 +143,11 @@ def performance_bar_chart(tables, classifiers, width=0.1, cv=25, wheres=[]):
     exp_range = '-'.join(map(str, tables))
     classifiers = '-'.join(classifiers)
     directory = get_hash_and_date(tables[0])
-    plt.savefig('%s/exp%s-%s-%s-perf.png' % (
+    directory = os.path.join(directory, exp_range)
+    if not os.path.exists(directory):
+        os.mkdir(directory)
+    plt.savefig('%s/%s-%s-perf.png' % (
         directory,
-        exp_range,
         classifiers,
         '_'.join(wheres)),
                 format='png',
@@ -211,7 +212,7 @@ def get_hash_and_date(exp_no):
     creates and returns a directory in ./figures/ corresponding to that
     information
     """
-    c = utils.get_susx_mysql_conn().cursor()
+    c = get_susx_mysql_conn().cursor()
     c.execute('SELECT DISTINCT consolidation_date from data%d' % exp_no)
     res = c.fetchall()
     date = res[0][0]
@@ -263,16 +264,19 @@ def get_hash_and_date(exp_no):
 # coverage_bar_chart([6, 8], cv=5, legend_position='upper center')
 
 table_descr = {
-    22: 'IT tokens, signifier',
-    23: 'all tokens, signifier',
-    24: 'IT tokens, signifier + signified',
-    25: 'all token, signifier + signified',
-    26: 'IT tokens, signified',
-    27: 'all tokens, signified',
+    22: 'IT tokens, signifier, giga',
+    23: 'all tokens, signifier, giga',
+    24: 'IT tokens, signifier + signified, giga',
+    25: 'all token, signifier + signified, giga',
+    26: 'IT tokens, signified, giga',
+    27: 'all tokens, signified, giga',
     28: 'all tokens, signified random baseline',
     29: 'IT tokens, signifier, wiki',
     30: 'IT tokens, signified, wiki',
-    31: 'IT tokens, signifier + signified, wiki'
+    31: 'IT tokens, signifier + signified, wiki',
+    32: 'all tokens, signifier, wiki',
+    33: 'all tokens, signified, wiki',
+    34: 'all tokens, signifier + signified, wiki',
 }
 
 from joblib import Parallel, delayed
@@ -285,8 +289,19 @@ Parallel(n_jobs=1)(delayed(coverage_bar_chart)([i], x_columns=['sample_size'])
 
 classifiers = ['BernoulliNB', 'MultinomialNB', 'LogisticRegression',
                'MultinomialNBWithBinaryFeatures']
-experiment_sets = [[23, 22], [25, 24], [27, 26], [22, 26, 24], [23, 27, 25, 28],
-                   [22, 29], [26, 30], [24, 31], [27, 28], range(22, 32)]
+experiment_sets = [
+    [22, 23, 29], # effect of gigaw/wiki as feature selection (signifier, IT tokens) vs 23 as baseline
+
+    [27, 33], # giga vs wiki as feature expansion (signified, all tokens)
+
+    [22, 24, 26], # gigaword with difference token handlers, IT tokens
+    [23, 25, 27, 28], # gigaword with difference token handlers, all tokens + random
+
+    [29, 30, 31], # wiki with difference token handlers, IT tokens
+    [32, 33, 34], # wiki with difference token handlers, all tokens
+
+    range(22, 33) # all at once
+]
 
 Parallel(n_jobs=1)(delayed(performance_bar_chart)(experiments, [clf])
                    for clf in classifiers for experiments in experiment_sets)
