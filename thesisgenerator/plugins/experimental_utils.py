@@ -112,14 +112,14 @@ def run_experiment(expid, subexpid=None, num_workers=4,
 
     _clear_old_files(expid, prefix)
     conf, configspec_file = parse_config_file(base_conf_file)
-    raw_data = load_text_data_into_memory(conf)
+    raw_data, data_ids = load_text_data_into_memory(conf)
     thesaurus, tokenizer = _init_utilities_state(conf)
     keep_only_IT = conf['tokenizer']['keep_only_IT']
-    tokenised_data = tokenize_data(raw_data, tokenizer, keep_only_IT)
+    tokenised_data = tokenize_data(raw_data, tokenizer, keep_only_IT, data_ids)
 
     # run the data through the pipeline
     Parallel(n_jobs=num_workers)(delayed(go)(new_conf_file, log_dir, tokenised_data, thesaurus) for
-                                 new_conf_file, log_dir in conf_file_iterator)
+        new_conf_file, log_dir in conf_file_iterator)
 
     # ----------- CONSOLIDATION -----------
     output_dir = '%s/conf/exp%d/output/' % (prefix, expid)
