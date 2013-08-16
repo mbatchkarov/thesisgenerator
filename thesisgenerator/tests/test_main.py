@@ -86,9 +86,13 @@ class Test_ThesaurusVectorizer(TestCase):
         """
         Loads a predefined dataset from disk
         """
-        self.data_options['training_data'] = '%s-tr' % prefix
-        self.data_options['test_data'] = '%s-ev' % prefix
-        return load_text_data_into_memory(self.data_options)
+        tr = '%s-tr' % prefix
+        self.data_options['training_data'] = tr
+        ev = '%s-ev' % prefix
+        self.data_options['test_data'] = ev
+        self.dataset_names = (tr, ev)
+        data, _ = load_text_data_into_memory(self.data_options)
+        return data
 
     def test_get_data_iterators(self):
         """
@@ -134,7 +138,7 @@ class Test_ThesaurusVectorizer(TestCase):
 
         raw_data = (self.x_tr, self.y_tr, self.x_ev, self.y_ev)
         keep_only_IT = self.tokenizer_opts['keep_only_IT']
-        x_tr, y_tr, x_test, y_test = tokenize_data(raw_data, self.tokenizer, keep_only_IT)
+        x_tr, y_tr, x_test, y_test = tokenize_data(raw_data, self.tokenizer, keep_only_IT, self.dataset_names)
 
         x1 = pipeline.fit_transform(x_tr, y_tr)
 

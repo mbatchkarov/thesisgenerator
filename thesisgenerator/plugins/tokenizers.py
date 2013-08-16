@@ -118,7 +118,7 @@ class XmlTokenizer(object):
 
         self.charset = 'utf8'
         self.charset_error = 'replace'
-        self.cached_tokenize = memory.cache(self.noncached_tokenize, ignore=['self'])
+        self.cached_tokenize_corpus = memory.cache(self._tokenize_corpus, ignore=['corpus','self'])
         self.cache_miss_count = 0
 
     def __setattr__(self, name, value):
@@ -134,12 +134,20 @@ class XmlTokenizer(object):
                 self.important_params[name] = value
 
 
-    def tokenize(self, doc):
-        # also use the tokenizer settings as cache key,
+    def _tokenize_corpus(self, corpus, corpus_id_joblib, **kwargs):
+        # use the tokenizer settings (**kwargs) as cache key,
         # ignore the identity of the XmlTokenizer object
-        return self.cached_tokenize(doc, **self.important_params)
 
-    def noncached_tokenize(self, doc, **kwargs):
+        # record how many times this tokenizer has had a cache miss
+        self.cache_miss_count += 1
+        return [self.tokenize_doc(x) for x in corpus]
+
+    def tokenize_corpus(self, corpus, corpus_id_joblib):
+        # externally visible method- uses a corpus identifier and a bunch of important tokenizer
+        # settings to query the joblib cache
+        return self.cached_tokenize_corpus(corpus, corpus_id_joblib, **self.important_params)
+
+    def tokenize_doc(self, doc, **kwargs):
         """
         Tokenizes a Stanford Core NLP processed document by parsing the XML and
         extracting tokens and their lemmas, with optional lowercasing
@@ -148,8 +156,6 @@ class XmlTokenizer(object):
          canonicalised
         """
 
-        # record how many times this tokenizer has had a cache miss
-        self.cache_miss_count += 1
 
         # decode document
         doc = doc.decode(self.charset, self.charset_error)

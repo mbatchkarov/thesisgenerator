@@ -20,14 +20,16 @@ def get_named_object(pathspec):
     return named_obj
 
 
-def tokenize_data(data, tokenizer, keep_only_IT):
+def tokenize_data(data, tokenizer, keep_only_IT, corpus_ids):
     # param keep_only_IT: the training data should not depend on the thesaurus, ie the keep_only_IT
     # intervention should only apply to decode time
+    # param corpus_ids - list-like, names of the training corpus (and optional testing corpus), used for
+    # retrieving pre-tokenized data from joblib cache
     x_tr, y_tr, x_test, y_test = data
     tokenizer.keep_only_IT = False
-    x_tr = map(tokenizer.tokenize, x_tr)
+    x_tr = tokenizer.tokenize_corpus(x_tr, corpus_ids[0])
     tokenizer.keep_only_IT = keep_only_IT
-    x_test = map(tokenizer.tokenize, x_test)
+    x_test = tokenizer.tokenize_corpus(x_test, corpus_ids[1])
     data = (x_tr, y_tr, x_test, y_test)
     return data
 
@@ -45,8 +47,7 @@ def load_text_data_into_memory(config):
                    'shuffle_targets': False,
                    'input_generator': ''}
     options['source'] = config['training_data']
-    if config['test_data']:
-        options['test_data'] = config['test_data']
+    options['test_data'] = config['test_data'] if config['test_data'] else None
     print 'Loading training data...'
 
     logging.info('Loading raw training set')
@@ -58,7 +59,7 @@ def load_text_data_into_memory(config):
         # ensure that only the training data targets are shuffled
         options['shuffle_targets'] = False
         x_test, y_test = _get_data_iterators(**options)
-    return (x_train, y_train, x_test, y_test)
+    return (x_train, y_train, x_test, y_test), (config['training_data'], config['test_data'])
 
 
 def _init_utilities_state(config):
