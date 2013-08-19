@@ -22,6 +22,7 @@ from logging import StreamHandler
 import inspect
 from time import sleep
 
+from pandas import DataFrame
 import numpy as np
 from numpy.ma import hstack
 from sklearn import cross_validation
@@ -388,9 +389,6 @@ def _analyze(scores, output_dir, name):
     """
 
     logging.info("Analysing results and saving to %s" % output_dir)
-
-    from pandas import DataFrame
-
     cleaned_scores = []
     for result in scores:
         clf, run_no, metric, vals = result
