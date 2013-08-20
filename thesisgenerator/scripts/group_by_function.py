@@ -1,3 +1,4 @@
+from pprint import pformat
 import sys
 
 sys.path.append('.')
@@ -9,7 +10,6 @@ from collections import defaultdict
 import logging
 import os
 import platform
-from glob import glob
 from operator import itemgetter
 
 from joblib import Parallel, delayed, Memory
@@ -149,6 +149,15 @@ def byblo_full_build_4_pos(input_file, nthreads, byblo_path):
             os.mkdir(d)
     entry_freq, feature_freq, event_freq = 1, 1, 1 # todo hardcoded filtering values for now
 
+    def run_byblo_with_iterpipes(command_str):
+        command_str = ' '.join(command_str.split())
+        logging.info(command_str)
+        c = cmd(command_str)
+        out = run(c)
+        logging.info("***Byblo output***")
+        logging.info(''.join(out))
+        logging.info("***End Byblo output***")
+
     for entry_pattern, feature_pattern, output_dir in zip(entry_patterns, feature_patterns, output_dirs):
         command_str = """
         ./byblo.sh --input {input_file} --output {output_dir}
@@ -157,22 +166,20 @@ def byblo_full_build_4_pos(input_file, nthreads, byblo_path):
         --similarity-min 0.01 -k 100 --filter-entry-pattern "{entry_pattern}"
         --filter-feature-pattern "{feature_pattern}"
         """.format(**locals())
-
-        def run_byblo_with_iterpipes(command_str):
-            command_str = ' '.join(command_str.split())
-            logging.info(command_str)
-            c = cmd(command_str)
-            out = run(c)
-            logging.info("***Byblo output***")
-            logging.info(''.join(out))
-            logging.info("***End Byblo output***")
-
         run_byblo_with_iterpipes(command_str)
+
+        # unindex unfiltered events
         command_str = """
         ./tools.sh unindex-events -i {0}.events -o {0}.events.strings
          -Xe {0}.entry-index -Xf {0}.feature-index -et JDBM
         """.format(os.path.join(output_dir, os.path.basename(input_file)))
+        run_byblo_with_iterpipes(command_str)
 
+        # unindex filtered events
+        command_str = """
+        ./tools.sh unindex-events -i {0}.events.filtered -o {0}.events.filtered.strings
+         -Xe {0}.entry-index -Xf {0}.feature-index -et JDBM
+        """.format(os.path.join(output_dir, os.path.basename(input_file)))
         run_byblo_with_iterpipes(command_str)
 
     return output_dirs
@@ -270,7 +277,7 @@ def get_changed_feature_vectors(events_before, events_after):
 
 
 def get_changed_neighbours(changed_entries, old_thes_file, new_thes_file):
-    outfile = new_thes_file + '.comparo.txt'
+    outfile = new_thes_file + '.comparo.strings'
 
     logging.info('Comparing entries in thesauri {} and {}, output will be {}'.format(old_thes_file,
                                                                                      new_thes_file,
@@ -292,7 +299,7 @@ def get_changed_neighbours(changed_entries, old_thes_file, new_thes_file):
                     outfh.write('after:\t{} has been filtered out -------------------------\n'.format(new_entry))
                     # because it has very few or the wrong features, because it does not have any neighbours with
                     # sim >0.01, etc...
-                    logging.warn('{} not in thesaurus'.format(new_entry))
+                    # logging.warn('{} not in thesaurus'.format(new_entry))
             outfh.write('\n')
     return outfile
 
@@ -300,12 +307,14 @@ def get_changed_neighbours(changed_entries, old_thes_file, new_thes_file):
 if __name__ == '__main__':
     hostname = platform.node()
     if 'apollo' in hostname or 'node' in hostname:
-        orig_f = '/FeatureExtrationToolkit/feoutput-deppars/exp6-collated/exp6'
+        orig_f = '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/feoutput-deppars/exp6-collated/exp6'
         byblo_path = '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/Byblo-2.2.0'
+        nthreads = 30
     else:
         # orig_f = '/Volumes/LocalDataHD/mmb28/Desktop/down/exp6-transfer'
         orig_f = '/Volumes/LocalDataHD/mmb28/Desktop/down/e6h'
         byblo_path = '/Volumes/LocalDataHD/mmb28/NetBeansProjects/Byblo-2.2.0'
+        nthreads = 3
 
     logging.basicConfig(level=logging.DEBUG,
                         format="%(asctime)s\t%(module)s.%(funcName)s (line %(lineno)d)\t%(levelname)s : %(""message)s")
@@ -316,32 +325,33 @@ if __name__ == '__main__':
     clean_f = orig_f
     specialised_f = specialise_token_occurences(clean_f)
 
-    # thesaurus_dirs_old = byblo_full_build_4_pos(clean_f, 3, byblo_path)
-    # thesaurus_dirs_new = byblo_full_build_4_pos(specialised_f, 3, byblo_path)
-    thesaurus_dirs_old = [x for x in glob('%s*thes*' % (orig_f)) if 'split' not in x]
-    thesaurus_dirs_new = [x for x in glob('%s*thes*' % (orig_f)) if 'split' in x]
+    thesaurus_dirs_old = byblo_full_build_4_pos(clean_f, nthreads, byblo_path)
+    thesaurus_dirs_new = byblo_full_build_4_pos(specialised_f, nthreads, byblo_path)
+    # thesaurus_dirs_old = [x for x in glob('%s*thes*' % (orig_f)) if 'split' not in x]
+    # thesaurus_dirs_new = [x for x in glob('%s*thes*' % (orig_f)) if 'split' in x]
 
     for old_thes_dir, new_thes_dir in zip(thesaurus_dirs_old, thesaurus_dirs_new):
-        def get_thes_file(input_file, thes_dir):
+        def get_thes_filename(input_file, thes_dir):
             return os.path.join(
                 thes_dir,
                 '{}.sims.neighbours.strings'.format(os.path.basename(input_file))
             )
 
-        def get_events_file(input_file, thes_dir):
+        def get_filtered_events_filename(input_file, thes_dir):
             return os.path.join(
                 thes_dir,
-                '{}.events.strings'.format(os.path.basename(input_file))
+                '{}.events.filtered.strings'.format(os.path.basename(input_file))
             )
 
-        outfile, changed_entries = get_changed_feature_vectors(get_events_file(clean_f, old_thes_dir),
-                                                               get_events_file(specialised_f, new_thes_dir))
+        outfile, changed_entries = get_changed_feature_vectors(
+            get_filtered_events_filename(clean_f, old_thes_dir),
+            get_filtered_events_filename(specialised_f, new_thes_dir))
 
-        # logging.debug('Bucketed entries are:')
-        # logging.debug(pformat(changed_entries))
+        logging.debug('Bucketed entries are:')
+        logging.debug(pformat(changed_entries))
         if changed_entries:
             get_changed_neighbours(changed_entries,
-                                   get_thes_file(clean_f, old_thes_dir),
-                                   get_thes_file(specialised_f, new_thes_dir)
+                                   get_thes_filename(clean_f, old_thes_dir),
+                                   get_thes_filename(specialised_f, new_thes_dir)
             )
             # break
