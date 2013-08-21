@@ -55,6 +55,10 @@ def remove_punctuation(fin):
 
 
 def preserve_cwd(function):
+    """
+    A decorator that changes the working directory to what it was before the annotated function ran
+    """
+
     def decorator(*args, **kwargs):
         cwd = os.getcwd()
         try:
@@ -129,27 +133,30 @@ def specialise_token_occurences(fin):
 @mem.cache
 def byblo_full_build_4_pos(input_file, nthreads, byblo_path):
     """
-    Builds 4 thesauri, one for each main PoS
+    Builds 4 thesauri, one for each main PoS, end then un-indexes the events files
     """
 
     os.chdir(byblo_path)
     pos = ['N', 'V', 'J', 'RB']
-    entry_patterns = ['.+/%s.*' % x for x in pos]
+    entry_patterns = ['.+/%s.*' % x for x in pos] # a single PoS per thesaurus
     feature_patterns = [
         '(amod-DEP|dobj-HEAD|conj-DEP|conj-HEAD|iobj-HEAD|nsubj-HEAD|nn-DEP|nn-HEAD|pobj-HEAD):.+',
         '(conj-DEP|conj-HEAD|dobj-DEP|iobj-DEP|nsubj-DEP):.+',
         '(conj-DEP|conj-HEAD|amod-HEAD):.+',
         '(advmod-HEAD|conj-DEP|conj-HEAD):.+'
-    ]
+    ]   # the standard feature sets from experiment 6-12
 
     input_file_name = os.path.basename(input_file)
     output_dirs = ['%s-%sthes' % (input_file, x) for x in pos]
     for d in output_dirs:
         if not os.path.exists(d):
             os.mkdir(d)
-    entry_freq, feature_freq, event_freq = 1, 1, 1 # todo hardcoded filtering values for now
+    entry_freq, feature_freq, event_freq = 10, 10, 5  # todo hardcoded filtering values for now
 
     def run_byblo_with_iterpipes(command_str):
+        """
+        Uses iterpipes to run the Byblo executable
+        """
         command_str = ' '.join(command_str.split())
         logging.info(command_str)
         c = cmd(command_str)
@@ -159,6 +166,7 @@ def byblo_full_build_4_pos(input_file, nthreads, byblo_path):
         logging.info("***End Byblo output***")
 
     for entry_pattern, feature_pattern, output_dir in zip(entry_patterns, feature_patterns, output_dirs):
+        # full thesaurus build
         command_str = """
         ./byblo.sh --input {input_file} --output {output_dir}
         --threads {nthreads} --filter-entry-freq {entry_freq}
@@ -186,6 +194,9 @@ def byblo_full_build_4_pos(input_file, nthreads, byblo_path):
 
 
 def _byblo_enum_count_filter(features_file):
+    """
+    Runs the first three stages of a byblo build
+    """
     c1 = cmd(
         './byblo.sh -s enumerate,count,filter -i {} -o {} -ffp '
         '".*(-DEP|-HEAD):''.+" -t 30',
@@ -223,6 +234,11 @@ def get_changed_feature_vectors(events_before, events_after):
     Finds entries whose feature vector has been modified by specialise_token_occurences, and prints these to a file
     for inspection.
 
+    Sample output:
+    before:	dead/j --> [('conj-dep:injure', 35.0), ('conj-dep:say', 7.0), ('amod-head:people', 11.0), ...]
+    after:	dead/j/1 --> [('conj-dep:injure', 28.0), ('conj-dep:say', 7.0), ('amod-head:people', 11.0), ...]
+    after:	dead/j/2 --> [('conj-dep:injure', 7.0)]
+    9 features removed
     """
     outfile = events_after + '-comparo.strings'
     logging.info('Comparing feature vectors %s and %s, output will be %s' % (events_before, events_after, outfile))
@@ -243,6 +259,10 @@ def get_changed_feature_vectors(events_before, events_after):
 
     # ignore unsplit tokens
     entry_map = {k: v for k, v in entry_map.iteritems() if len(v) > 1}
+    # entry map is something like   {
+    #                                   'american/j': ['american/j', 'american/j/sub'],
+    #                                   'best/j': ['best/j/sub', 'best/j']
+    #                                }
 
     def _sum(it):
         return sum(map(itemgetter(1), it))
@@ -263,11 +283,13 @@ def get_changed_feature_vectors(events_before, events_after):
                     unsplit += 1
                     # print new_entry, old_entry
 
-            # check that features are not lost or added in the splitting
             if old_num_features != new_num_features:
                 logging.warn('{} features removed for {}'.format(old_num_features - new_num_features, old_entry))
-                # can't assert that because some features might have been removed
-                outfh.write('{} features removed \n'.format(old_num_features - new_num_features))
+                # Some features might have been removed. If the original event occurred 11 times and that was split
+                # between 2 entries, an event threshold of 10 would remove both split events
+                outfh.write('{}/{} features removed \n'.format(
+                    int(old_num_features - new_num_features),
+                    int(old_num_features)))
             outfh.write('\n')
 
         logging.debug(
@@ -277,6 +299,16 @@ def get_changed_feature_vectors(events_before, events_after):
 
 
 def get_changed_neighbours(changed_entries, old_thes_file, new_thes_file):
+    """
+    Given a set of thesaurus entries whose feature vectors changed between two thesauri, goes through the thesarus
+    file and writes the differences to a file for inspection
+
+    Sample output:
+    before:	dead/j --> [('wanted/j', 0.248453), ('elderly/j', 0.173649), ...]
+    after:	dead/j/1 --> [('wanted/j', 0.26173), ('elderly/j', 0.182329), ...]
+    after:	dead/j/2 --> [('dead/j', 0.156498)]
+
+    """
     outfile = new_thes_file + '.comparo.strings'
 
     logging.info('Comparing entries in thesauri {} and {}, output will be {}'.format(old_thes_file,
@@ -309,10 +341,10 @@ if __name__ == '__main__':
     if 'apollo' in hostname or 'node' in hostname:
         orig_f = '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/feoutput-deppars/exp6-collated/exp6'
         byblo_path = '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/Byblo-2.2.0'
-        nthreads = 30
+        nthreads = 64
     else:
         # orig_f = '/Volumes/LocalDataHD/mmb28/Desktop/down/exp6-transfer'
-        orig_f = '/Volumes/LocalDataHD/mmb28/Desktop/down/e6h'
+        orig_f = '/Volumes/LocalDataHD/mmb28/Desktop/down/e6h/e6h'
         byblo_path = '/Volumes/LocalDataHD/mmb28/NetBeansProjects/Byblo-2.2.0'
         nthreads = 3
 
@@ -354,4 +386,3 @@ if __name__ == '__main__':
                                    get_thes_filename(clean_f, old_thes_dir),
                                    get_thes_filename(specialised_f, new_thes_dir)
             )
-            # break
