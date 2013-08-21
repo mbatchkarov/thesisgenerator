@@ -118,7 +118,7 @@ class XmlTokenizer(object):
 
         self.charset = 'utf8'
         self.charset_error = 'replace'
-        self.cached_tokenize_corpus = memory.cache(self._tokenize_corpus, ignore=['corpus','self'])
+        self.cached_tokenize_corpus = memory.cache(self._tokenize_corpus, ignore=['corpus', 'self'])
         self.cache_miss_count = 0
 
     def __setattr__(self, name, value):
@@ -147,6 +147,59 @@ class XmlTokenizer(object):
         # settings to query the joblib cache
         return self.cached_tokenize_corpus(corpus, corpus_id_joblib, **self.important_params)
 
+    def _process_sentence(self, tree):
+        tokens = []
+        for element in tree.findall('.//token'):
+            if self.lemmatize:
+                txt = element.find('lemma').text
+            else:
+                txt = element.find('word').text
+
+            # check if the token is a number/stopword before things have
+            # been done to it
+            am_i_a_number = self._is_number(txt)
+
+            if self.remove_stopwords and txt.lower() in ENGLISH_STOP_WORDS:
+                # logging.debug('Tokenizer ignoring stopword %s' % txt)
+                continue
+
+            if self.remove_short_words and len(txt) <= 3:
+                # logging.debug('Tokenizer ignoring short word %s' % txt)
+                continue
+
+            pos = element.find('POS').text.upper()
+            if self.use_pos:
+                if self.coarse_pos:
+                    pos = self.pos_coarsification_map[pos.upper()]
+                txt = '%s/%s' % (txt, pos)
+
+            if self.normalise_entities:
+                try:
+                    iob_tag = element.find('NER').text.upper()
+                except AttributeError:
+                    logging.error('You have requested named entity '
+                                  'normalisation, but the input data are '
+                                  'not annotated for entities')
+                    raise ValueError('Data not annotated for named '
+                                     'entities')
+
+                if iob_tag != 'O':
+                    txt = '__NER-%s__' % iob_tag
+
+            if pos == 'PUNCT' or am_i_a_number:
+                # logging.debug('Tokenizer ignoring stopword %s' % txt)
+                continue
+
+            if self.lowercase:
+                txt = txt.lower()
+
+            if self.keep_only_IT and txt not in self.thes_entries:
+                # logging.debug('Tokenizer ignoring OOT token: %s' % txt)
+                continue
+            tokens.append(txt)
+
+        return tokens
+
     def tokenize_doc(self, doc, **kwargs):
         """
         Tokenizes a Stanford Core NLP processed document by parsing the XML and
@@ -162,61 +215,14 @@ class XmlTokenizer(object):
         #doc = preprocess(self.decode(doc))
         try:
             tree = ET.fromstring(doc.encode("utf8"))
-            tokens = []
-            for element in tree.findall('.//token'):
-                if self.lemmatize:
-                    txt = element.find('lemma').text
-                else:
-                    txt = element.find('word').text
-
-                # check if the token is a number/stopword before things have
-                # been done to it
-                am_i_a_number = self._is_number(txt)
-
-                if self.remove_stopwords and txt.lower() in ENGLISH_STOP_WORDS:
-                    # logging.debug('Tokenizer ignoring stopword %s' % txt)
-                    continue
-
-                if self.remove_short_words and len(txt) <= 3:
-                    # logging.debug('Tokenizer ignoring short word %s' % txt)
-                    continue
-
-                pos = element.find('POS').text.upper()
-                if self.use_pos:
-                    if self.coarse_pos:
-                        pos = self.pos_coarsification_map[pos.upper()]
-                    txt = '%s/%s' % (txt, pos)
-
-                if self.normalise_entities:
-                    try:
-                        iob_tag = element.find('NER').text.upper()
-                    except AttributeError:
-                        logging.error('You have requested named entity '
-                                      'normalisation, but the input data are '
-                                      'not annotated for entities')
-                        raise ValueError('Data not annotated for named '
-                                         'entities')
-
-                    if iob_tag != 'O':
-                        txt = '__NER-%s__' % iob_tag
-
-                if pos == 'PUNCT' or am_i_a_number:
-                    # logging.debug('Tokenizer ignoring stopword %s' % txt)
-                    continue
-
-                if self.lowercase:
-                    txt = txt.lower()
-
-                if self.keep_only_IT and txt not in self.thes_entries:
-                    # logging.debug('Tokenizer ignoring OOT token: %s' % txt)
-                    continue
-                tokens.append(txt)
-
+            sentences = []
+            for sent_element in tree.findall('.//sentence'):
+                sentences.append(self._process_sentence(sent_element))
         except ET.ParseError:
             pass
             # on OSX the .DS_Store file is passed in, if it exists
             # just ignore it
-        return tokens
+        return sentences
 
     def __str__(self):
         return 'XmlTokenizer:{}'.format(self.important_params)
