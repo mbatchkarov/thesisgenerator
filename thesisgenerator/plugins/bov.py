@@ -1,4 +1,5 @@
 # coding=utf-8
+from itertools import izip, tee
 import logging
 import pickle
 import scipy.sparse as sp
@@ -121,8 +122,18 @@ class ThesaurusVectorizer(TfidfVectorizer):
 
         return super(ThesaurusVectorizer, self).transform(raw_documents)
 
+    def pairwise(self, iterable):
+        """
+        s -> (s0,s1), (s1,s2), (s2, s3), ...
 
-    def my_feature_extractor(self, tokens, ngram_range=(1, 1)):
+        From http://docs.python.org/2/library/itertools.html
+        """
+
+        a, b = tee(iterable)
+        next(b, None)
+        return izip(a, b)
+
+    def my_feature_extractor(self, sentences, ngram_range=(1, 1)):
         """
         Turn a document( a list of tokens) into a sequence of features. These
         include n-grams after stop words filtering,
@@ -138,17 +149,24 @@ class ThesaurusVectorizer(TfidfVectorizer):
         #              for token in
         #              tokens]
 
-        # handle token n-grams
+        features = []
+
+        # extract sentence-internal token n-grams
         min_n, max_n = ngram_range
-        if max_n != 1:
-            original_tokens = tokens
-            tokens = []
-            n_original_tokens = len(original_tokens)
+        for sentence in sentences:
+            n_tokens = len(sentence)
             for n in xrange(min_n,
-                            min(max_n + 1, n_original_tokens + 1)):
-                for i in xrange(n_original_tokens - n + 1):
-                    tokens.append(u" ".join(original_tokens[i: i + n]))
-        return tokens  # + last_chars + shapes
+                            min(max_n + 1, n_tokens + 1)):
+                for i in xrange(n_tokens - n + 1):
+                    features.append(u" ".join(sentence[i: i + n]))
+                    # extract sentence-internal adjective-noun compounds
+
+        for sentence in sentences:
+            for a, b in self.pairwise(sentence):
+                if a.upper().endswith('/J') and b.upper().endswith('/N'):
+                    features.append('{} {}'.format(a, b))
+
+            return features  # + last_chars + shapes
 
     def my_analyzer(self):
         return lambda doc: self.my_feature_extractor(doc, None, None)
