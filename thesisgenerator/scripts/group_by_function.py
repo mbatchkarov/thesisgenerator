@@ -6,7 +6,7 @@ sys.path.append('..')
 sys.path.append('../..')
 
 from thesisgenerator.plugins.thesaurus_loader import Thesaurus
-from collections import defaultdict
+from collections import defaultdict, Counter
 import logging
 import os
 import platform
@@ -70,23 +70,32 @@ def preserve_cwd(function):
 
 
 @preserve_cwd
-@mem.cache
+# @mem.cache
 def specialise_token_occurences(fin):
     """
     Buckets features of each token occurence differently depending on the grammatical function of that occurrence.
     Takes a features file (output of FET, input to Byblo) and input, i.e. slots between FET and Byblo
     """
 
+    features = defaultdict(list)
     # this does not very much- 200/33k new entries appear
     fout = fin + '-split'
     logging.info('Splitting vectors from %s, output will be %s' % (fin, fout))
+
+    adjectives = []
     with open(fin) as infile:
         with open(fout, 'w') as outfile:
             for i, line in enumerate(infile):
                 things = line.split('\t')
 
+                # record some statistic regarding the dep. features of each pos
+                pos = things[0].split('/')[1]
+                features_this = [x.split(':')[0] for x in things[1:] if 'T:' not in x]
+                features[pos].extend(features_this)
+
                 # mark verb occurrence as transitive/ intransitive
                 if '/V' in things[0]:
+                    verb = things[0].split('/')[0]
                     if 'obj-DEP' in line:
                         # both direct and indirect object
                         things[0] = '{}/{}'.format(things[0], 'has_obj')
@@ -112,9 +121,10 @@ def specialise_token_occurences(fin):
                     things[0] = '{}/{}'.format(things[0], 'nn')
 
                 # identify substantiated adjectives
-                # if '/J' in things[0] and 'nsubj-DEP' in line \
-                #     and 'det-HEAD' in line and 'amod-HEAD' not in line:
-                #     print 'substantiated adjective ', i, line.strip()
+                if '/J' in things[0] and 'det-DEP:the' in line and 'amod-HEAD' not in line:
+                    # this will miss some conjoined adjectives, e.g. "the rich and poor", will fire at incorrect
+                    # PoS tags- "the future/J"
+                    print 'substantiated adjective ', i, line.strip()
 
                 if things[0].count('/') > 2:
                     # sometimes because of parsing errors a verb can be
@@ -122,10 +132,12 @@ def specialise_token_occurences(fin):
                     # cases
                     continue
 
-                # todo adverbs the modify a verb/adjective
+                # todo adverbs the modify a verb/adjective- PoS needed on the features, maybe change FET?
                 outfile.write('\t'.join(things))
                 # "I get scared" - scare is a passive verb, I is the subject
 
+    for pos in ['N', 'V', 'J', 'RB']:
+        print('Features of PoS %s:\n%s' % (pos, pformat(Counter(features[pos]).most_common(125))))
     return fout
 
 
@@ -357,32 +369,32 @@ if __name__ == '__main__':
     clean_f = orig_f
     specialised_f = specialise_token_occurences(clean_f)
 
-    thesaurus_dirs_old = byblo_full_build_4_pos(clean_f, nthreads, byblo_path)
-    thesaurus_dirs_new = byblo_full_build_4_pos(specialised_f, nthreads, byblo_path)
-    # thesaurus_dirs_old = [x for x in glob('%s*thes*' % (orig_f)) if 'split' not in x]
-    # thesaurus_dirs_new = [x for x in glob('%s*thes*' % (orig_f)) if 'split' in x]
-
-    for old_thes_dir, new_thes_dir in zip(thesaurus_dirs_old, thesaurus_dirs_new):
-        def get_thes_filename(input_file, thes_dir):
-            return os.path.join(
-                thes_dir,
-                '{}.sims.neighbours.strings'.format(os.path.basename(input_file))
-            )
-
-        def get_filtered_events_filename(input_file, thes_dir):
-            return os.path.join(
-                thes_dir,
-                '{}.events.filtered.strings'.format(os.path.basename(input_file))
-            )
-
-        outfile, changed_entries = get_changed_feature_vectors(
-            get_filtered_events_filename(clean_f, old_thes_dir),
-            get_filtered_events_filename(specialised_f, new_thes_dir))
-
-        logging.debug('Bucketed entries are:')
-        logging.debug(pformat(changed_entries))
-        if changed_entries:
-            get_changed_neighbours(changed_entries,
-                                   get_thes_filename(clean_f, old_thes_dir),
-                                   get_thes_filename(specialised_f, new_thes_dir)
-            )
+    # thesaurus_dirs_old = byblo_full_build_4_pos(clean_f, nthreads, byblo_path)
+    # thesaurus_dirs_new = byblo_full_build_4_pos(specialised_f, nthreads, byblo_path)
+    # # thesaurus_dirs_old = [x for x in glob('%s*thes*' % (orig_f)) if 'split' not in x]
+    # # thesaurus_dirs_new = [x for x in glob('%s*thes*' % (orig_f)) if 'split' in x]
+    #
+    # for old_thes_dir, new_thes_dir in zip(thesaurus_dirs_old, thesaurus_dirs_new):
+    #     def get_thes_filename(input_file, thes_dir):
+    #         return os.path.join(
+    #             thes_dir,
+    #             '{}.sims.neighbours.strings'.format(os.path.basename(input_file))
+    #         )
+    #
+    #     def get_filtered_events_filename(input_file, thes_dir):
+    #         return os.path.join(
+    #             thes_dir,
+    #             '{}.events.filtered.strings'.format(os.path.basename(input_file))
+    #         )
+    #
+    #     outfile, changed_entries = get_changed_feature_vectors(
+    #         get_filtered_events_filename(clean_f, old_thes_dir),
+    #         get_filtered_events_filename(specialised_f, new_thes_dir))
+    #
+    #     logging.debug('Bucketed entries are:')
+    #     logging.debug(pformat(changed_entries))
+    #     if changed_entries:
+    #         get_changed_neighbours(changed_entries,
+    #                                get_thes_filename(clean_f, old_thes_dir),
+    #                                get_thes_filename(specialised_f, new_thes_dir)
+    #         )
