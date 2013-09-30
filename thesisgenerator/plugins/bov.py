@@ -30,8 +30,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
                  sim_compressor='thesisgenerator.utils.misc.noop',
                  train_token_handler='thesisgenerator.plugins.bov_feature_handlers.BaseFeatureHandler',
                  decode_token_handler='thesisgenerator.plugins.bov_feature_handlers.BaseFeatureHandler',
-                 train_thesaurus='',
-                 decode_thesaurus=''):
+                 train_thesaurus='', decode_thesaurus='', vector_source=''):
         """
         Builds a vectorizer the way a TfidfVectorizer is built, and takes one
         extra param specifying the path the the Byblo-generated thesaurus.
@@ -65,6 +64,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
         self.decode_thesaurus = decode_thesaurus # a fully qualified name of a dict-like object,
         # instantiated through reflection
         self.thesaurus = train_thesaurus
+        self.vector_source = vector_source
 
         self.stats = None
         self.handler = None
@@ -109,6 +109,9 @@ class ThesaurusVectorizer(TfidfVectorizer):
             logging.warn('Will be using a different thesaurus through at decode time')
             self.thesaurus = get_named_object(self.decode_thesaurus)(self.vocabulary_)
 
+        # once training is done, convert all document features (unigrams and composable ngrams)
+        # to a ditributional feature vector
+        self.vector_source.build_peripheral_space(self.vocabulary_.keys())
         return res
 
     def transform(self, raw_documents):
@@ -122,7 +125,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
 
         return super(ThesaurusVectorizer, self).transform(raw_documents)
 
-    def pairwise(self, iterable):
+    def _walk_pairwise(self, iterable):
         """
         s -> (s0,s1), (s1,s2), (s2, s3), ...
 
@@ -152,21 +155,20 @@ class ThesaurusVectorizer(TfidfVectorizer):
         features = []
 
         # extract sentence-internal token n-grams
-        min_n, max_n = ngram_range
+        min_n, max_n = map(int, ngram_range)
         for sentence in sentences:
             n_tokens = len(sentence)
-            for n in xrange(min_n,
-                            min(max_n + 1, n_tokens + 1)):
+            for n in xrange(min_n, min(max_n + 1, n_tokens + 1)):
                 for i in xrange(n_tokens - n + 1):
-                    features.append(u" ".join(sentence[i: i + n]))
-                    # extract sentence-internal adjective-noun compounds
+                    features.append(('%d-GRAM' % n, tuple(sentence[i: i + n])))
 
+        # extract sentence-internal adjective-noun compounds
         for sentence in sentences:
-            for a, b in self.pairwise(sentence):
+            for a, b in self._walk_pairwise(sentence):
                 if a.upper().endswith('/J') and b.upper().endswith('/N'):
-                    features.append('{} {}'.format(a, b))
+                    features.append(('AN', (a, b)))
 
-            return features  # + last_chars + shapes
+        return features  # + last_chars + shapes
 
     def my_analyzer(self):
         return lambda doc: self.my_feature_extractor(doc, None, None)

@@ -62,7 +62,7 @@ def load_text_data_into_memory(config):
     return (x_train, y_train, x_test, y_test), (config['training_data'], config['test_data'])
 
 
-def _init_utilities_state(config):
+def _load_thesaurus_and_tokenizer(config):
     """
     Initialises the state of helper modules from a config object
     """

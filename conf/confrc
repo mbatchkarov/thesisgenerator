@@ -15,8 +15,7 @@ shuffle_targets=boolean(default=False)
     strip_accents=string
     lowercase=boolean(default=False)
     token_pattern=string
-    min_n=integer
-    max_n=integer
+#     ngram_range=tuple()
     min_df=integer
     max_df=integer
     analyser=string
@@ -50,6 +49,17 @@ shuffle_targets=boolean(default=False)
     remove_stopwords=boolean(default=False)
 	remove_short_words=boolean(default=False)
 
+[vector_sources]
+	unigram_paths = list(default=list())
+	include_unigram_features=boolean(default=True)
+	[[thesisgenerator.composers.vectorstore.AdditiveComposer]]
+		run=boolean(default=False)
+	[[thesisgenerator.composers.vectorstore.MultiplicativeComposer]]
+		run=boolean(default=False)
+	[[thesisgenerator.composers.vectorstore.BaroniComposer]]
+		run=boolean(default=False)
+		file_path=list(default=list())
+		
 [crossvalidation]
 	run=boolean()
 	type = option('kfold', 'skfold', 'loo', 'bootstrap', 'oracle', default = 'kfold')
