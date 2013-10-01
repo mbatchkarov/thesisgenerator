@@ -168,7 +168,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
                 if a.upper().endswith('/J') and b.upper().endswith('/N'):
                     features.append(('AN', (a, b)))
 
-        return features  # + last_chars + shapes
+        return self.vector_source.accept_features(features)  # + last_chars + shapes
 
     def my_analyzer(self):
         return lambda doc: self.my_feature_extractor(doc, None, None)
