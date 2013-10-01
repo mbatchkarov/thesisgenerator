@@ -38,7 +38,7 @@ def noop(x):
 
 def _vocab_neighbour_source(vocab):
     """
-    Returns a thesaurus-like object which has a single neighbour for every
+    Returns a thesaurus-like object which has a single random neighbour for every
     possible entry. That neighbour is chosen from the vocabulary that is
     passed in (as a dict {feature:index} )
     """

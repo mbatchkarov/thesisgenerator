@@ -1,11 +1,11 @@
-name=string()
-debug=boolean(default=False)
-joblib_caching=boolean(default=False)
-shuffle_targets=boolean(default=False)
+name=string() # used to identify output files
+debug=boolean(default=False) #if true, pipelines will be pickled and feature vectors will be dumped as csv
+joblib_caching=boolean(default=False) # for tokenizer, the whole  corpus can be loaded from disk
+shuffle_targets=boolean(default=False) # randomly change the labels of all documents, sanity check
 
 [feature_extraction]
     run=boolean(default=True)
-    vectorizer=string
+    vectorizer=string # class of vectorizer
     input_generator=string(default="")
 
 	# The below options have defaults in the scikit Vectorizer init
@@ -15,7 +15,7 @@ shuffle_targets=boolean(default=False)
     strip_accents=string
     lowercase=boolean(default=False)
     token_pattern=string
-#     ngram_range=tuple()
+#     ngram_range=tuple() #ngram_range had to be in the format "1,3"
     min_df=integer
     max_df=integer
     analyser=string
@@ -27,19 +27,19 @@ shuffle_targets=boolean(default=False)
     use_tfidf=boolean
 
     # extra options required by the Bag-of-Vectors project Vectorizer
-    train_thesaurus_files=list(default=list())
-    decode_thesaurus=string(default='') # must be a callable
-    k=integer(min=0)
-    sim_threshold=float(default=0.0)
-    lemmatize=boolean(default=True)
-    use_pos=boolean(default=True)
-	coarse_pos=boolean(default=True)
-	normalise_entities=boolean(default=False)
-    include_self=boolean(default=False)
+    train_thesaurus_files=list(default=list()) # a list of files to be read to a dict-like object and passed to the vectorizer at train time
+    decode_thesaurus=string(default='') # a callable to be used instead of the real thesaurus at decode time; used to build a "random or constant" thesaurus as a sanity-check
+    k=integer(min=0) # how many neighbours per entry to read
+    sim_threshold=float(default=0.0) # exclude neighbours from thesaurus if sim is less than threshold
+    lemmatize=boolean(default=True) 
+    use_pos=boolean(default=True) # big cat -> big/JJ cat/NNS
+	coarse_pos=boolean(default=True) 
+	normalise_entities=boolean(default=False) # all named entities -> PERSON/LOCATION/MISC
+    include_self=boolean(default=False) # whether the thesaurus loader includes an entry as its own nearest neighbour
 	record_stats=boolean(default=False)
-	sim_compressor=string(default='thesisgenerator.utils.misc.noop')
+	sim_compressor=string(default='thesisgenerator.utils.misc.noop') # how to scale the sim between two features in a thesaurus when replacing
 
-	train_token_handler=string(default='thesisgenerator.plugins.bov_feature_handlers.BaseFeatureHandler')
+	train_token_handler=string(default='thesisgenerator.plugins.bov_feature_handlers.BaseFeatureHandler') # specified which class to handle the convertion of tokens/ngrams to features, signifier/signified
 	decode_token_handler=string(default='thesisgenerator.plugins.bov_feature_handlers.BaseFeatureHandler')
 
 
@@ -49,7 +49,7 @@ shuffle_targets=boolean(default=False)
     remove_stopwords=boolean(default=False)
 	remove_short_words=boolean(default=False)
 
-[vector_sources]
+[vector_sources] # this section will eventually replace all thesaurus-related options. There will not be a pre-computed sim matrix, just vectors in a suitable datastructure that allows fast online sim calculation
 	unigram_paths = list(default=list())
 	include_unigram_features=boolean(default=True)
 	[[thesisgenerator.composers.vectorstore.AdditiveComposer]]
