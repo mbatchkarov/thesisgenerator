@@ -96,6 +96,18 @@ class TestCompositeVectorSource(TestCase):
         source = CompositeVectorSource(self.conf)
         self.assertSetEqual(source.accept_features(known_features), unigram_feature)
 
+    def test_build_peripheral_space(self):
+        source = CompositeVectorSource(self.conf)
+        accepted_features = source.accept_features(all_features)
+        source.build_peripheral_space(accepted_features)
+        for f in accepted_features:
+            print 'Composing', f
+            print 'Composed vectors are ', source.get_vectors(f)
+            print 'Nearest neighbours are\n'
+            print source.get_nearest_neighbours(f)
+            print
+        self.fail('todo')
+
 
 class TestSimpleComposers(TestCase):
     def setUp(self):
@@ -121,3 +133,9 @@ class TestSimpleComposers(TestCase):
                 np.arange(DIM).reshape((1, DIM)) ** i,
                 result.A
             )
+
+        assert_array_equal(
+            #todo manually multiply a and b here
+            np.arange(DIM).reshape((1, DIM)) ** i,
+            mult.compose(['a', 'b'])
+        )

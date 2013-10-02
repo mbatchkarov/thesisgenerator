@@ -1,8 +1,10 @@
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 import inspect
 import numpy
 import scipy.sparse as sp
+from scipy.sparse import vstack
 from sklearn.feature_extraction import DictVectorizer
+from sklearn.neighbors import NearestNeighbors
 from thesisgenerator.plugins.thesaurus_loader import Thesaurus
 from thesisgenerator.utils.data_utils import get_named_object
 
@@ -22,6 +24,7 @@ class FeatureAcceptor(object):
 class BasicVectorSource(FeatureAcceptor):
     #todo change this to a dict-like object
     feature_pattern = {'1-GRAM'}
+    name = 'Lex'
 
     def __init__(self, files=None):
         if not files:
@@ -33,8 +36,11 @@ class BasicVectorSource(FeatureAcceptor):
             include_self=False)
 
         v = DictVectorizer(sparse=True, dtype=numpy.int32)
+        # distributional features of each unigram in the loaded file
         self.feature_matrix = v.fit_transform([dict(fv) for fv in thesaurus.itervalues()])
+        # unigram -> row number in self.feature_matrix that holds corresponding vector
         self.entry_index = {fv: i for (i, fv) in enumerate(thesaurus.keys())}
+        # the set of all distributional features
         self.distrib_features_vocab = v.vocabulary_
 
     def get_vector(self, word):
@@ -51,7 +57,7 @@ class BasicVectorSource(FeatureAcceptor):
         not bother with composition, just returns a unigram vector. The thing passed in must
         be a one-element iterable. Subclasses override to implement composition
         """
-        return self.get_vector(words)
+        return self.get_vector(words[0])
 
     def accept_features(self, features):
         """
@@ -79,6 +85,7 @@ class Composer(BasicVectorSource):
 
 
 class AdditiveComposer(Composer):
+    name = 'Add'
     # composers in general work with n-grams (for simplicity n<4)
     feature_pattern = {'2-GRAM', '3-GRAM'}
 
@@ -112,6 +119,8 @@ class AdditiveComposer(Composer):
 
 
 class MultiplicativeComposer(AdditiveComposer):
+    name = 'Mult'
+
     def __init__(self, unigram_source=None):
         super(MultiplicativeComposer, self).__init__(unigram_source)
 
@@ -124,6 +133,7 @@ class MultiplicativeComposer(AdditiveComposer):
 class BaroniComposer(Composer):
     # BaroniComposer composes AN features
     feature_pattern = {'AN'}
+    name = 'Baroni'
 
     def __init__(self, unigram_source=None):
         super(BaroniComposer, self).__init__(unigram_source)
@@ -174,11 +184,16 @@ class BaroniComposer(Composer):
 
         return accepted_features
 
+    def compose(self, sequence):
+        #todo currently returns just the noun vector, which is wrong
+        return self.unigram_source.get_vector(sequence[-1])
+
 
 class CompositeVectorSource(FeatureAcceptor):
     def __init__(self, conf):
         self.unigram_source = BasicVectorSource(conf['unigram_paths'])
         self.composers = []
+        self.nbrs, self.feature_matrix, entry_index = [None] * 3 # computed by self.build_peripheral_space()
 
         if conf['include_unigram_features']:
             self.composers.append(self.unigram_source)
@@ -192,10 +207,13 @@ class CompositeVectorSource(FeatureAcceptor):
                 args['unigram_source'] = self.unigram_source
                 self.composers.append(composer_class(**args))
 
-        self.composer_mapping = defaultdict(set) # feature type -> {composer object}
+        self.composer_mapping = OrderedDict()
+        tmp = defaultdict(set) # feature type -> {composer object}
         for c in self.composers:
             for p in c.feature_pattern:
-                self.composer_mapping[p].add(c)
+                tmp[p].add(c)
+        self.composer_mapping.update(tmp)
+
 
     def accept_features(self, features):
     #for c in self.composers:
@@ -203,6 +221,7 @@ class CompositeVectorSource(FeatureAcceptor):
     #print c.accept_features(features)
     #print
         return {f for c in self.composers for f in c.accept_features(features)}
+
 
     def build_peripheral_space(self, vocabulary):
         #todo the exact data structure used here will need optimisation
@@ -216,18 +235,32 @@ class CompositeVectorSource(FeatureAcceptor):
          ('AN', ('tough/J', 'stance/N')),
          ('AN', ('year-ago/J', 'period/N'))
         """
-        # todo build a matrix first, then place in KD-tree
-        for (feature_type, data) in vocabulary:
-            for c in self.composer_mapping[feature_type]:
-                v = c.compose(data)
-                #print data
-                #print v.shape
 
-                #self.nbrs = NearestNeighbors(n_neighbors=1, algorithm='kd_tree').fit(X)
+        self.feature_matrix = vstack(c.compose(data).tolil()
+                                     for (feature_type, data) in vocabulary
+                                     for c in self.composer_mapping[feature_type]).tocsr()
+
+        feature_list = [ngram for ngram in vocabulary for c in self.composer_mapping[ngram[0]]]
+        #todo test if this entry index is correct
+        self.entry_index = {i: ngram for i, ngram in enumerate(feature_list)}
+        assert len(feature_list) == self.feature_matrix.shape[0]
+        self.nbrs = NearestNeighbors(n_neighbors=1, algorithm='kd_tree').fit(self.feature_matrix)
+
 
     def get_vectors(self, ngram):
         """
         Returns a set of vector for the specified ngram, one from each sub-source
         """
-        #todo implement me
-        raise NotImplementedError('todo')
+        feature_type, data = ngram
+        return [(c.name, c.compose(data).todense()) for c in self.composer_mapping[feature_type]]
+
+    def get_nearest_neighbours(self, ngram):
+        """
+        Composes
+        """
+        print 'Composer\t\t\tsim\t\t\tneighbour'
+        for composer, vector in self.get_vectors(ngram):
+            dist, ind = self.nbrs.kneighbors(vector)
+            print '{}\t\t\t{}\t\t\t{}'.format(composer, 1 - dist[0][0], self.entry_index[ind[0][0]])
+        print
+        #return self.nbrs.
