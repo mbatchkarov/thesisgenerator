@@ -31,6 +31,12 @@ class TestUnigramVectorSource(TestCase):
             [[0., 2., 0., 1., 2., 3., 0., 0.]]
         )
 
+        #check if unigram source works when provided with a list
+        assert_array_equal(
+            self.source.get_vector(['b/v']).todense(),
+            [[5., 0., 7., 0., 0., 3., 0., 0.]]
+        )
+
         # vocab is in sorted order
         self.assertDictEqual(
             {'also/rb': 0,

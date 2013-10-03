@@ -58,7 +58,14 @@ class UnigramVectorSource(VectorSource):
         self.distrib_features_vocab = v.vocabulary_
 
     def get_vector(self, word):
-        # word must be a a string
+        # word must be a a string or an iterable. If it's the latter, the first item is used
+
+        if hasattr(word, '__iter__'): #False for strings, true for lists/tuples
+            if len(word) == 1:
+                word = word[0]
+            else:
+                raise ValueError('Attempting to get unigram vector of non-unigram {}'.format(word))
+
         try:
             row = self.entry_index[word]
         except KeyError:

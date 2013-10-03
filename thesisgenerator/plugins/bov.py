@@ -18,7 +18,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
 
     def __init__(self, exp_name='', pipe_id=0, log_vocabulary=False,
                  lowercase=True,
-                 input='content', charset='utf-8', charset_error='strict',
+                 input='content', charset='utf-8', decode_error='strict',
                  strip_accents=None,
                  preprocessor=None, tokenizer=None, analyzer='ngram',
                  stop_words=None, token_pattern=ur"(?u)\b\w\w+\b", min_n=None,
@@ -71,7 +71,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
 
         super(ThesaurusVectorizer, self).__init__(input=input,
                                                   charset=charset,
-                                                  charset_error=charset_error,
+                                                  decode_error=decode_error,
                                                   strip_accents=strip_accents,
                                                   lowercase=lowercase,
                                                   preprocessor=preprocessor,
@@ -79,8 +79,8 @@ class ThesaurusVectorizer(TfidfVectorizer):
                                                   analyzer=analyzer,
                                                   stop_words=stop_words,
                                                   token_pattern=token_pattern,
-                                                  min_n=min_n,
-                                                  max_n=max_n,
+                                                  #min_n=min_n,
+                                                  #max_n=max_n,
                                                   ngram_range=ngram_range,
                                                   max_df=max_df,
                                                   min_df=min_df,
@@ -111,7 +111,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
 
         # once training is done, convert all document features (unigrams and composable ngrams)
         # to a ditributional feature vector
-        self.vector_source.build_peripheral_space(self.vocabulary_.keys())
+        self.vector_source.populate_vector_space(self.vocabulary_.keys())
         return res
 
     def transform(self, raw_documents):

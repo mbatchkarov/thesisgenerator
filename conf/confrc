@@ -11,7 +11,7 @@ shuffle_targets=boolean(default=False) # randomly change the labels of all docum
 	# The below options have defaults in the scikit Vectorizer init
     input=option('content', 'filename', 'file')
     charset=string
-    charset_error=string
+    decode_error=string
     strip_accents=string
     lowercase=boolean(default=False)
     token_pattern=string
