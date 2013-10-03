@@ -101,12 +101,18 @@ class TestCompositeVectorSource(TestCase):
         training_features = source.accept_features(all_features)
         source.populate_vector_space(training_features)
         for f in training_features:
-            print 'Composing', f
-            print 'Composed vectors are ', source.get_vector(f)
-            print 'Nearest neighbours are\n'
-            source.get_nearest_neighbours(f)
-            print '---------------------------'
-        self.fail('todo')
+            #print 'Composing', f
+            #print 'Composed vectors are ', source.get_vector(f)
+            #print 'Nearest neighbours are\n'
+            for (_, dist, _) in source.get_nearest_neighbours(f):
+                # nearest neighbour should be the feature itself
+                self.assertAlmostEquals(dist, 0., places=4)
+                #print '---------------------------'
+
+        for comp, dist, neigh in source.get_nearest_neighbours(('2-GRAM', ('c/j', 'a/n'))):
+            self.assertIn(neigh, training_features)
+            #print comp, dist, neigh
+            #todo expand this test
 
 
 class TestSimpleComposers(TestCase):

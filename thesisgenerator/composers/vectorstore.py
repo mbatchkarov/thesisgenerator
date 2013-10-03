@@ -1,11 +1,14 @@
 from abc import ABCMeta, abstractmethod
 from collections import defaultdict, OrderedDict
 import inspect
+
+from scipy.spatial.distance import cosine
+from sklearn.neighbors import BallTree
 import numpy
 import scipy.sparse as sp
 from scipy.sparse import vstack
 from sklearn.feature_extraction import DictVectorizer
-from sklearn.neighbors import NearestNeighbors
+
 from thesisgenerator.plugins.thesaurus_loader import Thesaurus
 from thesisgenerator.utils.data_utils import get_named_object
 
@@ -222,7 +225,9 @@ class CompositeVectorSource(VectorSource):
         #todo test if this entry index is correct
         self.entry_index = {i: ngram for i, ngram in enumerate(feature_list)}
         assert len(feature_list) == self.feature_matrix.shape[0]
-        self.nbrs = NearestNeighbors(n_neighbors=1, algorithm='kd_tree').fit(self.feature_matrix)
+        #todo BallTree/KDTree only work with dense inputs
+        #self.nbrs = KDTree(n_neighbors=1, algorithm='kd_tree').fit(self.feature_matrix)
+        self.nbrs = BallTree(self.feature_matrix.A, metric=cosine)
 
     def get_vector(self, ngram):
         """
@@ -235,8 +240,12 @@ class CompositeVectorSource(VectorSource):
         """
         Composes
         """
-        print 'Composer\t\t\tsim\t\t\tneighbour'
+        res = []
+        #print 'Composer\t\t\tdist\t\t\tneighbour'
         for composer, vector in self.get_vector(ngram):
-            dist, ind = self.nbrs.kneighbors(vector)
-            print '{}\t\t\t{}\t\t\t{}'.format(composer, 1 - dist[0][0], self.entry_index[ind[0][0]])
-            #return self.nbrs.
+            #dist, ind = self.nbrs.kneighbors(vector)
+            dist, ind = self.nbrs.query(vector, k=1, return_distance=True)
+            data = (composer, dist[0][0], self.entry_index[ind[0][0]])
+            #print '{}\t\t\t{}\t\t\t{}'.format(*data)
+            res.append(data)
+        return res
