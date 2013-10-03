@@ -5,7 +5,7 @@ import numpy as np
 from numpy.testing import assert_array_equal
 from scipy.sparse import csr_matrix, issparse
 
-from thesisgenerator.composers.vectorstore import BasicVectorSource, CompositeVectorSource, AdditiveComposer, MultiplicativeComposer
+from thesisgenerator.composers.vectorstore import UnigramVectorSource, CompositeVectorSource, AdditiveComposer, MultiplicativeComposer
 
 DIM = 10
 
@@ -21,7 +21,7 @@ all_features = known_features | unk_unigram_feature | unk_bigram_feature
 
 class TestUnigramVectorSource(TestCase):
     def setUp(self):
-        self.source = BasicVectorSource(path)
+        self.source = UnigramVectorSource(path)
 
     def test_get_vector(self):
         # vectors come out right
@@ -96,16 +96,16 @@ class TestCompositeVectorSource(TestCase):
         source = CompositeVectorSource(self.conf)
         self.assertSetEqual(source.accept_features(known_features), unigram_feature)
 
-    def test_build_peripheral_space(self):
+    def test_build_vector_space(self):
         source = CompositeVectorSource(self.conf)
-        accepted_features = source.accept_features(all_features)
-        source.build_peripheral_space(accepted_features)
-        for f in accepted_features:
+        training_features = source.accept_features(all_features)
+        source.populate_vector_space(training_features)
+        for f in training_features:
             print 'Composing', f
-            print 'Composed vectors are ', source.get_vectors(f)
+            print 'Composed vectors are ', source.get_vector(f)
             print 'Nearest neighbours are\n'
-            print source.get_nearest_neighbours(f)
-            print
+            source.get_nearest_neighbours(f)
+            print '---------------------------'
         self.fail('todo')
 
 
@@ -114,28 +114,42 @@ class TestSimpleComposers(TestCase):
         self.m = Mock()
         self.m.get_vector.return_value = csr_matrix(np.arange(DIM))
 
+    def test_with_real_data(self):
+        source = UnigramVectorSource(path)
+        add = AdditiveComposer(source)
+        mult = MultiplicativeComposer(source)
+
+        assert_array_equal(
+            np.array([[0, 0, 0, 0, 0, 9, 0, 0]]),
+            mult.get_vector(['a/n', 'b/v']).A
+        )
+
+        assert_array_equal(
+            np.array([[5, 2, 7, 1, 2, 6, 0, 0]]),
+            add.get_vector(['a/n', 'b/v']).A
+        )
+
+        assert_array_equal(
+            np.array([[5, 11, 15, 1, 2, 6, 10, 4]]),
+            add.get_vector(['a/n', 'b/v', 'c/j']).A
+        )
+
     def test_compose(self):
         add = AdditiveComposer(self.m)
         mult = MultiplicativeComposer(self.m)
 
         for i in np.arange(1, DIM):
             print i
-            result = add.compose(['a'] * i)
+            result = add.get_vector(['a'] * i)
             self.assertTrue(issparse(result))
             assert_array_equal(
                 np.arange(DIM).reshape((1, DIM)) * i,
                 result.A
             )
 
-            result = mult.compose(['a'] * i)
+            result = mult.get_vector(['a'] * i)
             self.assertTrue(issparse(result))
             assert_array_equal(
                 np.arange(DIM).reshape((1, DIM)) ** i,
                 result.A
             )
-
-        assert_array_equal(
-            #todo manually multiply a and b here
-            np.arange(DIM).reshape((1, DIM)) ** i,
-            mult.compose(['a', 'b'])
-        )
