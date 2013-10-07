@@ -9,6 +9,7 @@ Created on Oct 18, 2012
 # if one tries to run this script from the main project directory the
 # thesisgenerator package would not be on the path, add it and try again
 import sys
+from thesisgenerator.utils.reflection_utils import get_named_object
 
 sys.path.append('.')
 sys.path.append('..')
@@ -31,8 +32,8 @@ from sklearn.pipeline import Pipeline
 from thesisgenerator.utils.misc import ChainCallable
 from thesisgenerator.classifiers import LeaveNothingOut, PredefinedIndicesIterator, SubsamplingPredefinedIndicesIterator, PicklingPipeline
 from thesisgenerator.utils.conf_file_utils import set_in_conf_file, parse_config_file
-from thesisgenerator.utils.data_utils import tokenize_data, get_named_object, load_text_data_into_memory, \
-    _load_thesaurus_and_tokenizer
+from thesisgenerator.utils.data_utils import tokenize_data, load_text_data_into_memory, \
+    _load_vectors_and_tokenizer
 from thesisgenerator import config
 from thesisgenerator.plugins.dumpers import FeatureVectorsCsvDumper
 from thesisgenerator.plugins.crossvalidation import naming_cross_val_score
@@ -563,7 +564,7 @@ if __name__ == '__main__':
 
     conf, configspec_file = parse_config_file(conf_file)
     data = load_text_data_into_memory(conf)
-    thesaurus, tokenizer = _load_thesaurus_and_tokenizer(conf)
+    thesaurus, tokenizer = _load_vectors_and_tokenizer(conf)
     keep_only_IT = conf['tokenizer']['keep_only_IT']
     data = tokenize_data(data, tokenizer, keep_only_IT)
     go(conf_file, log_dir, data, thesaurus, classpath=classpath, clean=clean, n_jobs=1)

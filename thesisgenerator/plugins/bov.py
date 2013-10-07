@@ -7,7 +7,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from thesisgenerator.classifiers import NoopTransformer
 from thesisgenerator.plugins import tokenizers
 from thesisgenerator.plugins.bov_feature_handlers import get_token_handler, get_stats_recorder
-from thesisgenerator.utils.data_utils import get_named_object
+from thesisgenerator.utils.reflection_utils import get_named_object
 
 
 class ThesaurusVectorizer(TfidfVectorizer):

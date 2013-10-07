@@ -30,12 +30,11 @@ shuffle_targets=boolean(default=False) # randomly change the labels of all docum
     train_thesaurus_files=list(default=list()) # a list of files to be read to a dict-like object and passed to the vectorizer at train time
     decode_thesaurus=string(default='') # a callable to be used instead of the real thesaurus at decode time; used to build a "random or constant" thesaurus as a sanity-check
     k=integer(min=0) # how many neighbours per entry to read
-    sim_threshold=float(default=0.0) # exclude neighbours from thesaurus if sim is less than threshold
     lemmatize=boolean(default=True) 
     use_pos=boolean(default=True) # big cat -> big/JJ cat/NNS
 	coarse_pos=boolean(default=True) 
 	normalise_entities=boolean(default=False) # all named entities -> PERSON/LOCATION/MISC
-    include_self=boolean(default=False) # whether the thesaurus loader includes an entry as its own nearest neighbour
+
 	record_stats=boolean(default=False)
 	sim_compressor=string(default='thesisgenerator.utils.misc.noop') # how to scale the sim between two features in a thesaurus when replacing
 
@@ -51,7 +50,10 @@ shuffle_targets=boolean(default=False) # randomly change the labels of all docum
 
 [vector_sources] # this section will eventually replace all thesaurus-related options. There will not be a pre-computed sim matrix, just vectors in a suitable datastructure that allows fast online sim calculation
 	unigram_paths = list(default=list())
+	include_self=boolean(default=False) # whether the thesaurus loader includes an entry as its own nearest neighbour
+	sim_threshold=float(default=0.0) # exclude neighbours from thesaurus if sim is less than threshold
 	include_unigram_features=boolean(default=True)
+	
 	[[thesisgenerator.composers.vectorstore.AdditiveComposer]]
 		run=boolean(default=False)
 	[[thesisgenerator.composers.vectorstore.MultiplicativeComposer]]

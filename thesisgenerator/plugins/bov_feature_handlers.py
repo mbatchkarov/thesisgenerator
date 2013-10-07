@@ -1,26 +1,24 @@
 from collections import deque
 import logging
-from thesisgenerator.utils.data_utils import get_named_object
+from thesisgenerator.utils.reflection_utils import get_named_object
 
 
 def get_stats_recorder(enabled=False):
     return StatsRecorder() if enabled else NoopStatsRecorder()
 
 
-def get_token_handler(handler_name, k, transformer_name, thesaurus):
+def get_token_handler(handler_name, k, transformer_name, vector_source):
     # k- parameter for _paraphrase
     # sim_transformer- callable that transforms the raw sim scores in
     # _paraphrase
     # todo replace k with a named object
     handler = get_named_object(handler_name)
     transformer = get_named_object(transformer_name)
-    logging.info('Returning token handler %s (k=%s, sim transformer=%s), '
-                 'thesaurus size=%d' % (
-                     handler,
-                     k,
-                     transformer,
-                     len(thesaurus)))
-    return handler(k, transformer, thesaurus)
+    logging.info('Returning token handler %s (k=%s, sim transformer=%s)' % (
+        handler,
+        k,
+        transformer))
+    return handler(k, transformer, vector_source)
 
 
 class StatsRecorder(object):
@@ -99,7 +97,7 @@ def _ignore_feature(doc_id, document_term):
 def _paraphrase(doc_id, doc_id_indices,
                 document_term, count, term_indices,
                 values, vocabulary, k, sim_transformer,
-                thesaurus):
+                vector_source):
     """
     Replaces term with its k nearest neighbours from the thesaurus
 
@@ -115,7 +113,7 @@ def _paraphrase(doc_id, doc_id_indices,
     """
 
     #neighbours = thesaurus(vocabulary)[document_term]
-    neighbours = thesaurus.get(document_term)
+    neighbours = vector_source.get_nearest_neighbours(document_term)
 
     # if there are any neighbours filter the list of
     # neighbours so that it contains only pairs where
@@ -148,7 +146,7 @@ class BaseFeatureHandler():
         - OOV, OOT: ignore feature
     """
 
-    def __init__(self, k, sim_transformer, thesaurus):
+    def __init__(self, k, sim_transformer, vector_source):
         # contructor takes parameters for compatibility with others
         pass
 
@@ -184,17 +182,17 @@ class SignifierSignifiedFeatureHandler(BaseFeatureHandler):
         ignoring the feature
     """
 
-    def __init__(self, k, sim_transformer, thesaurus):
+    def __init__(self, k, sim_transformer, vector_source):
         self.k = k
         self.sim_transformer = sim_transformer
-        self.thesaurus = thesaurus
+        self.vector_source = vector_source
 
     def handle_OOV_IT_feature(self, doc_id, doc_id_indices, document_term,
                               term_indices, term_index_in_vocab, values, count,
                               vocabulary):
         _paraphrase(doc_id, doc_id_indices, document_term, count,
                     term_indices, values, vocabulary, self.k,
-                    self.sim_transformer, self.thesaurus)
+                    self.sim_transformer, self.vector_source)
 
 
 class SignifiedOnlyFeatureHandler(BaseFeatureHandler):
@@ -203,17 +201,17 @@ class SignifiedOnlyFeatureHandler(BaseFeatureHandler):
     thesaurus for all IT features
     """
 
-    def __init__(self, k, sim_transformer, thesaurus):
+    def __init__(self, k, sim_transformer, vector_source):
         self.k = k
         self.sim_transformer = sim_transformer
-        self.thesaurus = thesaurus
+        self.vector_source = vector_source
 
     def handle_OOV_IT_feature(self, doc_id, doc_id_indices, document_term,
                               term_indices, term_index_in_vocab, values, count,
                               vocabulary):
         _paraphrase(doc_id, doc_id_indices, document_term, count,
                     term_indices, values, vocabulary, self.k,
-                    self.sim_transformer, self.thesaurus)
+                    self.sim_transformer, self.vector_source)
 
     handle_IV_IT_feature = handle_OOV_IT_feature
 
@@ -228,10 +226,10 @@ class SignifierRandomBaselineFeatureHandler(SignifiedOnlyFeatureHandler):
     Ignores all OOT features and inserts K random IV tokens for all IT features
     """
 
-    def __init__(self, k, sim_transformer, thesaurus):
+    def __init__(self, k, sim_transformer, vector_source):
         self.k = k
         self.sim_transformer = sim_transformer
-        self.thesaurus = thesaurus
+        self.vector_source = vector_source
 
     def handle_OOV_IT_feature(self, doc_id, doc_id_indices, document_term,
                               term_indices, term_index_in_vocab, values, count,
@@ -239,37 +237,6 @@ class SignifierRandomBaselineFeatureHandler(SignifiedOnlyFeatureHandler):
         _paraphrase(doc_id, doc_id_indices, document_term, count,
                     term_indices, values, vocabulary, self.k,
                     self.sim_transformer,
-                    thesaurus=self.thesaurus)
+                    vector_source=self.vector_source)
 
     handle_IV_IT_feature = handle_OOV_IT_feature
-
-# class ReplaceAllFeatureHandler(BaseFeatureHandler):
-#     """
-#     Handles features the way standard Naive Bayes does, except
-#         - OOV, IT: insert the first K IV neighbours from thesaurus
-#         - IV, IT: insert the first K IV neighbours from thesaurus
-#
-#         Note: no token can ever be IV and OOT in this setting
-#     """
-#
-#     def __init__(self, k, sim_transformer):
-#         self.k = k
-#         self.sim_transformer = sim_transformer
-#
-#     def handle_IV_IT_feature(self, doc_id, doc_id_indices, document_term,
-#                              term_indices, term_index_in_vocab, values, count,
-#                              vocabulary):
-#         _paraphrase(doc_id, doc_id_indices,
-#                     document_term, count, term_indices,
-#                     values, vocabulary, self.k, self.sim_transformer)
-#
-#     handle_OOV_IT_feature = handle_IV_IT_feature
-#
-#     def handle_IV_OOT_feature(self, doc_id, doc_id_indices, document_term,
-#                               term_indices, term_index_in_vocab, values, count,
-#                               vocabulary):
-#         raise Exception('This must never be reached because set(vocabulary)=='
-#                         ' set(thesaurus.keys()). It is not possible for a '
-#                         'feature to be IV and OOT')
-
-

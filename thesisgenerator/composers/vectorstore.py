@@ -1,6 +1,7 @@
 from abc import ABCMeta, abstractmethod
 from collections import defaultdict, OrderedDict
 import inspect
+from operator import itemgetter
 
 from scipy.spatial.distance import cosine
 from sklearn.neighbors import BallTree
@@ -10,7 +11,7 @@ from scipy.sparse import vstack
 from sklearn.feature_extraction import DictVectorizer
 
 from thesisgenerator.plugins.thesaurus_loader import Thesaurus
-from thesisgenerator.utils.data_utils import get_named_object
+from thesisgenerator.utils.reflection_utils import get_named_object
 
 
 class VectorSource(object):
@@ -183,7 +184,10 @@ class CompositeVectorSource(VectorSource):
     def __init__(self, conf):
         self.unigram_source = UnigramVectorSource(conf['unigram_paths'])
         self.composers = []
-        self.nbrs, self.feature_matrix, entry_index = [None] * 3 # computed by self.build_peripheral_space()
+        self.sim_threshold = conf['sim_threshold']
+        self.include_self = conf['include_self']
+
+        self.nbrs, self.feature_matrix, entry_index = [None] * 3     # computed by self.build_peripheral_space()
 
         if conf['include_unigram_features']:
             self.composers.append(self.unigram_source)
@@ -243,7 +247,7 @@ class CompositeVectorSource(VectorSource):
         feature_type, data = ngram
         return [(c.name, c.get_vector(data).todense()) for c in self.composer_mapping[feature_type]]
 
-    def get_nearest_neighbours(self, ngram):
+    def _get_nearest_neighbours(self, ngram):
         """
         Composes
         """
@@ -254,5 +258,13 @@ class CompositeVectorSource(VectorSource):
             dist, ind = self.nbrs.query(vector, k=1, return_distance=True)
             data = (composer, dist[0][0], self.entry_index[ind[0][0]])
             #print '{}\t\t\t{}\t\t\t{}'.format(*data)
+            #todo tests for this if and the one below
+            if ngram == data[2] and not self.include_self:
+                continue
+            if 1 - dist < self.sim_threshold:
+                continue
             res.append(data)
         return res
+
+    def get_nearest_neighbours(self, ngram):
+        return map(itemgetter(2), self._get_nearest_neighbours(ngram))

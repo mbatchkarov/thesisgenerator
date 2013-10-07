@@ -4,20 +4,11 @@ from joblib import Memory
 import numpy as np
 from sklearn.datasets import load_files
 from thesisgenerator.classifiers import NoopTransformer
-from thesisgenerator.plugins import thesaurus_loader, tokenizers
+from thesisgenerator.composers.vectorstore import CompositeVectorSource
+from thesisgenerator.plugins import tokenizers
+from thesisgenerator.utils.reflection_utils import get_named_object
 
 __author__ = 'mmb28'
-
-
-def get_named_object(pathspec):
-    """Return a named from a module.
-    """
-    logging.info('Getting named object %s' % pathspec)
-    parts = pathspec.split('.')
-    module = ".".join(parts[:-1])
-    mod = __import__(module, fromlist=parts[-1])
-    named_obj = getattr(mod, parts[-1])
-    return named_obj
 
 
 def tokenize_data(data, tokenizer, keep_only_IT, corpus_ids):
@@ -62,7 +53,7 @@ def load_text_data_into_memory(config):
     return (x_train, y_train, x_test, y_test), (config['training_data'], config['test_data'])
 
 
-def _load_thesaurus_and_tokenizer(config):
+def _load_vectors_and_tokenizer(config):
     """
     Initialises the state of helper modules from a config object
     """
@@ -72,10 +63,11 @@ def _load_thesaurus_and_tokenizer(config):
     else:
         memory = NoopTransformer()
 
-    th1 = thesaurus_loader.Thesaurus(
-        config['feature_extraction']['train_thesaurus_files'],
-        sim_threshold=config['feature_extraction']['sim_threshold'],
-        include_self=config['feature_extraction']['include_self'])
+    vector_store = CompositeVectorSource(config['vector_sources'])
+    #thesaurus_loader.Thesaurus(
+    #config['vector_sources']['train_thesaurus_files'],
+    #sim_threshold=config['vector_sources']['sim_threshold'],
+    #include_self=config['vector_sources']['include_self'])
 
     tok = tokenizers.XmlTokenizer(
         memory,
@@ -83,14 +75,14 @@ def _load_thesaurus_and_tokenizer(config):
         use_pos=config['feature_extraction']['use_pos'],
         coarse_pos=config['feature_extraction']['coarse_pos'],
         lemmatize=config['feature_extraction']['lemmatize'],
-        thesaurus=th1,
+        thesaurus=vector_store,
         lowercase=config['tokenizer']['lowercase'],
         keep_only_IT=config['tokenizer']['keep_only_IT'],
         remove_stopwords=config['tokenizer']['remove_stopwords'],
         remove_short_words=config['tokenizer']['remove_short_words'],
         use_cache=config['joblib_caching']
     )
-    return th1, tok
+    return vector_store, tok
 
 
 def _get_data_iterators(**kwargs):

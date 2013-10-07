@@ -3,7 +3,7 @@ import inspect
 import logging
 from random import choice
 from configobj import ConfigObj
-from thesisgenerator.utils.data_utils import get_named_object
+from thesisgenerator.utils.reflection_utils import get_named_object
 
 __author__ = 'mmb28'
 
