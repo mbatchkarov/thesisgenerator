@@ -9,8 +9,9 @@ import numpy as np
 from numpy.ma import std
 import numpy.testing as t
 import scipy.sparse as sp
+from thesisgenerator.composers.vectorstore import PrecomputedSimilaritiesVectorSource
 
-from thesisgenerator.plugins import tokenizers, thesaurus_loader
+from thesisgenerator.plugins import tokenizers
 from thesisgenerator import __main__
 from thesisgenerator.utils.misc import _vocab_neighbour_source
 from thesisgenerator.utils.data_utils import load_text_data_into_memory, tokenize_data
@@ -38,7 +39,7 @@ class Test_ThesaurusVectorizer(TestCase):
             'sim_threshold': 0,
             'include_self': False
         }
-        self.thesaurus = thesaurus_loader.Thesaurus(**self._thesaurus_opts)
+        self.vector_source = PrecomputedSimilaritiesVectorSource(**self._thesaurus_opts)
 
         self.tokenizer_opts = {
             'normalise_entities': False,
@@ -50,7 +51,7 @@ class Test_ThesaurusVectorizer(TestCase):
             'remove_stopwords': False,
             'remove_short_words': False,
             'use_cache': False,
-            'thesaurus': self.thesaurus
+            'thesaurus': self.vector_source
         }
         self.tokenizer = tokenizers.XmlTokenizer(**self.tokenizer_opts)
 
@@ -124,7 +125,7 @@ class Test_ThesaurusVectorizer(TestCase):
             self.feature_extraction_conf['decode_thesaurus'] = fully_qualified_name(thesaurus_getter)
 
         pipeline = __main__._build_pipeline(
-            self.thesaurus,
+            self.vector_source,
             12345, #id for naming debug files
             None, # classifier
             self.feature_extraction_conf,
@@ -148,8 +149,8 @@ class Test_ThesaurusVectorizer(TestCase):
         return x1, x2, voc
 
     def _reload_thesaurus_and_tokenizer(self):
-        self.thesaurus = thesaurus_loader.Thesaurus(**self._thesaurus_opts)
-        self.tokenizer_opts['thesaurus'] = self.thesaurus
+        self.vector_source = PrecomputedSimilaritiesVectorSource(**self._thesaurus_opts)
+        self.tokenizer_opts['thesaurus'] = self.vector_source
         self.tokenizer = tokenizers.XmlTokenizer(**self.tokenizer_opts)
 
 
@@ -176,7 +177,7 @@ class Test_ThesaurusVectorizer(TestCase):
             # the expected matrices are the same with and without
             # include_self when replace_all=False
             self._thesaurus_opts['include_self'] = inc_self
-            self.thesaurus = self._reload_thesaurus_and_tokenizer()
+            self.vector_source = self._reload_thesaurus_and_tokenizer()
 
             x1, x2, voc = self._vectorize_data()
 

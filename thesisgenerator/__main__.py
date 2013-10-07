@@ -143,7 +143,7 @@ def _build_crossvalidation_iterator(config, x_vals, y_vals, x_test=None,
     return iterator, validation_indices, x_vals, y_vals
 
 
-def _build_vectorizer(thesaurus, vector_source, id, call_args, feature_extraction_conf, pipeline_list,
+def _build_vectorizer(vector_source, id, call_args, feature_extraction_conf, pipeline_list,
                       output_dir, debug=False, exp_name=''):
     """
     Builds a vectorized that converts raw text to feature vectors. The
@@ -177,7 +177,6 @@ def _build_vectorizer(thesaurus, vector_source, id, call_args, feature_extractio
                       for arg, val in feature_extraction_conf.items()
                       if val != '' and arg in initialize_args})
     call_args['vect__exp_name'] = exp_name
-    call_args['vect__train_thesaurus'] = thesaurus
     call_args['vect__vector_source'] = vector_source
 
     pipeline_list.append(('vect', vectorizer()))
@@ -237,7 +236,7 @@ def _build_dimensionality_reducer(call_args, dimensionality_reduction_conf,
         pipeline_list.append(('dr', dr_method()))
 
 
-def _build_pipeline(thesaurus, vector_source, id, classifier_name, feature_extr_conf, feature_sel_conf,
+def _build_pipeline(vector_source, id, classifier_name, feature_extr_conf, feature_sel_conf,
                     dim_red_conf, classifier_conf, output_dir, debug,
                     exp_name=''):
     """
@@ -250,7 +249,7 @@ def _build_pipeline(thesaurus, vector_source, id, classifier_name, feature_extr_
     call_args = {}
     pipeline_list = []
 
-    _build_vectorizer(thesaurus, vector_source, id, call_args, feature_extr_conf,
+    _build_vectorizer(vector_source, id, call_args, feature_extr_conf,
                       pipeline_list, output_dir, debug, exp_name=exp_name)
 
     _build_feature_selector(call_args, feature_sel_conf,

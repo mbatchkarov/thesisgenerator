@@ -5,7 +5,7 @@ import numpy as np
 from numpy.testing import assert_array_equal
 from scipy.sparse import csr_matrix, issparse
 
-from thesisgenerator.composers.vectorstore import UnigramVectorSource, CompositeVectorSource, AdditiveComposer, MultiplicativeComposer
+from thesisgenerator.composers.vectorstore import UnigramVectorSource, CompositeVectorSource, AdditiveComposer, MultiplicativeComposer, PrecomputedSimilaritiesVectorSource
 
 DIM = 10
 
@@ -27,13 +27,13 @@ class TestUnigramVectorSource(TestCase):
         # vectors come out right
         # a/N	amod:c	2   T:t1	1	T:t2	2	T:t3	3
         assert_array_equal(
-            self.source.get_vector('a/n').todense(),
+            self.source._get_vector('a/n').todense(),
             [[0., 2., 0., 1., 2., 3., 0., 0.]]
         )
 
         #check if unigram source works when provided with a list
         assert_array_equal(
-            self.source.get_vector(['b/v']).todense(),
+            self.source._get_vector(['b/v']).todense(),
             [[5., 0., 7., 0., 0., 3., 0., 0.]]
         )
 
@@ -50,7 +50,7 @@ class TestUnigramVectorSource(TestCase):
             },
             self.source.distrib_features_vocab)
 
-        self.assertIsNone(self.source.get_vector('jfhjgjdfyjhgb'))
+        self.assertIsNone(self.source._get_vector('jfhjgjdfyjhgb'))
 
     def test_accept_features(self):
         """
@@ -126,7 +126,7 @@ class TestCompositeVectorSource(TestCase):
 class TestSimpleComposers(TestCase):
     def setUp(self):
         self.m = Mock()
-        self.m.get_vector.return_value = csr_matrix(np.arange(DIM))
+        self.m._get_vector.return_value = csr_matrix(np.arange(DIM))
 
     def test_with_real_data(self):
         source = UnigramVectorSource(path)
@@ -135,17 +135,17 @@ class TestSimpleComposers(TestCase):
 
         assert_array_equal(
             np.array([[0, 0, 0, 0, 0, 9, 0, 0]]),
-            mult.get_vector(['a/n', 'b/v']).A
+            mult._get_vector(['a/n', 'b/v']).A
         )
 
         assert_array_equal(
             np.array([[5, 2, 7, 1, 2, 6, 0, 0]]),
-            add.get_vector(['a/n', 'b/v']).A
+            add._get_vector(['a/n', 'b/v']).A
         )
 
         assert_array_equal(
             np.array([[5, 11, 15, 1, 2, 6, 10, 4]]),
-            add.get_vector(['a/n', 'b/v', 'c/j']).A
+            add._get_vector(['a/n', 'b/v', 'c/j']).A
         )
 
     def test_compose(self):
@@ -154,16 +154,28 @@ class TestSimpleComposers(TestCase):
 
         for i in np.arange(1, DIM):
             print i
-            result = add.get_vector(['a'] * i)
+            result = add._get_vector(['a'] * i)
             self.assertTrue(issparse(result))
             assert_array_equal(
                 np.arange(DIM).reshape((1, DIM)) * i,
                 result.A
             )
 
-            result = mult.get_vector(['a'] * i)
+            result = mult._get_vector(['a'] * i)
             self.assertTrue(issparse(result))
             assert_array_equal(
                 np.arange(DIM).reshape((1, DIM)) ** i,
                 result.A
             )
+
+
+class TestPrecomputedSimSource(TestCase):
+    def test_retrieval(self):
+        source = PrecomputedSimilaritiesVectorSource(
+            thesaurus_files=['thesisgenerator/resources/exp0-0a.strings'],
+            sim_threshold=0, include_self=False)
+
+        self.assertTupleEqual(
+            source._get_nearest_neighbours('cat/n'),
+            ('dog/n', 0.8)
+        )

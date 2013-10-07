@@ -29,7 +29,7 @@ class VectorSource(object):
         pass
 
     @abstractmethod
-    def get_vector(self, word):
+    def _get_vector(self, word):
         pass
 
 
@@ -58,7 +58,7 @@ class UnigramVectorSource(VectorSource):
         # the set of all distributional features, for unit testing only
         self.distrib_features_vocab = v.vocabulary_
 
-    def get_vector(self, word):
+    def _get_vector(self, word):
         # word must be a a string or an iterable. If it's the latter, the first item is used
 
         if hasattr(word, '__iter__'): #False for strings, true for lists/tuples
@@ -106,8 +106,8 @@ class AdditiveComposer(Composer):
     def __init__(self, unigram_source=None):
         super(AdditiveComposer, self).__init__(unigram_source)
 
-    def get_vector(self, sequence):
-        return sum(self.unigram_source.get_vector(word) for word in sequence)
+    def _get_vector(self, sequence):
+        return sum(self.unigram_source._get_vector(word) for word in sequence)
 
     def accept_features(self, features):
         """
@@ -138,10 +138,10 @@ class MultiplicativeComposer(AdditiveComposer):
     def __init__(self, unigram_source=None):
         super(MultiplicativeComposer, self).__init__(unigram_source)
 
-    def get_vector(self, sequence):
+    def _get_vector(self, sequence):
         return reduce(sp.csr_matrix.multiply,
-                      map(self.unigram_source.get_vector, sequence[1:]),
-                      self.unigram_source.get_vector(sequence[0]))
+                      map(self.unigram_source._get_vector, sequence[1:]),
+                      self.unigram_source._get_vector(sequence[0]))
 
 
 class BaroniComposer(Composer):
@@ -175,14 +175,14 @@ class BaroniComposer(Composer):
             accepted_features.add(f)
         return accepted_features
 
-    def get_vector(self, sequence):
+    def _get_vector(self, sequence):
         #todo currently returns just the noun vector, which is wrong
-        return self.unigram_source.get_vector(sequence[-1])
+        return self.unigram_source._get_vector(sequence[-1])
 
 
 class CompositeVectorSource(VectorSource):
     def __init__(self, conf):
-        self.unigram_source = UnigramVectorSource(conf['unigram_paths'])
+        self.unigram_source = UnigramVectorSource(files=conf['unigram_paths'])
         self.composers = []
         self.sim_threshold = conf['sim_threshold']
         self.include_self = conf['include_self']
@@ -228,7 +228,7 @@ class CompositeVectorSource(VectorSource):
          ('AN', ('year-ago/J', 'period/N'))
         """
 
-        self.feature_matrix = vstack(c.get_vector(data).tolil()
+        self.feature_matrix = vstack(c._get_vector(data).tolil()
                                      for (feature_type, data) in vocabulary
                                      for c in self.composer_mapping[feature_type]).tocsr()
 
@@ -240,12 +240,12 @@ class CompositeVectorSource(VectorSource):
         #self.nbrs = KDTree(n_neighbors=1, algorithm='kd_tree').fit(self.feature_matrix)
         self.nbrs = BallTree(self.feature_matrix.A, metric=cosine)
 
-    def get_vector(self, ngram):
+    def _get_vector(self, ngram):
         """
         Returns a set of vector for the specified ngram, one from each sub-source
         """
         feature_type, data = ngram
-        return [(c.name, c.get_vector(data).todense()) for c in self.composer_mapping[feature_type]]
+        return [(c.name, c._get_vector(data).todense()) for c in self.composer_mapping[feature_type]]
 
     def _get_nearest_neighbours(self, ngram):
         """
@@ -253,10 +253,10 @@ class CompositeVectorSource(VectorSource):
         """
         res = []
         #print 'Composer\t\t\tdist\t\t\tneighbour'
-        for composer, vector in self.get_vector(ngram):
+        for comp_name, vector in self._get_vector(ngram):
             #dist, ind = self.nbrs.kneighbors(vector)
             dist, ind = self.nbrs.query(vector, k=1, return_distance=True)
-            data = (composer, dist[0][0], self.entry_index[ind[0][0]])
+            data = (comp_name, dist[0][0], self.entry_index[ind[0][0]])
             #print '{}\t\t\t{}\t\t\t{}'.format(*data)
             #todo tests for this if and the one below
             if ngram == data[2] and not self.include_self:
@@ -268,3 +268,26 @@ class CompositeVectorSource(VectorSource):
 
     def get_nearest_neighbours(self, ngram):
         return map(itemgetter(2), self._get_nearest_neighbours(ngram))
+
+
+class PrecomputedSimilaritiesVectorSource(CompositeVectorSource):
+    """
+    Wraps a Byblo-computer Thesaurus in the interface of a CompositeVectorSource, defering the get_nearest_neighbours
+    method to the Thesaurus. Only handles features of the form ('1-GRAM', (X,))
+    """
+    feature_pattern = {'1-GRAM'}
+    name = 'BybloThes'
+
+    def __init__(self, thesaurus_files='', sim_threshold=0, include_self=False):
+        self.th = Thesaurus(thesaurus_files=thesaurus_files, sim_threshold=sim_threshold, include_self=include_self)
+        self.get = self._get_nearest_neighbours
+
+    def _get_nearest_neighbours(self, word):
+        res = self.th.get(word)
+        return res[0] if res else None
+
+    def accept_features(self, features):
+        return [x for x in features if x[1][0] in self.th.keys()]
+
+    def keys(self):
+        return self.th.keys()

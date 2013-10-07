@@ -1,9 +1,11 @@
 # coding=utf-8
+from collections import defaultdict
 from itertools import izip, tee
 import logging
 import pickle
 import scipy.sparse as sp
-from sklearn.feature_extraction.text import TfidfVectorizer
+import numpy as np
+from sklearn.feature_extraction.text import TfidfVectorizer, _make_int_array
 from thesisgenerator.classifiers import NoopTransformer
 from thesisgenerator.plugins import tokenizers
 from thesisgenerator.plugins.bov_feature_handlers import get_token_handler, get_stats_recorder
@@ -30,7 +32,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
                  sim_compressor='thesisgenerator.utils.misc.noop',
                  train_token_handler='thesisgenerator.plugins.bov_feature_handlers.BaseFeatureHandler',
                  decode_token_handler='thesisgenerator.plugins.bov_feature_handlers.BaseFeatureHandler',
-                 train_thesaurus='', decode_thesaurus='', vector_source=''):
+                 vector_source=''):
         """
         Builds a vectorizer the way a TfidfVectorizer is built, and takes one
         extra param specifying the path the the Byblo-generated thesaurus.
@@ -60,10 +62,10 @@ class ThesaurusVectorizer(TfidfVectorizer):
         # This access method should only be used at decode time,
         # so for now we just store it and rely on the vectorizer to
         # "activate" it after training is done
-        self.train_thesaurus = train_thesaurus # a dict-like object
-        self.decode_thesaurus = decode_thesaurus # a fully qualified name of a dict-like object,
+        #self.train_thesaurus = train_thesaurus # a dict-like object
+        #self.decode_thesaurus = decode_vector_source # a fully qualified name of a dict-like object,
         # instantiated through reflection
-        self.thesaurus = train_thesaurus
+
         self.vector_source = vector_source
 
         self.stats = None
@@ -94,20 +96,21 @@ class ThesaurusVectorizer(TfidfVectorizer):
                                                   dtype=dtype)
 
     def fit_transform(self, raw_documents, y=None):
-        self.thesaurus = self.train_thesaurus
+        #self.vector_source = self.train_thesaurus
         self.handler = get_token_handler(self.train_token_handler,
                                          self.k,
                                          self.sim_compressor,
-                                         self.train_thesaurus)
+                                         self.vector_source)
         self.stats = get_stats_recorder(self.record_stats)
         # a different stats recorder will be used for the testing data
 
         # self.try_to_set_vocabulary_from_thesaurus_keys()
         res = super(ThesaurusVectorizer, self).fit_transform(raw_documents, y)
 
+        self._dump_vocabulary_for_debugging()
         if self.decode_thesaurus:
             logging.warn('Will be using a different thesaurus through at decode time')
-            self.thesaurus = get_named_object(self.decode_thesaurus)(self.vocabulary_)
+            self.vector_source = get_named_object(self.decode_thesaurus)(self.vocabulary_)
 
         # once training is done, convert all document features (unigrams and composable ngrams)
         # to a ditributional feature vector
@@ -121,7 +124,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
         self.handler = get_token_handler(self.decode_token_handler,
                                          self.k,
                                          self.sim_compressor,
-                                         self.thesaurus)
+                                         self.vector_source)
 
         return super(ThesaurusVectorizer, self).transform(raw_documents)
 
@@ -224,6 +227,76 @@ class ThesaurusVectorizer(TfidfVectorizer):
                 pickle.dump(self.vocabulary_, out)
                 self.log_vocabulary_already = True
 
+    def _count_vocab(self, raw_documents, fixed_vocab):
+        """
+        Modified from sklearn 0.14's CountVectorizer
+        """
+        if hasattr(self, 'cv_number'):
+            logging.info('cv_number=%s' % self.cv_number)
+        logging.info('Converting features to vectors (with thesaurus lookup)')
+        logging.info('Using TF-IDF: %s, transformer is %s' % (self.use_tfidf, self._tfidf))
+
+        if not self.use_tfidf:
+            self._tfidf = NoopTransformer()
+            #doc_id_indices = [] # which document the feature occurs in
+        #term_indices = []   # which term id appeared
+        #values = []         # values[i] = frequency(term[i]) in document[i]
+        if fixed_vocab:
+            vocabulary = self.vocabulary_
+        else:
+            # Add a new value when a new vocabulary item is seen
+            vocabulary = defaultdict(None)
+            vocabulary.default_factory = vocabulary.__len__
+
+        analyze = self.build_analyzer()
+        j_indices = _make_int_array()
+        indptr = _make_int_array()
+        indptr.append(0)
+        for doc_id, doc in enumerate(raw_documents):
+            for feature in analyze(doc):
+                #####################  begin non-original code  #####################
+                # None if term is not in seen vocabulary
+                feature_index_in_vocab = vocabulary.get(feature)
+                is_in_vocabulary = bool(feature_index_in_vocab)
+                is_in_th = bool(self.vector_source.get(feature))
+                self.stats.register_token(feature, is_in_vocabulary, is_in_th)
+
+                j_indices.append(feature_index_in_vocab) # todo this is the original code
+
+                params = (doc_id, feature, feature_index_in_vocab, vocabulary)
+                if is_in_vocabulary and is_in_th:
+                    self.handler.handle_IV_IT_feature(*params)
+                if is_in_vocabulary and not is_in_th:
+                    self.handler.handle_IV_OOT_feature(*params)
+                if not is_in_vocabulary and is_in_th:
+                    self.handler.handle_OOV_IT_feature(*params)
+                if not is_in_vocabulary and not is_in_th:
+                    self.handler.handle_OOV_OOT_feature(*params)
+                    #####################  end non-original code  #####################
+            indptr.append(len(j_indices))
+
+        if not fixed_vocab:
+            # disable defaultdict behaviour
+            vocabulary = dict(vocabulary)
+            if not vocabulary:
+                raise ValueError("empty vocabulary; perhaps the documents only"
+                                 " contain stop words")
+
+        # some Python/Scipy versions won't accept an array.array:
+        if j_indices:
+            j_indices = np.frombuffer(j_indices, dtype=np.intc)
+        else:
+            j_indices = np.array([], dtype=np.int32)
+        indptr = np.frombuffer(indptr, dtype=np.intc)
+        values = np.ones(len(j_indices))
+
+        X = sp.csr_matrix((values, j_indices, indptr),
+                          shape=(len(indptr) - 1, len(vocabulary)),
+                          dtype=self.dtype)
+        X.sum_duplicates()
+        return vocabulary, X
+
+
     def _term_count_dicts_to_matrix(self, term_count_dicts):
         """
         Converts a set ot document_term counts to a matrix; Input is a
@@ -244,7 +317,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
         vocabulary = self.vocabulary_
         # thesaurus must ensure lookups for non-existent
         # keys return an empty list and not not raise an exception
-        th = self.thesaurus
+        th = self.vector_source
 
         # sparse storage for document-term matrix (terminology note: term ==
         # feature)
