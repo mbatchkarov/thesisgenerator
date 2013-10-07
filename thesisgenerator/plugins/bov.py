@@ -9,7 +9,6 @@ from sklearn.feature_extraction.text import TfidfVectorizer, _make_int_array
 from thesisgenerator.classifiers import NoopTransformer
 from thesisgenerator.plugins import tokenizers
 from thesisgenerator.plugins.bov_feature_handlers import get_token_handler, get_stats_recorder
-from thesisgenerator.utils.reflection_utils import get_named_object
 
 
 class ThesaurusVectorizer(TfidfVectorizer):
@@ -108,9 +107,9 @@ class ThesaurusVectorizer(TfidfVectorizer):
         res = super(ThesaurusVectorizer, self).fit_transform(raw_documents, y)
 
         self._dump_vocabulary_for_debugging()
-        if self.decode_thesaurus:
-            logging.warn('Will be using a different thesaurus through at decode time')
-            self.vector_source = get_named_object(self.decode_thesaurus)(self.vocabulary_)
+        #if self.decode_thesaurus:
+        #    logging.warn('Will be using a different thesaurus through at decode time')
+        #    self.vector_source = get_named_object(self.decode_thesaurus)(self.vocabulary_)
 
         # once training is done, convert all document features (unigrams and composable ngrams)
         # to a ditributional feature vector
@@ -230,7 +229,10 @@ class ThesaurusVectorizer(TfidfVectorizer):
     def _count_vocab(self, raw_documents, fixed_vocab):
         """
         Modified from sklearn 0.14's CountVectorizer
+
+        @params fixed_vocab True if the vocabulary attribute has been set, i.e. the vectorizer is trained
         """
+        print raw_documents
         if hasattr(self, 'cv_number'):
             logging.info('cv_number=%s' % self.cv_number)
         logging.info('Converting features to vectors (with thesaurus lookup)')
@@ -244,7 +246,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
         if fixed_vocab:
             vocabulary = self.vocabulary_
         else:
-            # Add a new value when a new vocabulary item is seen
+            # Add a new value when a new vocabulary item is seen, we're training now
             vocabulary = defaultdict(None)
             vocabulary.default_factory = vocabulary.__len__
 
@@ -255,15 +257,20 @@ class ThesaurusVectorizer(TfidfVectorizer):
         for doc_id, doc in enumerate(raw_documents):
             for feature in analyze(doc):
                 #####################  begin non-original code  #####################
-                # None if term is not in seen vocabulary
-                feature_index_in_vocab = vocabulary.get(feature)
-                is_in_vocabulary = bool(feature_index_in_vocab)
+
+                try:
+                    feature_index_in_vocab = vocabulary[feature]
+                except KeyError:
+                    feature_index_in_vocab = None
+                    # if term is not in seen vocabulary
+
+                is_in_vocabulary = bool(feature_index_in_vocab is not None)
                 is_in_th = bool(self.vector_source.get(feature))
                 self.stats.register_token(feature, is_in_vocabulary, is_in_th)
 
-                j_indices.append(feature_index_in_vocab) # todo this is the original code
+                #j_indices.append(feature_index_in_vocab) # todo this is the original code, also updates vocabulary
 
-                params = (doc_id, feature, feature_index_in_vocab, vocabulary)
+                params = (doc_id, feature, feature_index_in_vocab, vocabulary, j_indices)
                 if is_in_vocabulary and is_in_th:
                     self.handler.handle_IV_IT_feature(*params)
                 if is_in_vocabulary and not is_in_th:
@@ -273,6 +280,8 @@ class ThesaurusVectorizer(TfidfVectorizer):
                 if not is_in_vocabulary and not is_in_th:
                     self.handler.handle_OOV_OOT_feature(*params)
                     #####################  end non-original code  #####################
+
+                print doc_id, feature, len(j_indices)
             indptr.append(len(j_indices))
 
         if not fixed_vocab:
@@ -293,7 +302,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
         X = sp.csr_matrix((values, j_indices, indptr),
                           shape=(len(indptr) - 1, len(vocabulary)),
                           dtype=self.dtype)
-        X.sum_duplicates()
+        X.sum_duplicates() # nice that the summation is explicit
         return vocabulary, X
 
 

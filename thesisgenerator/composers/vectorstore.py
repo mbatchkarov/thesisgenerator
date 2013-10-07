@@ -249,7 +249,7 @@ class CompositeVectorSource(VectorSource):
 
     def _get_nearest_neighbours(self, ngram):
         """
-        Composes
+        Returns (composer, sim, ngram) tuples for the given n-gram, one from each composer
         """
         res = []
         #print 'Composer\t\t\tdist\t\t\tneighbour'
@@ -267,6 +267,9 @@ class CompositeVectorSource(VectorSource):
         return res
 
     def get_nearest_neighbours(self, ngram):
+        """
+        Returns only the third element of what self._get_nearest_neighbours returns
+        """
         return map(itemgetter(2), self._get_nearest_neighbours(ngram))
 
 
@@ -280,14 +283,24 @@ class PrecomputedSimilaritiesVectorSource(CompositeVectorSource):
 
     def __init__(self, thesaurus_files='', sim_threshold=0, include_self=False):
         self.th = Thesaurus(thesaurus_files=thesaurus_files, sim_threshold=sim_threshold, include_self=include_self)
-        self.get = self._get_nearest_neighbours
 
     def _get_nearest_neighbours(self, word):
         res = self.th.get(word)
-        return res[0] if res else None
+        return res[0] if res else []
 
     def accept_features(self, features):
+        # strip the meta information from the feature and use as a string, thesaurus does not contain this info
+
         return [x for x in features if x[1][0] in self.th.keys()]
 
     def keys(self):
+        # todo this needs to be removed from the interface of this class
         return self.th.keys()
+
+    def get(self, word):
+        # strip the meta information from the feature and use as a string
+        return self.get_nearest_neighbours(word[0][1])
+
+    def populate_vector_space(self, vocabulary):
+        #nothing to do, we have the all-pairs sim matrix already
+        pass
