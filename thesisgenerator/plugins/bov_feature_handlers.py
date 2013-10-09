@@ -79,9 +79,10 @@ class NoopStatsRecorder(StatsRecorder):
         pass
 
 
-def _insert_feature_only(doc_id, feature, feature_index_in_vocab, j_indices):
+def _insert_feature_only(doc_id, feature, feature_index_in_vocab, j_indices, values):
     logging.debug('Inserting feature in doc %d: %s' % (doc_id, feature))
     j_indices.append(feature_index_in_vocab)
+    values.append(1)
 
 
 def _ignore_feature(doc_id, document_term):
@@ -90,7 +91,8 @@ def _ignore_feature(doc_id, document_term):
     pass
 
 
-def _paraphrase(doc_id, feature, feature_index_in_vocab, vocabulary, j_indices, vector_source, k, sim_transformer):
+def _paraphrase(doc_id, feature, feature_index_in_vocab, vocabulary, j_indices,
+                vector_source, k, sim_transformer, values):
     """
     Replaces term with its k nearest neighbours from the thesaurus
 
@@ -127,6 +129,7 @@ def _paraphrase(doc_id, feature, feature_index_in_vocab, vocabulary, j_indices, 
         # scipy uses addition
         #doc_id_indices.append(doc_id)
         j_indices.append(vocabulary.get(neighbour))
+        values.append(sim_transformer(sim))
 
 
 class BaseFeatureHandler():
@@ -142,16 +145,16 @@ class BaseFeatureHandler():
         # contructor takes parameters for compatibility with others
         pass
 
-    def handle_IV_IT_feature(self, doc_id, feature, feature_index_in_vocab, vocabulary, j_indices):
-        _insert_feature_only(doc_id, feature, feature_index_in_vocab, j_indices)
+    def handle_IV_IT_feature(self, doc_id, feature, feature_index_in_vocab, vocabulary, j_indices, values):
+        _insert_feature_only(doc_id, feature, feature_index_in_vocab, j_indices, values)
 
-    def handle_IV_OOT_feature(self, doc_id, feature, feature_index_in_vocab, vocabulary, j_indices):
-        _insert_feature_only(doc_id, feature, feature_index_in_vocab, j_indices)
+    def handle_IV_OOT_feature(self, doc_id, feature, feature_index_in_vocab, vocabulary, j_indices, values):
+        _insert_feature_only(doc_id, feature, feature_index_in_vocab, j_indices, values)
 
-    def handle_OOV_IT_feature(self, doc_id, feature, feature_index_in_vocab, vocabulary, j_indices):
+    def handle_OOV_IT_feature(self, doc_id, feature, feature_index_in_vocab, vocabulary, j_indices, values):
         _ignore_feature(doc_id, feature)
 
-    def handle_OOV_OOT_feature(self, doc_id, feature, feature_index_in_vocab, vocabulary, j_indices):
+    def handle_OOV_OOT_feature(self, doc_id, feature, feature_index_in_vocab, vocabulary, j_indices, values):
         _ignore_feature(doc_id, feature)
 
 
@@ -167,10 +170,10 @@ class SignifierSignifiedFeatureHandler(BaseFeatureHandler):
         self.sim_transformer = sim_transformer
         self.vector_source = vector_source
 
-    def handle_OOV_IT_feature(self, doc_id, feature, feature_index_in_vocab, vocabulary, j_indices):
+    def handle_OOV_IT_feature(self, doc_id, feature, feature_index_in_vocab, vocabulary, j_indices, values):
         _paraphrase(doc_id, feature, feature_index_in_vocab,
                     vocabulary, j_indices, self.vector_source,
-                    self.k, self.sim_transformer)
+                    self.k, self.sim_transformer, values)
 
 
 class SignifiedOnlyFeatureHandler(BaseFeatureHandler):
@@ -184,14 +187,14 @@ class SignifiedOnlyFeatureHandler(BaseFeatureHandler):
         self.sim_transformer = sim_transformer
         self.vector_source = vector_source
 
-    def handle_OOV_IT_feature(self, doc_id, feature, feature_index_in_vocab, vocabulary, j_indices):
+    def handle_OOV_IT_feature(self, doc_id, feature, feature_index_in_vocab, vocabulary, j_indices, values):
         _paraphrase(doc_id, feature, feature_index_in_vocab,
                     vocabulary, j_indices, self.vector_source,
-                    self.k, self.sim_transformer)
+                    self.k, self.sim_transformer, values)
 
     handle_IV_IT_feature = handle_OOV_IT_feature
 
-    def handle_IV_OOT_feature(self, doc_id, feature, feature_index_in_vocab, vocabulary, j_indices):
+    def handle_IV_OOT_feature(self, doc_id, feature, feature_index_in_vocab, vocabulary, j_indices, values):
         _ignore_feature(doc_id, feature)
 
 
@@ -205,9 +208,9 @@ class SignifierRandomBaselineFeatureHandler(SignifiedOnlyFeatureHandler):
         self.sim_transformer = sim_transformer
         self.vector_source = vector_source
 
-    def handle_OOV_IT_feature(self, doc_id, feature, feature_index_in_vocab, vocabulary, j_indices):
+    def handle_OOV_IT_feature(self, doc_id, feature, feature_index_in_vocab, vocabulary, j_indices, values):
         _paraphrase(doc_id, feature, feature_index_in_vocab,
                     vocabulary, j_indices, self.vector_source,
-                    self.k, self.sim_transformer)
+                    self.k, self.sim_transformer, values)
 
     handle_IV_IT_feature = handle_OOV_IT_feature

@@ -1,5 +1,4 @@
 # coding=utf-8
-from collections import defaultdict
 import glob
 import os
 
@@ -9,24 +8,11 @@ import numpy as np
 from numpy.ma import std
 import numpy.testing as t
 import scipy.sparse as sp
-from thesisgenerator.composers.vectorstore import PrecomputedSimilaritiesVectorSource
+from thesisgenerator.composers.vectorstore import PrecomputedSimilaritiesVectorSource, ConstantNeighbourVectorSource
 
 from thesisgenerator.plugins import tokenizers
 from thesisgenerator import __main__
-from thesisgenerator.utils.misc import _vocab_neighbour_source
 from thesisgenerator.utils.data_utils import load_text_data_into_memory, tokenize_data
-
-
-def _get_constant_thesaurus(vocab=None):
-    """
-    Returns a thesaurus-like object which has a single neighbour for
-    every possible entry
-    """
-
-    def constant_thesaurus():
-        return [('b/n', 1)]
-
-    return defaultdict(constant_thesaurus)
 
 
 class Test_ThesaurusVectorizer(TestCase):
@@ -113,16 +99,13 @@ class Test_ThesaurusVectorizer(TestCase):
             self.assertEqual(y[1], 0)
             self.assertEqual(y[2], 1)
 
-    def _vectorize_data(self, thesaurus_getter=None):
+    def _vectorize_data(self, vector_source=None):
         # at this point self._load_data should have been called and as a result the fields
         # self.x_tr, y_tr, x_test and y_test must have been initialised
         # also, self.tokenizer and self.thesaurus must have been initialised
-        def fully_qualified_name(o):
-            return o.__module__ + "." + o.__name__
-
-        if thesaurus_getter:
+        if vector_source:
             #pipeline.named_steps['vect'].thesaurus_getter = thesaurus_getter
-            self.feature_extraction_conf['decode_thesaurus'] = fully_qualified_name(thesaurus_getter)
+            self.vector_source = vector_source
 
         pipeline = __main__._build_pipeline(
             self.vector_source,
@@ -159,6 +142,12 @@ class Test_ThesaurusVectorizer(TestCase):
         for f in files:
             if os.path.exists(f):
                 os.remove(f)
+
+    def _strip(self, mydict):
+        #{ ('1-GRAM', ('X',)) : int} -> {'X' : int}
+        for k, v in mydict.iteritems():
+            self.assertEquals(len(k), 2)
+        return {k[1][0]: v for k, v in mydict.iteritems()}
 
     @skip('Do not use replace_all')
     def test_replaceAll_False_includeSelf_TrueFalse_use_signified(self):
@@ -346,7 +335,7 @@ class Test_ThesaurusVectorizer(TestCase):
 
         self.assertDictEqual({'a/n': 0, 'b/n': 1, 'c/n': 2,
                               'd/n': 3, 'e/n': 4, 'f/n': 5},
-                             voc)
+                             self._strip(voc))
 
         self.assertIsInstance(x1, sp.spmatrix)
         t.assert_array_equal(
@@ -376,7 +365,7 @@ class Test_ThesaurusVectorizer(TestCase):
         x1, x2, voc = self._vectorize_data()
 
         self.assertDictEqual({'a/n': 0, 'b/n': 1, 'c/n': 2,
-                              'd/n': 3, 'e/n': 4, 'f/n': 5}, voc)
+                              'd/n': 3, 'e/n': 4, 'f/n': 5}, self._strip(voc))
 
         self.assertIsInstance(x1, sp.spmatrix)
         t.assert_array_equal(
@@ -409,7 +398,7 @@ class Test_ThesaurusVectorizer(TestCase):
 
         self.assertDictEqual({'a/n': 0, 'b/n': 1, 'c/n': 2,
                               'd/n': 3, 'e/n': 4, 'f/n': 5},
-                             voc)
+                             self._strip(voc))
 
         self.assertIsInstance(x1, sp.spmatrix)
         t.assert_array_equal(
@@ -442,7 +431,7 @@ class Test_ThesaurusVectorizer(TestCase):
         x1, x2, voc = self._vectorize_data()
 
         self.assertDictEqual({'a/n': 0, 'b/n': 1, 'c/n': 2,
-                              'd/n': 3, 'e/n': 4, 'f/n': 5}, voc)
+                              'd/n': 3, 'e/n': 4, 'f/n': 5}, self._strip(voc))
 
         self.assertIsInstance(x1, sp.spmatrix)
         t.assert_array_equal(
@@ -475,7 +464,7 @@ class Test_ThesaurusVectorizer(TestCase):
 
         self.assertDictEqual({'a/n': 0, 'b/n': 1, 'c/n': 2,
                               'd/n': 3, 'e/n': 4, 'f/n': 5},
-                             voc)
+                             self._strip(voc))
 
         self.assertIsInstance(x1, sp.spmatrix)
         t.assert_array_equal(
@@ -507,7 +496,7 @@ class Test_ThesaurusVectorizer(TestCase):
         x1, x2, voc = self._vectorize_data()
 
         self.assertDictEqual({'a/n': 0, 'b/n': 1, 'c/n': 2,
-                              'd/n': 3, 'e/n': 4, 'f/n': 5}, voc)
+                              'd/n': 3, 'e/n': 4, 'f/n': 5}, self._strip(voc))
 
         self.assertIsInstance(x1, sp.spmatrix)
         t.assert_array_equal(
@@ -535,11 +524,12 @@ class Test_ThesaurusVectorizer(TestCase):
         self.x_tr, self.y_tr, self.x_ev, self.y_ev = self. \
             _load_data('thesisgenerator/resources/test-baseline')
 
-        x1, x2, voc = self._vectorize_data(_get_constant_thesaurus)
+        source = ConstantNeighbourVectorSource()
+        x1, x2, voc = self._vectorize_data(source)
 
         self.assertDictEqual({'a/n': 0, 'b/n': 1, 'c/n': 2,
                               'd/n': 3, 'e/n': 4, 'f/n': 5},
-                             voc)
+                             self._strip(voc))
 
         self.assertIsInstance(x1, sp.spmatrix)
         t.assert_array_equal(
@@ -558,15 +548,8 @@ class Test_ThesaurusVectorizer(TestCase):
         # the thesaurus will always say the neighbour for something is
         #  b/n with a similarity of 1, and we look up 11 tokens overall in
         #  the test document
-
-
-        self.feature_extraction_conf['neighbour_source'] = \
-            'thesisgenerator.tests.test_main._vocab_neighbour_source'
-
-        self.x_tr, self.y_tr, self.x_ev, self.y_ev = self. \
-            _load_data('thesisgenerator/resources/test-baseline')
-
-        x1, x2, voc = self._vectorize_data(_vocab_neighbour_source)
+        source.vocab = voc
+        x1, x2, voc = self._vectorize_data(source)
         self.assertAlmostEqual(x2.sum(), 11.0)
         self.assertGreater(std(x2.todense()), 0)
         # seven tokens will be looked up, with random in-vocabulary neighbours

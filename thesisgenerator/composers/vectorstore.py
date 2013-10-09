@@ -2,6 +2,7 @@ from abc import ABCMeta, abstractmethod
 from collections import defaultdict, OrderedDict
 import inspect
 from operator import itemgetter
+from random import choice
 
 from scipy.spatial.distance import cosine
 from sklearn.neighbors import BallTree
@@ -18,9 +19,21 @@ class VectorSource(object):
     __metaclass__ = ABCMeta
 
     feature_pattern = {} # each VectorSource can work with a set of feature types
+    _keep_only_IT = False
+
+    def _get_keep_only_IT(self):
+        return self._keep_only_IT
+
+    def _set_keep_only_IT(self, value):
+        self._keep_only_IT = value
+
+    keep_only_IT = property(fset=_set_keep_only_IT, fget=_get_keep_only_IT)
+
+    def accept_features(self, features):
+        return self._accept_features(features) if self.keep_only_IT else features
 
     @abstractmethod
-    def accept_features(self, features):
+    def _accept_features(self, features):
         """
         Filters out document features that cannot be handled by the implementing model. For instance,
         BaroniComposer cannot handle noun compounds or AN compounds for some adjectives. Features
@@ -33,8 +46,18 @@ class VectorSource(object):
         pass
 
 
+class ExactMatchVectorSource(VectorSource):
+    feature_pattern = {'1-GRAM', '2-GRAM', '3-GRAM'}
+    name = 'Exact'
+
+    def _accept_features(self, features):
+        return features
+
+    def _get_vector(self, word):
+        raise ValueError('This class cannot provide vectors')
+
+
 class UnigramVectorSource(VectorSource):
-    #todo change this to a dict-like object
     feature_pattern = {'1-GRAM'}
     name = 'Lex'
 
@@ -61,7 +84,7 @@ class UnigramVectorSource(VectorSource):
     def _get_vector(self, word):
         # word must be a a string or an iterable. If it's the latter, the first item is used
 
-        if hasattr(word, '__iter__'): #False for strings, true for lists/tuples
+        if hasattr(word, '__iter__'):  # False for strings, true for lists/tuples
             if len(word) == 1:
                 word = word[0]
             else:
@@ -81,13 +104,13 @@ class UnigramVectorSource(VectorSource):
     #    """
     #    return self.get_vector(words[0])
 
-    def accept_features(self, features):
+    def _accept_features(self, features):
         """
         Accept all unigrams that we have a vector for
         """
         return {t for t in features
                 if t[0] in self.feature_pattern and # the thing is a unigram
-                   t[1][0] in self.entry_index.keys() # we have a corpus-based vector for that unigram
+                   t[1][0] in self.entry_index.keys()   # we have a corpus-based vector for that unigram
         }
 
 
@@ -109,7 +132,7 @@ class AdditiveComposer(Composer):
     def _get_vector(self, sequence):
         return sum(self.unigram_source._get_vector(word) for word in sequence)
 
-    def accept_features(self, features):
+    def _accept_features(self, features):
         """
         Accept all sequences of words where we have a distrib vector for each unigram
         they contain. Rejects unigrams.
@@ -152,7 +175,7 @@ class BaroniComposer(Composer):
     def __init__(self, unigram_source=None):
         super(BaroniComposer, self).__init__(unigram_source)
 
-    def accept_features(self, features):
+    def _accept_features(self, features):
         """
         Accept all adjective-noun phrases where we have a corpus-observed vector for the noun and
         a learnt matrix (through PLSR) for the adjective
@@ -208,12 +231,12 @@ class CompositeVectorSource(VectorSource):
                 tmp[p].add(c)
         self.composer_mapping.update(tmp)
 
-    def accept_features(self, features):
+    def _accept_features(self, features):
     #for c in self.composers:
     #print c
     #print c.accept_features(features)
     #print
-        return {f for c in self.composers for f in c.accept_features(features)}
+        return {f for c in self.composers for f in c._accept_features(features)}
 
     def populate_vector_space(self, vocabulary):
         #todo the exact data structure used here will need optimisation
@@ -249,14 +272,15 @@ class CompositeVectorSource(VectorSource):
 
     def _get_nearest_neighbours(self, ngram):
         """
-        Returns (composer, sim, ngram) tuples for the given n-gram, one from each composer
+        Returns (composer, sim, neighbour) tuples for the given n-gram, one from each composer._get_vector
+        Accepts structured features
         """
         res = []
         #print 'Composer\t\t\tdist\t\t\tneighbour'
         for comp_name, vector in self._get_vector(ngram):
             #dist, ind = self.nbrs.kneighbors(vector)
             dist, ind = self.nbrs.query(vector, k=1, return_distance=True)
-            data = (comp_name, dist[0][0], self.entry_index[ind[0][0]])
+            data = (comp_name, (dist[0][0], self.entry_index[ind[0][0]]))
             #print '{}\t\t\t{}\t\t\t{}'.format(*data)
             #todo tests for this if and the one below
             if ngram == data[2] and not self.include_self:
@@ -270,7 +294,15 @@ class CompositeVectorSource(VectorSource):
         """
         Returns only the third element of what self._get_nearest_neighbours returns
         """
-        return map(itemgetter(2), self._get_nearest_neighbours(ngram))
+        print ngram, self._get_nearest_neighbours(ngram)
+        return map(itemgetter(1), self._get_nearest_neighbours(ngram))
+
+    def _get_keep_only_IT(self):
+        return all(c.keep_only_IT for c in self.composers)
+
+    def _set_keep_only_IT(self, value):
+        for c in self.composers:
+            c.keep_only_IT = value
 
 
 class PrecomputedSimilaritiesVectorSource(CompositeVectorSource):
@@ -285,10 +317,23 @@ class PrecomputedSimilaritiesVectorSource(CompositeVectorSource):
         self.th = Thesaurus(thesaurus_files=thesaurus_files, sim_threshold=sim_threshold, include_self=include_self)
 
     def _get_nearest_neighbours(self, word):
-        res = self.th.get(word)
-        return res[0] if res else []
+    # Accepts structured features and strips the meta information from the feature and use as a string
+    # Returns (composer, sim, neighbour) tuples
+    # Feature structure is ('1-GRAM', ('Seattle/N',))
 
-    def accept_features(self, features):
+        # strip the structural info from feature for thes lookup
+        res = self.th.get(word[1][0])
+        # put structural info back in
+        return [(
+                    'Byblo',
+                    (
+                        ('1-GRAM', (x[0],)),
+                        x[1]
+                    )
+                )
+                for x in res] if res else []
+
+    def _accept_features(self, features):
         # strip the meta information from the feature and use as a string, thesaurus does not contain this info
 
         return [x for x in features if x[1][0] in self.th.keys()]
@@ -298,9 +343,47 @@ class PrecomputedSimilaritiesVectorSource(CompositeVectorSource):
         return self.th.keys()
 
     def get(self, word):
-        # strip the meta information from the feature and use as a string
-        return self.get_nearest_neighbours(word[0][1])
+        # conveniece wrapper to make this compatible with dicts: BovVectorizer uses the get() method of dicts
+        #Accepts structured features
+        return self._get_nearest_neighbours(word)
 
     def populate_vector_space(self, vocabulary):
         #nothing to do, we have the all-pairs sim matrix already
+        pass
+
+
+class ConstantNeighbourVectorSource(VectorSource):
+    """
+    A thesaurus-like object which has
+     1) a single neighbour for every possible entry
+     2) a single random neighbour for every possible entry. That neighbour is chosen from the vocabulary that is
+        passed in (as a dict {feature:index} )
+    """
+
+    def __init__(self, vocab=None):
+        self.vocab = vocab
+
+
+    def get(self, thing):
+        if self.vocab:
+            v = choice(self.vocab.keys())
+            return [(v, 1.0)]
+        else:
+            return [
+                (
+                    ('1-GRAM', ('b/n',)),
+                    1.0
+                )
+            ]
+
+    def get_nearest_neighbours(self, thing):
+        return self.get(thing)
+
+    def populate_vector_space(self, thing):
+        pass
+
+    def _accept_features(self):
+        pass
+
+    def _get_vector(self):
         pass

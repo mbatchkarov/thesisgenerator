@@ -58,6 +58,12 @@ class TestUnigramVectorSource(TestCase):
         """
         self.assertSetEqual(
             self.source.accept_features(known_features | unk_unigram_feature | unk_bigram_feature),
+            unigram_feature | unk_unigram_feature
+        )
+
+        self.source.keep_only_IT = True
+        self.assertSetEqual(
+            self.source.accept_features(known_features | unk_unigram_feature | unk_bigram_feature),
             unigram_feature
         )
 

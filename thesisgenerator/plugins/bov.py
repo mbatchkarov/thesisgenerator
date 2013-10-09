@@ -31,7 +31,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
                  sim_compressor='thesisgenerator.utils.misc.noop',
                  train_token_handler='thesisgenerator.plugins.bov_feature_handlers.BaseFeatureHandler',
                  decode_token_handler='thesisgenerator.plugins.bov_feature_handlers.BaseFeatureHandler',
-                 vector_source=''):
+                 vector_source=None):
         """
         Builds a vectorizer the way a TfidfVectorizer is built, and takes one
         extra param specifying the path the the Byblo-generated thesaurus.
@@ -53,18 +53,6 @@ class ThesaurusVectorizer(TfidfVectorizer):
         self.sim_compressor = sim_compressor
         self.train_token_handler = train_token_handler
         self.decode_token_handler = decode_token_handler
-
-        # in case we want to mock the thesaurus (for unit testing or to
-        # get a baseline). With this we can programatically build
-        # "constant" thesauri that return the same for all possible
-        # entries.
-        # This access method should only be used at decode time,
-        # so for now we just store it and rely on the vectorizer to
-        # "activate" it after training is done
-        #self.train_thesaurus = train_thesaurus # a dict-like object
-        #self.decode_thesaurus = decode_vector_source # a fully qualified name of a dict-like object,
-        # instantiated through reflection
-
         self.vector_source = vector_source
 
         self.stats = None
@@ -107,10 +95,6 @@ class ThesaurusVectorizer(TfidfVectorizer):
         res = super(ThesaurusVectorizer, self).fit_transform(raw_documents, y)
 
         self._dump_vocabulary_for_debugging()
-        #if self.decode_thesaurus:
-        #    logging.warn('Will be using a different thesaurus through at decode time')
-        #    self.vector_source = get_named_object(self.decode_thesaurus)(self.vocabulary_)
-
         # once training is done, convert all document features (unigrams and composable ngrams)
         # to a ditributional feature vector
         self.vector_source.populate_vector_space(self.vocabulary_.keys())
@@ -170,7 +154,8 @@ class ThesaurusVectorizer(TfidfVectorizer):
                 if a.upper().endswith('/J') and b.upper().endswith('/N'):
                     features.append(('AN', (a, b)))
 
-        return self.vector_source.accept_features(features)  # + last_chars + shapes
+        #return self.vector_source.accept_features(features)  # + last_chars + shapes
+        return features  # + last_chars + shapes
 
     def my_analyzer(self):
         return lambda doc: self.my_feature_extractor(doc, None, None)
@@ -232,7 +217,6 @@ class ThesaurusVectorizer(TfidfVectorizer):
 
         @params fixed_vocab True if the vocabulary attribute has been set, i.e. the vectorizer is trained
         """
-        print raw_documents
         if hasattr(self, 'cv_number'):
             logging.info('cv_number=%s' % self.cv_number)
         logging.info('Converting features to vectors (with thesaurus lookup)')
@@ -253,6 +237,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
         analyze = self.build_analyzer()
         j_indices = _make_int_array()
         indptr = _make_int_array()
+        values = []
         indptr.append(0)
         for doc_id, doc in enumerate(raw_documents):
             for feature in analyze(doc):
@@ -270,7 +255,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
 
                 #j_indices.append(feature_index_in_vocab) # todo this is the original code, also updates vocabulary
 
-                params = (doc_id, feature, feature_index_in_vocab, vocabulary, j_indices)
+                params = (doc_id, feature, feature_index_in_vocab, vocabulary, j_indices, values)
                 if is_in_vocabulary and is_in_th:
                     self.handler.handle_IV_IT_feature(*params)
                 if is_in_vocabulary and not is_in_th:
@@ -281,7 +266,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
                     self.handler.handle_OOV_OOT_feature(*params)
                     #####################  end non-original code  #####################
 
-                print doc_id, feature, len(j_indices)
+                    #print doc_id, feature, len(j_indices)
             indptr.append(len(j_indices))
 
         if not fixed_vocab:
@@ -297,7 +282,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
         else:
             j_indices = np.array([], dtype=np.int32)
         indptr = np.frombuffer(indptr, dtype=np.intc)
-        values = np.ones(len(j_indices))
+        #values = np.ones(len(j_indices))
 
         X = sp.csr_matrix((values, j_indices, indptr),
                           shape=(len(indptr) - 1, len(vocabulary)),

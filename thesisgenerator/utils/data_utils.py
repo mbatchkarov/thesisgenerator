@@ -17,6 +17,7 @@ def tokenize_data(data, tokenizer, keep_only_IT, corpus_ids):
     # param corpus_ids - list-like, names of the training corpus (and optional testing corpus), used for
     # retrieving pre-tokenized data from joblib cache
     x_tr, y_tr, x_test, y_test = data
+    #todo this logic needs to be moved to feature extractor
     tokenizer.keep_only_IT = False
     x_tr = tokenizer.tokenize_corpus(x_tr, corpus_ids[0])
     tokenizer.keep_only_IT = keep_only_IT
