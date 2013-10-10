@@ -2,7 +2,6 @@
 from collections import defaultdict
 from itertools import izip, tee
 import logging
-import pickle
 import scipy.sparse as sp
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer, _make_int_array
@@ -17,8 +16,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
     their k nearest neighbours in the thesaurus
     """
 
-    def __init__(self, exp_name='', pipe_id=0, log_vocabulary=False,
-                 lowercase=True,
+    def __init__(self, exp_name='', pipe_id=0, lowercase=True,
                  input='content', charset='utf-8', decode_error='strict',
                  strip_accents=None,
                  preprocessor=None, tokenizer=None, analyzer='ngram',
@@ -42,9 +40,6 @@ class ThesaurusVectorizer(TfidfVectorizer):
         have not been established, make sure to check& establish them in
         fit_transform()
         """
-        self.log_vocabulary = log_vocabulary # if I should log the
-        # vocabulary
-        self.log_vocabulary_already = False # have I done it already
         self.use_tfidf = use_tfidf
         self.pipe_id = pipe_id
         self.exp_name = exp_name
@@ -94,11 +89,9 @@ class ThesaurusVectorizer(TfidfVectorizer):
         # self.try_to_set_vocabulary_from_thesaurus_keys()
         res = super(ThesaurusVectorizer, self).fit_transform(raw_documents, y)
 
-        self._dump_vocabulary_for_debugging()
         # once training is done, convert all document features (unigrams and composable ngrams)
         # to a ditributional feature vector
-        self.vector_source.populate_vector_space(self.vocabulary_.keys())
-        return res
+        return res, self.vocabulary_
 
     def transform(self, raw_documents):
         # record stats separately for the test set
@@ -109,7 +102,8 @@ class ThesaurusVectorizer(TfidfVectorizer):
                                          self.sim_compressor,
                                          self.vector_source)
 
-        return super(ThesaurusVectorizer, self).transform(raw_documents)
+        self.vector_source.populate_vector_space(self.vocabulary_.keys())
+        return super(ThesaurusVectorizer, self).transform(raw_documents), self.vocabulary_
 
     def _walk_pairwise(self, iterable):
         """
@@ -129,15 +123,6 @@ class ThesaurusVectorizer(TfidfVectorizer):
         suffix features and shape features
         Based on sklearn.feature_extraction.text._word_ngrams
         """
-
-        # todo add/enable feature functions here
-        #    last_chars = ['**suffix(%s)' % token[-1] for token in tokens]
-        #    shapes = ['**shape(%s)' % "".join(
-        #        'x' if l.islower() else '#' if l.isdigit()  else 'X' for l in
-        # token)
-        #              for token in
-        #              tokens]
-
         features = []
 
         # extract sentence-internal token n-grams
@@ -174,42 +159,17 @@ class ThesaurusVectorizer(TfidfVectorizer):
 
         preprocess = self.build_preprocessor()
 
-        if self.analyzer == 'char':
-            return lambda doc: self._char_ngrams(preprocess(self.decode(doc)))
-
-        elif self.analyzer == 'char_wb':
-            return lambda doc: self._char_wb_ngrams(
-                preprocess(self.decode(doc)))
-
-        elif self.analyzer == 'word':
-            stop_words = self.get_stop_words()
-            tokenize = self.build_tokenizer()
-
-            return lambda doc: self._word_ngrams(
-                tokenize(preprocess(self.decode(doc))), stop_words)
-
-        elif self.analyzer == 'better':
-            stop_words = self.get_stop_words()
+        if self.analyzer == 'better':
             tokenize = tokenizers.get_tokenizer()
-
             return lambda doc: self.my_feature_extractor(
                 tokenize(preprocess(self.decode(doc))), self.ngram_range)
 
         elif self.analyzer == 'ngram':
             #assume input already tokenized
             return lambda token_list: self.my_feature_extractor(token_list, self.ngram_range)
-
         else:
-            raise ValueError('%s is not a valid tokenization scheme/analyzer' %
-                             self.analyzer)
+            return super(ThesaurusVectorizer, self).build_analyzer()
 
-    def _dump_vocabulary_for_debugging(self):
-        # temporarily store vocabulary
-        f = './tmp_vocabulary_%s_%d' % (self.exp_name, self.pipe_id)
-        if self.log_vocabulary and not self.log_vocabulary_already:
-            with open(f, 'w') as out:
-                pickle.dump(self.vocabulary_, out)
-                self.log_vocabulary_already = True
 
     def _count_vocab(self, raw_documents, fixed_vocab):
         """
@@ -249,21 +209,25 @@ class ThesaurusVectorizer(TfidfVectorizer):
                     feature_index_in_vocab = None
                     # if term is not in seen vocabulary
 
-                is_in_vocabulary = bool(feature_index_in_vocab is not None)
-                is_in_th = bool(self.vector_source.get(feature))
+                #is_in_vocabulary = bool(feature_index_in_vocab is not None)
+                is_in_vocabulary = feature in vocabulary
+                #is_in_th = bool(self.vector_source.get(feature))
+                is_in_th = feature in self.vector_source
                 self.stats.register_token(feature, is_in_vocabulary, is_in_th)
 
                 #j_indices.append(feature_index_in_vocab) # todo this is the original code, also updates vocabulary
 
-                params = (doc_id, feature, feature_index_in_vocab, vocabulary, j_indices, values)
+                params = {'doc_id': doc_id, 'feature': feature,
+                          'feature_index_in_vocab': feature_index_in_vocab,
+                          'vocabulary': vocabulary, 'j_indices': j_indices, 'values': values}
                 if is_in_vocabulary and is_in_th:
-                    self.handler.handle_IV_IT_feature(*params)
+                    self.handler.handle_IV_IT_feature(**params)
                 if is_in_vocabulary and not is_in_th:
-                    self.handler.handle_IV_OOT_feature(*params)
+                    self.handler.handle_IV_OOT_feature(**params)
                 if not is_in_vocabulary and is_in_th:
-                    self.handler.handle_OOV_IT_feature(*params)
+                    self.handler.handle_OOV_IT_feature(**params)
                 if not is_in_vocabulary and not is_in_th:
-                    self.handler.handle_OOV_OOT_feature(*params)
+                    self.handler.handle_OOV_OOT_feature(**params)
                     #####################  end non-original code  #####################
 
                     #print doc_id, feature, len(j_indices)
@@ -287,83 +251,6 @@ class ThesaurusVectorizer(TfidfVectorizer):
         X = sp.csr_matrix((values, j_indices, indptr),
                           shape=(len(indptr) - 1, len(vocabulary)),
                           dtype=self.dtype)
-        X.sum_duplicates() # nice that the summation is explicit
+        X.sum_duplicates()  # nice that the summation is explicit
         return vocabulary, X
-
-
-    def _term_count_dicts_to_matrix(self, term_count_dicts):
-        """
-        Converts a set ot document_term counts to a matrix; Input is a
-        Counter(document_term-> frequency) object per document.
-        Current version copied without functional modification from sklearn
-        .feature_extraction.text.CountVectorizer
-        """
-        if hasattr(self, 'cv_number'):
-            logging.info('cv_number=%s' % self.cv_number)
-        logging.info('Converting features to vectors (with thesaurus lookup)')
-        self._dump_vocabulary_for_debugging()
-
-        if not self.use_tfidf:
-            self._tfidf = NoopTransformer()
-
-        logging.info('Using TF-IDF: %s, transformer is %s' % (self.use_tfidf,
-                                                              self._tfidf))
-        vocabulary = self.vocabulary_
-        # thesaurus must ensure lookups for non-existent
-        # keys return an empty list and not not raise an exception
-        th = self.vector_source
-
-        # sparse storage for document-term matrix (terminology note: term ==
-        # feature)
-        doc_id_indices = [] # which document the feature occurs in
-        term_indices = []   # which term id appeared
-        values = []         # values[i] = frequency(term[i]) in document[i]
-
-        num_documents = 0
-        logging.debug("Building feature vectors, current vocab size is %d" %
-                      len(vocabulary))
-
-        for doc_id, term_count_dict in enumerate(term_count_dicts):
-            num_documents += 1
-            for document_term, count in term_count_dict.iteritems():
-
-                term_index_in_vocab = vocabulary.get(document_term)
-                is_in_vocabulary = term_index_in_vocab is not None
-                # None if term is not in seen vocabulary
-
-                try:
-                    # some thesauri are defaultdict-s, must be queried with []
-                    is_in_th = bool(th[document_term])
-                except KeyError:
-                    # some thesauri are plain dict-s and will raise a ValueError
-                    is_in_th = False
-
-                self.stats.register_token(document_term, is_in_vocabulary, is_in_th)
-
-                params = (doc_id, doc_id_indices, document_term, term_indices,
-                          term_index_in_vocab, values, count, vocabulary)
-                if is_in_vocabulary and is_in_th:
-                    self.handler.handle_IV_IT_feature(*params)
-                if is_in_vocabulary and not is_in_th:
-                    self.handler.handle_IV_OOT_feature(*params)
-                if not is_in_vocabulary and is_in_th:
-                    self.handler.handle_OOV_IT_feature(*params)
-                if not is_in_vocabulary and not is_in_th:
-                    self.handler.handle_OOV_OOT_feature(*params)
-            term_count_dict.clear()
-
-        # convert the three iterables above to a numpy sparse matrix
-        # this is sometimes a generator, convert to list to use len
-        shape = (num_documents, max(vocabulary.itervalues()) + 1)
-        spmatrix = sp.coo_matrix((values, (doc_id_indices, term_indices)),
-                                 shape=shape, dtype=self.dtype)
-
-        # remove frequencies if binary feature were requested
-        if self.binary:
-            spmatrix.data.fill(1)
-        logging.info('Vectorizer: Data shape is %s' % (str(spmatrix.shape)))
-        self.stats.print_coverage_stats()
-        logging.info('Done converting features to vectors')
-
-        return spmatrix
 

@@ -180,21 +180,14 @@ def _build_vectorizer(vector_source, id, call_args, feature_extraction_conf, pip
     call_args['vect__vector_source'] = vector_source
 
     pipeline_list.append(('vect', vectorizer()))
-    call_args['vect__log_vocabulary'] = False
 
-    # global postvect_dumper_added_already
-    if debug:# and not postvect_dumper_added_already:
+    if debug:
         logging.info('Will perform post-vectorizer data dump')
-        pipeline_list.append(
-            ('dumper', FeatureVectorsCsvDumper(exp_name, id, output_dir)))
-        # postvect_dumper_added_already = True
-        call_args['vect__log_vocabulary'] = True # tell the vectorizer it
-        # needs to persist some information (used by the postvect dumper)
-        # this is needed because object in the pipeline are isolated
+        pipeline_list.append(('dumper', FeatureVectorsCsvDumper(exp_name, id, output_dir)))
         call_args['vect__pipe_id'] = id
 
 
-def _build_feature_selector(call_args, feature_selection_conf, pipeline_list):
+def _build_feature_selector(vector_source, call_args, feature_selection_conf, pipeline_list):
     """
     If feature selection is required, this function appends a selector
     object to pipeline_list and its configuration to configuration. Note this
@@ -215,7 +208,7 @@ def _build_feature_selector(call_args, feature_selection_conf, pipeline_list):
         call_args.update({'fs__%s' % arg: val
                           for arg, val in feature_selection_conf.items()
                           if val != '' and arg in initialize_args})
-
+        call_args['fs__vector_source'] = vector_source
         pipeline_list.append(('fs', method(scoring_func)))
 
 
@@ -252,7 +245,7 @@ def _build_pipeline(vector_source, id, classifier_name, feature_extr_conf, featu
     _build_vectorizer(vector_source, id, call_args, feature_extr_conf,
                       pipeline_list, output_dir, debug, exp_name=exp_name)
 
-    _build_feature_selector(call_args, feature_sel_conf,
+    _build_feature_selector(vector_source, call_args, feature_sel_conf,
                             pipeline_list)
     _build_dimensionality_reducer(call_args, dim_red_conf,
                                   pipeline_list)
@@ -273,7 +266,7 @@ def _build_pipeline(vector_source, id, classifier_name, feature_extr_conf, featu
     return pipeline
 
 
-def _run_tasks(configuration, n_jobs, data, thesaurus, vector_source):
+def _run_tasks(configuration, n_jobs, data, vector_source):
     """
     Runs all commands specified in the configuration file
     """
@@ -287,36 +280,8 @@ def _run_tasks(configuration, n_jobs, data, thesaurus, vector_source):
     # **********************************
     x_tr, y_tr, x_test, y_test = data
 
-    #if ('feature_extraction' in actions and
-    #        configuration['feature_extraction']['run']):
-    #    # todo should figure out which values to ignore,
-    #    # currently use all (args + section_options)
-    #
-    #    # create the keyword argument list the action should be run with, it is
-    #    # very important that all relevant argument:value pairs are present
-    #    # because joblib uses the hashed argument list to lookup cached results
-    #    # of computations that have been executed previously
-    #    if data:
-    #        logging.info('Using pre-loaded raw data set')
-    #
-    #    else:
-    #        options = {'input': configuration['feature_extraction']['input'],
-    #                   'shuffle_targets': configuration['shuffle_targets']}
-    #        try:
-    #            options['input_generator'] = \
-    #                configuration['feature_extraction']['input_generator']
-    #        except KeyError:
-    #            options['input_generator'] = ''
-    #        options['source'] = configuration['training_data']
-    #        if configuration['test_data']:
-    #            options['test_data'] = configuration['test_data']
-    #
-    #        x_tr, y_tr, x_test, y_test = load_text_data_into_memory(options)
-
-    # **********************************
     # CROSSVALIDATION
     # **********************************
-    cached_tokenized_data = False
     scores = []
     for i, clf_name in enumerate(configuration['classifiers']):
         if not configuration['classifiers'][clf_name]:
@@ -337,7 +302,7 @@ def _run_tasks(configuration, n_jobs, data, thesaurus, vector_source):
                                             y_test)
 
         logging.info('Assigning id %d to classifier %s' % (i, clf_name))
-        pipeline = _build_pipeline(thesaurus, vector_source, i, clf_name,
+        pipeline = _build_pipeline(vector_source, i, clf_name,
                                    configuration['feature_extraction'],
                                    configuration['feature_selection'],
                                    configuration['dimensionality_reduction'],
@@ -345,17 +310,6 @@ def _run_tasks(configuration, n_jobs, data, thesaurus, vector_source):
                                    configuration['output_dir'],
                                    configuration['debug'],
                                    exp_name=configuration['name'])
-
-        #if not cached_tokenized_data:
-        #    analyzer = pipeline.named_steps['vect'].build_analyzer()
-        #    # pre-tokenize all documents (train and test) and store results in a
-        #    # joblib cache. We're doing it single-threaded so that no conflicts occur
-        #    # later
-        #    logging.info('Tokenising all data in one go')
-        #    map(analyzer, x_tr)
-        #    map(analyzer, x_test)
-        #    cached_tokenized_data = True
-
 
         # pass the (feature selector + classifier) pipeline for evaluation
         logging.info('***Fitting pipeline for %s' % clf_name)
@@ -508,7 +462,7 @@ def _prepare_classpath(classpath):
         sys.path.append(os.path.abspath(path))
 
 
-def go(conf_file, log_dir, data, thesaurus, vector_source, classpath='', clean=False, n_jobs=1):
+def go(conf_file, log_dir, data, vector_source, classpath='', clean=False, n_jobs=1):
     if not os.path.exists(log_dir):
         os.makedirs(log_dir)
 
@@ -531,7 +485,7 @@ def go(conf_file, log_dir, data, thesaurus, vector_source, classpath='', clean=F
     output = config['output_dir']
     _prepare_output_directory(clean, output)
     _prepare_classpath(classpath)
-    status, msg = _run_tasks(config, n_jobs, data, thesaurus, vector_source)
+    status, msg = _run_tasks(config, n_jobs, data, vector_source)
     shutil.copy(conf_file, output)
     return status, msg
 
@@ -563,7 +517,7 @@ if __name__ == '__main__':
 
     conf, configspec_file = parse_config_file(conf_file)
     data = load_text_data_into_memory(conf)
-    thesaurus, tokenizer = _load_vectors_and_tokenizer(conf)
+    vector_store, tokenizer = _load_vectors_and_tokenizer(conf)
     keep_only_IT = conf['tokenizer']['keep_only_IT']
     data = tokenize_data(data, tokenizer, keep_only_IT)
-    go(conf_file, log_dir, data, thesaurus, classpath=classpath, clean=clean, n_jobs=1)
+    go(conf_file, log_dir, data, vector_store, classpath=classpath, clean=clean, n_jobs=1)

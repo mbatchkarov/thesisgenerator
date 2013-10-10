@@ -9,7 +9,6 @@ sys.path.append('.')
 sys.path.append('..')
 sys.path.append('../..')
 
-from thesisgenerator.composers.vectorstore import CompositeVectorSource
 from thesisgenerator.utils.data_utils import tokenize_data, load_text_data_into_memory, \
     _load_vectors_and_tokenizer
 from thesisgenerator.utils.conf_file_utils import parse_config_file
@@ -116,12 +115,14 @@ def run_experiment(expid, subexpid=None, num_workers=4,
     conf, configspec_file = parse_config_file(base_conf_file)
     raw_data, data_ids = load_text_data_into_memory(conf)
     vectors, tokenizer = _load_vectors_and_tokenizer(conf)
-    keep_only_IT = conf['tokenizer']['keep_only_IT']
-    tokenised_data = tokenize_data(raw_data, tokenizer, keep_only_IT, data_ids)
-    vector_source = CompositeVectorSource(conf['vector_sources'])
+    tokenised_data = tokenize_data(raw_data, tokenizer, data_ids)
+
+    #keep_only_IT = conf['tokenizer']['keep_only_IT']
+    #vector_source = CompositeVectorSource(conf['vector_sources'])
 
     # run the data through the pipeline
-    Parallel(n_jobs=num_workers)(delayed(go)(new_conf_file, log_dir, tokenised_data, vectors, vector_source) for
+
+    Parallel(n_jobs=num_workers)(delayed(go)(new_conf_file, log_dir, tokenised_data, vectors) for
                                  new_conf_file, log_dir in conf_file_iterator)
 
     # ----------- CONSOLIDATION -----------

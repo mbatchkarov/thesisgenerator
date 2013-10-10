@@ -4,7 +4,6 @@ import csv
 import logging
 from operator import itemgetter
 import os
-import pickle
 import itertools
 from numpy import count_nonzero
 from sklearn.base import TransformerMixin
@@ -34,12 +33,14 @@ class FeatureVectorsCsvDumper(TransformerMixin):
 
         We only want to dump after stages 1.2 and 2.1
         """
-        vocab_file = './tmp_vocabulary_%s_%d' % (self.exp_name, self.pipe_id)
-        logging.info('reading %s' % vocab_file)
-        with open(vocab_file, 'r') as f:
-            vocabulary_ = pickle.load(f)
-            if len(y) < 1:
-                os.remove(vocab_file)
+        matrix, vocabulary_ = X
+        #vocab_file = './tmp_vocabulary_%s_%d' % (self.exp_name, self.pipe_id)
+        #logging.info('reading %s' % vocab_file)
+        #with open(vocab_file, 'r') as f:
+        #    vocabulary_ = pickle.load(f)
+        #    if len(y) < 1:
+        #        os.remove(vocab_file)
+
         new_file = os.path.join(self.prefix, file_name)
         c = csv.writer(open(new_file, "w"))
         inverse_vocab = {index: word for (word, index) in
@@ -47,8 +48,8 @@ class FeatureVectorsCsvDumper(TransformerMixin):
         v = [inverse_vocab[i] for i in range(len(inverse_vocab))]
         c.writerow(['id'] + ['target'] + ['total_feat_weight'] +
                    ['nonzero_feats'] + v)
-        for i in range(X.shape[0]):
-            row = X.todense()[i, :].tolist()[0]
+        for i in range(matrix.shape[0]):
+            row = matrix.todense()[i, :].tolist()[0]
             vals = ['%1.2f' % x for x in row]
             c.writerow([i, y[i], sum(row), count_nonzero(row)] + vals)
         logging.info('Saved debug info to %s' % new_file)

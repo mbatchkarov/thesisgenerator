@@ -33,7 +33,7 @@ class Test_ThesaurusVectorizer(TestCase):
             'coarse_pos': True,
             'lemmatize': True,
             'lowercase': True,
-            'keep_only_IT': False,
+            #'keep_only_IT': False,
             'remove_stopwords': False,
             'remove_short_words': False,
             'use_cache': False,
@@ -51,6 +51,13 @@ class Test_ThesaurusVectorizer(TestCase):
             'k': 10, # use all thesaurus entries
             'train_token_handler': 'thesisgenerator.plugins.bov_feature_handlers.BaseFeatureHandler',
             'decode_token_handler': 'thesisgenerator.plugins.bov_feature_handlers.BaseFeatureHandler'
+        }
+        self.feature_selection_conf = {
+            'run': True,
+            'method': 'thesisgenerator.composers.feature_selectors.VectorBackedSelectKBest',
+            'scoring_function': 'sklearn.feature_selection.chi2',
+            'ensure_vectors_exist': False,
+            'k': 'all'
         }
 
         self.default_prefix = 'thesisgenerator/resources/test'
@@ -112,7 +119,7 @@ class Test_ThesaurusVectorizer(TestCase):
             12345, #id for naming debug files
             None, # classifier
             self.feature_extraction_conf,
-            {'run': False}, # feature selection conf
+            self.feature_selection_conf,
             {'run': False}, # dim re. conf
             None, # classifier options
             '.', # temp files dir
@@ -121,8 +128,8 @@ class Test_ThesaurusVectorizer(TestCase):
         )
 
         raw_data = (self.x_tr, self.y_tr, self.x_ev, self.y_ev)
-        keep_only_IT = self.tokenizer_opts['keep_only_IT']
-        x_tr, y_tr, x_test, y_test = tokenize_data(raw_data, self.tokenizer, keep_only_IT, self.dataset_names)
+
+        x_tr, y_tr, x_test, y_test = tokenize_data(raw_data, self.tokenizer, self.dataset_names)
 
         x1 = pipeline.fit_transform(x_tr, y_tr)
 
@@ -353,21 +360,20 @@ class Test_ThesaurusVectorizer(TestCase):
         )
 
     def test_baseline_ignore_nonthesaurus_features_signifier_only_22(self):
-        self.tokenizer_opts['keep_only_IT'] = True
-        self._thesaurus_opts['thesaurus_files'] = \
-            ['thesisgenerator/resources/exp0-0b.strings']
+        #self.tokenizer_opts['keep_only_IT'] = True
+        self.feature_selection_conf['ensure_vectors_exist'] = True
+        self._thesaurus_opts['thesaurus_files'] = ['thesisgenerator/resources/exp0-0b.strings']
         # self._thesaurus_opts['k'] = 1
         self._reload_thesaurus_and_tokenizer()
 
-        self.x_tr, self.y_tr, self.x_ev, self.y_ev = self. \
-            _load_data('thesisgenerator/resources/test-baseline')
+        self.x_tr, self.y_tr, self.x_ev, self.y_ev = self._load_data('thesisgenerator/resources/test-baseline')
 
         x1, x2, voc = self._vectorize_data()
 
         self.assertDictEqual({'a/n': 0, 'b/n': 1, 'c/n': 2,
                               'd/n': 3, 'e/n': 4, 'f/n': 5}, self._strip(voc))
 
-        self.assertIsInstance(x1, sp.spmatrix)
+        #self.assertIsInstance(x1, sp.spmatrix)
         t.assert_array_equal(
             x1.toarray(),
             self.training_matrix
@@ -376,14 +382,15 @@ class Test_ThesaurusVectorizer(TestCase):
         t.assert_array_equal(
             x2.toarray(),
             np.array(
-                [
-                    [4, 1, 0, 0, 0, 0]
+                [# todo wtf is this, how can features be removed and yet the vocabulary stays the same
+                 [4, 1, 0, 0, 0, 0]
                 ]
             )
         )
 
     def test_baseline_use_all_features_with__signifier_signified_25(self):
-        self.tokenizer_opts['keep_only_IT'] = False
+        #self.tokenizer_opts['keep_only_IT'] = False
+        self.feature_selection_conf['ensure_vectors_exist'] = False
         self.feature_extraction_conf['decode_token_handler'] = \
             'thesisgenerator.plugins.bov_feature_handlers.SignifierSignifiedFeatureHandler'
         self.feature_extraction_conf['k'] = 1 # equivalent to max
@@ -417,7 +424,8 @@ class Test_ThesaurusVectorizer(TestCase):
 
     def test_baseline_ignore_nonthesaurus_features_with_signifier_signified_24(
             self):
-        self.tokenizer_opts['keep_only_IT'] = True
+        #self.tokenizer_opts['keep_only_IT'] = True
+        self.feature_selection_conf['ensure_vectors_exist'] = True
         self.feature_extraction_conf['decode_token_handler'] = \
             'thesisgenerator.plugins.bov_feature_handlers.SignifierSignifiedFeatureHandler'
         self.feature_extraction_conf['k'] = 1 # equivalent to max
@@ -449,7 +457,8 @@ class Test_ThesaurusVectorizer(TestCase):
         )
 
     def test_baseline_use_all_features_with_signified_27(self):
-        self.tokenizer_opts['keep_only_IT'] = False
+        #self.tokenizer_opts['keep_only_IT'] = False
+        self.feature_selection_conf['ensure_vectors_exist'] = False
         self.feature_extraction_conf['decode_token_handler'] = \
             'thesisgenerator.plugins.bov_feature_handlers.SignifiedOnlyFeatureHandler'
         self.feature_extraction_conf['k'] = 1 # equivalent to max
@@ -482,7 +491,8 @@ class Test_ThesaurusVectorizer(TestCase):
         )
 
     def test_baseline_ignore_nonthesaurus_features_with_signified_26(self):
-        self.tokenizer_opts['keep_only_IT'] = True
+        #self.tokenizer_opts['keep_only_IT'] = True
+        self.feature_selection_conf['ensure_vectors_exist'] = True
         self.feature_extraction_conf['decode_token_handler'] = \
             'thesisgenerator.plugins.bov_feature_handlers.SignifiedOnlyFeatureHandler'
         self.feature_extraction_conf['k'] = 1 # equivalent to max
@@ -514,7 +524,8 @@ class Test_ThesaurusVectorizer(TestCase):
         )
 
     def test_baseline_use_all_features_with_signified_random_28(self):
-        self.tokenizer_opts['keep_only_IT'] = False
+        #self.tokenizer_opts['keep_only_IT'] = False
+        self.feature_selection_conf['ensure_vectors_exist'] = False
         self.feature_extraction_conf['decode_token_handler'] = \
             'thesisgenerator.plugins.bov_feature_handlers.SignifierRandomBaselineFeatureHandler'
         self.feature_extraction_conf['k'] = 1    # equivalent to max

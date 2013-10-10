@@ -5,18 +5,18 @@ import numpy as np
 from numpy.testing import assert_array_equal
 from scipy.sparse import csr_matrix, issparse
 
-from thesisgenerator.composers.vectorstore import UnigramVectorSource, CompositeVectorSource, AdditiveComposer, MultiplicativeComposer, PrecomputedSimilaritiesVectorSource
+from thesisgenerator.composers.vectorstore import UnigramVectorSource, AdditiveComposer, MultiplicativeComposer, PrecomputedSimilaritiesVectorSource
 
 DIM = 10
 
 path = ['thesisgenerator/resources/vectors/small.strings']
-unigram_feature = {('1-GRAM', ('a/n',))}
-unk_unigram_feature = {('1-GRAM', ('UNK/UNK',))}
-bigram_feature = {('2-GRAM', ('a/n', 'b/v'))}
-unk_bigram_feature = {('2-GRAM', ('a/n', 'UNK/UNK'))}
-an_feature = {('AN', ('c/j', 'a/n'))}
-known_features = unigram_feature | bigram_feature | an_feature
-all_features = known_features | unk_unigram_feature | unk_bigram_feature
+unigram_feature = ('1-GRAM', ('a/n',))
+unk_unigram_feature = ('1-GRAM', ('UNK/UNK',))
+bigram_feature = ('2-GRAM', ('a/n', 'b/v'))
+unk_bigram_feature = ('2-GRAM', ('a/n', 'UNK/UNK'))
+an_feature = ('AN', ('c/j', 'a/n'))
+known_features = set([unigram_feature, bigram_feature, an_feature])
+all_features = set([unigram_feature, bigram_feature, an_feature, unk_unigram_feature, unk_bigram_feature])
 
 
 class TestUnigramVectorSource(TestCase):
@@ -52,20 +52,14 @@ class TestUnigramVectorSource(TestCase):
 
         self.assertIsNone(self.source._get_vector('jfhjgjdfyjhgb'))
 
-    def test_accept_features(self):
+    def test_contains(self):
         """
         Test if the unigram model only accepts unigram features
         """
-        self.assertSetEqual(
-            self.source.accept_features(known_features | unk_unigram_feature | unk_bigram_feature),
-            unigram_feature | unk_unigram_feature
-        )
-
-        self.source.keep_only_IT = True
-        self.assertSetEqual(
-            self.source.accept_features(known_features | unk_unigram_feature | unk_bigram_feature),
-            unigram_feature
-        )
+        #for thing in (known_features | unk_unigram_feature | unk_bigram_feature):
+        self.assertIn(unigram_feature, self.source)
+        for thing in (unk_unigram_feature, bigram_feature, unk_unigram_feature):
+            self.assertNotIn(thing, self.source)
 
 
 class TestCompositeVectorSource(TestCase):
@@ -83,50 +77,53 @@ class TestCompositeVectorSource(TestCase):
         }
 
 
-    def test_only_composable_features(self):
-        """
-        Test that a set of composer accepts only things that can be composed
-        """
-        source = CompositeVectorSource(self.conf)
+        #def test_only_composable_features(self):
+        #    """
+        #    Test that a set of composer accepts only things that can be composed
+        #    """
+        #    source = CompositeVectorSource(self.conf)
+        #    self.assertIn(bigram_feature, source)
+        #    self.assertIn(an_feature, source)
+        #    self.assertNotIn(unk_unigram_feature, source)
+        #    self.assertNotIn(unk_unigram_feature, source)
+        #    self.assertNotIn(unigram_feature, source)
+        #
+        #
+        #def test_also_include_unigram_features(self):
+        #    """
+        #    Test that when include_unigram_features is enabled unigram features as well as
+        #    composable features are accepted
+        #    """
+        #    self.conf['include_unigram_features'] = True
+        #    source = CompositeVectorSource(self.conf)
+        #    for x in known_features:
+        #        self.assertIn(x, source)
+        #
+        #def test_include_unigram_features_only(self):
+        #    self.conf['include_unigram_features'] = True
+        #    self.conf = {key: value for key, value in self.conf.items() if 'Composer' not in key}
+        #    source = CompositeVectorSource(self.conf)
+        #    self.assertNotIn(bigram_feature, source)
+        #    self.assertIn(unigram_feature, source)
+        #    #self.assertSetEqual(source.__contains__(known_features), unigram_feature)
 
-        print source.accept_features(all_features)
-        self.assertSetEqual(
-            source.accept_features(all_features),
-            known_features - unigram_feature
-        )
-
-    def test_also_include_unigram_features(self):
-        """
-        Test that when include_unigram_features is enabled unigram features as well as
-        composable features are accepted
-        """
-        self.conf['include_unigram_features'] = True
-        source = CompositeVectorSource(self.conf)
-        self.assertSetEqual(source.accept_features(known_features), known_features)
-
-    def test_include_unigram_features_only(self):
-        self.conf['include_unigram_features'] = True
-        self.conf = {key: value for key, value in self.conf.items() if 'Composer' not in key}
-        source = CompositeVectorSource(self.conf)
-        self.assertSetEqual(source.accept_features(known_features), unigram_feature)
-
-    def test_build_vector_space(self):
-        source = CompositeVectorSource(self.conf)
-        training_features = source.accept_features(all_features)
-        source.populate_vector_space(training_features)
-        for f in training_features:
-            #print 'Composing', f
-            #print 'Composed vectors are ', source.get_vector(f)
-            #print 'Nearest neighbours are\n'
-            for (_, dist, _) in source._get_nearest_neighbours(f):
-                # nearest neighbour should be the feature itself
-                self.assertAlmostEquals(dist, 0., places=4)
-                #print '---------------------------'
-
-        for comp, dist, neigh in source._get_nearest_neighbours(('2-GRAM', ('c/j', 'a/n'))):
-            self.assertIn(neigh, training_features)
-            #print comp, dist, neigh
-            #todo expand this test
+        #def test_build_vector_space(self):
+        #    source = CompositeVectorSource(self.conf)
+        #    training_features = [x for x in all_features if x in source]
+        #    source.populate_vector_space(training_features)
+        #    for f in training_features:
+        #        #print 'Composing', f
+        #        #print 'Composed vectors are ', source.get_vector(f)
+        #        #print 'Nearest neighbours are\n'
+        #        for (_, (dist, _)) in source._get_nearest_neighbours(f):
+        #            # nearest neighbour should be the feature itself
+        #            self.assertAlmostEquals(dist, 0., places=4)
+        #            #print '---------------------------'
+        #
+        #    for comp, dist, neigh in source._get_nearest_neighbours(('2-GRAM', ('c/j', 'a/n'))):
+        #        self.assertIn(neigh, training_features)
+        #        #print comp, dist, neigh
+        #        #todo expand this test
 
 
 class TestSimpleComposers(TestCase):
@@ -182,6 +179,6 @@ class TestPrecomputedSimSource(TestCase):
             sim_threshold=0, include_self=False)
 
         self.assertTupleEqual(
-            source._get_nearest_neighbours('cat/n'),
-            ('dog/n', 0.8)
+            source.get_nearest_neighbours(('1-GRAM', ('cat/n',)))[0],
+            (('1-GRAM', ('dog/n',)), 0.8)
         )

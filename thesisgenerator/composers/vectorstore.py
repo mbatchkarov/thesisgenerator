@@ -18,22 +18,10 @@ from thesisgenerator.utils.reflection_utils import get_named_object
 class VectorSource(object):
     __metaclass__ = ABCMeta
 
-    feature_pattern = {} # each VectorSource can work with a set of feature types
-    _keep_only_IT = False
-
-    def _get_keep_only_IT(self):
-        return self._keep_only_IT
-
-    def _set_keep_only_IT(self, value):
-        self._keep_only_IT = value
-
-    keep_only_IT = property(fset=_set_keep_only_IT, fget=_get_keep_only_IT)
-
-    def accept_features(self, features):
-        return self._accept_features(features) if self.keep_only_IT else features
+    feature_pattern = {}    # each VectorSource can work with a set of feature types
 
     @abstractmethod
-    def _accept_features(self, features):
+    def __contains__(self, features):
         """
         Filters out document features that cannot be handled by the implementing model. For instance,
         BaroniComposer cannot handle noun compounds or AN compounds for some adjectives. Features
@@ -46,15 +34,15 @@ class VectorSource(object):
         pass
 
 
-class ExactMatchVectorSource(VectorSource):
-    feature_pattern = {'1-GRAM', '2-GRAM', '3-GRAM'}
-    name = 'Exact'
-
-    def _accept_features(self, features):
-        return features
-
-    def _get_vector(self, word):
-        raise ValueError('This class cannot provide vectors')
+#class ExactMatchVectorSource(VectorSource):
+#    feature_pattern = {'1-GRAM', '2-GRAM', '3-GRAM'}
+#    name = 'Exact'
+#
+#    def __contains__(self, features):
+#        return True
+#
+#    def _get_vector(self, word):
+#        raise ValueError('This class cannot provide vectors')
 
 
 class UnigramVectorSource(VectorSource):
@@ -104,14 +92,12 @@ class UnigramVectorSource(VectorSource):
     #    """
     #    return self.get_vector(words[0])
 
-    def _accept_features(self, features):
+    def __contains__(self, feature):
         """
         Accept all unigrams that we have a vector for
+        the thing is a unigram and we have a corpus-based vector for that unigram
         """
-        return {t for t in features
-                if t[0] in self.feature_pattern and # the thing is a unigram
-                   t[1][0] in self.entry_index.keys()   # we have a corpus-based vector for that unigram
-        }
+        return feature[0] in self.feature_pattern and feature[1][0] in self.entry_index.keys()
 
 
 class Composer(VectorSource):
@@ -132,27 +118,22 @@ class AdditiveComposer(Composer):
     def _get_vector(self, sequence):
         return sum(self.unigram_source._get_vector(word) for word in sequence)
 
-    def _accept_features(self, features):
+    def __contains__(self, f):
         """
-        Accept all sequences of words where we have a distrib vector for each unigram
+        Contains all sequences of words where we have a distrib vector for each unigram
         they contain. Rejects unigrams.
         """
-        accepted_features = set()
-        for f in features:
-            acceptable = True
-            if f[0] == '1-GRAM':
-                # no point in composing single-word document features
-                continue
+        if f[0] == '1-GRAM':
+            # no point in composing single-word document features
+            return False
 
-            for unigram in f[1]:
-                if unigram not in self.unigram_source.entry_index.keys():
-                    # ignore n-grams containing unknown unigrams
-                    acceptable = False
-                    break
-            if acceptable:
-                accepted_features.add(f)
-
-        return accepted_features
+        acceptable = True
+        for unigram in f[1]:
+            if unigram not in self.unigram_source:
+                # ignore n-grams containing unknown unigrams
+                acceptable = False
+                break
+        return acceptable
 
 
 class MultiplicativeComposer(AdditiveComposer):
@@ -175,28 +156,26 @@ class BaroniComposer(Composer):
     def __init__(self, unigram_source=None):
         super(BaroniComposer, self).__init__(unigram_source)
 
-    def _accept_features(self, features):
+    def __contains__(self, feature):
         """
         Accept all adjective-noun phrases where we have a corpus-observed vector for the noun and
         a learnt matrix (through PLSR) for the adjective
         """
-        accepted_features = set()
-        for f in features:
-            if f[0] not in self.feature_pattern:
-                # ignore non-AN features
-                continue
-            adj, noun = f[1]
-            if noun not in self.unigram_source.entry_index.keys():
-                # ignore ANs containing unknown nouns
-                continue
+        if feature[0] not in self.feature_pattern:
+            # ignore non-AN features
+            return False
 
-            # todo enable this
-            #if adj not in self.adjective_matrices.keys():
-            #        # ignore ANs containing unknown adjectives
-            #        continue
+        adj, noun = feature[1]
+        if noun not in self.unigram_source.entry_index.keys():
+            # ignore ANs containing unknown nouns
+            return False
 
-            accepted_features.add(f)
-        return accepted_features
+        # todo enable this
+        #if adj not in self.adjective_matrices.keys():
+        #        # ignore ANs containing unknown adjectives
+        #        continue
+
+        return True
 
     def _get_vector(self, sequence):
         #todo currently returns just the noun vector, which is wrong
@@ -231,12 +210,13 @@ class CompositeVectorSource(VectorSource):
                 tmp[p].add(c)
         self.composer_mapping.update(tmp)
 
-    def _accept_features(self, features):
+    def __contains__(self, item):
     #for c in self.composers:
     #print c
     #print c.accept_features(features)
     #print
-        return {f for c in self.composers for f in c._accept_features(features)}
+    #    return {f for c in self.composers for f in c.__contains__(features)}
+        return any(item in c for c in self.composers)
 
     def populate_vector_space(self, vocabulary):
         #todo the exact data structure used here will need optimisation
@@ -283,7 +263,7 @@ class CompositeVectorSource(VectorSource):
             data = (comp_name, (dist[0][0], self.entry_index[ind[0][0]]))
             #print '{}\t\t\t{}\t\t\t{}'.format(*data)
             #todo tests for this if and the one below
-            if ngram == data[2] and not self.include_self:
+            if ngram == data[1][1] and not self.include_self:
                 continue
             if 1 - dist < self.sim_threshold:
                 continue
@@ -296,13 +276,6 @@ class CompositeVectorSource(VectorSource):
         """
         print ngram, self._get_nearest_neighbours(ngram)
         return map(itemgetter(1), self._get_nearest_neighbours(ngram))
-
-    def _get_keep_only_IT(self):
-        return all(c.keep_only_IT for c in self.composers)
-
-    def _set_keep_only_IT(self, value):
-        for c in self.composers:
-            c.keep_only_IT = value
 
 
 class PrecomputedSimilaritiesVectorSource(CompositeVectorSource):
@@ -333,7 +306,7 @@ class PrecomputedSimilaritiesVectorSource(CompositeVectorSource):
                 )
                 for x in res] if res else []
 
-    def _accept_features(self, features):
+    def __contains__(self, features):
         # strip the meta information from the feature and use as a string, thesaurus does not contain this info
 
         return [x for x in features if x[1][0] in self.th.keys()]
@@ -342,10 +315,9 @@ class PrecomputedSimilaritiesVectorSource(CompositeVectorSource):
         # todo this needs to be removed from the interface of this class
         return self.th.keys()
 
-    def get(self, word):
-        # conveniece wrapper to make this compatible with dicts: BovVectorizer uses the get() method of dicts
+    def __contains__(self, item):
         #Accepts structured features
-        return self._get_nearest_neighbours(word)
+        return item[1][0] in self.th
 
     def populate_vector_space(self, vocabulary):
         #nothing to do, we have the all-pairs sim matrix already
@@ -364,7 +336,7 @@ class ConstantNeighbourVectorSource(VectorSource):
         self.vocab = vocab
 
 
-    def get(self, thing):
+    def get_nearest_neighbours(self, thing):
         if self.vocab:
             v = choice(self.vocab.keys())
             return [(v, 1.0)]
@@ -376,14 +348,14 @@ class ConstantNeighbourVectorSource(VectorSource):
                 )
             ]
 
-    def get_nearest_neighbours(self, thing):
-        return self.get(thing)
-
     def populate_vector_space(self, thing):
         pass
 
-    def _accept_features(self):
+    def __contains__(self):
         pass
 
     def _get_vector(self):
         pass
+
+    def __contains__(self, item):
+        return True

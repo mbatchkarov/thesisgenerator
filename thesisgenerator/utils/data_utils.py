@@ -11,16 +11,16 @@ from thesisgenerator.utils.reflection_utils import get_named_object
 __author__ = 'mmb28'
 
 
-def tokenize_data(data, tokenizer, keep_only_IT, corpus_ids):
+def tokenize_data(data, tokenizer, corpus_ids):
     # param keep_only_IT: the training data should not depend on the thesaurus, ie the keep_only_IT
     # intervention should only apply to decode time
     # param corpus_ids - list-like, names of the training corpus (and optional testing corpus), used for
     # retrieving pre-tokenized data from joblib cache
     x_tr, y_tr, x_test, y_test = data
     #todo this logic needs to be moved to feature extractor
-    tokenizer.keep_only_IT = False
+    #tokenizer.keep_only_IT = False
     x_tr = tokenizer.tokenize_corpus(x_tr, corpus_ids[0])
-    tokenizer.keep_only_IT = keep_only_IT
+    #tokenizer.keep_only_IT = keep_only_IT
     x_test = tokenizer.tokenize_corpus(x_test, corpus_ids[1])
     data = (x_tr, y_tr, x_test, y_test)
     return data
