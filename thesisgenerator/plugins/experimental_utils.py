@@ -125,11 +125,7 @@ def run_experiment(expid, subexpid=None, num_workers=4,
     tokenizer = _load_tokenizer(conf)
     tokenised_data = tokenize_data(raw_data, tokenizer, data_ids)
 
-    #keep_only_IT = conf['tokenizer']['keep_only_IT']
-    #vector_source = CompositeVectorSource(conf['vector_sources'])
-
-    # run the data through the pipeline
-
+    # run data through the pipeline
     Parallel(n_jobs=num_workers)(delayed(go)(new_conf_file, log_dir, tokenised_data, vectors) for
                                  new_conf_file, log_dir in conf_file_iterator)
 

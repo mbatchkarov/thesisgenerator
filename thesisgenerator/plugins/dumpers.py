@@ -92,7 +92,7 @@ columns = [('name', 'TEXT'),
            # experiment settings
            ('sample_size', 'INTEGER'),
            ('classifier', 'TEXT'),
-           ('keep_only_IT', 'BOOLEAN'),
+           ('ensure_vectors_exist', 'BOOLEAN'),
            ('train_token_handler', 'TEXT'),
            ('decode_token_handler', 'TEXT'),
            ('use_tfidf', 'BOOLEAN'),

@@ -474,10 +474,6 @@ def go(conf_file, log_dir, data, vector_source, classpath='', clean=False, n_job
         # because all folds run at the same time and write to the same debug
         # file
 
-    if config['tokenizer']['keep_only_IT'] and not \
-        config['feature_extraction']['train_thesaurus_files']:
-        raise ValueError('keep_only_IT requires a thesaurus')
-
     log = _config_logger(log_dir, name=config['name'], debug=config['debug'])
     log.info(
         'Reading configuration file from \'%s\', conf spec from \'%s\''
@@ -518,6 +514,5 @@ if __name__ == '__main__':
     conf, configspec_file = parse_config_file(conf_file)
     data = load_text_data_into_memory(conf)
     vector_store, tokenizer = _load_tokenizer(conf)
-    keep_only_IT = conf['tokenizer']['keep_only_IT']
-    data = tokenize_data(data, tokenizer, keep_only_IT)
+    data = tokenize_data(data, tokenizer)
     go(conf_file, log_dir, data, vector_store, classpath=classpath, clean=clean, n_jobs=1)

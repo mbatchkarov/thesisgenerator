@@ -33,7 +33,6 @@ class TestThesaurusVectorizer(TestCase):
             'coarse_pos': True,
             'lemmatize': True,
             'lowercase': True,
-            #'keep_only_IT': False,
             'remove_stopwords': False,
             'remove_short_words': False,
             'use_cache': False
@@ -192,10 +191,8 @@ class TestThesaurusVectorizer(TestCase):
         )
 
     def test_baseline_ignore_nonthesaurus_features_signifier_only_22(self):
-        #self.tokenizer_opts['keep_only_IT'] = True
         self.feature_selection_conf['ensure_vectors_exist'] = True
         self._thesaurus_opts['thesaurus_files'] = ['thesisgenerator/resources/exp0-0b.strings']
-        # self._thesaurus_opts['k'] = 1
         self._reload_thesaurus_and_tokenizer()
 
         self.x_tr, self.y_tr, self.x_ev, self.y_ev = self._load_data('thesisgenerator/resources/test-baseline')
@@ -220,7 +217,6 @@ class TestThesaurusVectorizer(TestCase):
         )
 
     def test_baseline_use_all_features_with__signifier_signified_25(self):
-        #self.tokenizer_opts['keep_only_IT'] = False
         self.feature_selection_conf['ensure_vectors_exist'] = False
         self.feature_extraction_conf['decode_token_handler'] = \
             'thesisgenerator.plugins.bov_feature_handlers.SignifierSignifiedFeatureHandler'
@@ -254,7 +250,6 @@ class TestThesaurusVectorizer(TestCase):
 
     def test_baseline_ignore_nonthesaurus_features_with_signifier_signified_24(
             self):
-        #self.tokenizer_opts['keep_only_IT'] = True
         self.feature_selection_conf['ensure_vectors_exist'] = True
         self.feature_extraction_conf['decode_token_handler'] = \
             'thesisgenerator.plugins.bov_feature_handlers.SignifierSignifiedFeatureHandler'
@@ -286,7 +281,6 @@ class TestThesaurusVectorizer(TestCase):
         )
 
     def test_baseline_use_all_features_with_signified_27(self):
-        #self.tokenizer_opts['keep_only_IT'] = False
         self.feature_selection_conf['ensure_vectors_exist'] = False
         self.feature_extraction_conf['decode_token_handler'] = \
             'thesisgenerator.plugins.bov_feature_handlers.SignifiedOnlyFeatureHandler'
@@ -319,7 +313,6 @@ class TestThesaurusVectorizer(TestCase):
         )
 
     def test_baseline_ignore_nonthesaurus_features_with_signified_26(self):
-        #self.tokenizer_opts['keep_only_IT'] = True
         self.feature_selection_conf['ensure_vectors_exist'] = True
         self.feature_extraction_conf['decode_token_handler'] = \
             'thesisgenerator.plugins.bov_feature_handlers.SignifiedOnlyFeatureHandler'
@@ -351,7 +344,6 @@ class TestThesaurusVectorizer(TestCase):
         )
 
     def test_baseline_use_all_features_with_signified_random_28(self):
-        #self.tokenizer_opts['keep_only_IT'] = False
         self.feature_selection_conf['ensure_vectors_exist'] = False
         self.feature_extraction_conf['decode_token_handler'] = \
             'thesisgenerator.plugins.bov_feature_handlers.SignifierRandomBaselineFeatureHandler'

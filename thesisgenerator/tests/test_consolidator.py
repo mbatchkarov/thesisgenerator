@@ -41,7 +41,7 @@ class TestConsolidator(TestCase):
             'pos': 'a',
             'fef': '?',
             'use_tfidf': 0,
-            'keep_only_IT': 0,
+            'ensure_vectors_exist': 0,
             'train_token_handler': 'BaseFeatureHandler',
             # changing this to SignifierSignifiedFeatureHandler will not affect
             #  the vector of the third test document, i.e. will not change

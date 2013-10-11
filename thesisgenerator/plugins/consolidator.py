@@ -40,7 +40,7 @@ def consolidate_results(writer, conf_dir, log_dir, output_dir,
 
 
         exp_name = config_obj['name']
-        keep_only_IT = config_obj['tokenizer']['keep_only_IT']
+        ensure_vectors_exist = config_obj['feature_selection']['ensure_vectors_exist']
         train_handler = config_obj['feature_extraction'][
             'train_token_handler'].split('.')[-1]
         decode_handler = config_obj['feature_extraction'][
@@ -128,7 +128,7 @@ def consolidate_results(writer, conf_dir, log_dir, output_dir,
                     # these need to be converted to a bool and then to an int
                     #  because mysql stores booleans as a tinyint and complains
                     #  if you pass in a python boolean
-                    int(keep_only_IT),
+                    int(ensure_vectors_exist),
                     train_handler,
                     decode_handler,
                     int(use_tfidf),
