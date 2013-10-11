@@ -1,4 +1,5 @@
 import logging
+from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.feature_selection import SelectKBest
 import numpy as np
 from sklearn.feature_selection.univariate_selection import _clean_nans
@@ -67,3 +68,22 @@ class VectorBackedSelectKBest(SelectKBest):
         mask = np.zeros(scores.shape, dtype=bool)
         mask[np.argsort(scores)[-k:]] = 1
         return mask
+
+
+class MetadataStripper(BaseEstimator, TransformerMixin):
+    """
+    The current implementation of ThesaurusVectorizer's fit() returns not just a data matrix, but also some
+    metadata (its vocabulary). This class is meant to sit in a pipeline behind the vectorizer to remove that
+    metadata, so that it doesn't break other items in the pipeline.
+
+    Currently several other pipeline elements can make use of this data ( VectorBackedSelectKBest and
+     FeatureVectorsCsvDumper). This class must come after these in a pipeline as they do not have any
+     defensive checks
+    """
+
+    def fit(self, X, y):
+        return self
+
+    def transform(self, X):
+        # if X is a tuple, strip metadata, otherwise let it be
+        return X[0] if tuple(X) == X else X

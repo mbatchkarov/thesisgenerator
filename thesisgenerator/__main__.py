@@ -9,7 +9,6 @@ Created on Oct 18, 2012
 # if one tries to run this script from the main project directory the
 # thesisgenerator package would not be on the path, add it and try again
 import sys
-from thesisgenerator.utils.reflection_utils import get_named_object
 
 sys.path.append('.')
 sys.path.append('..')
@@ -29,6 +28,8 @@ from numpy.ma import hstack
 from sklearn import cross_validation
 from sklearn.pipeline import Pipeline
 
+from thesisgenerator.composers.feature_selectors import MetadataStripper
+from thesisgenerator.utils.reflection_utils import get_named_object
 from thesisgenerator.utils.misc import ChainCallable
 from thesisgenerator.classifiers import LeaveNothingOut, PredefinedIndicesIterator, SubsamplingPredefinedIndicesIterator, PicklingPipeline
 from thesisgenerator.utils.conf_file_utils import set_in_conf_file, parse_config_file
@@ -245,10 +246,12 @@ def _build_pipeline(vector_source, id, classifier_name, feature_extr_conf, featu
     _build_vectorizer(vector_source, id, call_args, feature_extr_conf,
                       pipeline_list, output_dir, debug, exp_name=exp_name)
 
-    _build_feature_selector(vector_source, call_args, feature_sel_conf,
-                            pipeline_list)
-    _build_dimensionality_reducer(call_args, dim_red_conf,
-                                  pipeline_list)
+    _build_feature_selector(vector_source, call_args, feature_sel_conf, pipeline_list)
+    _build_dimensionality_reducer(call_args, dim_red_conf, pipeline_list)
+    # vectorizer will return a matrix (as usual) and some metadata for use with feature dumper/selector,
+    # strip them before we proceed to the classifier
+    pipeline_list.append(('stripper', MetadataStripper()))
+
     # include a classifier in the pipeline regardless of whether we are doing
     # feature selection/dim. red. or not
     if classifier_name:
