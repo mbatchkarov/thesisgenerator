@@ -274,7 +274,7 @@ class CompositeVectorSource(VectorSource):
         """
         Returns only the third element of what self._get_nearest_neighbours returns
         """
-        print ngram, self._get_nearest_neighbours(ngram)
+        #print ngram, self._get_nearest_neighbours(ngram)
         return map(itemgetter(1), self._get_nearest_neighbours(ngram))
 
 

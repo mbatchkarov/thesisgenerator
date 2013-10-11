@@ -15,9 +15,9 @@ class TestConsolidator(TestCase):
                        prefix=prefix)
 
     def test_extract_thesausus_coverage_info(self):
-        with open('thesisgenerator/resources/conf/exp0/output/summary0.csv') \
-            as infile:
-            log_txt = ''.join(infile.readlines())
+        #with open('thesisgenerator/resources/conf/exp0/output/summary0.csv') \
+        #    as infile:
+        #    log_txt = ''.join(infile.readlines())
         cursor = get_susx_mysql_conn().cursor()
 
         cursor.execute('SELECT DISTINCT classifier from data00;')
@@ -46,7 +46,7 @@ class TestConsolidator(TestCase):
             # changing this to SignifierSignifiedFeatureHandler will not affect
             #  the vector of the third test document, i.e. will not change
             # performance
-            'train_token_handler': 'BaseFeatureHandler'
+            'decode_token_handler': 'SignifierSignifiedFeatureHandler'
         }
         for variable, exp_mean in expected.items():
             cursor.execute('SELECT DISTINCT %s from data00;' % variable)

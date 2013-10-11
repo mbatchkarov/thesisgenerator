@@ -34,12 +34,12 @@ class VectorBackedSelectKBest(SelectKBest):
         return super(VectorBackedSelectKBest, self).transform(X[0])
 
     def _remove_oot_features(self, scores):
-        print 'Removing features'
+        #print 'Removing features'
         removed_features = set()
         v = self.vocabulary_
         for feature, index in v.items():
             if feature not in self.vector_source:
-                print feature, 'not found'
+                #print feature, 'not found'
                 scores[index] = 0
                 removed_features.add(index)
         v = {k: v for k, v in v.iteritems() if v not in removed_features}

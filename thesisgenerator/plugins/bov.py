@@ -78,7 +78,6 @@ class ThesaurusVectorizer(TfidfVectorizer):
                                                   dtype=dtype)
 
     def fit_transform(self, raw_documents, y=None):
-        #self.vector_source = self.train_thesaurus
         self.handler = get_token_handler(self.train_token_handler,
                                          self.k,
                                          self.sim_compressor,
@@ -86,7 +85,6 @@ class ThesaurusVectorizer(TfidfVectorizer):
         self.stats = get_stats_recorder(self.record_stats)
         # a different stats recorder will be used for the testing data
 
-        # self.try_to_set_vocabulary_from_thesaurus_keys()
         res = super(ThesaurusVectorizer, self).fit_transform(raw_documents, y)
 
         # once training is done, convert all document features (unigrams and composable ngrams)

@@ -116,7 +116,7 @@ def run_experiment(expid, subexpid=None, num_workers=4,
     conf, configspec_file = parse_config_file(base_conf_file)
     raw_data, data_ids = load_text_data_into_memory(conf)
 
-    if 'signified' in conf['feature_extraction']['decode_token_handler'] or \
+    if 'signified' in conf['feature_extraction']['decode_token_handler'].lower() or \
             conf['feature_selection']['ensure_vectors_exist']:
         vectors = CompositeVectorSource(conf['vector_sources'])
     else:
