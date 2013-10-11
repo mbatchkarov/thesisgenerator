@@ -82,8 +82,7 @@ class XmlTokenizer(object):
     })
 
     def __init__(self, memory=NoopTransformer(), normalise_entities=False, use_pos=True,
-                 coarse_pos=True, lemmatize=True,
-                 lowercase=True, keep_only_IT=False, thesaurus=defaultdict(list),
+                 coarse_pos=True, lemmatize=True, lowercase=True,
                  remove_stopwords=False, remove_short_words=False,
                  use_cache=False):
         #store all important parameteres
@@ -94,27 +93,9 @@ class XmlTokenizer(object):
         self.lowercase = lowercase
         self.remove_stopwords = remove_stopwords
         self.remove_short_words = remove_short_words
-        self.keep_only_IT = keep_only_IT
-
-        # guard against an empty thesaurus
-        if not thesaurus and keep_only_IT:
-            raise Exception('A thesaurus is required with keep_only_IT')
-
-        if self.keep_only_IT:
-            # if we're using a thesaurus store some basic info about it
-            self.thes_entries = set(thesaurus.keys())
-            # thesaurus may be an empty dict or a dummy, i.e. may not have an associated file name
-            try:
-                self.thes_files = tuple(thesaurus.thesaurus_files)
-            except AttributeError:
-                self.thes_files = ''
-        else:
-            self.thes_entries = set()
 
         # store the important parameters for use as joblib keys
         self.important_params = deepcopy(self.__dict__)
-        # remove self.thes_entries from key list, may be very large
-        del self.important_params['thes_entries']
 
         self.charset = 'utf8'
         self.charset_error = 'replace'
@@ -193,9 +174,6 @@ class XmlTokenizer(object):
             if self.lowercase:
                 txt = txt.lower()
 
-            if self.keep_only_IT and txt not in self.thes_entries:
-                # logging.debug('Tokenizer ignoring OOT token: %s' % txt)
-                continue
             tokens.append(txt)
 
         return tokens
@@ -212,7 +190,6 @@ class XmlTokenizer(object):
 
         # decode document
         doc = doc.decode(self.charset, self.charset_error)
-        #doc = preprocess(self.decode(doc))
         try:
             tree = ET.fromstring(doc.encode("utf8"))
             sentences = []
@@ -227,8 +204,8 @@ class XmlTokenizer(object):
     def __str__(self):
         return 'XmlTokenizer:{}'.format(self.important_params)
 
-
-    def _is_number(self, s):
+    @staticmethod
+    def _is_number(s):
         """
         Checks if the given string is an int or a float. Numbers with thousands
         separators (e.g. "1,000.12") are also recognised. Returns true of the string

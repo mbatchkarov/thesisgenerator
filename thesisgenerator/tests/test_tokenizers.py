@@ -2,7 +2,6 @@
 from unittest import TestCase
 from joblib import Memory
 from thesisgenerator.classifiers import NoopTransformer
-from thesisgenerator.plugins import thesaurus_loader
 from thesisgenerator.plugins.tokenizers import XmlTokenizer
 
 try:
@@ -21,8 +20,7 @@ class Test_tokenizer(TestCase):
                        'use_pos': False,
                        'coarse_pos': False,
                        'lemmatize': False,
-                       'lowercase': False,
-                       'keep_only_IT': False}
+                       'lowercase': False}
 
         self.tokenizer = XmlTokenizer(**self.params)
 
@@ -73,10 +71,10 @@ class Test_tokenizer(TestCase):
 
             # modify the tokenizer and check if cache still works as expected
             self.assertFalse(tokenizer.use_pos)
-            self.assertFalse(tokenizer.important_params['use_pos'])
+            #self.assertFalse(tokenizer.important_params['use_pos'])
             tokenizer.use_pos = True
             self.assertTrue(tokenizer.use_pos)
-            self.assertTrue(tokenizer.important_params['use_pos'])
+            #self.assertTrue(tokenizer.important_params['use_pos'])
 
             tokenised_docs = tokenizer.tokenize_corpus(corpus, self.doc_name)
             self.assertListEqual(tokenised_docs, [[['Cats/NNP', 'like/VB', 'dogs/NNP']]])
@@ -164,32 +162,6 @@ class Test_tokenizer(TestCase):
         self.tokenizer.coarse_pos = True
         tokens = self.tokenizer.tokenize_doc(self.doc)
         self.assertListEqual(tokens, [['Cats/N', 'like/V', 'dogs/N']])
-
-    def test_xml_tokenizer_keep_IT_only(self):
-        """
-        tests xml_tokenizer's ability to discard out-of-thesaurus tokens
-        """
-
-        self.params.update({
-            'keep_only_IT': True,
-            'coarse_pos': True,
-            'use_pos': True,
-            'lowercase': True,
-            'lemmatize': True})
-
-        thesaurus = thesaurus_loader.Thesaurus(
-            thesaurus_files=['thesisgenerator/resources/exp0-0a.strings'],
-            sim_threshold=0,
-            include_self=False)
-        self.params['thesaurus'] = thesaurus
-        self.tokenizer = XmlTokenizer(**self.params)
-
-        tokens = self.tokenizer.tokenize_doc(self.doc)
-        self.assertListEqual(tokens, [['cat/n', 'like/v', 'dog/n']])
-
-        tokens = self.tokenizer.tokenize_doc(self.other_doc)
-        self.assertListEqual(tokens, [['like/v', 'fruit/n']])
-
 
     def test_xml_tokenizer_lemmatize(self):
         """

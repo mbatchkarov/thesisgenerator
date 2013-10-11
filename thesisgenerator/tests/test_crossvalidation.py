@@ -149,8 +149,8 @@ class TestUtils(TestCase):
         run_experiment(14, num_workers=1, predefined_sized=[2],
                        prefix='thesisgenerator/resources')
 
-        df = read_csv('thesisgenerator/resources/conf/exp14/output/exp14-0'
-                      '.out-raw.csv', index_col=0)
+        df = read_csv('thesisgenerator/resources/conf/exp14/output/exp14-0.out-raw.csv',
+                      index_col=0)
         grouped = df.groupby(['cv_no', 'metric'])
         for name, group in grouped:
             classifiers, scores = group['classifier'], group['score']

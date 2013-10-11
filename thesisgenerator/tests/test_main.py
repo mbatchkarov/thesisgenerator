@@ -36,8 +36,7 @@ class TestThesaurusVectorizer(TestCase):
             #'keep_only_IT': False,
             'remove_stopwords': False,
             'remove_short_words': False,
-            'use_cache': False,
-            'thesaurus': self.vector_source
+            'use_cache': False
         }
         self.tokenizer = tokenizers.XmlTokenizer(**self.tokenizer_opts)
 
@@ -147,7 +146,6 @@ class TestThesaurusVectorizer(TestCase):
 
     def _reload_thesaurus_and_tokenizer(self):
         self.vector_source = PrecomputedSimilaritiesVectorSource(**self._thesaurus_opts)
-        self.tokenizer_opts['thesaurus'] = self.vector_source
         self.tokenizer = tokenizers.XmlTokenizer(**self.tokenizer_opts)
 
 

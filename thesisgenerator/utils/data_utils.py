@@ -65,10 +65,6 @@ def _load_vectors_and_tokenizer(config):
         memory = NoopTransformer()
 
     vector_store = CompositeVectorSource(config['vector_sources'])
-    #thesaurus_loader.Thesaurus(
-    #config['vector_sources']['train_thesaurus_files'],
-    #sim_threshold=config['vector_sources']['sim_threshold'],
-    #include_self=config['vector_sources']['include_self'])
 
     tok = tokenizers.XmlTokenizer(
         memory,
