@@ -145,7 +145,7 @@ def _build_crossvalidation_iterator(config, x_vals, y_vals, x_test=None,
 
 
 def _build_vectorizer(vector_source, id, call_args, feature_extraction_conf, pipeline_list,
-                      output_dir, debug=False, exp_name=''):
+                      output_dir, exp_name=''):
     """
     Builds a vectorized that converts raw text to feature vectors. The
     parameters for the vectorizer are specified in the *feature extraction*
@@ -181,11 +181,6 @@ def _build_vectorizer(vector_source, id, call_args, feature_extraction_conf, pip
     call_args['vect__vector_source'] = vector_source
 
     pipeline_list.append(('vect', vectorizer()))
-
-    if debug:
-        logging.info('Will perform post-vectorizer data dump')
-        pipeline_list.append(('dumper', FeatureVectorsCsvDumper(exp_name, id, output_dir)))
-        call_args['vect__pipe_id'] = id
 
 
 def _build_feature_selector(vector_source, call_args, feature_selection_conf, pipeline_list):
@@ -244,10 +239,17 @@ def _build_pipeline(vector_source, id, classifier_name, feature_extr_conf, featu
     pipeline_list = []
 
     _build_vectorizer(vector_source, id, call_args, feature_extr_conf,
-                      pipeline_list, output_dir, debug, exp_name=exp_name)
+                      pipeline_list, output_dir, exp_name=exp_name)
 
     _build_feature_selector(vector_source, call_args, feature_sel_conf, pipeline_list)
     _build_dimensionality_reducer(call_args, dim_red_conf, pipeline_list)
+
+    # put the optional dumper after feature selection/dim. reduction
+    if debug:
+        logging.info('Will perform post-vectorizer data dump')
+        pipeline_list.append(('dumper', FeatureVectorsCsvDumper(exp_name, id, output_dir)))
+        call_args['vect__pipe_id'] = id
+
     # vectorizer will return a matrix (as usual) and some metadata for use with feature dumper/selector,
     # strip them before we proceed to the classifier
     pipeline_list.append(('stripper', MetadataStripper()))

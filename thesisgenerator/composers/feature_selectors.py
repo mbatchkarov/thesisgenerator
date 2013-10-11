@@ -13,40 +13,45 @@ class VectorBackedSelectKBest(SelectKBest):
         self.vector_source = vector_source
         self.ensure_vectors_exist = ensure_vectors_exist
         self.vocabulary_ = None
+        self.pruned_vocabulary_ = None
         super(VectorBackedSelectKBest, self).__init__(score_func=score_func, k=k)
 
     def fit(self, X, y):
         # Vectorizer also returns its vocabulary, store it and work with the rest
-        self.vocabulary_ = X[1]
-        X = X[0]
+        X_only, self.vocabulary_ = X
 
-        if self.k == 'all' or int(self.k) >= X.shape[1]:
+        if self.k == 'all' or int(self.k) >= X_only.shape[1]:
             # do not bother calculating feature informativeness if all features will be used anyway
-            self.scores_ = np.ones((X.shape[1],))
+            self.scores_ = np.ones((X_only.shape[1],))
         else:
-            super(VectorBackedSelectKBest, self).fit(X, y)
+            super(VectorBackedSelectKBest, self).fit(X_only, y)
 
         if self.ensure_vectors_exist:
-            self.scores_ = self._remove_oot_features(self.scores_)
+            self.keep_after_first_pass_mask = self._zero_score_of_oot_features()
         return self
 
     def transform(self, X):
         # Vectorizer also returns its vocabulary, remove it
-        return super(VectorBackedSelectKBest, self).transform(X[0])
+        return super(VectorBackedSelectKBest, self).transform(X[0]), self.vocabulary_
 
-    def _remove_oot_features(self, scores):
+    def _zero_score_of_oot_features(self):
         #print 'Removing features'
-        removed_features = set()
-        v = self.vocabulary_
-        for feature, index in v.items():
+        mask = np.ones(self.scores_.shape, dtype=bool)
+        for feature, index in self.vocabulary_.iteritems():
             if feature not in self.vector_source:
                 #print feature, 'not found'
-                scores[index] = 0
-                removed_features.add(index)
-        v = {k: v for k, v in v.iteritems() if v not in removed_features}
-        new_vals = {val: pos for pos, val in enumerate(sorted(v.values()))}
-        self.vocabulary_ = {key: new_vals[val] for key, val in v.iteritems()}
-        return scores
+                self.scores_[index] = 0
+                mask[index] = 0
+        return mask
+
+    def _update_vocab_according_to_mask(self, mask):
+        v = self.vocabulary_
+        # see which features are left
+        v = {feature: index for feature, index in v.iteritems() if mask[index]}
+        # assign new indices for each remaining feature in order, map: old_index -> new_index
+        new_indices = {old_index: new_index for new_index, old_index in enumerate(sorted(v.values()))}
+        # update indices in vocabulary
+        self.vocabulary_ = {feature: new_indices[index] for feature, index in v.iteritems()}
 
     def _get_support_mask(self):
         k = self.k
@@ -55,18 +60,22 @@ class VectorBackedSelectKBest(SelectKBest):
             # at this point self._remove_oot_features will have been invoked, and there is no
             # further feature selection to do
             logging.warn('Using all %d features (you requested %r)' % (len(scores), k))
+            try:
+                first_mask = self.keep_after_first_pass_mask
+            except AttributeError:
+                # self.keep_after_first_pass_mask does not exist because self.ensure_vectors_exist=False
+                # i.e. all features are kept, set a mask of ones
+                first_mask = np.ones(scores.shape, dtype=bool)
+            self._update_vocab_according_to_mask(first_mask)
             return scores > 0
-            #if :
-            #raise ValueError("Cannot select %d features among %d. "
-            #                 "Use k='all' to return all features."
-            #                 % (k, len(scores)))
 
         scores = _clean_nans(scores)
-        # XXX This should be refactored; we're getting an array of indices
-        # from argsort, which we transform to a mask, which we probably
-        # transform back to indices later.
         mask = np.zeros(scores.shape, dtype=bool)
-        mask[np.argsort(scores)[-k:]] = 1
+        selected_indices = np.argsort(scores)[-k:]
+
+        mask[selected_indices] = 1
+        # todo update self.vocabulary here as well
+        self._update_vocab_according_to_mask(mask)
         return mask
 
 
