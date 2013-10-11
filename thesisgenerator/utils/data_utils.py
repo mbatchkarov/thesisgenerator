@@ -4,7 +4,6 @@ from joblib import Memory
 import numpy as np
 from sklearn.datasets import load_files
 from thesisgenerator.classifiers import NoopTransformer
-from thesisgenerator.composers.vectorstore import CompositeVectorSource
 from thesisgenerator.plugins import tokenizers
 from thesisgenerator.utils.reflection_utils import get_named_object
 
@@ -54,7 +53,7 @@ def load_text_data_into_memory(config):
     return (x_train, y_train, x_test, y_test), (config['training_data'], config['test_data'])
 
 
-def _load_vectors_and_tokenizer(config):
+def _load_tokenizer(config):
     """
     Initialises the state of helper modules from a config object
     """
@@ -64,22 +63,18 @@ def _load_vectors_and_tokenizer(config):
     else:
         memory = NoopTransformer()
 
-    vector_store = CompositeVectorSource(config['vector_sources'])
-
     tok = tokenizers.XmlTokenizer(
         memory,
         normalise_entities=config['feature_extraction']['normalise_entities'],
         use_pos=config['feature_extraction']['use_pos'],
         coarse_pos=config['feature_extraction']['coarse_pos'],
         lemmatize=config['feature_extraction']['lemmatize'],
-        thesaurus=vector_store,
         lowercase=config['tokenizer']['lowercase'],
-        keep_only_IT=config['tokenizer']['keep_only_IT'],
         remove_stopwords=config['tokenizer']['remove_stopwords'],
         remove_short_words=config['tokenizer']['remove_short_words'],
         use_cache=config['joblib_caching']
     )
-    return vector_store, tok
+    return tok
 
 
 def _get_data_iterators(**kwargs):

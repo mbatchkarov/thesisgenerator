@@ -102,7 +102,8 @@ class ThesaurusVectorizer(TfidfVectorizer):
                                          self.sim_compressor,
                                          self.vector_source)
 
-        self.vector_source.populate_vector_space(self.vocabulary_.keys())
+        if self.vector_source:
+            self.vector_source.populate_vector_space(self.vocabulary_.keys())
         return super(ThesaurusVectorizer, self).transform(raw_documents), self.vocabulary_
 
     def _walk_pairwise(self, iterable):

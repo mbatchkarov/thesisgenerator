@@ -1,3 +1,4 @@
+import logging
 from sklearn.feature_selection import SelectKBest
 import numpy as np
 from sklearn.feature_selection.univariate_selection import _clean_nans
@@ -9,9 +10,7 @@ class VectorBackedSelectKBest(SelectKBest):
     def __init__(self, score_func, k='all', vector_source={}, ensure_vectors_exist=True):
         self.k = k
         self.vector_source = vector_source
-        #self.ensure_vectors_exist_at_decode_time = ensure_vectors_exist
         self.ensure_vectors_exist = ensure_vectors_exist
-        #self.ensure_vectors_exist = False
         self.vocabulary_ = None
         super(VectorBackedSelectKBest, self).__init__(score_func=score_func, k=k)
 
@@ -20,7 +19,12 @@ class VectorBackedSelectKBest(SelectKBest):
         self.vocabulary_ = X[1]
         X = X[0]
 
-        super(VectorBackedSelectKBest, self).fit(X, y)
+        if self.k == 'all' or int(self.k) >= X.shape[1]:
+            # do not bother calculating feature informativeness if all features will be used anyway
+            self.scores_ = np.ones((X.shape[1],))
+        else:
+            super(VectorBackedSelectKBest, self).fit(X, y)
+
         if self.ensure_vectors_exist:
             self.scores_ = self._remove_oot_features(self.scores_)
         return self
@@ -46,13 +50,15 @@ class VectorBackedSelectKBest(SelectKBest):
     def _get_support_mask(self):
         k = self.k
         scores = self.scores_
-        if k == 'all':
-            # at this point self._remove_oot_features will have been invoked
+        if k == 'all' or k > len(scores):
+            # at this point self._remove_oot_features will have been invoked, and there is no
+            # further feature selection to do
+            logging.warn('Using all %d features (you requested %r)' % (len(scores), k))
             return scores > 0
-        if k > len(scores):
-            raise ValueError("Cannot select %d features among %d. "
-                             "Use k='all' to return all features."
-                             % (k, len(scores)))
+            #if :
+            #raise ValueError("Cannot select %d features among %d. "
+            #                 "Use k='all' to return all features."
+            #                 % (k, len(scores)))
 
         scores = _clean_nans(scores)
         # XXX This should be refactored; we're getting an array of indices

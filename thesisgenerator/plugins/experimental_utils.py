@@ -9,8 +9,9 @@ sys.path.append('.')
 sys.path.append('..')
 sys.path.append('../..')
 
+from thesisgenerator.composers.vectorstore import CompositeVectorSource
 from thesisgenerator.utils.data_utils import tokenize_data, load_text_data_into_memory, \
-    _load_vectors_and_tokenizer
+    _load_tokenizer
 from thesisgenerator.utils.conf_file_utils import parse_config_file
 from thesisgenerator.utils.misc import get_susx_mysql_conn
 from thesisgenerator.plugins.file_generators import _exp16_file_iterator, _exp1_file_iterator, \
@@ -114,7 +115,14 @@ def run_experiment(expid, subexpid=None, num_workers=4,
     _clear_old_files(expid, prefix)
     conf, configspec_file = parse_config_file(base_conf_file)
     raw_data, data_ids = load_text_data_into_memory(conf)
-    vectors, tokenizer = _load_vectors_and_tokenizer(conf)
+
+    if 'signified' in conf['feature_extraction']['decode_token_handler'] or \
+            conf['feature_selection']['ensure_vectors_exist']:
+        vectors = CompositeVectorSource(conf['vector_sources'])
+    else:
+        vectors = []
+
+    tokenizer = _load_tokenizer(conf)
     tokenised_data = tokenize_data(raw_data, tokenizer, data_ids)
 
     #keep_only_IT = conf['tokenizer']['keep_only_IT']

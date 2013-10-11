@@ -78,7 +78,7 @@ shuffle_targets=boolean(default=False) # randomly change the labels of all docum
     run=boolean()
     method=string
     scoring_function=string
-    ensure_vectors_exist=boolean()
+    ensure_vectors_exist=boolean(default=False)
     k=integer
     alpha=float
     percentile=int

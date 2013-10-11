@@ -33,7 +33,7 @@ from thesisgenerator.utils.misc import ChainCallable
 from thesisgenerator.classifiers import LeaveNothingOut, PredefinedIndicesIterator, SubsamplingPredefinedIndicesIterator, PicklingPipeline
 from thesisgenerator.utils.conf_file_utils import set_in_conf_file, parse_config_file
 from thesisgenerator.utils.data_utils import tokenize_data, load_text_data_into_memory, \
-    _load_vectors_and_tokenizer
+    _load_tokenizer
 from thesisgenerator import config
 from thesisgenerator.plugins.dumpers import FeatureVectorsCsvDumper
 from thesisgenerator.plugins.crossvalidation import naming_cross_val_score
@@ -517,7 +517,7 @@ if __name__ == '__main__':
 
     conf, configspec_file = parse_config_file(conf_file)
     data = load_text_data_into_memory(conf)
-    vector_store, tokenizer = _load_vectors_and_tokenizer(conf)
+    vector_store, tokenizer = _load_tokenizer(conf)
     keep_only_IT = conf['tokenizer']['keep_only_IT']
     data = tokenize_data(data, tokenizer, keep_only_IT)
     go(conf_file, log_dir, data, vector_store, classpath=classpath, clean=clean, n_jobs=1)

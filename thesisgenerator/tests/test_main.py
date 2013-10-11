@@ -163,10 +163,8 @@ class TestThesaurusVectorizer(TestCase):
 
     def test_baseline_use_all_features_signifier_only_23(self):
         self.feature_extraction_conf['vocab_from_thes'] = False
-        # self.feature_extraction_conf['use_signifier_only'] = True
         self._thesaurus_opts['thesaurus_files'] = \
             ['thesisgenerator/resources/exp0-0b.strings']
-        # self._thesaurus_opts['k'] = 1 # todo needs fixing
         self._reload_thesaurus_and_tokenizer()
 
         self.x_tr, self.y_tr, self.x_ev, self.y_ev = self. \
