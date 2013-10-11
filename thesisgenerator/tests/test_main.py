@@ -2,7 +2,7 @@
 import glob
 import os
 
-from unittest import TestCase, skip
+from unittest import TestCase
 
 import numpy as np
 from numpy.ma import std
@@ -15,7 +15,7 @@ from thesisgenerator import __main__
 from thesisgenerator.utils.data_utils import load_text_data_into_memory, tokenize_data
 
 
-class Test_ThesaurusVectorizer(TestCase):
+class TestThesaurusVectorizer(TestCase):
     def setUp(self):
         """
         Initialises the state of helper modules to sensible defaults
@@ -76,6 +76,13 @@ class Test_ThesaurusVectorizer(TestCase):
             [0, 0, 0, 1, 1, 1],
         ])
 
+        self.pruned_training_matrix = np.array([
+            [1, 1, 0],
+            [0, 0, 1],
+        ])
+        self.pruned_vocab = {'a/n': 0, 'b/n': 1, 'd/n': 2}
+        self.full_vocab = {'a/n': 0, 'b/n': 1, 'c/n': 2, 'd/n': 3, 'e/n': 4, 'f/n': 5}
+
     def _load_data(self, prefix):
         """
         Loads a predefined dataset from disk
@@ -133,7 +140,7 @@ class Test_ThesaurusVectorizer(TestCase):
 
         x1 = pipeline.fit_transform(x_tr, y_tr)
 
-        voc = pipeline.named_steps['vect'].vocabulary_
+        voc = pipeline.named_steps['fs'].vocabulary_
         x2 = pipeline.transform(x_test)
 
         return x1, x2, voc
@@ -155,177 +162,6 @@ class Test_ThesaurusVectorizer(TestCase):
         for k, v in mydict.iteritems():
             self.assertEquals(len(k), 2)
         return {k[1][0]: v for k, v in mydict.iteritems()}
-
-    @skip('Do not use replace_all')
-    def test_replaceAll_False_includeSelf_TrueFalse_use_signified(self):
-        """
-        Similar to self.test_baseline_use_all_features_with_signified_D in
-        that the vectorizer is set to use a SignifierSignifiedFeatureHandler
-        and all tokens are kept (incl. OOT ones)
-
-        The difference is self.test_baseline_use_all_features_with_signified_D
-        only inserts the nearest in-thesaurus neighbour instead of all of the
-        neighbours it can find
-        """
-        self.feature_extraction_conf['replace_all'] = False
-
-        for inc_self in [True, False]:
-            # the expected matrices are the same with and without
-            # include_self when replace_all=False
-            self._thesaurus_opts['include_self'] = inc_self
-            self.vector_source = self._reload_thesaurus_and_tokenizer()
-
-            x1, x2, voc = self._vectorize_data()
-
-            # check vocabulary. For some reason it does not come out in the
-            # order in which words are put in, but that is fine as long as it's
-            #  the same order every time- I've added a sort to ensure that
-            self.assertDictEqual({'cat/n': 0, 'dog/n': 1, 'game/n': 2,
-                                  'kid/n': 3, 'like/v': 4, 'play/v': 5},
-                                 voc)
-
-            # test output when not replacing all feature (old model)
-            self.assertIsInstance(x1, sp.spmatrix)
-            t.assert_array_equal(
-                x1.todense(),
-                np.array(
-                    [
-                        [1, 1, 0, 0, 1, 0],
-                        [1, 1, 0, 0, 1, 0],
-                        [0, 0, 1, 1, 0, 1]
-                    ]
-                )
-            )
-
-            t.assert_array_equal(
-                x2.todense(),
-                np.matrix(
-                    [
-                        [.06, .05, 0, 0, 1, 0],
-                        [.06, .05, 0, 0, 1, 0],
-                        [0, 1, 0, 0, 0, 0]
-                    ]
-                )
-            )
-
-
-            # ===============================================================
-            # Test that the CSV dumper correctly unpacks the vocabulary and
-            # the feature vectors
-            # ===============================================================
-            def compare_csv(expected, stage):
-                expected = [x.strip() for x in expected.split()]
-                filename = 'PostVectDump_tests_%s12345.csv' % stage
-                with open(filename) as infile:
-                    csv_file_contents = [x.strip() for x in
-                                         infile.readlines()]
-
-                # headers must be identical character for character
-                self.assertEqual(expected[0], csv_file_contents[0])
-                for line1, line2 in zip(expected[1:],
-                                        csv_file_contents[1:]):
-                    for token1, token2 in zip(line1.split(','),
-                                              line2.split(',')):
-                        try:
-                            print token1, token2
-                            self.assertEqual(float(token1), float(token2))
-                        except ValueError:
-                            # in the evaluation file there are no targets,
-                            # i.e. token1==''
-                            self.assertEqual(token1, token2)
-                            self.assertEqual(token1.strip(), '')
-
-            expected = \
-                """
-    id,target,total_feat_weight,nonzero_feats,cat/n,dog/n,game/n,kid/n,like/v,play/v
-    0,0,3,3,1,1,0,0,1,0
-    1,0,3,3,1,1,0,0,1,0
-    2,1,3,3,0,0,1,1,0,1
-                """
-            compare_csv(expected, 'tr')
-
-            expected = \
-                """
-    id,target,total_feat_weight,nonzero_feats,cat/n,dog/n,game/n,kid/n,like/v,play/v
-    0,,1.11,3,0.06,0.05,0,0,1,0
-    1,,1.11,3,0.06,0.05,0,0,1,0
-    2,,1,1,0,1,0,0,0,0
-                """
-            compare_csv(expected, 'ev')
-
-    @skip("Do not use replace_all for now")
-    def test_replaceAll_True_includeSelf_False(self):
-        self.feature_extraction_conf['replace_all'] = True
-        self._thesaurus_opts['include_self'] = False
-        self._reload_thesaurus_and_tokenizer()
-
-        x1, x2, voc = self._vectorize_data()
-
-        self.assertDictEqual({'cat/n': 0, 'dog/n': 1, 'fruit/n': 2,
-                              'game/n': 3, 'kid/n': 4, 'like/v': 5,
-                              'play/v': 6},
-                             voc)
-
-        self.assertIsInstance(x1, sp.spmatrix)
-        t.assert_array_equal(
-            x1.toarray(),
-            np.array(
-                [
-                    [.7, .8, 0, .4, 0.3, 0, 0.11],
-                    [.7, .8, 0, .4, 0.3, 0, 0.11],
-                    [.06, .04, 0.1, 0, 0, 0.09, 0.6]
-                ]
-            )
-        )
-
-        t.assert_array_equal(
-            x2.toarray(),
-            np.array(
-                [
-                    [.06, .05, 0, 0, 0, 0, 0.11],
-                    [.06, .05, 0, 0, 0, 0, 0.11],
-                    [.7, 0, 0, 0, 0.3, 0, 0]
-                ]
-            )
-        )
-
-    @skip("include_self makes no sense with replace_all at decode time. "
-          "The nearest neighbour of each unknown token is going to be itself,"
-          " which is OOV and will not be inserted")
-    def test_replaceAll_True_includeSelf_True(self):
-        self.feature_extraction_conf['replace_all'] = True
-        self._thesaurus_opts['include_self'] = True
-        self._reload_thesaurus_and_tokenizer()
-
-        x1, x2, voc = self._vectorize_data()
-
-        self.assertDictEqual({'cat/n': 0, 'dog/n': 1, 'fruit/n': 2,
-                              'game/n': 3, 'kid/n': 4, 'like/v': 5,
-                              'play/v': 6},
-                             voc)
-
-        self.assertIsInstance(x1, sp.spmatrix)
-        t.assert_array_equal(
-            x1.toarray(),
-            np.array(
-                [
-                    [1.7, 1.8, 0, .4, 0.3, 1, 0.11],
-                    [1.7, 1.8, 0, .4, 0.3, 1, 0.11],
-                    [.06, .04, 0.1, 1, 1, 0.09, 1.6]
-                ]
-            )
-        )
-
-        t.assert_array_equal(
-            x2.toarray(),
-            np.array(
-                [
-                    [.06, .05, 1, 0, 0, 1, 0.11],
-                    [.06, .05, 1, 0, 0, 1, 0.11],
-                    [.7, 1, 0, 0, 0.3, 0, 0]
-                ]
-            )
-        )
 
     def test_baseline_use_all_features_signifier_only_23(self):
         self.feature_extraction_conf['vocab_from_thes'] = False
@@ -370,20 +206,19 @@ class Test_ThesaurusVectorizer(TestCase):
 
         x1, x2, voc = self._vectorize_data()
 
-        self.assertDictEqual({'a/n': 0, 'b/n': 1, 'c/n': 2,
-                              'd/n': 3, 'e/n': 4, 'f/n': 5}, self._strip(voc))
+        self.assertDictEqual(self.pruned_vocab, self._strip(voc))
 
         #self.assertIsInstance(x1, sp.spmatrix)
         t.assert_array_equal(
             x1.toarray(),
-            self.training_matrix
+            self.pruned_training_matrix
         )
 
         t.assert_array_equal(
             x2.toarray(),
             np.array(
                 [# todo wtf is this, how can features be removed and yet the vocabulary stays the same
-                 [4, 1, 0, 0, 0, 0]
+                 [4, 1, 0]
                 ]
             )
         )
@@ -403,8 +238,7 @@ class Test_ThesaurusVectorizer(TestCase):
 
         x1, x2, voc = self._vectorize_data()
 
-        self.assertDictEqual({'a/n': 0, 'b/n': 1, 'c/n': 2,
-                              'd/n': 3, 'e/n': 4, 'f/n': 5},
+        self.assertDictEqual(self.full_vocab,
                              self._strip(voc))
 
         self.assertIsInstance(x1, sp.spmatrix)
@@ -438,20 +272,19 @@ class Test_ThesaurusVectorizer(TestCase):
 
         x1, x2, voc = self._vectorize_data()
 
-        self.assertDictEqual({'a/n': 0, 'b/n': 1, 'c/n': 2,
-                              'd/n': 3, 'e/n': 4, 'f/n': 5}, self._strip(voc))
+        self.assertDictEqual(self.pruned_vocab, self._strip(voc))
 
         self.assertIsInstance(x1, sp.spmatrix)
         t.assert_array_equal(
             x1.toarray(),
-            self.training_matrix
+            self.pruned_training_matrix
         )
 
         t.assert_array_almost_equal(
             x2.toarray(),
             np.array(
                 [
-                    [4, 1, 0, 2.1, 0, 0]
+                    [4, 1, 2.1]
                 ]
             )
         )
@@ -471,8 +304,7 @@ class Test_ThesaurusVectorizer(TestCase):
 
         x1, x2, voc = self._vectorize_data()
 
-        self.assertDictEqual({'a/n': 0, 'b/n': 1, 'c/n': 2,
-                              'd/n': 3, 'e/n': 4, 'f/n': 5},
+        self.assertDictEqual(self.full_vocab,
                              self._strip(voc))
 
         self.assertIsInstance(x1, sp.spmatrix)
@@ -505,20 +337,19 @@ class Test_ThesaurusVectorizer(TestCase):
 
         x1, x2, voc = self._vectorize_data()
 
-        self.assertDictEqual({'a/n': 0, 'b/n': 1, 'c/n': 2,
-                              'd/n': 3, 'e/n': 4, 'f/n': 5}, self._strip(voc))
+        self.assertDictEqual(self.pruned_vocab, self._strip(voc))
 
         self.assertIsInstance(x1, sp.spmatrix)
         t.assert_array_equal(
             x1.toarray(),
-            self.training_matrix
+            self.pruned_training_matrix
         )
 
         t.assert_array_almost_equal(
             x2.toarray(),
             np.array(
                 [
-                    [0, 0, 0, 4.4, 0, 0]
+                    [0, 0, 4.4]
                 ]
             )
         )
@@ -538,8 +369,7 @@ class Test_ThesaurusVectorizer(TestCase):
         source = ConstantNeighbourVectorSource()
         x1, x2, voc = self._vectorize_data(source)
 
-        self.assertDictEqual({'a/n': 0, 'b/n': 1, 'c/n': 2,
-                              'd/n': 3, 'e/n': 4, 'f/n': 5},
+        self.assertDictEqual(self.full_vocab,
                              self._strip(voc))
 
         self.assertIsInstance(x1, sp.spmatrix)
