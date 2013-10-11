@@ -9,8 +9,7 @@ __author__ = 'mmb28'
 
 
 class TestConsolidator(TestCase):
-    @classmethod
-    def setUpClass(cls):
+    def setUp(cls):
         prefix = 'thesisgenerator/resources'
         run_experiment(0, num_workers=1, predefined_sized=[3, 3, 3],
                        prefix=prefix)
@@ -26,7 +25,7 @@ class TestConsolidator(TestCase):
         self.assertEqual(len(res), 1)
         self.assertEqual(res[0][0], 'MultinomialNB')
 
-        exp = {
+        expected = {
             'total_tok': 9, 'total_typ': 5,
             'iv_it_tok_mean': 3, 'iv_it_tok_std': 0,
             'iv_oot_tok_mean': 0, 'iv_oot_tok_std': 0,
@@ -49,7 +48,7 @@ class TestConsolidator(TestCase):
             # performance
             'train_token_handler': 'BaseFeatureHandler'
         }
-        for variable, exp_mean in exp.items():
+        for variable, exp_mean in expected.items():
             cursor.execute('SELECT DISTINCT %s from data00;' % variable)
             res = cursor.fetchall()
             logging.info('Testing that {} == {}'.format(variable, res[0][0]))
@@ -63,7 +62,7 @@ class TestConsolidator(TestCase):
         # this is because of the higher prior of class 0 and the fact that
         # the only feature of the test document of class 1 has only occurred
         # in class 0
-        exp = (
+        expected = (
             ('precision_score-class0', (2. / 3, 0)),
             ('precision_score-class1', (0, 0)),
             ('recall_score-class0', (1, 0)),
@@ -73,7 +72,7 @@ class TestConsolidator(TestCase):
         )
         # all std set to -1 to indicate only a single experiment was run
         # 0 may have suggested multiple experiments with identical results
-        for variable, (exp_mean, exp_std) in exp:
+        for variable, (exp_mean, exp_std) in expected:
             sql = 'select score_mean, score_std from data00 WHERE ' \
                   'metric = "{}";'.format(variable)
             cursor.execute(sql)

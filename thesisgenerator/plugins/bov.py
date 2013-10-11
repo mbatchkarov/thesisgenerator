@@ -253,5 +253,6 @@ class ThesaurusVectorizer(TfidfVectorizer):
                           shape=(len(indptr) - 1, len(vocabulary)),
                           dtype=self.dtype)
         X.sum_duplicates()  # nice that the summation is explicit
+        self.stats.print_coverage_stats()
         return vocabulary, X
 
