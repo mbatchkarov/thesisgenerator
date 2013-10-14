@@ -43,7 +43,7 @@ class VectorSource(object):
 #        raise ValueError('This class cannot provide vectors')
 
 
-class UnigramVectorSourceComposer(VectorSource):
+class UnigramVectorSource(VectorSource):
     feature_pattern = {'1-GRAM'}
     name = 'Lex'
 
@@ -103,6 +103,20 @@ class Composer(VectorSource):
         if not unigram_source:
             raise ValueError('Composers need a unigram vector source')
         self.unigram_source = unigram_source
+
+
+class UnigramDummyComposer(Composer):
+    name = 'Lexical'
+    feature_pattern = {'1-GRAM'}
+
+    def __init__(self, unigram_source=None):
+        super(UnigramDummyComposer, self).__init__(unigram_source)
+
+    def __contains__(self, feature):
+        return feature in self.unigram_source
+
+    def _get_vector(self, sequence):
+        return self.unigram_source._get_vector(sequence)
 
 
 class AdditiveComposer(Composer):
@@ -181,15 +195,15 @@ class BaroniComposer(Composer):
 
 
 class CompositeVectorSource(VectorSource):
-    def __init__(self, unigram_paths, composers, sim_threshold, include_self):
-        self.unigram_source = UnigramVectorSourceComposer(unigram_paths=unigram_paths)
-        self.composers = []
+    def __init__(self, unigram_source, composers, sim_threshold, include_self):
+        self.unigram_source = unigram_source
+        self.composers = composers
         self.sim_threshold = sim_threshold
         self.include_self = include_self
 
         self.nbrs, self.feature_matrix, entry_index = [None] * 3     # computed by self.build_peripheral_space()
 
-        #if include_unigram_features:
+        #if composers:
         #    self.composers.append(self.unigram_source)
         self.composers = composers
         self.composer_mapping = OrderedDict()
@@ -223,7 +237,7 @@ class CompositeVectorSource(VectorSource):
         self.feature_matrix = vstack(c._get_vector(data).tolil()
                                      for (feature_type, data) in vocabulary
                                      for c in self.composer_mapping[feature_type]
-                                     if c in self.composer_mapping).tocsr()
+                                     if feature_type in self.composer_mapping).tocsr()
 
         feature_list = [ngram for ngram in vocabulary for c in self.composer_mapping[ngram[0]]]
         #todo test if this entry index is correct

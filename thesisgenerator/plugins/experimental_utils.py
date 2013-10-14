@@ -9,6 +9,8 @@ sys.path.append('.')
 sys.path.append('..')
 sys.path.append('../..')
 
+from thesisgenerator.composers.vectorstore import CompositeVectorSource, UnigramVectorSource
+from thesisgenerator.utils.reflection_utils import get_named_object, get_intersection_of_parameters
 from thesisgenerator.utils.data_utils import tokenize_data, load_text_data_into_memory, \
     _load_tokenizer
 from thesisgenerator.utils.conf_file_utils import parse_config_file
@@ -119,27 +121,34 @@ def run_experiment(expid, subexpid=None, num_workers=4,
         shuffle_targets=conf['shuffle_targets']
     )
 
-    #if 'signified' in conf['feature_extraction']['decode_token_handler'].lower() or \
-    #        conf['feature_selection']['ensure_vectors_exist']:
-    #    composers = []
-    #    for section in conf['vector_sources']:
-    #        if 'composer' in section and conf['vector_sources'][section]['run']:
-    #            # the object must only take keyword arguments
-    #            composer_class = get_named_object(section)
-    #            args = get_intersection_of_parameters(composer_class, conf['vector_sources'][section])
-    #            args['unigram_source'] = conf['vector_sources']['unigram_paths']
-    #            composers.append(composer_class(**args))
-    #if composers:
-    #    vectors = CompositeVectorSource(
-    #        conf['vector_sources']['unigram_paths'],
-    #        composers,
-    #        conf['vector_sources']['sim_threshold'],
-    #        conf['vector_sources']['include_self'],
-    #        #conf['vector_sources']['include_unigram_features'],
-    #    )
-    #else:
-    #    vectors = []
-    vectors = []
+    if 'signified' in conf['feature_extraction']['decode_token_handler'].lower() or \
+            conf['feature_selection']['ensure_vectors_exist']:
+        # vectors are needed either at decode time (signified handler) or during feature selection
+
+        # create a unigram vector store and use it to initialise composers
+        paths = conf['vector_sources']['unigram_paths']
+        if paths:
+            unigram_source = UnigramVectorSource(paths)
+        else:
+            raise ValueError('You must provide at least one unigram vector file')
+
+        composers = []
+        for section in conf['vector_sources']:
+            if 'composer' in section and conf['vector_sources'][section]['run']:
+                # the object must only take keyword arguments
+                composer_class = get_named_object(section)
+                args = get_intersection_of_parameters(composer_class, conf['vector_sources'][section])
+                args['unigram_source'] = unigram_source
+                composers.append(composer_class(**args))
+        if composers:
+            vectors = CompositeVectorSource(
+                unigram_source,
+                composers,
+                conf['vector_sources']['sim_threshold'],
+                conf['vector_sources']['include_self'],
+            )
+    else:
+        vectors = []
 
     tokenizer = _load_tokenizer(
         joblib_caching=conf['joblib_caching'],

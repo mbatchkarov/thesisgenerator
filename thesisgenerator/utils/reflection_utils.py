@@ -18,4 +18,6 @@ def get_named_object(pathspec):
 def get_intersection_of_parameters(klass, possible_param_values, prefix=''):
 # the object must only take keyword arguments
     initialize_args = inspect.getargspec(klass.__init__)[0]
-    return {'%s__%s' % (prefix, arg): val for arg, val in possible_param_values.items() if arg in initialize_args}
+    if prefix:
+        prefix += '__'
+    return {'%s%s' % (prefix, arg): val for arg, val in possible_param_values.items() if arg in initialize_args}
