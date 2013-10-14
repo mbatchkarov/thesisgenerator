@@ -114,7 +114,11 @@ def run_experiment(expid, subexpid=None, num_workers=4,
 
     _clear_old_files(expid, prefix)
     conf, configspec_file = parse_config_file(base_conf_file)
-    raw_data, data_ids = load_text_data_into_memory(conf)
+    raw_data, data_ids = load_text_data_into_memory(
+        training_path=conf['training_data'],
+        test_path=conf['test_data'],
+        shuffle_targets=conf['shuffle_targets']
+    )
 
     if 'signified' in conf['feature_extraction']['decode_token_handler'].lower() or \
             conf['feature_selection']['ensure_vectors_exist']:
@@ -122,7 +126,15 @@ def run_experiment(expid, subexpid=None, num_workers=4,
     else:
         vectors = []
 
-    tokenizer = _load_tokenizer(conf)
+    tokenizer = _load_tokenizer(
+        joblib_caching=conf['joblib_caching'],
+        normalise_entities=conf['feature_extraction']['normalise_entities'],
+        use_pos=conf['feature_extraction']['use_pos'],
+        coarse_pos=conf['feature_extraction']['coarse_pos'],
+        lemmatize=conf['feature_extraction']['lemmatize'],
+        lowercase=conf['tokenizer']['lowercase'],
+        remove_stopwords=conf['tokenizer']['remove_stopwords'],
+        remove_short_words=conf['tokenizer']['remove_short_words'])
     tokenised_data = tokenize_data(raw_data, tokenizer, data_ids)
 
     # run data through the pipeline

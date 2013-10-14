@@ -3,6 +3,9 @@ debug=boolean(default=False) #if true, pipelines will be pickled and feature vec
 joblib_caching=boolean(default=False) # for tokenizer, the whole  corpus can be loaded from disk
 shuffle_targets=boolean(default=False) # randomly change the labels of all documents, sanity check
 
+training_data=string(default='')
+test_data=string(default='')
+
 [feature_extraction]
     run=boolean(default=True)
     vectorizer=string # class of vectorizer

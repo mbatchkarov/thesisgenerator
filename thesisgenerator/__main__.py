@@ -480,9 +480,8 @@ def go(conf_file, log_dir, data, vector_source, classpath='', clean=False, n_job
         # file
 
     log = _config_logger(log_dir, name=config['name'], debug=config['debug'])
-    log.info(
-        'Reading configuration file from \'%s\', conf spec from \'%s\''
-        % (glob(conf_file)[0], configspec_file))
+    log.info('Reading configuration file from \'%s\', conf spec from \'%s\''
+             % (glob(conf_file)[0], configspec_file))
     output = config['output_dir']
     _prepare_output_directory(clean, output)
     _prepare_classpath(classpath)
@@ -518,6 +517,6 @@ if __name__ == '__main__':
 
     conf, configspec_file = parse_config_file(conf_file)
     data = load_text_data_into_memory(conf)
-    vector_store, tokenizer = _load_tokenizer(conf)
+    tokenizer = _load_tokenizer(conf)
     data = tokenize_data(data, tokenizer)
     go(conf_file, log_dir, data, vector_store, classpath=classpath, clean=clean, n_jobs=1)
