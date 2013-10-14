@@ -60,12 +60,6 @@ class TestThesaurusVectorizer(TestCase):
 
         self.default_prefix = 'thesisgenerator/resources/test'
 
-        self.data_options = {
-            'input': 'content',
-            'shuffle_targets': False,
-            'input_generator': '',
-        }
-
         self.x_tr, self.y_tr, self.x_ev, self.y_ev = self. \
             _load_data(self.default_prefix)
 
@@ -86,11 +80,9 @@ class TestThesaurusVectorizer(TestCase):
         Loads a predefined dataset from disk
         """
         tr = '%s-tr' % prefix
-        self.data_options['training_data'] = tr
         ev = '%s-ev' % prefix
-        self.data_options['test_data'] = ev
         self.dataset_names = (tr, ev)
-        data, _ = load_text_data_into_memory(self.data_options)
+        data, _ = load_text_data_into_memory(tr, ev)
         return data
 
     def test_get_data_iterators(self):
@@ -210,8 +202,8 @@ class TestThesaurusVectorizer(TestCase):
         t.assert_array_equal(
             x2.toarray(),
             np.array(
-                [# todo wtf is this, how can features be removed and yet the vocabulary stays the same
-                 [4, 1, 0]
+                [
+                    [4, 1, 0]
                 ]
             )
         )

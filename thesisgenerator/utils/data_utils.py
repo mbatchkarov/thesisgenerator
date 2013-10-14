@@ -23,14 +23,13 @@ def tokenize_data(data, tokenizer, corpus_ids):
 
 def load_text_data_into_memory(training_path, test_path=None, input_generator='', shuffle_targets=False):
     # read the raw text just once
-    print 'Loading training data...'
-
-    logging.info('Loading raw training set')
+    logging.info('Loading raw training set %s' % training_path)
     x_train, y_train = _get_data_iterators(training_path, input_gen=input_generator,
                                            shuffle_targets=shuffle_targets)
 
     if test_path:
-        x_test, y_test = _get_data_iterators(training_path, input_gen=input_generator,
+        logging.info('Loading raw test set %s' % test_path)
+        x_test, y_test = _get_data_iterators(test_path, input_gen=input_generator,
                                              shuffle_targets=shuffle_targets)
     return (x_train, y_train, x_test, y_test), (training_path, test_path)
 

@@ -17,7 +17,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
     """
 
     def __init__(self, exp_name='', pipe_id=0, lowercase=True,
-                 input='content', charset='utf-8', decode_error='strict',
+                 input='content', encoding='utf-8', decode_error='strict',
                  strip_accents=None,
                  preprocessor=None, tokenizer=None, analyzer='ngram',
                  stop_words=None, token_pattern=ur"(?u)\b\w\w+\b", min_n=None,
@@ -54,7 +54,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
         self.handler = None
 
         super(ThesaurusVectorizer, self).__init__(input=input,
-                                                  charset=charset,
+                                                  encoding=encoding,
                                                   decode_error=decode_error,
                                                   strip_accents=strip_accents,
                                                   lowercase=lowercase,

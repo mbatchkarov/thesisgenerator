@@ -24,7 +24,7 @@ test_data=string(default='')
     analyser=string
     preprocessor=string
     tokenizer=string
-    max_features=integer
+    max_features=integer(default=None)
     vocabulary=string
     binary=boolean
     use_tfidf=boolean

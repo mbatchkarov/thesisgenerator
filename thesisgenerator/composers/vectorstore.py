@@ -1,6 +1,5 @@
 from abc import ABCMeta, abstractmethod
 from collections import defaultdict, OrderedDict
-import inspect
 from operator import itemgetter
 from random import choice
 
@@ -12,7 +11,6 @@ from scipy.sparse import vstack
 from sklearn.feature_extraction import DictVectorizer
 
 from thesisgenerator.plugins.thesaurus_loader import Thesaurus
-from thesisgenerator.utils.reflection_utils import get_named_object
 
 
 class VectorSource(object):
@@ -45,16 +43,16 @@ class VectorSource(object):
 #        raise ValueError('This class cannot provide vectors')
 
 
-class UnigramVectorSource(VectorSource):
+class UnigramVectorSourceComposer(VectorSource):
     feature_pattern = {'1-GRAM'}
     name = 'Lex'
 
-    def __init__(self, files=None):
-        if not files:
+    def __init__(self, unigram_paths):
+        if not unigram_paths:
             raise ValueError('You must provide a unigram vector file')
 
         thesaurus = Thesaurus(
-            thesaurus_files=files,
+            thesaurus_files=unigram_paths,
             sim_threshold=0,
             include_self=False)
 
@@ -183,26 +181,17 @@ class BaroniComposer(Composer):
 
 
 class CompositeVectorSource(VectorSource):
-    def __init__(self, conf):
-        self.unigram_source = UnigramVectorSource(files=conf['unigram_paths'])
+    def __init__(self, unigram_paths, composers, sim_threshold, include_self):
+        self.unigram_source = UnigramVectorSourceComposer(unigram_paths=unigram_paths)
         self.composers = []
-        self.sim_threshold = conf['sim_threshold']
-        self.include_self = conf['include_self']
+        self.sim_threshold = sim_threshold
+        self.include_self = include_self
 
         self.nbrs, self.feature_matrix, entry_index = [None] * 3     # computed by self.build_peripheral_space()
 
-        if conf['include_unigram_features']:
-            self.composers.append(self.unigram_source)
-        for section in conf:
-            if 'composer' in section and conf[section]['run']:
-                composer_class = get_named_object(section)
-                # todo the object must only take keyword arguments
-                initialize_args = inspect.getargspec(composer_class.__init__)[0]
-                opts = conf[section]
-                args = {arg: val for arg, val in opts.items() if arg in initialize_args}
-                args['unigram_source'] = self.unigram_source
-                self.composers.append(composer_class(**args))
-
+        #if include_unigram_features:
+        #    self.composers.append(self.unigram_source)
+        self.composers = composers
         self.composer_mapping = OrderedDict()
         tmp = defaultdict(set) # feature type -> {composer object}
         for c in self.composers:
@@ -233,7 +222,8 @@ class CompositeVectorSource(VectorSource):
 
         self.feature_matrix = vstack(c._get_vector(data).tolil()
                                      for (feature_type, data) in vocabulary
-                                     for c in self.composer_mapping[feature_type]).tocsr()
+                                     for c in self.composer_mapping[feature_type]
+                                     if c in self.composer_mapping).tocsr()
 
         feature_list = [ngram for ngram in vocabulary for c in self.composer_mapping[ngram[0]]]
         #todo test if this entry index is correct

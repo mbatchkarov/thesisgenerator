@@ -19,7 +19,6 @@ import shutil
 from glob import glob
 import logging
 from logging import StreamHandler
-import inspect
 from time import sleep
 
 from pandas import DataFrame
@@ -29,7 +28,7 @@ from sklearn import cross_validation
 from sklearn.pipeline import Pipeline
 
 from thesisgenerator.composers.feature_selectors import MetadataStripper
-from thesisgenerator.utils.reflection_utils import get_named_object
+from thesisgenerator.utils.reflection_utils import get_named_object, get_intersection_of_parameters
 from thesisgenerator.utils.misc import ChainCallable
 from thesisgenerator.classifiers import LeaveNothingOut, PredefinedIndicesIterator, SubsamplingPredefinedIndicesIterator, PicklingPipeline
 from thesisgenerator.utils.conf_file_utils import set_in_conf_file, parse_config_file
@@ -173,10 +172,7 @@ def _build_vectorizer(vector_source, id, call_args, feature_extraction_conf, pip
 
     # get the names of the arguments that the vectorizer class takes
     # todo the object must only take keyword arguments
-    initialize_args = inspect.getargspec(vectorizer.__init__)[0]
-    call_args.update({'vect__%s' % arg: val
-                      for arg, val in feature_extraction_conf.items()
-                      if val != '' and arg in initialize_args})
+    call_args.update(get_intersection_of_parameters(vectorizer, feature_extraction_conf, 'vect'))
     call_args['vect__exp_name'] = exp_name
     call_args['vect__vector_source'] = vector_source
 
@@ -200,10 +196,7 @@ def _build_feature_selector(vector_source, call_args, feature_selection_conf, pi
         # along the pipeline, provided there are no name clashes between the
         # keyword arguments of two consecutive transformers.
 
-        initialize_args = inspect.getargspec(method.__init__)[0]
-        call_args.update({'fs__%s' % arg: val
-                          for arg, val in feature_selection_conf.items()
-                          if val != '' and arg in initialize_args})
+        call_args.update(get_intersection_of_parameters(method, feature_selection_conf, 'fs'))
         call_args['fs__vector_source'] = vector_source
         pipeline_list.append(('fs', method(scoring_func)))
 
@@ -218,10 +211,7 @@ def _build_dimensionality_reducer(call_args, dimensionality_reduction_conf,
 
     if dimensionality_reduction_conf['run']:
         dr_method = get_named_object(dimensionality_reduction_conf['method'])
-        initialize_args = inspect.getargspec(dr_method.__init__)[0]
-        call_args.update({'dr__%s' % arg: val
-                          for arg, val in dimensionality_reduction_conf.items()
-                          if val != '' and arg in initialize_args})
+        call_args.update(get_intersection_of_parameters(dr_method, dimensionality_reduction_conf, 'dr'))
         pipeline_list.append(('dr', dr_method()))
 
 
@@ -258,11 +248,7 @@ def _build_pipeline(vector_source, id, classifier_name, feature_extr_conf, featu
     # feature selection/dim. red. or not
     if classifier_name:
         clf = get_named_object(classifier_name)
-        initialize_args = inspect.getargspec(clf.__init__)[0]
-        call_args.update({'clf__%s' % arg: val
-                          for arg, val in
-                          classifier_conf[classifier_name].items()
-                          if val != '' and arg in initialize_args})
+        call_args.update(get_intersection_of_parameters(clf, classifier_conf[classifier_name], 'clf'))
         pipeline_list.append(('clf', clf()))
     pipeline = PicklingPipeline(pipeline_list, exp_name) if debug else Pipeline(pipeline_list)
     pipeline.set_params(**call_args)
@@ -477,7 +463,7 @@ def go(conf_file, log_dir, data, vector_source, classpath='', clean=False, n_job
     #                config['crossvalidation']['k'] > 1:
     #    raise ValueError('Cannot crossvalidate and debug at the same time')
     # because all folds run at the same time and write to the same debug
-        # file
+    # file
 
     log = _config_logger(log_dir, name=config['name'], debug=config['debug'])
     log.info('Reading configuration file from \'%s\', conf spec from \'%s\''

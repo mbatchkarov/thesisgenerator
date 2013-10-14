@@ -5,7 +5,7 @@ import numpy as np
 from numpy.testing import assert_array_equal
 from scipy.sparse import csr_matrix, issparse
 
-from thesisgenerator.composers.vectorstore import UnigramVectorSource, AdditiveComposer, MultiplicativeComposer, PrecomputedSimilaritiesVectorSource
+from thesisgenerator.composers.vectorstore import UnigramVectorSourceComposer, AdditiveComposer, MultiplicativeComposer, PrecomputedSimilaritiesVectorSource
 
 DIM = 10
 
@@ -21,7 +21,7 @@ all_features = set([unigram_feature, bigram_feature, an_feature, unk_unigram_fea
 
 class TestUnigramVectorSource(TestCase):
     def setUp(self):
-        self.source = UnigramVectorSource(path)
+        self.source = UnigramVectorSourceComposer(path)
 
     def test_get_vector(self):
         # vectors come out right
@@ -68,7 +68,7 @@ class TestCompositeVectorSource(TestCase):
             'unigram_paths': path,
             'sim_threshold': 0.01,
             'include_self': True,
-            'include_unigram_features': False,
+            #'include_unigram_features': False,
             'thesisgenerator.composers.vectorstore.AdditiveComposer': {'run': True},
             'thesisgenerator.composers.vectorstore.MultiplicativeComposer': {'run': True},
             'thesisgenerator.composers.vectorstore.BaroniComposer': {
@@ -132,7 +132,7 @@ class TestSimpleComposers(TestCase):
         self.m._get_vector.return_value = csr_matrix(np.arange(DIM))
 
     def test_with_real_data(self):
-        source = UnigramVectorSource(path)
+        source = UnigramVectorSourceComposer(path)
         add = AdditiveComposer(source)
         mult = MultiplicativeComposer(source)
 
