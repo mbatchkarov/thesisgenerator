@@ -21,6 +21,7 @@ class FeatureVectorsCsvDumper(TransformerMixin):
         self.pipe_id = pipe_id
         self.prefix = prefix
         self._tranform_call_count = 0
+        self.cv_number = 'NONE'
 
     def _dump(self, X, y, file_name='dump.csv'):
         """
@@ -65,10 +66,11 @@ class FeatureVectorsCsvDumper(TransformerMixin):
             self.y = defaultdict(str)
 
         if 1 <= self._tranform_call_count <= 2:
-            self._dump(X, self.y, file_name='PostVectDump_%s_%s%d.csv' % (
-                self.exp_name,
-                suffix[self._tranform_call_count],
-                self.pipe_id))
+            self._dump(X, self.y,
+                       file_name='PostVectDump_%s_%s-cl%d-fold%r.csv' % (self.exp_name,
+                                                                         suffix[self._tranform_call_count],
+                                                                         self.pipe_id,
+                                                                         self.cv_number))
         return X
 
     def get_params(self, deep=True):

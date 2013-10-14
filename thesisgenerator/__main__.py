@@ -473,10 +473,10 @@ def go(conf_file, log_dir, data, vector_source, classpath='', clean=False, n_job
 
     config, configspec_file = parse_config_file(conf_file)
 
-    if config['debug'] and config['crossvalidation']['run'] and \
-                    config['crossvalidation']['k'] > 1:
-        raise ValueError('Cannot crossvalidate and debug at the same time')
-        # because all folds run at the same time and write to the same debug
+    #if config['debug'] and config['crossvalidation']['run'] and \
+    #                config['crossvalidation']['k'] > 1:
+    #    raise ValueError('Cannot crossvalidate and debug at the same time')
+    # because all folds run at the same time and write to the same debug
         # file
 
     log = _config_logger(log_dir, name=config['name'], debug=config['debug'])
