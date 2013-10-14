@@ -1,6 +1,6 @@
 import logging
 from sklearn.base import BaseEstimator, TransformerMixin
-from sklearn.feature_selection import SelectKBest
+from sklearn.feature_selection import SelectKBest, chi2
 import numpy as np
 from sklearn.feature_selection.univariate_selection import _clean_nans
 
@@ -8,7 +8,7 @@ __author__ = 'mmb28'
 
 
 class VectorBackedSelectKBest(SelectKBest):
-    def __init__(self, score_func, k='all', vector_source={}, ensure_vectors_exist=True):
+    def __init__(self, score_func=chi2, k='all', vector_source={}, ensure_vectors_exist=True):
         self.k = k
         self.vector_source = vector_source
         self.ensure_vectors_exist = ensure_vectors_exist
@@ -27,7 +27,7 @@ class VectorBackedSelectKBest(SelectKBest):
             super(VectorBackedSelectKBest, self).fit(X_only, y)
 
         if self.ensure_vectors_exist:
-            self.keep_after_first_pass_mask = self._zero_score_of_oot_features()
+            self.to_keep = self._zero_score_of_oot_features()
         return self
 
     def transform(self, X):
@@ -61,7 +61,7 @@ class VectorBackedSelectKBest(SelectKBest):
             # further feature selection to do
             logging.warn('Using all %d features (you requested %r)' % (len(scores), k))
             try:
-                first_mask = self.keep_after_first_pass_mask
+                first_mask = self.to_keep
             except AttributeError:
                 # self.keep_after_first_pass_mask does not exist because self.ensure_vectors_exist=False
                 # i.e. all features are kept, set a mask of ones
@@ -74,7 +74,6 @@ class VectorBackedSelectKBest(SelectKBest):
         selected_indices = np.argsort(scores)[-k:]
 
         mask[selected_indices] = 1
-        # todo update self.vocabulary here as well
         self._update_vocab_according_to_mask(mask)
         return mask
 

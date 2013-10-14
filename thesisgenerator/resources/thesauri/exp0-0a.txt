@@ -1,0 +1,7 @@
+cat/N	a	a	a	a	b	b	c	d
+dog/N	a	a	a	b	b	b	c
+game/N	d	d	d	e	f	f
+kid/N	g	g	h	h	h	h	h	i	i	i
+fruit/N	a
+like/V	j	j	j	k	k	k
+play/V	k	k	k

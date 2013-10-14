@@ -1,0 +1,6 @@
+cat/N	dog/N	0.958457	fruit/N	0.574575	game/N	0.226051
+dog/N	cat/N	0.958457	fruit/N	0.509428
+game/N	cat/N	0.226051
+fruit/N	cat/N	0.574575	dog/N	0.509428
+like/V	play/V	0.621115
+play/V	like/V	0.621115

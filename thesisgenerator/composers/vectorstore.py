@@ -7,7 +7,7 @@ from scipy.spatial.distance import cosine
 from sklearn.neighbors import BallTree
 import numpy
 import scipy.sparse as sp
-from scipy.sparse import vstack
+from numpy import vstack
 from sklearn.feature_extraction import DictVectorizer
 
 from thesisgenerator.plugins.thesaurus_loader import Thesaurus
@@ -234,18 +234,19 @@ class CompositeVectorSource(VectorSource):
          ('AN', ('year-ago/J', 'period/N'))
         """
 
-        self.feature_matrix = vstack(c._get_vector(data).tolil()
-                                     for (feature_type, data) in vocabulary
-                                     for c in self.composer_mapping[feature_type]
-                                     if feature_type in self.composer_mapping).tocsr()
+        vectors = [c._get_vector(data).A
+                   for (feature_type, data) in vocabulary
+                   for c in self.composer_mapping[feature_type]
+                   if feature_type in self.composer_mapping and (feature_type, data) in c]
+        self.feature_matrix = vstack(vectors)
 
-        feature_list = [ngram for ngram in vocabulary for c in self.composer_mapping[ngram[0]]]
+        feature_list = [ngram for ngram in vocabulary for _ in self.composer_mapping[ngram[0]]]
         #todo test if this entry index is correct
         self.entry_index = {i: ngram for i, ngram in enumerate(feature_list)}
-        assert len(feature_list) == self.feature_matrix.shape[0]
+        #assert len(feature_list) == self.feature_matrix.shape[0]
         #todo BallTree/KDTree only work with dense inputs
         #self.nbrs = KDTree(n_neighbors=1, algorithm='kd_tree').fit(self.feature_matrix)
-        self.nbrs = BallTree(self.feature_matrix.A, metric=cosine)
+        self.nbrs = BallTree(self.feature_matrix, metric=cosine)
 
     def _get_vector(self, ngram):
         """
