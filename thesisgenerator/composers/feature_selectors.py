@@ -8,6 +8,21 @@ __author__ = 'mmb28'
 
 
 class VectorBackedSelectKBest(SelectKBest):
+    """
+    An extention of sklearn's SelectKBest, which also contains a VectorStore. Feature selection is done
+    in two optional steps:
+        1: Remove all features that are not contained in the vector store
+        2: Remove any remaining low-scoring features to ensure a maximum of k features are left fit
+
+     Additionally, this class stores a vocabulary (like a vectorizer), which maps features to a corresponding columns
+     in the feature vector matrix. This is so that a FeatureVectorsCsvDumper can be placed after this object in a
+     pipeline.
+
+     Also, this object assumes its input is not a matrix X (as in SelectKBest), but a tuple (X, vocabulary). The
+     vocabulary is provided by ThesaurusVectorizer, which comes before this object in a pipeline and represents the
+     mapping of features to columns in X before any feature selection is done.
+    """
+
     def __init__(self, score_func=chi2, k='all', vector_source={}, ensure_vectors_exist=True):
         self.k = k
         self.vector_source = vector_source
@@ -46,6 +61,10 @@ class VectorBackedSelectKBest(SelectKBest):
 
     def _update_vocab_according_to_mask(self, mask):
         v = self.vocabulary_
+        if len(v) < mask.shape[0]:
+            logging.info('Already pruned %d features down to %d' % (mask.shape[0], len(v)))
+            return
+
         # see which features are left
         v = {feature: index for feature, index in v.iteritems() if mask[index]}
         # assign new indices for each remaining feature in order, map: old_index -> new_index

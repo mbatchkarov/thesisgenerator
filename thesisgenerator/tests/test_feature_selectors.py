@@ -1,9 +1,9 @@
-from pprint import pprint
 from unittest import TestCase
 
 from sklearn.pipeline import Pipeline
 import numpy as np
 import numpy.testing as t
+from pandas.io.parsers import read_csv
 
 from thesisgenerator.composers.feature_selectors import VectorBackedSelectKBest
 from thesisgenerator.composers.vectorstore import CompositeVectorSource, UnigramVectorSource, \
@@ -17,41 +17,22 @@ __author__ = 'mmb28'
 
 
 class TestVectorBackedSelectKBest(TestCase):
-    def setUp(self):
-        # training corpus is "cats like dogs" (x2), "kids play games"
-        # eval corpus is "birds like fruit" (x2), "dogs eat birds"
-        # thesaurus contains cat, dog, game, kid, fruit, like, play
-        self.full_vocab = {
-            'cat/n': 0,
-            'dog/n': 1,
-            'game/n': 2,
-            'kid/n': 3,
-            'like/v': 4,
-            'play/v': 5
-        }
-
-        # with signifier encoding, only one known feature
-        self.full_training_matrix = np.array(
-            [[1., 1., 0., 0., 1., 0.],
-             [1., 1., 0., 0., 1., 0.],
-             [0., 0., 1., 1., 0., 1.]])
-
-        self.full_eval_matrix = np.array(
-            [[0., 0., 0., 0., 1., 0.],
-             [0., 0., 0., 0., 1., 0.],
-             [0., 1., 0., 0., 0., 0.]])
-
     def _strip(self, mydict):
-        #{ ('1-GRAM', ('X',)) : int} -> {'X' : int}
+        """{ ('1-GRAM', ('X',)) : int} -> {'X' : int}"""
         for k, v in mydict.iteritems():
             self.assertEquals(len(k), 2)
         return {k[1][0]: v for k, v in mydict.iteritems()}
 
-    def _run(self, ensure_vectors_exist, k, use_composer=False):
+    def _do_feature_selection(self, ensure_vectors_exist, k, use_composer=False):
         """
-        Use composer should not make a difference when the feature handler is BaseFeatureHandler at both encode
-        and decode time.
+        Loads a data set, vectorizes it using BaseFeatureHandler and then performs feature selection based on
+        either a vector source or on chi2 scores. Returns the encode/decode matrices and the vocabulary of the
+        Vectorizer after feature selection is done._strip
+
+         The vector source utilised contains all unigram in the training set (feature vectors are made up)
         """
+        #Use composer should not make a difference when the feature handler is BaseFeatureHandler at both encode
+        #and decode time.
         raw_data, data_ids = load_text_data_into_memory(
             training_path='thesisgenerator/resources/test-tr',
             test_path='thesisgenerator/resources/test-ev',
@@ -86,32 +67,144 @@ class TestVectorBackedSelectKBest(TestCase):
         }
         self.p.set_params(**call_args)
         tr_matrix, tr_voc = self.p.fit_transform(x_train, y_train)
-        #print tr_matrix.A
-        #pprint(sorted(self._strip(tr_voc).items()))
         ev_matrix, ev_voc = self.p.transform(x_test)
-        #print ev_matrix.A
-        pprint(sorted(self._strip(ev_voc).items()))
 
         return tr_matrix.A, self._strip(tr_voc), ev_matrix.A, self._strip(ev_voc)
 
     def test_without_feature_selection(self):
+        """
+        Test without any feature selection, matrices and vocabulary are as in
+        test_main.test_baseline_use_all_features_signifier_only
+        """
+        # training corpus is "cats like dogs" (x2), "kids play games"
+        # eval corpus is "birds like fruit" (x2), "dogs eat birds"
+        # thesaurus contains cat, dog, game, kid, fruit, like, play
+
         for a in [True, False]:
-            tr_matrix, tr_voc, ev_matrix, ev_voc = self._run(False, 'all', use_composer=a)
-
+            tr_matrix, tr_voc, ev_matrix, ev_voc = self._do_feature_selection(False, 'all', use_composer=a)
+            voc = {
+                'cat/n': 0,
+                'dog/n': 1,
+                'game/n': 2,
+                'kid/n': 3,
+                'like/v': 4,
+                'play/v': 5
+            }
             self.assertDictEqual(tr_voc, ev_voc)
-            self.assertDictEqual(tr_voc, self.full_vocab)
+            self.assertDictEqual(tr_voc, voc)
 
-            t.assert_array_equal(tr_matrix, self.full_training_matrix)
-            t.assert_array_equal(ev_matrix, self.full_eval_matrix)
-            # todo check the resultant debug file on disk, the header must be correct and should match column contents
+            t.assert_array_equal(tr_matrix, np.array(
+                [[1., 1., 0., 0., 1., 0.],
+                 [1., 1., 0., 0., 1., 0.],
+                 [0., 0., 1., 1., 0., 1.]]))
+            t.assert_array_equal(ev_matrix, np.array(
+                [[0., 0., 0., 0., 1., 0.],
+                 [0., 0., 0., 0., 1., 0.],
+                 [0., 1., 0., 0., 0., 0.]]))
+            self._check_debug_file(ev_matrix, tr_matrix, voc)
 
     def test_with_thesaurus_feature_selection_only(self):
-        #todo this is just copied from above, should fail
-        tr_matrix, tr_voc, ev_matrix, ev_voc = self._run(True, 'all', use_composer=False)
+        """
+        Tests if features in the training data not contained in the vector source are removed
+        """
+        tr_matrix, tr_voc, ev_matrix, ev_voc = self._do_feature_selection(True, 'all')
+
+        voc = {
+            'cat/n': 0,
+            'dog/n': 1,
+            'game/n': 2,
+            #'kid/n': 3, # removed because vector is missing, this happens in self._do_feature_selection
+            'like/v': 3,
+            'play/v': 4
+        }
+        self.assertDictEqual(tr_voc, voc)
 
         self.assertDictEqual(tr_voc, ev_voc)
-        self.assertDictEqual(tr_voc, self.full_vocab)
 
-        t.assert_array_equal(tr_matrix, self.full_training_matrix)
-        t.assert_array_equal(ev_matrix, self.full_eval_matrix)
-        # todo check the resultant debug file on disk, the header must be correct and should match column contents
+        t.assert_array_equal(tr_matrix,
+                             np.array(
+                                 [[1., 1., 0., 1., 0.],
+                                  [1., 1., 0., 1., 0.],
+                                  [0., 0., 1., 0., 1.]]))
+        t.assert_array_equal(ev_matrix,
+                             np.array(
+                                 [[0., 0., 0., 1., 0.],
+                                  [0., 0., 0., 1., 0.],
+                                  [0., 1., 0., 0., 0.]]))
+        self._check_debug_file(ev_matrix, tr_matrix, voc)
+
+    def test_with_chi2_feature_selection_only(self):
+        """
+        Test the normal case of feature selection, where some number of features are removed because they are
+        not informative
+        """
+        tr_matrix, tr_voc, ev_matrix, ev_voc = self._do_feature_selection(False, 3)
+
+        # feature scores at train time are [ 1.  1.  2.  2.  1.  2.]. These are provided by sklearn and I have not
+        # verified them
+        voc = {
+            #'cat/n': 0, # removed because their chi2 score is low
+            #'dog/n': 1,
+            'game/n': 0,
+            'kid/n': 1,
+            #'like/v': 4,
+            'play/v': 2
+        }
+        self.assertDictEqual(tr_voc,
+                             voc)
+
+        self.assertDictEqual(tr_voc, ev_voc)
+
+        t.assert_array_equal(tr_matrix,
+                             np.array(
+                                 [[0., 0., 0.],
+                                  [0., 0., 0.],
+                                  [1., 1., 1.]]))
+
+        t.assert_array_equal(ev_matrix,
+                             np.array(
+                                 [[0., 0., 0.],
+                                  [0., 0., 0.],
+                                  [0., 0., 0.]]))
+        self._check_debug_file(ev_matrix, tr_matrix, voc)
+
+    def test_with_chi2_and_thesaurus_feature_selection(self):
+        """
+        Test a combination of feature selection through vector source and low chi2 score.
+        """
+        tr_matrix, tr_voc, ev_matrix, ev_voc = self._do_feature_selection(True, 2)
+
+        self.assertDictEqual(tr_voc, ev_voc)
+        voc = {
+            #'cat/n': 0, # removed because of low chi2 score
+            #'dog/n': 1,  # removed because of low chi2 score
+            'game/n': 0,
+            #'kid/n': 3, # removed because vector is missing
+            #'like/v': 4,  # removed because of low chi2 score
+            'play/v': 1
+        }
+        # feature scores at train time are [ 1.  1.  2.  2.  1.  2.]
+        self.assertDictEqual(tr_voc, voc)
+
+        t.assert_array_equal(tr_matrix, np.array(
+            [[0., 0.],
+             [0., 0.],
+             [1., 1.]]))
+        t.assert_array_equal(ev_matrix, np.array(
+            [[0., 0.],
+             [0., 0.],
+             [0., 0.]]))
+
+        self._check_debug_file(ev_matrix, tr_matrix, voc)
+
+    def _check_debug_file(self, ev_matrix, tr_matrix, voc):
+        for name, matrix in zip(['tr', 'ev'], [tr_matrix, ev_matrix]):
+            df = read_csv("PostVectDump_fs-test_%s-cl0-fold'NONE'.csv" % name)
+            # the columns are u'id', u'target', u'total_feat_weight', u'nonzero_feats', followed by feature vectors
+            # check that we have the right number of columns
+            self.assertEquals(len(df.columns), 4 + len(voc))
+            # check that column names match the vocabulary (after stripping feature metadata)
+            self.assertDictEqual(voc, self._strip({eval(v): i for i, v in enumerate(df.columns[4:])}))
+            #check that feature vectors are written correctly
+            t.assert_array_equal(matrix, df.ix[:, 4:].as_matrix())
+
