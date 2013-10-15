@@ -5,7 +5,7 @@ import numpy as np
 from numpy.testing import assert_array_equal
 from scipy.sparse import csr_matrix, issparse
 
-from thesisgenerator.composers.vectorstore import UnigramVectorSource, AdditiveComposer, MultiplicativeComposer, PrecomputedSimilaritiesVectorSource
+from thesisgenerator.composers.vectorstore import *
 
 DIM = 10
 
@@ -62,20 +62,34 @@ class TestUnigramVectorSource(TestCase):
             self.assertNotIn(thing, self.source)
 
 
+class TestAdditiveVectorSource(TestCase):
+    def setUp(self):
+        unigrams_vectors = UnigramVectorSource(path)
+        self.composer = AdditiveComposer(unigrams_vectors)
+
+    def test_contains(self):
+        self.assertIn(bigram_feature, self.composer)
+
+        self.assertNotIn(unigram_feature, self.composer)
+        self.assertNotIn(unk_unigram_feature, self.composer)
+        self.assertNotIn(unk_bigram_feature, self.composer)
+
+
 class TestCompositeVectorSource(TestCase):
     def setUp(self):
-        self.conf = {
-            'unigram_paths': path,
-            'sim_threshold': 0.01,
-            'include_self': True,
-            #'include_unigram_features': False,
-            'thesisgenerator.composers.vectorstore.AdditiveComposer': {'run': True},
-            'thesisgenerator.composers.vectorstore.MultiplicativeComposer': {'run': True},
-            'thesisgenerator.composers.vectorstore.BaroniComposer': {
-                'run': True,
-                'file_path': '/some/path'}
-        }
+        unigrams_vectors = UnigramVectorSource(path)
+        self.composer = CompositeVectorSource(unigrams_vectors,
+                                              [AdditiveComposer(unigrams_vectors),
+                                               UnigramDummyComposer(unigrams_vectors)],
+                                              0.0, False
+        )
 
+    def test_contains(self):
+        self.assertIn(unigram_feature, self.composer)
+        self.assertIn(bigram_feature, self.composer)
+
+        self.assertNotIn(unk_unigram_feature, self.composer)
+        self.assertNotIn(unk_bigram_feature, self.composer)
 
         #def test_only_composable_features(self):
         #    """

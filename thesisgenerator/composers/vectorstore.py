@@ -1,8 +1,8 @@
 from abc import ABCMeta, abstractmethod
 from collections import defaultdict, OrderedDict
-from operator import itemgetter
 from random import choice
 
+from operator import itemgetter
 from scipy.spatial.distance import cosine
 from sklearn.neighbors import BallTree
 import numpy
@@ -141,7 +141,7 @@ class AdditiveComposer(Composer):
 
         acceptable = True
         for unigram in f[1]:
-            if unigram not in self.unigram_source:
+            if ('1-GRAM', (unigram,)) not in self.unigram_source:
                 # ignore n-grams containing unknown unigrams
                 acceptable = False
                 break
