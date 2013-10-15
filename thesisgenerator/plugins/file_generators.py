@@ -2,7 +2,7 @@ import glob
 import itertools
 import os
 import shutil
-from thesisgenerator.utils.conf_file_utils import set_in_conf_file
+from thesisgenerator.utils.conf_file_utils import set_in_conf_file, parse_config_file
 
 __author__ = 'mmb28'
 
@@ -44,13 +44,13 @@ def _exp1_file_iterator(pattern, base_conf_file):
     raise StopIteration
 
 
-def _vary_training_size_file_iterator(sizes, exp_id, conf_file):
+def _vary_training_size_file_iterator(sizes, exp_id, base_conf_file):
     for sub_id, size in enumerate(sizes):
-        new_conf_file, log_file = _write_exp2_to_14_conf_file(conf_file,
+        new_conf_file, log_file = _write_exp2_to_14_conf_file(base_conf_file,
                                                               exp_id,
                                                               sub_id,
                                                               size)
-        print 'Yielding %s, %s' % (new_conf_file, new_conf_file)
+        print 'Yielding %s, %s' % (new_conf_file, log_file)
         yield new_conf_file, log_file
     raise StopIteration
 
@@ -106,13 +106,14 @@ def _write_exp2_to_14_conf_file(base_conf_file, exp_id, run_id,
                                 sample_size):
     """
     Prepares conf files for exp2-14 by altering the sample size parameter in
-    the
-     provided base conf file
+    the provided base conf file
     """
-    log_dir, new_conf_file = _prepare_conf_files(base_conf_file, exp_id,
-                                                 run_id)
+    log_dir, new_conf_file = _prepare_conf_files(base_conf_file, exp_id, run_id)
 
-    set_in_conf_file(new_conf_file, 'name', 'exp%d-%d' % (exp_id, run_id))
+    config_obj, _ = parse_config_file(base_conf_file)
+    old_name = config_obj['name']
+
+    set_in_conf_file(new_conf_file, 'name', '%s-%d' % (old_name, run_id))
     set_in_conf_file(new_conf_file, ['crossvalidation', 'sample_size'],
                      sample_size)
     # replace_in_file(new_conf_file, 'debug', False)

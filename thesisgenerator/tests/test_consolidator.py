@@ -1,8 +1,10 @@
 # -*- coding: utf8 -*-
-
+from itertools import chain
 import logging
 import os
 from unittest import TestCase
+from glob import glob
+
 from thesisgenerator.plugins.experimental_utils import run_experiment
 from thesisgenerator.utils.misc import get_susx_mysql_conn
 
@@ -12,20 +14,17 @@ __author__ = 'mmb28'
 class TestConsolidator(TestCase):
     def setUp(cls):
         prefix = 'thesisgenerator/resources'
-        run_experiment(0, num_workers=1, predefined_sized=[3, 3, 3],
-                       prefix=prefix)
+        run_experiment(0, num_workers=1, predefined_sized=[3, 3, 3], prefix=prefix)
 
     def tearDown(self):
-        from glob import glob
-
-        files = glob('./PostVectDump_exp0*csv')
+        """
+        Remove the debug files produced by this test
+        """
+        files = chain(glob('./PostVectDump_tests-exp0*csv'), glob('tests-*-pipeline.pickle'))
         for f in files:
             os.remove(f)
 
     def test_extract_thesausus_coverage_info(self):
-        #with open('thesisgenerator/resources/conf/exp0/output/summary0.csv') \
-        #    as infile:
-        #    log_txt = ''.join(infile.readlines())
         cursor = get_susx_mysql_conn().cursor()
 
         cursor.execute('SELECT DISTINCT classifier from data00;')
@@ -95,7 +94,7 @@ class TestConsolidator(TestCase):
         cursor.execute(sql)
         res = cursor.fetchall()
         for i in range(3):
-            self.assertEqual(res[i][0], 'exp0-{}'.format(i))
+            self.assertEqual(res[i][0], 'tests-exp0-{}'.format(i))
 
 
 

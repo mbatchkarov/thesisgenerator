@@ -285,7 +285,7 @@ class CompositeVectorSource(VectorSource):
 
 class PrecomputedSimilaritiesVectorSource(CompositeVectorSource):
     """
-    Wraps a Byblo-computer Thesaurus in the interface of a CompositeVectorSource, defering the get_nearest_neighbours
+    Wraps a Byblo-computer Thesaurus in the interface of a CompositeVectorSource, deferring the get_nearest_neighbours
     method to the Thesaurus. Only handles features of the form ('1-GRAM', (X,))
     """
     feature_pattern = {'1-GRAM'}

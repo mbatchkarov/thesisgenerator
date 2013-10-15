@@ -48,7 +48,7 @@ class PicklingPipeline(Pipeline):
 
     def fit(self, X, y=None, **fit_params):
         trained_pipeline = super(PicklingPipeline, self).fit(X, y, **fit_params)
-        outfile_name = '{}-pipeline.pickle'.format(self.exp_name)
+        outfile_name = '{}-{}-pipeline.pickle'.format(self.exp_name, self.cv_number)
         logging.info('Saving trained pipeline {}'.format(outfile_name))
 
         # only save the classifier, the other stuff isn't really needed

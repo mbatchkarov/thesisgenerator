@@ -1,3 +1,4 @@
+import os
 from unittest import TestCase
 
 from sklearn.pipeline import Pipeline
@@ -54,7 +55,7 @@ class TestVectorBackedSelectKBest(TestCase):
         composers = CompositeVectorSource(unigrams_vectors, composer_list, 0.0, False)
 
         pipeline_list = [
-            ('vect', ThesaurusVectorizer()),
+            ('vect', ThesaurusVectorizer(exp_name='unittests')),
             ('fs', VectorBackedSelectKBest(vector_source=composers, ensure_vectors_exist=ensure_vectors_exist, k=k)),
             ('dumper', FeatureVectorsCsvDumper('fs-test'))
         ]
@@ -199,7 +200,8 @@ class TestVectorBackedSelectKBest(TestCase):
 
     def _check_debug_file(self, ev_matrix, tr_matrix, voc):
         for name, matrix in zip(['tr', 'ev'], [tr_matrix, ev_matrix]):
-            df = read_csv("PostVectDump_fs-test_%s-cl0-fold'NONE'.csv" % name)
+            filename = "PostVectDump_fs-test_%s-cl0-fold'NONE'.csv" % name
+            df = read_csv(filename)
             # the columns are u'id', u'target', u'total_feat_weight', u'nonzero_feats', followed by feature vectors
             # check that we have the right number of columns
             self.assertEquals(len(df.columns), 4 + len(voc))
@@ -207,4 +209,5 @@ class TestVectorBackedSelectKBest(TestCase):
             self.assertDictEqual(voc, self._strip({eval(v): i for i, v in enumerate(df.columns[4:])}))
             #check that feature vectors are written correctly
             t.assert_array_equal(matrix, df.ix[:, 4:].as_matrix())
+            os.remove(filename)
 
