@@ -44,16 +44,14 @@ class FeatureVectorsCsvDumper(TransformerMixin):
 
         new_file = os.path.join(self.prefix, file_name)
         c = csv.writer(open(new_file, "w"))
-        inverse_vocab = {index: word for (word, index) in
-                         vocabulary_.iteritems()}
+        inverse_vocab = {index: word for (word, index) in vocabulary_.iteritems()}
         v = [inverse_vocab[i] for i in range(len(inverse_vocab))]
-        c.writerow(['id'] + ['target'] + ['total_feat_weight'] +
-                   ['nonzero_feats'] + v)
+        c.writerow(['id'] + ['target'] + ['total_feat_weight'] + ['nonzero_feats'] + v)
         for i in range(matrix.shape[0]):
             row = matrix.todense()[i, :].tolist()[0]
             vals = ['%1.2f' % x for x in row]
             c.writerow([i, y[i], sum(row), count_nonzero(row)] + vals)
-        logging.info('Saved debug info to %s' % new_file)
+        logging.info('Saved debug info to %s', new_file)
 
     def fit(self, X, y=None, **fit_params):
         self.y = y

@@ -291,7 +291,7 @@ def _run_tasks(configuration, n_jobs, data, vector_source):
                                             x_tr, y_tr, x_test,
                                             y_test)
 
-        logging.info('Assigning id %d to classifier %s' % (i, clf_name))
+        logging.info('Assigning id %d to classifier %s', i, clf_name)
         pipeline = _build_pipeline(vector_source, i, clf_name,
                                    configuration['feature_extraction'],
                                    configuration['feature_selection'],
@@ -324,9 +324,8 @@ def _run_tasks(configuration, n_jobs, data, vector_source):
                      score])
         del pipeline
         del scores_this_clf
-    logging.info('Classifier scores are %s' % scores)
-    return 0, _analyze(scores, configuration['output_dir'],
-                       configuration['name'])
+    logging.info('Classifier scores are %s', scores)
+    return 0, _analyze(scores, configuration['output_dir'], configuration['name'])
 
 
 def _analyze(scores, output_dir, name):
@@ -334,7 +333,7 @@ def _analyze(scores, output_dir, name):
     Stores a csv and xls representation of the data set. Requires pandas
     """
 
-    logging.info("Analysing results and saving to %s" % output_dir)
+    logging.info("Analysing results and saving to %s", output_dir)
     cleaned_scores = []
     for result in scores:
         clf, run_no, metric, vals = result
@@ -432,14 +431,14 @@ def _prepare_output_directory(clean, output):
     # CLEAN OUTPUT DIRECTORY
     # **********************************
     if clean and os.path.exists(output):
-        logging.info('Cleaning output directory %s' % glob(output))
+        logging.info('Cleaning output directory %s', glob(output))
         shutil.rmtree(output)
 
     # **********************************
     # CREATE OUTPUT DIRECTORY
     # **********************************
     if not os.path.exists(output):
-        logging.info('Creating output directory %s' % glob(output))
+        logging.info('Creating output directory %s', glob(output))
         os.makedirs(output)
 
 

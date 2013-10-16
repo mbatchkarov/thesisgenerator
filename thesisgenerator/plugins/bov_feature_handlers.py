@@ -105,12 +105,12 @@ class BaseFeatureHandler():
 
 
     def _insert_feature_only(self, doc_id, feature, feature_index_in_vocab, j_indices, values, **kwargs):
-        logging.debug('Inserting feature in doc %d: %s' % (doc_id, feature))
+        logging.debug('Inserting feature in doc %d: %s', doc_id, feature)
         j_indices.append(feature_index_in_vocab)
         values.append(1)
 
     def _ignore_feature(self, doc_id, feature, **kwargs):
-        logging.debug('Ignoring feature in doc %d: %s' % (doc_id, feature))
+        logging.debug('Ignoring feature in doc %d: %s', doc_id, feature)
 
     def _paraphrase(self, doc_id, feature, vocabulary, j_indices, values, **kwargs):
         """
@@ -127,7 +127,7 @@ class BaseFeatureHandler():
            currently loaded thesaurus.
         """
 
-        logging.debug('Paraphrasing %r in doc %d' % (feature, doc_id))
+        logging.debug('Paraphrasing %r in doc %d', feature, doc_id)
         neighbours = self.vector_source.get_nearest_neighbours(feature)
 
         # if there are any neighbours filter the list of
@@ -136,10 +136,9 @@ class BaseFeatureHandler():
         neighbours = [(neighbour, sim) for neighbour, sim in neighbours
                       if neighbour in vocabulary]
 
-        logging.debug('Using %d/%d IV neighbours' % (self.k, len(neighbours)))
+        logging.debug('Using %d/%d IV neighbours', self.k, len(neighbours))
         for neighbour, sim in neighbours[:self.k]:
-            logging.debug('Replacement. Doc %d: %s --> %s, sim = %f' % (
-                doc_id, feature, neighbour, sim))
+            logging.debug('Replacement. Doc %d: %s --> %s, sim = %f', doc_id, feature, neighbour, sim)
 
             # todo the document may already contain the feature we
             # are about to insert into it,

@@ -65,7 +65,7 @@ class VectorBackedSelectKBest(SelectKBest):
     def _update_vocab_according_to_mask(self, mask):
         v = self.vocabulary_
         if len(v) < mask.shape[0]:
-            logging.info('Already pruned %d features down to %d' % (mask.shape[0], len(v)))
+            logging.info('Already pruned %d features down to %d', mask.shape[0], len(v))
             return
 
         # see which features are left
@@ -81,7 +81,7 @@ class VectorBackedSelectKBest(SelectKBest):
         if k == 'all' or k > len(scores):
             # at this point self._remove_oot_features will have been invoked, and there is no
             # further feature selection to do
-            logging.warn('Using all %d features (you requested %r)' % (len(scores), k))
+            logging.warn('Using all %d features (you requested %r)', len(scores), k)
             try:
                 first_mask = self.to_keep
             except AttributeError:

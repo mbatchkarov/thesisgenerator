@@ -101,7 +101,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
                                          self.vector_source)
 
         if self.vector_source:
-            logging.info('Populating vector source %s prior to transform' % self.vector_source)
+            logging.info('Populating vector source %s prior to transform', self.vector_source)
             self.vector_source.populate_vector_space(self.vocabulary_.keys())
         return super(ThesaurusVectorizer, self).transform(raw_documents), self.vocabulary_
 
@@ -178,12 +178,12 @@ class ThesaurusVectorizer(TfidfVectorizer):
         @params fixed_vocab True if the vocabulary attribute has been set, i.e. the vectorizer is trained
         """
         if hasattr(self, 'cv_number'):
-            logging.info('cv_number=%s' % self.cv_number)
+            logging.info('cv_number=%s', self.cv_number)
         logging.info('Converting features to vectors (with thesaurus lookup)')
 
         if not self.use_tfidf:
             self._tfidf = NoopTransformer()
-        logging.info('Using TF-IDF: %s, transformer is %s' % (self.use_tfidf, self._tfidf))
+        logging.info('Using TF-IDF: %s, transformer is %s', self.use_tfidf, self._tfidf)
 
         if fixed_vocab:
             vocabulary = self.vocabulary_

@@ -23,7 +23,7 @@ def tokenize_data(data, tokenizer, corpus_ids):
 
 def load_text_data_into_memory(training_path, test_path=None, input_generator='', shuffle_targets=False):
     # read the raw text just once
-    logging.info('Loading raw training set %s' % training_path)
+    logging.info('Loading raw training set %s', training_path)
     x_train, y_train = _get_data_iterators(training_path, input_gen=input_generator,
                                            shuffle_targets=shuffle_targets)
 
@@ -120,7 +120,7 @@ def _get_data_iterators(path, input_type='content', input_gen=None, shuffle_targ
                                      '\'content\'')
 
                 dataset = load_files(path, shuffle=False)
-                logging.info('Targets are: %s' % dataset.target_names)
+                logging.info('Targets are: %s', dataset.target_names)
                 data_iterable = dataset.data
                 if shuffle_targets:
                     import random
