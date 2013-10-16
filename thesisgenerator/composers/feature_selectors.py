@@ -23,7 +23,7 @@ class VectorBackedSelectKBest(SelectKBest):
      mapping of features to columns in X before any feature selection is done.
     """
 
-    def __init__(self, score_func=chi2, k='all', vector_source={}, ensure_vectors_exist=True):
+    def __init__(self, score_func=chi2, k='all', vector_source={}, ensure_vectors_exist=False):
         self.k = k
         self.vector_source = vector_source
         self.ensure_vectors_exist = ensure_vectors_exist

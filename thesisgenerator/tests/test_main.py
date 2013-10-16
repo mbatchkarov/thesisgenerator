@@ -55,7 +55,8 @@ class TestThesaurusVectorizer(TestCase):
             'method': 'thesisgenerator.composers.feature_selectors.VectorBackedSelectKBest',
             'scoring_function': 'sklearn.feature_selection.chi2',
             'ensure_vectors_exist': False,
-            'k': 'all'
+            'k': 'all',
+            'vector_source': None
         }
 
         self.default_prefix = 'thesisgenerator/resources/test'
@@ -121,7 +122,7 @@ class TestThesaurusVectorizer(TestCase):
             None, # classifier options
             '.', # temp files dir
             True, # debug mode
-            'tests' # name of experiments
+            'test_main' # name of experiments
         )
 
         raw_data = (self.x_tr, self.y_tr, self.x_ev, self.y_ev)
@@ -137,6 +138,7 @@ class TestThesaurusVectorizer(TestCase):
 
     def _reload_thesaurus_and_tokenizer(self):
         self.vector_source = PrecomputedSimilaritiesVectorSource(**self._thesaurus_opts)
+        self.feature_selection_conf['vector_source'] = self.vector_source
         self.tokenizer = tokenizers.XmlTokenizer(**self.tokenizer_opts)
 
 

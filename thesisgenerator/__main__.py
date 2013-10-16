@@ -187,8 +187,7 @@ def _build_feature_selector(vector_source, call_args, feature_selection_conf, pi
     """
     if feature_selection_conf['run']:
         method = get_named_object(feature_selection_conf['method'])
-        scoring_func = get_named_object(
-            feature_selection_conf['scoring_function'])
+        scoring_func = get_named_object(feature_selection_conf['scoring_function'])
 
         # the parameters for steps in the Pipeline are defined as
         # <component_name>__<arg_name> - the Pipeline (which is actually a
