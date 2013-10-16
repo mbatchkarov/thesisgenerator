@@ -180,13 +180,11 @@ class ThesaurusVectorizer(TfidfVectorizer):
         if hasattr(self, 'cv_number'):
             logging.info('cv_number=%s' % self.cv_number)
         logging.info('Converting features to vectors (with thesaurus lookup)')
-        logging.info('Using TF-IDF: %s, transformer is %s' % (self.use_tfidf, self._tfidf))
 
         if not self.use_tfidf:
             self._tfidf = NoopTransformer()
-            #doc_id_indices = [] # which document the feature occurs in
-        #term_indices = []   # which term id appeared
-        #values = []         # values[i] = frequency(term[i]) in document[i]
+        logging.info('Using TF-IDF: %s, transformer is %s' % (self.use_tfidf, self._tfidf))
+
         if fixed_vocab:
             vocabulary = self.vocabulary_
         else:
@@ -212,7 +210,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
                 #is_in_vocabulary = bool(feature_index_in_vocab is not None)
                 is_in_vocabulary = feature in vocabulary
                 #is_in_th = bool(self.vector_source.get(feature))
-                is_in_th = feature in self.vector_source
+                is_in_th = feature in self.vector_source if self.vector_source else False
                 self.stats.register_token(feature, is_in_vocabulary, is_in_th)
 
                 #j_indices.append(feature_index_in_vocab) # todo this is the original code, also updates vocabulary

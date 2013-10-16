@@ -27,8 +27,11 @@ class VectorBackedSelectKBest(SelectKBest):
         self.k = k
         self.vector_source = vector_source
         self.ensure_vectors_exist = ensure_vectors_exist
+        if not self.vector_source and ensure_vectors_exist:
+            logging.error(
+                'You requested feature selection based on vector presence but did not provide a vector source.')
+            raise ValueError('VectorSource required with ensure_vectors_exist')
         self.vocabulary_ = None
-        self.pruned_vocabulary_ = None
         super(VectorBackedSelectKBest, self).__init__(score_func=score_func, k=k)
 
     def fit(self, X, y):
