@@ -127,7 +127,7 @@ class BaseFeatureHandler():
            currently loaded thesaurus.
         """
 
-        #neighbours = thesaurus(vocabulary)[document_term]
+        logging.debug('Paraphrasing %r in doc %d' % (feature, doc_id))
         neighbours = self.vector_source.get_nearest_neighbours(feature)
 
         # if there are any neighbours filter the list of

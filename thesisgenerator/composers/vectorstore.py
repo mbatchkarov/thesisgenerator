@@ -82,14 +82,6 @@ class UnigramVectorSource(VectorSource):
             return None
         return self.feature_matrix[row, :]
 
-    #def compose(self, words):
-    #    """
-    #    Takes a sequence of words and returns a vector for them. This implementation does
-    #    not bother with composition, just returns a unigram vector. The thing passed in must
-    #    be a one-element iterable. Subclasses override to implement composition
-    #    """
-    #    return self.get_vector(words[0])
-
     def __contains__(self, feature):
         """
         Accept all unigrams that we have a vector for
@@ -265,7 +257,7 @@ class CompositeVectorSource(VectorSource):
         for comp_name, vector in self._get_vector(ngram):
             #dist, ind = self.nbrs.kneighbors(vector)
             dist, ind = self.nbrs.query(vector, k=1, return_distance=True)
-            data = (comp_name, (dist[0][0], self.entry_index[ind[0][0]]))
+            data = (comp_name, (self.entry_index[ind[0][0]], dist[0][0]))
             #print '{}\t\t\t{}\t\t\t{}'.format(*data)
             #todo tests for this if and the one below
             if ngram == data[1][1] and not self.include_self:
@@ -294,13 +286,13 @@ class PrecomputedSimilaritiesVectorSource(CompositeVectorSource):
     def __init__(self, thesaurus_files='', sim_threshold=0, include_self=False):
         self.th = Thesaurus(thesaurus_files=thesaurus_files, sim_threshold=sim_threshold, include_self=include_self)
 
-    def _get_nearest_neighbours(self, word):
+    def _get_nearest_neighbours(self, feature):
     # Accepts structured features and strips the meta information from the feature and use as a string
     # Returns (composer, sim, neighbour) tuples
     # Feature structure is ('1-GRAM', ('Seattle/N',))
 
         # strip the structural info from feature for thes lookup
-        res = self.th.get(word[1][0])
+        res = self.th.get(' '.join(feature[1]))
         # put structural info back in
         return [(
                     'Byblo',
