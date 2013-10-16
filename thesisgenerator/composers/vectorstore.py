@@ -89,6 +89,13 @@ class UnigramVectorSource(VectorSource):
         """
         return feature[0] in self.feature_pattern and feature[1][0] in self.entry_index.keys()
 
+    def __str__(self):
+        return '[UnigramVectorSource with %d %d-dimensional entries]' % (len(self.entry_index),
+                                                                         len(self.distrib_features_vocab))
+
+    def __len__(self):
+        return len(self.entry_index)
+
 
 class Composer(VectorSource):
     def __init__(self, unigram_source=None):
@@ -109,6 +116,9 @@ class UnigramDummyComposer(Composer):
 
     def _get_vector(self, sequence):
         return self.unigram_source._get_vector(sequence)
+
+    def __str__(self):
+        return '[UnigramDummyComposer wrapping %s]' % self.unigram_source
 
 
 class AdditiveComposer(Composer):
@@ -139,6 +149,9 @@ class AdditiveComposer(Composer):
                 break
         return acceptable
 
+    def __str__(self):
+        return '[AdditiveComposer with %d unigram entries]' % (len(self.unigram_source))
+
 
 class MultiplicativeComposer(AdditiveComposer):
     name = 'Mult'
@@ -150,6 +163,9 @@ class MultiplicativeComposer(AdditiveComposer):
         return reduce(sp.csr_matrix.multiply,
                       map(self.unigram_source._get_vector, sequence[1:]),
                       self.unigram_source._get_vector(sequence[0]))
+
+    def __str__(self):
+        return '[MultiplicativeComposer with %d unigram entries]' % (len(self.unigram_source))
 
 
 class BaroniComposer(Composer):
@@ -274,6 +290,9 @@ class CompositeVectorSource(VectorSource):
         #print ngram, self._get_nearest_neighbours(ngram)
         return map(itemgetter(1), self._get_nearest_neighbours(ngram))
 
+    def __str__(self):
+        return 'Composite[' + ', '.join(str(c) for c in self.composers) + ']'
+
 
 class PrecomputedSimilaritiesVectorSource(CompositeVectorSource):
     """
@@ -319,6 +338,9 @@ class PrecomputedSimilaritiesVectorSource(CompositeVectorSource):
     def populate_vector_space(self, vocabulary):
         #nothing to do, we have the all-pairs sim matrix already
         pass
+
+    def __str__(self):
+        return '[PrecomputedSimilaritiesVectorSource with %d entries]' % len(self.th)
 
 
 class ConstantNeighbourVectorSource(VectorSource):

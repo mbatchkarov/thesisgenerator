@@ -101,6 +101,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
                                          self.vector_source)
 
         if self.vector_source:
+            logging.info('Populating vector source %s prior to transform' % self.vector_source)
             self.vector_source.populate_vector_space(self.vocabulary_.keys())
         return super(ThesaurusVectorizer, self).transform(raw_documents), self.vocabulary_
 
