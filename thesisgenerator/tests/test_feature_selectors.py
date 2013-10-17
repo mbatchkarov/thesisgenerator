@@ -53,8 +53,7 @@ class TestVectorBackedSelectKBest(TestCase):
         if vector_source == 'default':
             unigrams_vectors = UnigramVectorSource(
                 ['thesisgenerator/resources/thesauri/exp0-0a.txt.events-unfiltered.strings'])
-            vector_source = CompositeVectorSource(unigrams_vectors,
-                                                  [UnigramDummyComposer(unigrams_vectors)],
+            vector_source = CompositeVectorSource([UnigramDummyComposer(unigrams_vectors)],
                                                   0.0, False)
 
         if delete_kid:

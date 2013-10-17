@@ -1,3 +1,4 @@
+from itertools import combinations
 from unittest import TestCase
 from mock import Mock
 import numpy as np
@@ -74,15 +75,51 @@ class TestAdditiveVectorSource(TestCase):
         self.assertNotIn(unk_unigram_feature, self.composer)
         self.assertNotIn(unk_bigram_feature, self.composer)
 
+    def test_get_nearest_neighbour(self):
+        unigrams_vectors = UnigramVectorSource(['thesisgenerator/resources/ones.vectors.txt'])
+        composer = CompositeVectorSource([AdditiveComposer(unigrams_vectors)], 0, True)
+        vocab = [('2-GRAM', (x, y)) for (x, y) in combinations(unigrams_vectors.entry_index.iterkeys(), 2)]
+        composer.populate_vector_space(vocab)
+        print '----------- Setting include_self to True ------------'
+        for bigram in vocab:
+            neighbours = composer.get_nearest_neighbours(bigram)
+            self.assertEquals(len(neighbours), 1)
+            neighbour, sim = neighbours[0]
+            print composer._get_vector(bigram), bigram, neighbours
+            self.assertTupleEqual(bigram, neighbour)
+            self.assertAlmostEqual(sim, 1, 5)
+
+        print '----------- Setting include_self to False ------------'
+        composer.include_self = False
+        for bigram in vocab:
+            neighbours = composer.get_nearest_neighbours(bigram)
+            self.assertEquals(len(neighbours), 1)
+            neighbour, sim = neighbours[0]
+            print bigram, neighbours
+            self.assertNotEqual(bigram, neighbour)
+            # The vectors for unigrams are 4D one-hot encoded, ie. a=1000, b=0100,...,d=0001
+            # The pointwise sum of any of these two has two ones and two zeros. If v1 = x1+y1, v2=x2+y2,
+            # ( x1,x2,y1,y2 \in {a,b,c,d} ) then v1 and v2 share either 0, 1 or 2 non-zero dimensions.
+            # If they share 2, i.e. we've added the same terms up and include_self will prevent this neighbour
+            # from being returned. If they share no dimensions, the cosine sim is 0 and the sim_threshold will
+            # kick in. The nearest neighbour of the sum of any two vectors (not including itself) is the one where
+            # they only share one dimension, i.e. [1,0,1,0] and [1,0,0,1], and the cosine of these two is ~0.5.
+
+            self.assertAlmostEqual(sim, 0.5, 5)
+
+        composer.sim_threshold = 0.6
+        # no neighbours should be returned now, because 0.6 > 0.5
+        for bigram in vocab:
+            neighbours = composer.get_nearest_neighbours(bigram)
+            self.assertEquals(len(neighbours), 0)
+
 
 class TestCompositeVectorSource(TestCase):
     def setUp(self):
         unigrams_vectors = UnigramVectorSource(path)
-        self.composer = CompositeVectorSource(unigrams_vectors,
-                                              [AdditiveComposer(unigrams_vectors),
+        self.composer = CompositeVectorSource([AdditiveComposer(unigrams_vectors),
                                                UnigramDummyComposer(unigrams_vectors)],
-                                              0.0, False
-        )
+                                              0.0, False)
 
     def test_contains(self):
         self.assertIn(unigram_feature, self.composer)

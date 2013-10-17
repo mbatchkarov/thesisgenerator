@@ -203,16 +203,13 @@ class BaroniComposer(Composer):
 
 
 class CompositeVectorSource(VectorSource):
-    def __init__(self, unigram_source, composers, sim_threshold, include_self):
-        self.unigram_source = unigram_source
+    def __init__(self, composers, sim_threshold, include_self):
         self.composers = composers
         self.sim_threshold = sim_threshold
         self.include_self = include_self
 
         self.nbrs, self.feature_matrix, entry_index = [None] * 3     # computed by self.build_peripheral_space()
 
-        #if composers:
-        #    self.composers.append(self.unigram_source)
         self.composers = composers
         self.composer_mapping = OrderedDict()
         tmp = defaultdict(set) # feature type -> {composer object}
@@ -269,18 +266,19 @@ class CompositeVectorSource(VectorSource):
         Accepts structured features
         """
         res = []
-        #print 'Composer\t\t\tdist\t\t\tneighbour'
         for comp_name, vector in self._get_vector(ngram):
-            #dist, ind = self.nbrs.kneighbors(vector)
-            dist, ind = self.nbrs.query(vector, k=1, return_distance=True)
-            data = (comp_name, (self.entry_index[ind[0][0]], dist[0][0]))
-            #print '{}\t\t\t{}\t\t\t{}'.format(*data)
-            #todo tests for this if and the one below
-            if ngram == data[1][1] and not self.include_self:
-                continue
-            if 1 - dist < self.sim_threshold:
-                continue
-            res.append(data)
+            distances, indices = self.nbrs.query(vector, k=2, return_distance=True)
+
+            for dist, ind in zip(distances[0, :], indices[0, :]):
+                similarity = 1 - dist
+                neighbour = self.entry_index[ind]
+
+                if (ngram == neighbour and not self.include_self) or 1 - dist < self.sim_threshold:
+                    continue
+                else:
+                    data = (comp_name, (neighbour, similarity))
+                    res.append(data)
+                    break
         return res
 
     def get_nearest_neighbours(self, ngram):

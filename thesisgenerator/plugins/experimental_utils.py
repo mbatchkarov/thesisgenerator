@@ -142,7 +142,7 @@ def run_experiment(expid, subexpid=None, num_workers=4,
                 composers.append(composer_class(**args))
         if composers:
             vectors = CompositeVectorSource(
-                unigram_source,
+                #unigram_source,
                 composers,
                 conf['vector_sources']['sim_threshold'],
                 conf['vector_sources']['include_self'],
