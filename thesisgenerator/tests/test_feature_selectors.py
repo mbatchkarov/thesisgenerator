@@ -253,7 +253,7 @@ class TestVectorBackedSelectKBest(TestCase):
     def test_bigram_features_with_composer_without_fs(self):
         """
         A test with all uni- and bi-gram features and a simple predefined vector source for these bigrams. Feature
-        handler is SignifierSignifier to excercise nearest-neighbours look-up in the vector source
+        handler is SignifierSignified to excercise nearest-neighbours look-up in the vector source
         """
 
         # load a mock unigram thesaurus, bypassing the similarity calculation provided by CompositeVectorSource
