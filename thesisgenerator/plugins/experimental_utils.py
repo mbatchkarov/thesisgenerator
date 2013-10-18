@@ -9,7 +9,10 @@ sys.path.append('.')
 sys.path.append('..')
 sys.path.append('../..')
 
-from thesisgenerator.utils.data_utils import tokenize_data, load_text_data_into_memory, _init_utilities_state
+from thesisgenerator.composers.vectorstore import CompositeVectorSource, UnigramVectorSource
+from thesisgenerator.utils.reflection_utils import get_named_object, get_intersection_of_parameters
+from thesisgenerator.utils.data_utils import tokenize_data, load_text_data_into_memory, \
+    _load_tokenizer
 from thesisgenerator.utils.conf_file_utils import parse_config_file
 from thesisgenerator.utils.misc import get_susx_mysql_conn
 from thesisgenerator.plugins.file_generators import _exp16_file_iterator, _exp1_file_iterator, \
@@ -93,7 +96,7 @@ def run_experiment(expid, subexpid=None, num_workers=4,
     if expid == 0:
         # exp0 is for debugging only, we don't have to do much
         sizes = [10, 20]#range(10, 31, 10)
-        num_workers = 1
+        num_workers = 2
     if predefined_sized:
         sizes = predefined_sized
 
@@ -112,14 +115,55 @@ def run_experiment(expid, subexpid=None, num_workers=4,
 
     _clear_old_files(expid, prefix)
     conf, configspec_file = parse_config_file(base_conf_file)
-    raw_data, data_ids = load_text_data_into_memory(conf)
-    thesaurus, tokenizer = _init_utilities_state(conf)
-    keep_only_IT = conf['tokenizer']['keep_only_IT']
-    tokenised_data = tokenize_data(raw_data, tokenizer, keep_only_IT, data_ids)
+    raw_data, data_ids = load_text_data_into_memory(
+        training_path=conf['training_data'],
+        test_path=conf['test_data'],
+        shuffle_targets=conf['shuffle_targets']
+    )
 
-    # run the data through the pipeline
-    Parallel(n_jobs=num_workers)(delayed(go)(new_conf_file, log_dir, tokenised_data, thesaurus) for
-        new_conf_file, log_dir in conf_file_iterator)
+    if 'signified' in conf['feature_extraction']['decode_token_handler'].lower() or \
+            conf['feature_selection']['ensure_vectors_exist']:
+        # vectors are needed either at decode time (signified handler) or during feature selection
+
+        # create a unigram vector store and use it to initialise composers
+        paths = conf['vector_sources']['unigram_paths']
+        if paths:
+            unigram_source = UnigramVectorSource(paths)
+        else:
+            raise ValueError('You must provide at least one unigram vector file')
+
+        composers = []
+        for section in conf['vector_sources']:
+            if 'composer' in section and conf['vector_sources'][section]['run']:
+                # the object must only take keyword arguments
+                composer_class = get_named_object(section)
+                args = get_intersection_of_parameters(composer_class, conf['vector_sources'][section])
+                args['unigram_source'] = unigram_source
+                composers.append(composer_class(**args))
+        if composers:
+            vectors = CompositeVectorSource(
+                #unigram_source,
+                composers,
+                conf['vector_sources']['sim_threshold'],
+                conf['vector_sources']['include_self'],
+            )
+    else:
+        vectors = []
+
+    tokenizer = _load_tokenizer(
+        joblib_caching=conf['joblib_caching'],
+        normalise_entities=conf['feature_extraction']['normalise_entities'],
+        use_pos=conf['feature_extraction']['use_pos'],
+        coarse_pos=conf['feature_extraction']['coarse_pos'],
+        lemmatize=conf['feature_extraction']['lemmatize'],
+        lowercase=conf['tokenizer']['lowercase'],
+        remove_stopwords=conf['tokenizer']['remove_stopwords'],
+        remove_short_words=conf['tokenizer']['remove_short_words'])
+    tokenised_data = tokenize_data(raw_data, tokenizer, data_ids)
+
+    # run data through the pipeline
+    Parallel(n_jobs=1)(delayed(go)(new_conf_file, log_dir, tokenised_data, vectors, n_jobs=num_workers) for
+                       new_conf_file, log_dir in conf_file_iterator)
 
     # ----------- CONSOLIDATION -----------
     output_dir = '%s/conf/exp%d/output/' % (prefix, expid)

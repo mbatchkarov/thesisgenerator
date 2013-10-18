@@ -4,96 +4,62 @@ from joblib import Memory
 import numpy as np
 from sklearn.datasets import load_files
 from thesisgenerator.classifiers import NoopTransformer
-from thesisgenerator.plugins import thesaurus_loader, tokenizers
+from thesisgenerator.plugins import tokenizers
+from thesisgenerator.utils.reflection_utils import get_named_object
 
 __author__ = 'mmb28'
 
 
-def get_named_object(pathspec):
-    """Return a named from a module.
-    """
-    logging.info('Getting named object %s' % pathspec)
-    parts = pathspec.split('.')
-    module = ".".join(parts[:-1])
-    mod = __import__(module, fromlist=parts[-1])
-    named_obj = getattr(mod, parts[-1])
-    return named_obj
-
-
-def tokenize_data(data, tokenizer, keep_only_IT, corpus_ids):
-    # param keep_only_IT: the training data should not depend on the thesaurus, ie the keep_only_IT
-    # intervention should only apply to decode time
+def tokenize_data(data, tokenizer, corpus_ids):
     # param corpus_ids - list-like, names of the training corpus (and optional testing corpus), used for
     # retrieving pre-tokenized data from joblib cache
     x_tr, y_tr, x_test, y_test = data
-    tokenizer.keep_only_IT = False
+    #todo this logic needs to be moved to feature extractor
     x_tr = tokenizer.tokenize_corpus(x_tr, corpus_ids[0])
-    tokenizer.keep_only_IT = keep_only_IT
     x_test = tokenizer.tokenize_corpus(x_test, corpus_ids[1])
     data = (x_tr, y_tr, x_test, y_test)
     return data
 
 
-def load_text_data_into_memory(config):
+def load_text_data_into_memory(training_path, test_path=None, input_generator='', shuffle_targets=False):
     # read the raw text just once
-    try:
-        options = {'input': config['feature_extraction']['input'],
-                   'shuffle_targets': config['shuffle_targets'],
-                   'input_generator': config['feature_extraction']['input_generator']}
-    except KeyError:
-        # if the config dict is not created by configobj it may be missing some values
-        # set these to some reasonable defaults
-        options = {'input': 'content',
-                   'shuffle_targets': False,
-                   'input_generator': ''}
-    options['source'] = config['training_data']
-    options['test_data'] = config['test_data'] if config['test_data'] else None
-    print 'Loading training data...'
+    logging.info('Loading raw training set %s', training_path)
+    x_train, y_train = _get_data_iterators(training_path, input_gen=input_generator,
+                                           shuffle_targets=shuffle_targets)
 
-    logging.info('Loading raw training set')
-    x_train, y_train = _get_data_iterators(**options)
-    if options['test_data']:
-        logging.info('Loading raw test set')
-        #  change where we read files from
-        options['source'] = config['test_data']
-        # ensure that only the training data targets are shuffled
-        options['shuffle_targets'] = False
-        x_test, y_test = _get_data_iterators(**options)
-    return (x_train, y_train, x_test, y_test), (config['training_data'], config['test_data'])
+    if test_path:
+        logging.info('Loading raw test set %s' % test_path)
+        x_test, y_test = _get_data_iterators(test_path, input_gen=input_generator,
+                                             shuffle_targets=shuffle_targets)
+    return (x_train, y_train, x_test, y_test), (training_path, test_path)
 
 
-def _init_utilities_state(config):
+def _load_tokenizer(normalise_entities=False, use_pos=True, coarse_pos=True, lemmatize=True,
+                    lowercase=True, remove_stopwords=False, remove_short_words=False, joblib_caching=False):
     """
     Initialises the state of helper modules from a config object
     """
 
-    if config['joblib_caching']:
+    if joblib_caching:
         memory = Memory(cachedir='.', verbose=0)
     else:
         memory = NoopTransformer()
 
-    th1 = thesaurus_loader.Thesaurus(
-        config['feature_extraction']['train_thesaurus_files'],
-        sim_threshold=config['feature_extraction']['sim_threshold'],
-        include_self=config['feature_extraction']['include_self'])
-
     tok = tokenizers.XmlTokenizer(
         memory,
-        normalise_entities=config['feature_extraction']['normalise_entities'],
-        use_pos=config['feature_extraction']['use_pos'],
-        coarse_pos=config['feature_extraction']['coarse_pos'],
-        lemmatize=config['feature_extraction']['lemmatize'],
-        thesaurus=th1,
-        lowercase=config['tokenizer']['lowercase'],
-        keep_only_IT=config['tokenizer']['keep_only_IT'],
-        remove_stopwords=config['tokenizer']['remove_stopwords'],
-        remove_short_words=config['tokenizer']['remove_short_words'],
-        use_cache=config['joblib_caching']
+        normalise_entities=normalise_entities,
+        use_pos=use_pos,
+        coarse_pos=coarse_pos,
+        lemmatize=lemmatize,
+        lowercase=lowercase,
+        remove_stopwords=remove_stopwords,
+        remove_short_words=remove_short_words,
+        use_cache=joblib_caching
     )
-    return th1, tok
+    return tok
 
 
-def _get_data_iterators(**kwargs):
+def _get_data_iterators(path, input_type='content', input_gen=None, shuffle_targets=False):
     """
     Returns iterators over the text of the data.
 
@@ -122,16 +88,17 @@ def _get_data_iterators(**kwargs):
             with open(f, 'rb') as fh:
                 yield fh.read()
 
-    if kwargs['input'] == 'content' or kwargs['input'] == '':
+    if input_type == 'content' or input_type == '':
         try:
-            input_gen = kwargs['input_generator']
-            source = kwargs['source']
+            input_gen = input_gen
+            #source = kwargs['source']
             try:
                 logging.debug(
                     'Retrieving input generator for name '
                     '\'%(input_gen)s\'' % locals())
-
-                data_iterable = get_named_object(input_gen)(kwargs['source'])
+                if not input_gen:
+                    raise ImportError
+                data_iterable = get_named_object(input_gen)(path)
                 targets_iterable = np.asarray(
                     [t for t in data_iterable.targets()],
                     dtype=np.int)
@@ -140,8 +107,8 @@ def _get_data_iterators(**kwargs):
                 logging.warn(
                     'No input generator found for name '
                     '\'%(input_gen)s\'. Using a file content '
-                    'generator with source \'%(source)s\'' % locals())
-                if not os.path.isdir(source):
+                    'generator with source \'%(path)s\'' % locals())
+                if not os.path.isdir(path):
                     raise ValueError('The provided source path (%s) has to be '
                                      'a directory containing data in the '
                                      'mallet '
@@ -152,10 +119,10 @@ def _get_data_iterators(**kwargs):
                                      'the input type in main.conf to '
                                      '\'content\'')
 
-                dataset = load_files(source, shuffle=False)
-                logging.info('Targets are: %s' % dataset.target_names)
+                dataset = load_files(path, shuffle=False)
+                logging.info('Targets are: %s', dataset.target_names)
                 data_iterable = dataset.data
-                if kwargs['shuffle_targets']:
+                if shuffle_targets:
                     import random
 
                     logging.warn('RANDOMIZING TARGETS')
@@ -168,14 +135,14 @@ def _get_data_iterators(**kwargs):
                              'also '
                              'be defined. The defined input_generator should '
                              'produce raw documents.')
-    elif kwargs['input'] == 'filename':
+    elif input_type == 'filename':
         raise NotImplementedError("The order of data and targets is wrong, "
                                   "do not use this keyword")
-    elif kwargs['input'] == 'file':
+    elif input_type == 'file':
         raise NotImplementedError(
             'The input type \'file\' is not supported yet.')
     else:
         raise NotImplementedError(
-            'The input type \'%s\' is not supported yet.' % kwargs['input'])
+            'The input type \'%s\' is not supported yet.' % input_type)
 
     return data_iterable, targets_iterable

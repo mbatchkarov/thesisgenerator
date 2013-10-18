@@ -35,7 +35,7 @@ class Thesaurus(dict):
             return {}
 
         for path in self.thesaurus_files:
-            logging.info('Loading thesaurus %s from disk' % path)
+            logging.info('Loading thesaurus %s from disk', path)
 
             FILTERED = '___FILTERED___'.lower()
             with open(path) as infile:

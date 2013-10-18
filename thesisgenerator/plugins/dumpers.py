@@ -4,7 +4,6 @@ import csv
 import logging
 from operator import itemgetter
 import os
-import pickle
 import itertools
 from numpy import count_nonzero
 from sklearn.base import TransformerMixin
@@ -22,6 +21,7 @@ class FeatureVectorsCsvDumper(TransformerMixin):
         self.pipe_id = pipe_id
         self.prefix = prefix
         self._tranform_call_count = 0
+        self.cv_number = 'NONE'
 
     def _dump(self, X, y, file_name='dump.csv'):
         """
@@ -34,24 +34,24 @@ class FeatureVectorsCsvDumper(TransformerMixin):
 
         We only want to dump after stages 1.2 and 2.1
         """
-        vocab_file = './tmp_vocabulary_%s_%d' % (self.exp_name, self.pipe_id)
-        logging.info('reading %s' % vocab_file)
-        with open(vocab_file, 'r') as f:
-            vocabulary_ = pickle.load(f)
-            if len(y) < 1:
-                os.remove(vocab_file)
+        matrix, vocabulary_ = X
+        #vocab_file = './tmp_vocabulary_%s_%d' % (self.exp_name, self.pipe_id)
+        #logging.info('reading %s' % vocab_file)
+        #with open(vocab_file, 'r') as f:
+        #    vocabulary_ = pickle.load(f)
+        #    if len(y) < 1:
+        #        os.remove(vocab_file)
+
         new_file = os.path.join(self.prefix, file_name)
         c = csv.writer(open(new_file, "w"))
-        inverse_vocab = {index: word for (word, index) in
-                         vocabulary_.iteritems()}
+        inverse_vocab = {index: word for (word, index) in vocabulary_.iteritems()}
         v = [inverse_vocab[i] for i in range(len(inverse_vocab))]
-        c.writerow(['id'] + ['target'] + ['total_feat_weight'] +
-                   ['nonzero_feats'] + v)
-        for i in range(X.shape[0]):
-            row = X.todense()[i, :].tolist()[0]
+        c.writerow(['id'] + ['target'] + ['total_feat_weight'] + ['nonzero_feats'] + v)
+        for i in range(matrix.shape[0]):
+            row = matrix.todense()[i, :].tolist()[0]
             vals = ['%1.2f' % x for x in row]
             c.writerow([i, y[i], sum(row), count_nonzero(row)] + vals)
-        logging.info('Saved debug info to %s' % new_file)
+        logging.info('Saved debug info to %s', new_file)
 
     def fit(self, X, y=None, **fit_params):
         self.y = y
@@ -64,10 +64,11 @@ class FeatureVectorsCsvDumper(TransformerMixin):
             self.y = defaultdict(str)
 
         if 1 <= self._tranform_call_count <= 2:
-            self._dump(X, self.y, file_name='PostVectDump_%s_%s%d.csv' % (
-                self.exp_name,
-                suffix[self._tranform_call_count],
-                self.pipe_id))
+            self._dump(X, self.y,
+                       file_name='PostVectDump_%s_%s-cl%d-fold%r.csv' % (self.exp_name,
+                                                                         suffix[self._tranform_call_count],
+                                                                         self.pipe_id,
+                                                                         self.cv_number))
         return X
 
     def get_params(self, deep=True):
@@ -91,7 +92,7 @@ columns = [('name', 'TEXT'),
            # experiment settings
            ('sample_size', 'INTEGER'),
            ('classifier', 'TEXT'),
-           ('keep_only_IT', 'BOOLEAN'),
+           ('ensure_vectors_exist', 'BOOLEAN'),
            ('train_token_handler', 'TEXT'),
            ('decode_token_handler', 'TEXT'),
            ('use_tfidf', 'BOOLEAN'),

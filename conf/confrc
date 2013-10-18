@@ -1,46 +1,47 @@
-name=string()
-debug=boolean(default=False)
-joblib_caching=boolean(default=False)
-shuffle_targets=boolean(default=False)
+name=string() # used to identify output files
+debug=boolean(default=False) #if true, pipelines will be pickled and feature vectors will be dumped as csv
+joblib_caching=boolean(default=False) # for tokenizer, the whole  corpus can be loaded from disk
+shuffle_targets=boolean(default=False) # randomly change the labels of all documents, sanity check
+
+training_data=string(default='')
+test_data=string(default='')
 
 [feature_extraction]
     run=boolean(default=True)
-    vectorizer=string
+    vectorizer=string # class of vectorizer
     input_generator=string(default="")
 
 	# The below options have defaults in the scikit Vectorizer init
     input=option('content', 'filename', 'file')
     charset=string
-    charset_error=string
+    decode_error=string
     strip_accents=string
     lowercase=boolean(default=False)
     token_pattern=string
-    min_n=integer
-    max_n=integer
+#     ngram_range=tuple() #ngram_range had to be in the format "1,3"
     min_df=integer
     max_df=integer
     analyser=string
     preprocessor=string
     tokenizer=string
-    max_features=integer
+    max_features=integer(default=None)
     vocabulary=string
     binary=boolean
     use_tfidf=boolean
 
     # extra options required by the Bag-of-Vectors project Vectorizer
-    train_thesaurus_files=list(default=list())
-    decode_thesaurus=string(default='') # must be a callable
-    k=integer(min=0)
-    sim_threshold=float(default=0.0)
-    lemmatize=boolean(default=True)
-    use_pos=boolean(default=True)
-	coarse_pos=boolean(default=True)
-	normalise_entities=boolean(default=False)
-    include_self=boolean(default=False)
-	record_stats=boolean(default=False)
-	sim_compressor=string(default='thesisgenerator.utils.misc.noop')
+    train_thesaurus_files=list(default=list()) # a list of files to be read to a dict-like object and passed to the vectorizer at train time
+    decode_thesaurus=string(default='') # a callable to be used instead of the real thesaurus at decode time; used to build a "random or constant" thesaurus as a sanity-check
+    k=integer(min=0) # how many neighbours per entry to read
+    lemmatize=boolean(default=True) 
+    use_pos=boolean(default=True) # big cat -> big/JJ cat/NNS
+	coarse_pos=boolean(default=True) 
+	normalise_entities=boolean(default=False) # all named entities -> PERSON/LOCATION/MISC
 
-	train_token_handler=string(default='thesisgenerator.plugins.bov_feature_handlers.BaseFeatureHandler')
+	record_stats=boolean(default=False)
+	sim_compressor=string(default='thesisgenerator.utils.misc.noop') # how to scale the sim between two features in a thesaurus when replacing
+
+	train_token_handler=string(default='thesisgenerator.plugins.bov_feature_handlers.BaseFeatureHandler') # specified which class to handle the convertion of tokens/ngrams to features, signifier/signified
 	decode_token_handler=string(default='thesisgenerator.plugins.bov_feature_handlers.BaseFeatureHandler')
 
 
@@ -50,6 +51,19 @@ shuffle_targets=boolean(default=False)
     remove_stopwords=boolean(default=False)
 	remove_short_words=boolean(default=False)
 
+[vector_sources] # this section will eventually replace all thesaurus-related options. There will not be a pre-computed sim matrix, just vectors in a suitable datastructure that allows fast online sim calculation
+	unigram_paths = list(default=list())
+	include_self=boolean(default=False) # whether the thesaurus loader includes an entry as its own nearest neighbour
+	sim_threshold=float(default=0.0) # exclude neighbours from thesaurus if sim is less than threshold
+		
+	[[thesisgenerator.composers.vectorstore.AdditiveComposer]]
+		run=boolean(default=False)
+	[[thesisgenerator.composers.vectorstore.MultiplicativeComposer]]
+		run=boolean(default=False)
+	[[thesisgenerator.composers.vectorstore.BaroniComposer]]
+		run=boolean(default=False)
+		file_path=list(default=list())
+		
 [crossvalidation]
 	run=boolean()
 	type = option('kfold', 'skfold', 'loo', 'bootstrap', 'oracle', default = 'kfold')
@@ -66,6 +80,7 @@ shuffle_targets=boolean(default=False)
     run=boolean()
     method=string
     scoring_function=string
+    ensure_vectors_exist=boolean(default=False)
     k=integer
     alpha=float
     percentile=int

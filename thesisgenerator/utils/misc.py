@@ -1,9 +1,6 @@
-from collections import defaultdict
 import inspect
-import logging
-from random import choice
 from configobj import ConfigObj
-from thesisgenerator.utils.data_utils import get_named_object
+from thesisgenerator.utils.reflection_utils import get_named_object
 
 __author__ = 'mmb28'
 
@@ -34,24 +31,6 @@ def linear_compress(x):
 
 def noop(x):
     return x
-
-
-def _vocab_neighbour_source(vocab):
-    """
-    Returns a thesaurus-like object which has a single neighbour for every
-    possible entry. That neighbour is chosen from the vocabulary that is
-    passed in (as a dict {feature:index} )
-    """
-
-    logging.debug('Vocab contains %d features' % len(vocab))
-
-    def one_iv_token():
-        v = choice(vocab.keys())
-        logging.debug('Dummy IV-only thesaurus returning %s as neighbour' % v)
-        return [(v, 1.0)]
-
-    # todo: repeated invocations of this defaultdict with the same parameter return the same result
-    return defaultdict(one_iv_token)
 
 
 class ChainCallable(object):

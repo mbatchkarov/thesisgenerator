@@ -1,7 +1,10 @@
 # -*- coding: utf8 -*-
-
+from itertools import chain
 import logging
+import os
 from unittest import TestCase
+from glob import glob
+
 from thesisgenerator.plugins.experimental_utils import run_experiment
 from thesisgenerator.utils.misc import get_susx_mysql_conn
 
@@ -9,24 +12,27 @@ __author__ = 'mmb28'
 
 
 class TestConsolidator(TestCase):
-    @classmethod
-    def setUpClass(cls):
+    def setUp(cls):
         prefix = 'thesisgenerator/resources'
-        run_experiment(0, num_workers=1, predefined_sized=[3, 3, 3],
-                       prefix=prefix)
+        run_experiment(0, num_workers=1, predefined_sized=[3, 3, 3], prefix=prefix)
+
+    def tearDown(self):
+        """
+        Remove the debug files produced by this test
+        """
+        files = chain(glob('./PostVectDump_tests-exp0*csv'), glob('tests-*-pipeline.pickle'))
+        for f in files:
+            os.remove(f)
 
     def test_extract_thesausus_coverage_info(self):
-        with open('thesisgenerator/resources/conf/exp0/output/summary0.csv') \
-            as infile:
-            log_txt = ''.join(infile.readlines())
         cursor = get_susx_mysql_conn().cursor()
 
         cursor.execute('SELECT DISTINCT classifier from data00;')
         res = cursor.fetchall()
-        self.assertEqual(len(res), 1)
-        self.assertEqual(res[0][0], 'MultinomialNB')
+        self.assertEqual(len(res), 2)
+        #self.assertEqual(res[0][0], 'MultinomialNB')
 
-        exp = {
+        expected = {
             'total_tok': 9, 'total_typ': 5,
             'iv_it_tok_mean': 3, 'iv_it_tok_std': 0,
             'iv_oot_tok_mean': 0, 'iv_oot_tok_std': 0,
@@ -36,24 +42,24 @@ class TestConsolidator(TestCase):
             'iv_oot_typ_mean': 0, 'iv_oot_typ_std': 0,
             'oov_it_typ_mean': 1, 'oov_it_typ_std': 0,
             'oov_oot_typ_mean': 2, 'oov_oot_typ_std': 0,
-            'classifier': 'MultinomialNB',
+            #'classifier': 'MultinomialNB',
             'corpus': '0',
             'features': '0',
             'pos': 'a',
             'fef': '?',
             'use_tfidf': 0,
-            'keep_only_IT': 0,
+            'ensure_vectors_exist': 0,
             'train_token_handler': 'BaseFeatureHandler',
             # changing this to SignifierSignifiedFeatureHandler will not affect
             #  the vector of the third test document, i.e. will not change
             # performance
-            'train_token_handler': 'BaseFeatureHandler'
+            'decode_token_handler': 'SignifierSignifiedFeatureHandler'
         }
-        for variable, exp_mean in exp.items():
+        for variable, expected_value in expected.items():
             cursor.execute('SELECT DISTINCT %s from data00;' % variable)
             res = cursor.fetchall()
-            logging.info('Testing that {} == {}'.format(variable, res[0][0]))
-            self.assertEqual(res[0][0], exp_mean)
+            logging.info('Testing that {} == {}'.format(variable, expected_value))
+            self.assertEqual(res[0][0], expected_value)
 
         # values below copied from output file before consolidation, Naive Bayes
         # is not the ubject under test here
@@ -63,7 +69,7 @@ class TestConsolidator(TestCase):
         # this is because of the higher prior of class 0 and the fact that
         # the only feature of the test document of class 1 has only occurred
         # in class 0
-        exp = (
+        expected = (
             ('precision_score-class0', (2. / 3, 0)),
             ('precision_score-class1', (0, 0)),
             ('recall_score-class0', (1, 0)),
@@ -73,22 +79,22 @@ class TestConsolidator(TestCase):
         )
         # all std set to -1 to indicate only a single experiment was run
         # 0 may have suggested multiple experiments with identical results
-        for variable, (exp_mean, exp_std) in exp:
+        for variable, (expected_value, exp_std) in expected:
             sql = 'select score_mean, score_std from data00 WHERE ' \
                   'metric = "{}";'.format(variable)
             cursor.execute(sql)
             res = cursor.fetchall()
             logging.info('Testing that {} == {} ± {}'.format(variable,
-                                                             exp_mean,
+                                                             expected_value,
                                                              exp_std))
-            self.assertAlmostEqual(res[0][0], exp_mean, 5)
+            self.assertAlmostEqual(res[0][0], expected_value, 5)
             self.assertAlmostEqual(res[0][1], exp_std, 5)
 
         sql = 'select distinct name from data00 ORDER BY name;'
         cursor.execute(sql)
         res = cursor.fetchall()
         for i in range(3):
-            self.assertEqual(res[i][0], 'exp0-{}'.format(i))
+            self.assertEqual(res[i][0], 'tests-exp0-{}'.format(i))
 
 
 

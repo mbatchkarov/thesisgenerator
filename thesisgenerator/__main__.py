@@ -19,7 +19,6 @@ import shutil
 from glob import glob
 import logging
 from logging import StreamHandler
-import inspect
 from time import sleep
 
 from pandas import DataFrame
@@ -28,10 +27,13 @@ from numpy.ma import hstack
 from sklearn import cross_validation
 from sklearn.pipeline import Pipeline
 
+from thesisgenerator.composers.feature_selectors import MetadataStripper
+from thesisgenerator.utils.reflection_utils import get_named_object, get_intersection_of_parameters
 from thesisgenerator.utils.misc import ChainCallable
 from thesisgenerator.classifiers import LeaveNothingOut, PredefinedIndicesIterator, SubsamplingPredefinedIndicesIterator, PicklingPipeline
 from thesisgenerator.utils.conf_file_utils import set_in_conf_file, parse_config_file
-from thesisgenerator.utils.data_utils import tokenize_data, get_named_object, load_text_data_into_memory, _init_utilities_state
+from thesisgenerator.utils.data_utils import tokenize_data, load_text_data_into_memory, \
+    _load_tokenizer
 from thesisgenerator import config
 from thesisgenerator.plugins.dumpers import FeatureVectorsCsvDumper
 from thesisgenerator.plugins.crossvalidation import naming_cross_val_score
@@ -141,8 +143,8 @@ def _build_crossvalidation_iterator(config, x_vals, y_vals, x_test=None,
     return iterator, validation_indices, x_vals, y_vals
 
 
-def _build_vectorizer(thesaurus, id, call_args, feature_extraction_conf, pipeline_list,
-                      output_dir, debug=False, exp_name=''):
+def _build_vectorizer(id, call_args, feature_extraction_conf, pipeline_list,
+                      output_dir, exp_name=''):
     """
     Builds a vectorized that converts raw text to feature vectors. The
     parameters for the vectorizer are specified in the *feature extraction*
@@ -170,26 +172,10 @@ def _build_vectorizer(thesaurus, id, call_args, feature_extraction_conf, pipelin
 
     # get the names of the arguments that the vectorizer class takes
     # todo the object must only take keyword arguments
-    initialize_args = inspect.getargspec(vectorizer.__init__)[0]
-    call_args.update({'vect__%s' % arg: val
-                      for arg, val in feature_extraction_conf.items()
-                      if val != '' and arg in initialize_args})
+    call_args.update(get_intersection_of_parameters(vectorizer, feature_extraction_conf, 'vect'))
     call_args['vect__exp_name'] = exp_name
-    call_args['vect__train_thesaurus'] = thesaurus
 
     pipeline_list.append(('vect', vectorizer()))
-    call_args['vect__log_vocabulary'] = False
-
-    # global postvect_dumper_added_already
-    if debug:# and not postvect_dumper_added_already:
-        logging.info('Will perform post-vectorizer data dump')
-        pipeline_list.append(
-            ('dumper', FeatureVectorsCsvDumper(exp_name, id, output_dir)))
-        # postvect_dumper_added_already = True
-        call_args['vect__log_vocabulary'] = True # tell the vectorizer it
-        # needs to persist some information (used by the postvect dumper)
-        # this is needed because object in the pipeline are isolated
-        call_args['vect__pipe_id'] = id
 
 
 def _build_feature_selector(call_args, feature_selection_conf, pipeline_list):
@@ -200,8 +186,7 @@ def _build_feature_selector(call_args, feature_selection_conf, pipeline_list):
     """
     if feature_selection_conf['run']:
         method = get_named_object(feature_selection_conf['method'])
-        scoring_func = get_named_object(
-            feature_selection_conf['scoring_function'])
+        scoring_func = get_named_object(feature_selection_conf['scoring_function'])
 
         # the parameters for steps in the Pipeline are defined as
         # <component_name>__<arg_name> - the Pipeline (which is actually a
@@ -209,11 +194,8 @@ def _build_feature_selector(call_args, feature_selection_conf, pipeline_list):
         # along the pipeline, provided there are no name clashes between the
         # keyword arguments of two consecutive transformers.
 
-        initialize_args = inspect.getargspec(method.__init__)[0]
-        call_args.update({'fs__%s' % arg: val
-                          for arg, val in feature_selection_conf.items()
-                          if val != '' and arg in initialize_args})
-
+        call_args.update(get_intersection_of_parameters(method, feature_selection_conf, 'fs'))
+        #call_args['fs__vector_source'] = vector_source
         pipeline_list.append(('fs', method(scoring_func)))
 
 
@@ -227,14 +209,11 @@ def _build_dimensionality_reducer(call_args, dimensionality_reduction_conf,
 
     if dimensionality_reduction_conf['run']:
         dr_method = get_named_object(dimensionality_reduction_conf['method'])
-        initialize_args = inspect.getargspec(dr_method.__init__)[0]
-        call_args.update({'dr__%s' % arg: val
-                          for arg, val in dimensionality_reduction_conf.items()
-                          if val != '' and arg in initialize_args})
+        call_args.update(get_intersection_of_parameters(dr_method, dimensionality_reduction_conf, 'dr'))
         pipeline_list.append(('dr', dr_method()))
 
 
-def _build_pipeline(thesaurus, id, classifier_name, feature_extr_conf, feature_sel_conf,
+def _build_pipeline(id, classifier_name, feature_extr_conf, feature_sel_conf,
                     dim_red_conf, classifier_conf, output_dir, debug,
                     exp_name=''):
     """
@@ -247,22 +226,27 @@ def _build_pipeline(thesaurus, id, classifier_name, feature_extr_conf, feature_s
     call_args = {}
     pipeline_list = []
 
-    _build_vectorizer(thesaurus, id, call_args, feature_extr_conf,
-                      pipeline_list, output_dir, debug, exp_name=exp_name)
+    _build_vectorizer(id, call_args, feature_extr_conf,
+                      pipeline_list, output_dir, exp_name=exp_name)
 
-    _build_feature_selector(call_args, feature_sel_conf,
-                            pipeline_list)
-    _build_dimensionality_reducer(call_args, dim_red_conf,
-                                  pipeline_list)
+    _build_feature_selector(call_args, feature_sel_conf, pipeline_list)
+    _build_dimensionality_reducer(call_args, dim_red_conf, pipeline_list)
+
+    # put the optional dumper after feature selection/dim. reduction
+    if debug:
+        logging.info('Will perform post-vectorizer data dump')
+        pipeline_list.append(('dumper', FeatureVectorsCsvDumper(exp_name, id, output_dir)))
+        call_args['vect__pipe_id'] = id
+
+    # vectorizer will return a matrix (as usual) and some metadata for use with feature dumper/selector,
+    # strip them before we proceed to the classifier
+    pipeline_list.append(('stripper', MetadataStripper()))
+
     # include a classifier in the pipeline regardless of whether we are doing
     # feature selection/dim. red. or not
     if classifier_name:
         clf = get_named_object(classifier_name)
-        initialize_args = inspect.getargspec(clf.__init__)[0]
-        call_args.update({'clf__%s' % arg: val
-                          for arg, val in
-                          classifier_conf[classifier_name].items()
-                          if val != '' and arg in initialize_args})
+        call_args.update(get_intersection_of_parameters(clf, classifier_conf[classifier_name], 'clf'))
         pipeline_list.append(('clf', clf()))
     pipeline = PicklingPipeline(pipeline_list, exp_name) if debug else Pipeline(pipeline_list)
     pipeline.set_params(**call_args)
@@ -271,7 +255,7 @@ def _build_pipeline(thesaurus, id, classifier_name, feature_extr_conf, feature_s
     return pipeline
 
 
-def _run_tasks(configuration, n_jobs, data, thesaurus):
+def _run_tasks(configuration, n_jobs, data, vector_source):
     """
     Runs all commands specified in the configuration file
     """
@@ -285,36 +269,8 @@ def _run_tasks(configuration, n_jobs, data, thesaurus):
     # **********************************
     x_tr, y_tr, x_test, y_test = data
 
-    #if ('feature_extraction' in actions and
-    #        configuration['feature_extraction']['run']):
-    #    # todo should figure out which values to ignore,
-    #    # currently use all (args + section_options)
-    #
-    #    # create the keyword argument list the action should be run with, it is
-    #    # very important that all relevant argument:value pairs are present
-    #    # because joblib uses the hashed argument list to lookup cached results
-    #    # of computations that have been executed previously
-    #    if data:
-    #        logging.info('Using pre-loaded raw data set')
-    #
-    #    else:
-    #        options = {'input': configuration['feature_extraction']['input'],
-    #                   'shuffle_targets': configuration['shuffle_targets']}
-    #        try:
-    #            options['input_generator'] = \
-    #                configuration['feature_extraction']['input_generator']
-    #        except KeyError:
-    #            options['input_generator'] = ''
-    #        options['source'] = configuration['training_data']
-    #        if configuration['test_data']:
-    #            options['test_data'] = configuration['test_data']
-    #
-    #        x_tr, y_tr, x_test, y_test = load_text_data_into_memory(options)
-
-    # **********************************
     # CROSSVALIDATION
     # **********************************
-    cached_tokenized_data = False
     scores = []
     for i, clf_name in enumerate(configuration['classifiers']):
         if not configuration['classifiers'][clf_name]:
@@ -334,8 +290,8 @@ def _run_tasks(configuration, n_jobs, data, thesaurus):
                                             x_tr, y_tr, x_test,
                                             y_test)
 
-        logging.info('Assigning id %d to classifier %s' % (i, clf_name))
-        pipeline = _build_pipeline(thesaurus, i, clf_name,
+        logging.info('Assigning id %d to classifier %s', i, clf_name)
+        pipeline = _build_pipeline(i, clf_name,
                                    configuration['feature_extraction'],
                                    configuration['feature_selection'],
                                    configuration['dimensionality_reduction'],
@@ -344,32 +300,36 @@ def _run_tasks(configuration, n_jobs, data, thesaurus):
                                    configuration['debug'],
                                    exp_name=configuration['name'])
 
-        #if not cached_tokenized_data:
-        #    analyzer = pipeline.named_steps['vect'].build_analyzer()
-        #    # pre-tokenize all documents (train and test) and store results in a
-        #    # joblib cache. We're doing it single-threaded so that no conflicts occur
-        #    # later
-        #    logging.info('Tokenising all data in one go')
-        #    map(analyzer, x_tr)
-        #    map(analyzer, x_test)
-        #    cached_tokenized_data = True
-
-
         # pass the (feature selector + classifier) pipeline for evaluation
         logging.info('***Fitting pipeline for %s' % clf_name)
+
+        # the pipeline is cloned for each fold of the CV iterator, but its fit arguments aren't
+        # I've added a clone call for the fit args to the CV function, so that the fit arguments are not
+        # going to be shared between pipeline folds, but are shared between all estimators inside
+        # a pipeline during a fold
+        logging.debug('Identity of vector source is %d', id(vector_source))
+
+        logging.debug('The BallTree is %s', vector_source.nbrs)
+        # pass the same vector source to the vectorizer, feature selector and metadata stripper
+        # that way the stripper can call vector_source.populate() after the feature selector has had its say,
+        # and that update source will then be available to the vectorizer at decode time
+        fit_params = {
+            'vect__vector_source': vector_source,
+            'fs__vector_source': vector_source,
+            'stripper__vector_source': vector_source,
+        }
         scores_this_clf = naming_cross_val_score(
             pipeline, x_vals_seen,
             y_vals_seen,
             ChainCallable(configuration['evaluation']),
             cv=cv_iterator, n_jobs=n_jobs,
-            verbose=0)
+            verbose=0, fit_params=fit_params) # pass resource here
 
         for run_number, a in scores_this_clf:
             # If there is just one metric specified in the conf file a is a
             # 0-D numpy array and needs to be indexed as [()]. Otherwise it
             # is a dict
-            mydict = a[()] if hasattr(a, 'shape') and len(
-                a.shape) < 1 else a
+            mydict = a[()] if hasattr(a, 'shape') and len(a.shape) < 1 else a
             for metric, score in mydict.items():
                 scores.append(
                     [clf_name.split('.')[-1],
@@ -378,9 +338,8 @@ def _run_tasks(configuration, n_jobs, data, thesaurus):
                      score])
         del pipeline
         del scores_this_clf
-    logging.info('Classifier scores are %s' % scores)
-    return 0, _analyze(scores, configuration['output_dir'],
-                       configuration['name'])
+    logging.info('Classifier scores are %s', scores)
+    return 0, _analyze(scores, configuration['output_dir'], configuration['name'])
 
 
 def _analyze(scores, output_dir, name):
@@ -388,7 +347,7 @@ def _analyze(scores, output_dir, name):
     Stores a csv and xls representation of the data set. Requires pandas
     """
 
-    logging.info("Analysing results and saving to %s" % output_dir)
+    logging.info("Analysing results and saving to %s", output_dir)
     cleaned_scores = []
     for result in scores:
         clf, run_no, metric, vals = result
@@ -486,14 +445,14 @@ def _prepare_output_directory(clean, output):
     # CLEAN OUTPUT DIRECTORY
     # **********************************
     if clean and os.path.exists(output):
-        logging.info('Cleaning output directory %s' % glob(output))
+        logging.info('Cleaning output directory %s', glob(output))
         shutil.rmtree(output)
 
     # **********************************
     # CREATE OUTPUT DIRECTORY
     # **********************************
     if not os.path.exists(output):
-        logging.info('Creating output directory %s' % glob(output))
+        logging.info('Creating output directory %s', glob(output))
         os.makedirs(output)
 
 
@@ -506,30 +465,25 @@ def _prepare_classpath(classpath):
         sys.path.append(os.path.abspath(path))
 
 
-def go(conf_file, log_dir, data, thesaurus, classpath='', clean=False, n_jobs=1):
+def go(conf_file, log_dir, data, vector_source, classpath='', clean=False, n_jobs=1):
     if not os.path.exists(log_dir):
         os.makedirs(log_dir)
 
     config, configspec_file = parse_config_file(conf_file)
 
-    if config['debug'] and config['crossvalidation']['run'] and \
-                    config['crossvalidation']['k'] > 1:
-        raise ValueError('Cannot crossvalidate and debug at the same time')
-        # because all folds run at the same time and write to the same debug
-        # file
-
-    if config['tokenizer']['keep_only_IT'] and not \
-        config['feature_extraction']['train_thesaurus_files']:
-        raise ValueError('keep_only_IT requires a thesaurus')
+    #if config['debug'] and config['crossvalidation']['run'] and \
+    #                config['crossvalidation']['k'] > 1:
+    #    raise ValueError('Cannot crossvalidate and debug at the same time')
+    # because all folds run at the same time and write to the same debug
+    # file
 
     log = _config_logger(log_dir, name=config['name'], debug=config['debug'])
-    log.info(
-        'Reading configuration file from \'%s\', conf spec from \'%s\''
-        % (glob(conf_file)[0], configspec_file))
+    log.info('Reading configuration file from \'%s\', conf spec from \'%s\''
+             % (glob(conf_file)[0], configspec_file))
     output = config['output_dir']
     _prepare_output_directory(clean, output)
     _prepare_classpath(classpath)
-    status, msg = _run_tasks(config, n_jobs, data, thesaurus)
+    status, msg = _run_tasks(config, n_jobs, data, vector_source)
     shutil.copy(conf_file, output)
     return status, msg
 
@@ -561,7 +515,6 @@ if __name__ == '__main__':
 
     conf, configspec_file = parse_config_file(conf_file)
     data = load_text_data_into_memory(conf)
-    thesaurus, tokenizer = _init_utilities_state(conf)
-    keep_only_IT = conf['tokenizer']['keep_only_IT']
-    data = tokenize_data(data, tokenizer, keep_only_IT)
-    go(conf_file, log_dir, data, thesaurus, classpath=classpath, clean=clean, n_jobs=1)
+    tokenizer = _load_tokenizer(conf)
+    data = tokenize_data(data, tokenizer)
+    go(conf_file, log_dir, data, vector_store, classpath=classpath, clean=clean, n_jobs=1)
