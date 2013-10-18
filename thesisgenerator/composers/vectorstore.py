@@ -1,5 +1,6 @@
 from abc import ABCMeta, abstractmethod
 from collections import defaultdict, OrderedDict
+import logging
 from random import choice
 
 from operator import itemgetter
@@ -226,6 +227,10 @@ class CompositeVectorSource(VectorSource):
     #    return {f for c in self.composers for f in c.__contains__(features)}
         return any(item in c for c in self.composers)
 
+    #def __deepcopy__(self, memo):
+    #    print 'attempting to deepclo vector store, returning self'
+    #    return self
+
     def populate_vector_space(self, vocabulary):
         #todo the exact data structure used here will need optimisation
         """
@@ -238,13 +243,13 @@ class CompositeVectorSource(VectorSource):
          ('AN', ('tough/J', 'stance/N')),
          ('AN', ('year-ago/J', 'period/N'))
         """
-
+        logging.debug('Populating vector space with vocabulary %s', vocabulary)
         vectors = [c._get_vector(data).A
                    for (feature_type, data) in vocabulary
                    for c in self.composer_mapping[feature_type]
                    if feature_type in self.composer_mapping and (feature_type, data) in c]
         self.feature_matrix = vstack(vectors)
-
+        logging.debug('Building BallTree for matrix of size %s', self.feature_matrix.shape)
         feature_list = [ngram for ngram in vocabulary for _ in self.composer_mapping[ngram[0]]]
         #todo test if this entry index is correct
         self.entry_index = {i: ngram for i, ngram in enumerate(feature_list)}
@@ -252,6 +257,8 @@ class CompositeVectorSource(VectorSource):
         #todo BallTree/KDTree only work with dense inputs
         #self.nbrs = KDTree(n_neighbors=1, algorithm='kd_tree').fit(self.feature_matrix)
         self.nbrs = BallTree(self.feature_matrix, metric=cosine)
+        logging.debug('Done building BallTree')
+        return self.nbrs
 
     def _get_vector(self, ngram):
         """

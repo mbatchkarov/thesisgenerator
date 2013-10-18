@@ -162,8 +162,8 @@ def run_experiment(expid, subexpid=None, num_workers=4,
     tokenised_data = tokenize_data(raw_data, tokenizer, data_ids)
 
     # run data through the pipeline
-    Parallel(n_jobs=num_workers)(delayed(go)(new_conf_file, log_dir, tokenised_data, vectors) for
-                                 new_conf_file, log_dir in conf_file_iterator)
+    Parallel(n_jobs=1)(delayed(go)(new_conf_file, log_dir, tokenised_data, vectors, n_jobs=1) for
+                       new_conf_file, log_dir in conf_file_iterator)
 
     # ----------- CONSOLIDATION -----------
     output_dir = '%s/conf/exp%d/output/' % (prefix, expid)

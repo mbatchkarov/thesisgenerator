@@ -23,18 +23,21 @@ class VectorBackedSelectKBest(SelectKBest):
      mapping of features to columns in X before any feature selection is done.
     """
 
-    def __init__(self, score_func=chi2, k='all', vector_source={}, ensure_vectors_exist=False):
+    def __init__(self, score_func=chi2, k='all', ensure_vectors_exist=False):
         self.k = k
-        self.vector_source = vector_source
         self.ensure_vectors_exist = ensure_vectors_exist
-        if not self.vector_source and ensure_vectors_exist:
-            logging.error(
-                'You requested feature selection based on vector presence but did not provide a vector source.')
-            raise ValueError('VectorSource required with ensure_vectors_exist')
         self.vocabulary_ = None
         super(VectorBackedSelectKBest, self).__init__(score_func=score_func, k=k)
 
-    def fit(self, X, y):
+    def fit(self, X, y, vector_source=None):
+        self.vector_source = vector_source
+        logging.debug('Identity of vector source is %d', id(vector_source))
+        logging.debug('The BallTree is %s', vector_source.nbrs)
+        if not self.vector_source and self.ensure_vectors_exist:
+            logging.error(
+                'You requested feature selection based on vector presence but did not provide a vector source.')
+            raise ValueError('VectorSource required with ensure_vectors_exist')
+
         # Vectorizer also returns its vocabulary, store it and work with the rest
         X_only, self.vocabulary_ = X
 
@@ -111,9 +114,20 @@ class MetadataStripper(BaseEstimator, TransformerMixin):
      defensive checks
     """
 
-    def fit(self, X, y):
+    def fit(self, X, y, vector_source=None):
+        matrix, voc = X
+        self.vector_source = vector_source
+        logging.debug('Identity of vector source is %d', id(vector_source))
+        if self.vector_source:
+            logging.info('Populating vector source %s prior to transform', self.vector_source)
+            self.vector_source.populate_vector_space(voc.keys())
+            logging.debug('The BallTree is %s', vector_source.nbrs)
         return self
 
     def transform(self, X):
         # if X is a tuple, strip metadata, otherwise let it be
         return X[0] if tuple(X) == X else X
+
+    def get_params(self, deep=True):
+        return super(MetadataStripper, self).get_params(deep)
+

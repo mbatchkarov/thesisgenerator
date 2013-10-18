@@ -48,7 +48,6 @@ class ThesaurusVectorizer(TfidfVectorizer):
         self.sim_compressor = sim_compressor
         self.train_token_handler = train_token_handler
         self.decode_token_handler = decode_token_handler
-        self.vector_source = vector_source
 
         self.stats = None
         self.handler = None
@@ -77,7 +76,10 @@ class ThesaurusVectorizer(TfidfVectorizer):
                                                   norm=norm,
                                                   dtype=dtype)
 
-    def fit_transform(self, raw_documents, y=None):
+    def fit_transform(self, raw_documents, y=None, vector_source=None):
+        self.vector_source = vector_source
+        logging.debug('Identity of vector source is %d', id(vector_source))
+        logging.debug('The BallTree is %s', vector_source.nbrs)
         self.handler = get_token_handler(self.train_token_handler,
                                          self.k,
                                          self.sim_compressor,
@@ -100,9 +102,12 @@ class ThesaurusVectorizer(TfidfVectorizer):
                                          self.sim_compressor,
                                          self.vector_source)
 
-        if self.vector_source:
-            logging.info('Populating vector source %s prior to transform', self.vector_source)
-            self.vector_source.populate_vector_space(self.vocabulary_.keys())
+        # todo can't populate at this stage of the pipeline, because the vocabulary might
+        # change if feature selection is enabled. Trying to do this will result in attempts to compose
+        # features that we do not know how to compose because these have not been removed by FS
+        #if self.vector_source:
+        #    logging.info('Populating vector source %s prior to transform', self.vector_source)
+        #    self.vector_source.populate_vector_space(self.vocabulary_.keys())
         return super(ThesaurusVectorizer, self).transform(raw_documents), self.vocabulary_
 
     def _walk_pairwise(self, iterable):
