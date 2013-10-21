@@ -30,6 +30,7 @@ class VectorBackedSelectKBest(SelectKBest):
         super(VectorBackedSelectKBest, self).__init__(score_func=score_func, k=k)
 
     def fit(self, X, y, vector_source=None):
+        logging.info('Training feature selector')
         self.vector_source = vector_source
         logging.debug('Identity of vector source is %d', id(vector_source))
         if vector_source:
@@ -53,6 +54,7 @@ class VectorBackedSelectKBest(SelectKBest):
 
         if self.ensure_vectors_exist:
             self.to_keep = self._zero_score_of_oot_features()
+        logging.info('Done training feature selector')
         return self
 
     def transform(self, X):
@@ -72,7 +74,7 @@ class VectorBackedSelectKBest(SelectKBest):
     def _update_vocab_according_to_mask(self, mask):
         v = self.vocabulary_
         if len(v) < mask.shape[0]:
-            logging.info('Already pruned %d features down to %d', mask.shape[0], len(v))
+            logging.info('Already pruned %d document features down to %d', mask.shape[0], len(v))
             return
 
         # see which features are left
@@ -88,7 +90,7 @@ class VectorBackedSelectKBest(SelectKBest):
         if k == 'all' or k > len(scores):
             # at this point self._remove_oot_features will have been invoked, and there is no
             # further feature selection to do
-            logging.warn('Using all %d features (you requested %r)', len(scores), k)
+            logging.warn('Using all %d document features (you requested %r)', len(scores), k)
             try:
                 first_mask = self.to_keep
             except AttributeError:

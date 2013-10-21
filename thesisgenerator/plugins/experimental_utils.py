@@ -97,7 +97,7 @@ def run_experiment(expid, subexpid=None, num_workers=4,
     if expid == 0:
         # exp0 is for debugging only, we don't have to do much
         sizes = [10, 20]#range(10, 31, 10)
-        num_workers = 2
+        num_workers = 1
     if predefined_sized:
         sizes = predefined_sized
 
@@ -129,7 +129,9 @@ def run_experiment(expid, subexpid=None, num_workers=4,
         # create a unigram vector store and use it to initialise composers
         paths = conf['vector_sources']['unigram_paths']
         if paths:
-            unigram_source = UnigramVectorSource(paths)
+            unigram_source = UnigramVectorSource(paths,
+                                                 reduce_dimensionality=conf['vector_sources']['reduce_dimensionality'],
+                                                 dimensions=conf['vector_sources']['dimensions'])
         else:
             raise ValueError('You must provide at least one unigram vector file')
 

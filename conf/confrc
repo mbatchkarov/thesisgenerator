@@ -55,7 +55,9 @@ test_data=string(default='')
 	unigram_paths = list(default=list())
 	include_self=boolean(default=False) # whether the thesaurus loader includes an entry as its own nearest neighbour
 	sim_threshold=float(default=0.0) # exclude neighbours from thesaurus if sim is less than threshold
-		
+	reduce_dimensionality=boolean(default=False) # whether the dimensionality of the lexical unigram vectors should be reduced. This greatly speeds up later operations on these vectors.
+	dimensions = integer(default=1000) # if reduce_dimensionality, how many dimensions should the resultant vectors have
+	
 	[[thesisgenerator.composers.vectorstore.AdditiveComposer]]
 		run=boolean(default=False)
 	[[thesisgenerator.composers.vectorstore.MultiplicativeComposer]]

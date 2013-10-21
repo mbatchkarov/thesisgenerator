@@ -96,6 +96,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
 
         # once training is done, convert all document features (unigrams and composable ngrams)
         # to a ditributional feature vector
+        logging.info('Done vectorizing')
         return res, self.vocabulary_
 
     def transform(self, raw_documents):

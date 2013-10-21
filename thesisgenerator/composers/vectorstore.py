@@ -10,6 +10,7 @@ import numpy
 import scipy.sparse as sp
 from numpy import vstack
 from sklearn.feature_extraction import DictVectorizer
+from sklearn.random_projection import SparseRandomProjection
 
 from thesisgenerator.plugins.thesaurus_loader import Thesaurus
 
@@ -48,7 +49,7 @@ class UnigramVectorSource(VectorSource):
     feature_pattern = {'1-GRAM'}
     name = 'Lex'
 
-    def __init__(self, unigram_paths):
+    def __init__(self, unigram_paths, reduce_dimensionality=False, dimensions=1000):
         if not unigram_paths:
             raise ValueError('You must provide a unigram vector file')
 
@@ -67,6 +68,14 @@ class UnigramVectorSource(VectorSource):
 
         # the set of all distributional features, for unit testing only
         self.distrib_features_vocab = v.vocabulary_
+
+        if reduce_dimensionality:
+            logging.info('Reducing dimensionality of unigram vectors from %s to %s',
+                         self.feature_matrix.shape[1], dimensions)
+            self.transformer = SparseRandomProjection(n_components=dimensions)
+            self.feature_matrix = self.transformer.fit_transform(self.feature_matrix)
+            self.distrib_features_vocab = None
+
 
     def _get_vector(self, word):
         # word must be a a string or an iterable. If it's the latter, the first item is used
@@ -88,11 +97,10 @@ class UnigramVectorSource(VectorSource):
         Accept all unigrams that we have a vector for
         the thing is a unigram and we have a corpus-based vector for that unigram
         """
-        return feature[0] in self.feature_pattern and feature[1][0] in self.entry_index.keys()
+        return feature[0] in self.feature_pattern and feature[1][0] in self.entry_index
 
     def __str__(self):
-        return '[UnigramVectorSource with %d %d-dimensional entries]' % (len(self.entry_index),
-                                                                         len(self.distrib_features_vocab))
+        return '[UnigramVectorSource with %d %d-dimensional entries]' % self.feature_matrix.shape
 
     def __len__(self):
         return len(self.entry_index)
@@ -210,7 +218,6 @@ class CompositeVectorSource(VectorSource):
         self.include_self = include_self
 
         self.nbrs, self.feature_matrix, entry_index = [None] * 3     # computed by self.build_peripheral_space()
-
         self.composers = composers
         self.composer_mapping = OrderedDict()
         tmp = defaultdict(set) # feature type -> {composer object}

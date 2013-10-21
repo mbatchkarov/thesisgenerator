@@ -23,6 +23,7 @@ all_features = set([unigram_feature, bigram_feature, an_feature, unk_unigram_fea
 class TestUnigramVectorSource(TestCase):
     def setUp(self):
         self.source = UnigramVectorSource(path)
+        self.reduced_source = UnigramVectorSource(path, reduce_dimensionality=True, dimensions=2)
 
     def test_get_vector(self):
         # vectors come out right
@@ -61,6 +62,11 @@ class TestUnigramVectorSource(TestCase):
         self.assertIn(unigram_feature, self.source)
         for thing in (unk_unigram_feature, bigram_feature, unk_unigram_feature):
             self.assertNotIn(thing, self.source)
+
+    def test_dimensionality_reduction(self):
+        v = self.reduced_source._get_vector('a/n')
+        self.assertTupleEqual((1, 2), v.shape)
+        print v.A
 
 
 class TestAdditiveVectorSource(TestCase):
