@@ -2,8 +2,9 @@
 from itertools import chain
 import logging
 import os
-from unittest import TestCase
+from unittest import TestCase, skip
 from glob import glob
+from thesisgenerator.composers.vectorstore import PrecomputedSimilaritiesVectorSource
 
 from thesisgenerator.plugins.experimental_utils import run_experiment
 from thesisgenerator.utils.misc import get_susx_mysql_conn
@@ -14,7 +15,9 @@ __author__ = 'mmb28'
 class TestConsolidator(TestCase):
     def setUp(cls):
         prefix = 'thesisgenerator/resources'
-        run_experiment(0, num_workers=1, predefined_sized=[3, 3, 3], prefix=prefix)
+        # load a mock unigram thesaurus, bypassing the similarity calculation provided by CompositeVectorSource
+        vector_source = PrecomputedSimilaritiesVectorSource(['thesisgenerator/resources/exp0-0a.strings'])
+        run_experiment(0, num_workers=1, predefined_sized=[3, 3, 3], prefix=prefix, vector_source=vector_source)
 
     def tearDown(self):
         """
@@ -24,6 +27,22 @@ class TestConsolidator(TestCase):
         for f in files:
             os.remove(f)
 
+    @skip("""
+    The current concurrency model is:
+
+    for each training data size (now run serially, previously in parallel):
+         ___________________________________________
+        |                                           |
+        |for each classifier:                       |
+        |    for each CV fold (run in parallel):    |
+        |       train                               |
+        |       evaluate                            |
+        |_________________shared log file___________|
+
+    Information about the IV/IT token/type counts of each fold is intertwined in the log files and cannot be extracted
+    reliably. Previously, that used to be possible because all log-producing stages that share a log file were run
+    serially.
+    """)
     def test_extract_thesausus_coverage_info(self):
         cursor = get_susx_mysql_conn().cursor()
 
@@ -96,6 +115,10 @@ class TestConsolidator(TestCase):
         for i in range(3):
             self.assertEqual(res[i][0], 'tests-exp0-{}'.format(i))
 
-
+    def test_nothing(self):
+        """
+        Leave an empty test in so that self.setUp() runs. Even without assertions, this might catch some errors.
+        """
+        pass
 
 

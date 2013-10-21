@@ -32,7 +32,11 @@ class VectorBackedSelectKBest(SelectKBest):
     def fit(self, X, y, vector_source=None):
         self.vector_source = vector_source
         logging.debug('Identity of vector source is %d', id(vector_source))
-        logging.debug('The BallTree is %s', vector_source.nbrs)
+        if vector_source:
+            try:
+                logging.debug('The BallTree is %s', vector_source.nbrs)
+            except AttributeError:
+                logging.debug('The vector source is %s', vector_source)
         if not self.vector_source and self.ensure_vectors_exist:
             logging.error(
                 'You requested feature selection based on vector presence but did not provide a vector source.')
@@ -121,7 +125,10 @@ class MetadataStripper(BaseEstimator, TransformerMixin):
         if self.vector_source:
             logging.info('Populating vector source %s prior to transform', self.vector_source)
             self.vector_source.populate_vector_space(voc.keys())
-            logging.debug('The BallTree is %s', vector_source.nbrs)
+            try:
+                logging.debug('The BallTree is %s', vector_source.nbrs)
+            except AttributeError:
+                logging.debug('The vector source is %s', vector_source)
         return self
 
     def transform(self, X):

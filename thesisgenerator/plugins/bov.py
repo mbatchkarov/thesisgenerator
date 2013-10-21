@@ -79,7 +79,12 @@ class ThesaurusVectorizer(TfidfVectorizer):
     def fit_transform(self, raw_documents, y=None, vector_source=None):
         self.vector_source = vector_source
         logging.debug('Identity of vector source is %d', id(vector_source))
-        logging.debug('The BallTree is %s', vector_source.nbrs)
+        if vector_source:
+            try:
+                logging.debug('The BallTree is %s', vector_source.nbrs)
+            except AttributeError:
+                logging.debug('The vector source is %s', vector_source)
+
         self.handler = get_token_handler(self.train_token_handler,
                                          self.k,
                                          self.sim_compressor,

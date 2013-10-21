@@ -67,13 +67,14 @@ class TestVectorBackedSelectKBest(TestCase):
              ThesaurusVectorizer(min_df=1, vector_source=vector_source, use_tfidf=False,
                                  ngram_range=(1, max_feature_len),
                                  decode_token_handler=handler_pattern.format(handler))),
-            ('fs', VectorBackedSelectKBest(vector_source=vector_source,
-                                           ensure_vectors_exist=ensure_vectors_exist, k=k)),
+            ('fs', VectorBackedSelectKBest(ensure_vectors_exist=ensure_vectors_exist, k=k)),
             ('dumper', FeatureVectorsCsvDumper('fs-test'))
         ]
         self.p = Pipeline(pipeline_list)
+        fit_params = {'vect__vector_source': vector_source,
+                      'fs__vector_source': vector_source}
 
-        tr_matrix, tr_voc = self.p.fit_transform(x_train, y_train)
+        tr_matrix, tr_voc = self.p.fit_transform(x_train, y_train, **fit_params)
         ev_matrix, ev_voc = self.p.transform(x_test)
         return tr_matrix.A, self._strip(tr_voc), ev_matrix.A, self._strip(ev_voc)
 
