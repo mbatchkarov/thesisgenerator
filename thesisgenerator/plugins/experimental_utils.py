@@ -71,7 +71,8 @@ def _clear_old_files(i, prefix):
 
 def run_experiment(expid, subexpid=None, num_workers=4,
                    predefined_sized=[],
-                   prefix='/Volumes/LocalDataHD/mmb28/NetBeansProjects/thesisgenerator'):
+                   prefix='/Volumes/LocalDataHD/mmb28/NetBeansProjects/thesisgenerator',
+                   vector_source=None):
     print 'RUNNING EXPERIMENT %d' % expid
     # on local machine
 
@@ -140,15 +141,18 @@ def run_experiment(expid, subexpid=None, num_workers=4,
                 args = get_intersection_of_parameters(composer_class, conf['vector_sources'][section])
                 args['unigram_source'] = unigram_source
                 composers.append(composer_class(**args))
-        if composers:
-            vectors = CompositeVectorSource(
-                #unigram_source,
+        if composers and not vector_source:
+            # if a vector_source has not been predefined
+            vector_source = CompositeVectorSource(
                 composers,
                 conf['vector_sources']['sim_threshold'],
                 conf['vector_sources']['include_self'],
             )
     else:
-        vectors = []
+        if not vector_source:
+            # if a vector source has not been passed in and has not been initialised, then init it to avoid
+            # accessing empty things
+            vector_source = []
 
     tokenizer = _load_tokenizer(
         joblib_caching=conf['joblib_caching'],
@@ -162,7 +166,7 @@ def run_experiment(expid, subexpid=None, num_workers=4,
     tokenised_data = tokenize_data(raw_data, tokenizer, data_ids)
 
     # run data through the pipeline
-    Parallel(n_jobs=1)(delayed(go)(new_conf_file, log_dir, tokenised_data, vectors, n_jobs=num_workers) for
+    Parallel(n_jobs=1)(delayed(go)(new_conf_file, log_dir, tokenised_data, vector_source, n_jobs=num_workers) for
                        new_conf_file, log_dir in conf_file_iterator)
 
     # ----------- CONSOLIDATION -----------

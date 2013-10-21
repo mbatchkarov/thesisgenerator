@@ -4,6 +4,7 @@ import logging
 import os
 from unittest import TestCase
 from glob import glob
+from thesisgenerator.composers.vectorstore import PrecomputedSimilaritiesVectorSource
 
 from thesisgenerator.plugins.experimental_utils import run_experiment
 from thesisgenerator.utils.misc import get_susx_mysql_conn
@@ -14,7 +15,9 @@ __author__ = 'mmb28'
 class TestConsolidator(TestCase):
     def setUp(cls):
         prefix = 'thesisgenerator/resources'
-        run_experiment(0, num_workers=1, predefined_sized=[3, 3, 3], prefix=prefix)
+        # load a mock unigram thesaurus, bypassing the similarity calculation provided by CompositeVectorSource
+        vector_source = PrecomputedSimilaritiesVectorSource(['thesisgenerator/resources/exp0-0a.strings'])
+        run_experiment(0, num_workers=1, predefined_sized=[3, 3, 3], prefix=prefix, vector_source=vector_source)
 
     def tearDown(self):
         """

@@ -112,9 +112,9 @@ class TestThesaurusVectorizer(TestCase):
             #pipeline.named_steps['vect'].thesaurus_getter = thesaurus_getter
             self.vector_source = vector_source
 
-        pipeline = __main__._build_pipeline(
-            self.vector_source,
+        pipeline, fit_params = __main__._build_pipeline(
             12345, #id for naming debug files
+            self.vector_source,
             None, # classifier
             self.feature_extraction_conf,
             self.feature_selection_conf,
@@ -129,7 +129,7 @@ class TestThesaurusVectorizer(TestCase):
 
         x_tr, y_tr, x_test, y_test = tokenize_data(raw_data, self.tokenizer, self.dataset_names)
 
-        x1 = pipeline.fit_transform(x_tr, y_tr)
+        x1 = pipeline.fit_transform(x_tr, y_tr, **fit_params)
 
         voc = pipeline.named_steps['fs'].vocabulary_
         x2 = pipeline.transform(x_test)
