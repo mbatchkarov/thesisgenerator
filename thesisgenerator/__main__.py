@@ -59,16 +59,7 @@ def _build_crossvalidation_iterator(config, x_vals, y_vals, x_test=None,
     cv_type = config['type']
     k = config['k']
 
-    if (config['validation_slices'] != '' and
-                config['validation_slices'] is not None):
-        # the data should be treated as a stream, which means that it should
-        # not
-        # be reordered and it should be split into a seen portion and an unseen
-        # portion separated by a virtual 'now' point in the stream
-        validation_data = get_named_object(config['validation_slices'])
-        validation_data = validation_data(x_vals, y_vals)
-    else:
-        validation_data = [(0, 0)]
+    validation_data = [(0, 0)]
 
     validation_indices = reduce(lambda l, (head, tail): l + range(head, tail),
                                 validation_data, [])
@@ -188,7 +179,9 @@ def _build_feature_selector(vector_source, init_args, fit_args, feature_selectio
     """
     if feature_selection_conf['run']:
         method = get_named_object(feature_selection_conf['method'])
-        scoring_func = get_named_object(feature_selection_conf['scoring_function'])
+        scoring = feature_selection_conf.get('scoring_function')
+        logging.info('Scoring function is %s', scoring)
+        scoring_func = get_named_object(scoring) if scoring else None
 
         # the parameters for steps in the Pipeline are defined as
         # <component_name>__<arg_name> - the Pipeline (which is actually a
@@ -199,6 +192,7 @@ def _build_feature_selector(vector_source, init_args, fit_args, feature_selectio
         init_args.update(get_intersection_of_parameters(method, feature_selection_conf, 'fs'))
         if vector_source:
             fit_args['fs__vector_source'] = vector_source
+        logging.info('FS method is %s', method)
         pipeline_list.append(('fs', method(scoring_func)))
 
 
@@ -318,9 +312,9 @@ def _run_tasks(configuration, n_jobs, data, vector_source):
                 logging.debug('The BallTree is %s', vector_source.nbrs)
             except AttributeError:
                 logging.debug('The vector source is is %s', vector_source)
-            # pass the same vector source to the vectorizer, feature selector and metadata stripper
-        # that way the stripper can call vector_source.populate() after the feature selector has had its say,
-        # and that update source will then be available to the vectorizer at decode time
+                # pass the same vector source to the vectorizer, feature selector and metadata stripper
+                # that way the stripper can call vector_source.populate() after the feature selector has had its say,
+            # and that update source will then be available to the vectorizer at decode time
         #fit_params = {
         #    'vect__vector_source': vector_source,
         #    'fs__vector_source': vector_source,
