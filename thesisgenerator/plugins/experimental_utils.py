@@ -122,18 +122,22 @@ def run_experiment(expid, subexpid=None, num_workers=4,
         shuffle_targets=conf['shuffle_targets']
     )
 
-    if 'signified' in conf['feature_extraction']['decode_token_handler'].lower() or \
-            conf['feature_selection']['ensure_vectors_exist']:
+    vectors_exist_ = conf['feature_selection']['ensure_vectors_exist']
+    handler_ = conf['feature_extraction']['decode_token_handler']
+    if 'signified' in handler_.lower() or \
+            vectors_exist_:
         # vectors are needed either at decode time (signified handler) or during feature selection
 
         # create a unigram vector store and use it to initialise composers
         paths = conf['vector_sources']['unigram_paths']
         if paths:
+            logging.info('Loading unigram sources')
             unigram_source = UnigramVectorSource(paths,
                                                  reduce_dimensionality=conf['vector_sources']['reduce_dimensionality'],
                                                  dimensions=conf['vector_sources']['dimensions'])
         else:
-            raise ValueError('You must provide at least one unigram vector file')
+            raise ValueError('You must provide at least one unigram vector file because you requested %s '
+                             ' and ensure_vectors_exist=%s' % (handler_, vectors_exist_))
 
         composers = []
         for section in conf['vector_sources']:

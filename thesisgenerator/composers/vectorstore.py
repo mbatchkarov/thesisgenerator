@@ -251,6 +251,7 @@ class CompositeVectorSource(VectorSource):
          ('AN', ('year-ago/J', 'period/N'))
         """
         logging.debug('Populating vector space with vocabulary %s', vocabulary)
+        logging.debug('Composer mapping is %s', self.composer_mapping)
         vectors = [c._get_vector(data).A
                    for (feature_type, data) in vocabulary
                    for c in self.composer_mapping[feature_type]
@@ -303,7 +304,11 @@ class CompositeVectorSource(VectorSource):
         return map(itemgetter(1), self._get_nearest_neighbours(ngram))
 
     def __str__(self):
-        return 'Composite[' + ', '.join(str(c) for c in self.composers) + ']'
+        wrapped = ', '.join(str(c) for c in self.composers)
+        return 'Composite[%s, mapping=%s]' % (wrapped, self.composer_mapping)
+
+    def __repr__(self):
+        return self.__str__()
 
 
 class PrecomputedSimilaritiesVectorSource(CompositeVectorSource):

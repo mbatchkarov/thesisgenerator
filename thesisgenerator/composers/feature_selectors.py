@@ -24,6 +24,8 @@ class VectorBackedSelectKBest(SelectKBest):
     """
 
     def __init__(self, score_func=chi2, k='all', ensure_vectors_exist=False):
+        if not score_func:
+            score_func = chi2
         self.k = k
         self.ensure_vectors_exist = ensure_vectors_exist
         self.vocabulary_ = None
@@ -100,6 +102,7 @@ class VectorBackedSelectKBest(SelectKBest):
             self._update_vocab_according_to_mask(first_mask)
             return scores > 0
 
+        logging.info('Using %d document features', k)
         scores = _clean_nans(scores)
         mask = np.zeros(scores.shape, dtype=bool)
         selected_indices = np.argsort(scores)[-k:]

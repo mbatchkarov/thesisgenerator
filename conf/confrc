@@ -80,10 +80,10 @@ test_data=string(default='')
 
 [feature_selection]
     run=boolean()
-    method=string
+    method=string(default='thesisgenerator.composers.feature_selectors.VectorBackedSelectKBest')
     scoring_function=string
     ensure_vectors_exist=boolean(default=False)
-    k=integer
+    k=integer(default=99999999999999)
     alpha=float
     percentile=int
 
