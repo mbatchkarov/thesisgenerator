@@ -2,9 +2,10 @@
 from collections import defaultdict
 from itertools import izip, tee
 import logging
+import array
 import scipy.sparse as sp
 import numpy as np
-from sklearn.feature_extraction.text import TfidfVectorizer, _make_int_array
+from sklearn.feature_extraction.text import TfidfVectorizer
 from thesisgenerator.classifiers import NoopTransformer
 from thesisgenerator.plugins import tokenizers
 from thesisgenerator.plugins.bov_feature_handlers import get_token_handler, get_stats_recorder
@@ -204,8 +205,8 @@ class ThesaurusVectorizer(TfidfVectorizer):
             vocabulary.default_factory = vocabulary.__len__
 
         analyze = self.build_analyzer()
-        j_indices = _make_int_array()
-        indptr = _make_int_array()
+        j_indices = array.array(str("i"))
+        indptr = array.array(str("i"))
         values = []
         indptr.append(0)
         for doc_id, doc in enumerate(raw_documents):
