@@ -282,7 +282,9 @@ class CompositeVectorSource(VectorSource):
             for row, group in groupby(things, lambda x: x[0]):
                 feature = self.entry_index[row]
                 ngrams_and_counts = [(sorted_voc[x[1]], x[2]) for x in group]
-
+                if feature[0] != '1-GRAM':
+                    logging.info(feature)
+                    # todo the document feature needs to be written to the entries.filtered.strings of Byblo
                 w.writerow([' '.join(feature[1])] + list(chain.from_iterable(ngrams_and_counts)))
                 if row % 100 == 0:
                     logging.info('Saved %d vectors', row)
