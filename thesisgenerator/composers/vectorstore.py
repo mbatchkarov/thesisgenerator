@@ -268,6 +268,19 @@ class CompositeVectorSource(VectorSource):
         logging.debug('Done building BallTree')
         return self.nbrs
 
+    def dump_vectors(self):
+        voc = self.composers[0].unigram_source.distrib_features_vocab
+        data = self.feature_matrix
+        import csv
+
+        sorted_voc = [x[0] for x in sorted(voc.iteritems(), key=itemgetter(1))]
+        with open('test.csv', 'w') as outfile:
+            w = csv.writer(outfile, delimiter='\t')
+            for row, feature in self.entry_index.iteritems():
+                vector = self.feature_matrix[row, :]
+                tuples = zip(sorted_voc, vector)
+                w.writerow([' '.join(feature[1])] + [item for tuple in tuples for item in tuple if tuple[1] != 0])
+
     def _get_vector(self, ngram):
         """
         Returns a set of vector for the specified ngram, one from each sub-source
