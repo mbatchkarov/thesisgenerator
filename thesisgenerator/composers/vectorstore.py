@@ -1,14 +1,15 @@
 from abc import ABCMeta, abstractmethod
 from collections import defaultdict, OrderedDict
+from itertools import chain, groupby
 import logging
 from random import choice
 
 from operator import itemgetter
 from scipy.spatial.distance import cosine
 from sklearn.neighbors import BallTree
-import numpy
+import numpy as np
 import scipy.sparse as sp
-from numpy import vstack
+from scipy.sparse import vstack
 from sklearn.feature_extraction import DictVectorizer
 from sklearn.random_projection import SparseRandomProjection
 
@@ -58,7 +59,7 @@ class UnigramVectorSource(VectorSource):
             sim_threshold=0,
             include_self=False)
 
-        v = DictVectorizer(sparse=True, dtype=numpy.int32)
+        v = DictVectorizer(sparse=True, dtype=np.int32)
 
         # distributional features of each unigram in the loaded file
         self.feature_matrix = v.fit_transform([dict(fv) for fv in thesaurus.itervalues()])
@@ -252,7 +253,7 @@ class CompositeVectorSource(VectorSource):
         """
         logging.debug('Populating vector space with vocabulary %s', vocabulary)
         logging.debug('Composer mapping is %s', self.composer_mapping)
-        vectors = [c._get_vector(data).A
+        vectors = [c._get_vector(data)
                    for (feature_type, data) in vocabulary
                    for c in self.composer_mapping[feature_type]
                    if feature_type in self.composer_mapping and (feature_type, data) in c]
@@ -264,7 +265,7 @@ class CompositeVectorSource(VectorSource):
         #assert len(feature_list) == self.feature_matrix.shape[0]
         #todo BallTree/KDTree only work with dense inputs
         #self.nbrs = KDTree(n_neighbors=1, algorithm='kd_tree').fit(self.feature_matrix)
-        self.nbrs = BallTree(self.feature_matrix, metric=cosine)
+        self.nbrs = BallTree(self.feature_matrix.A, metric=cosine)
         logging.debug('Done building BallTree')
         return self.nbrs
 
@@ -273,15 +274,19 @@ class CompositeVectorSource(VectorSource):
         voc = self.composers[0].unigram_source.distrib_features_vocab
         import csv
 
-        sorted_voc = [x[0] for x in sorted(voc.iteritems(), key=itemgetter(1))]
+        sorted_voc = np.array([x[0] for x in sorted(voc.iteritems(), key=itemgetter(1))])
+        m = self.feature_matrix
+        things = zip(m.row, m.col, m.data)
         with open(path, 'w') as outfile:
             w = csv.writer(outfile, delimiter='\t')
-            for i, (row, feature) in enumerate(self.entry_index.iteritems()):
-                vector = self.feature_matrix[row, :]
-                tuples = zip(sorted_voc, vector)
-                w.writerow([' '.join(feature[1])] + [item for tuple in tuples for item in tuple if tuple[1] != 0])
-                if i % 100 == 0:
-                    logging.info('Saved %d vectors', i)
+            for row, group in groupby(things, lambda x: x[0]):
+                feature = self.entry_index[row]
+                ngrams_and_counts = [(sorted_voc[x[1]], x[2]) for x in group]
+
+                w.writerow([' '.join(feature[1])] + list(chain.from_iterable(ngrams_and_counts)))
+                if row % 100 == 0:
+                    logging.info('Saved %d vectors', row)
+
 
     def _get_vector(self, ngram):
         """
