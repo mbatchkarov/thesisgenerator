@@ -37,7 +37,7 @@ class VectorBackedSelectKBest(SelectKBest):
         logging.debug('Identity of vector source is %d', id(vector_source))
         if vector_source:
             try:
-                logging.debug('The BallTree is %s', vector_source.nbrs)
+                logging.info('The BallTree is %s', vector_source.nbrs)
             except AttributeError:
                 logging.debug('The vector source is %s', vector_source)
         if not self.vector_source and self.ensure_vectors_exist:
@@ -64,13 +64,16 @@ class VectorBackedSelectKBest(SelectKBest):
         return super(VectorBackedSelectKBest, self).transform(X[0]), self.vocabulary_
 
     def _zero_score_of_oot_features(self):
-        #print 'Removing features'
+        logging.info('Zeroing scores of document features without a distributional vector')
         mask = np.ones(self.scores_.shape, dtype=bool)
+        count = 0
         for feature, index in self.vocabulary_.iteritems():
             if feature not in self.vector_source:
                 #print feature, 'not found'
                 self.scores_[index] = 0
                 mask[index] = 0
+                count += 1
+        logging.info('Zeroed %d/%d scores', count, self.scores_.shape[0])
         return mask
 
     def _update_vocab_according_to_mask(self, mask):
@@ -92,7 +95,7 @@ class VectorBackedSelectKBest(SelectKBest):
         if k == 'all' or k > len(scores):
             # at this point self._remove_oot_features will have been invoked, and there is no
             # further feature selection to do
-            logging.warn('Using all %d document features (you requested %r)', len(scores), k)
+            logging.warn('Chi2 using all %d document features (you requested %r)', len(scores), k)
             try:
                 first_mask = self.to_keep
             except AttributeError:
@@ -129,6 +132,7 @@ class MetadataStripper(BaseEstimator, TransformerMixin):
         logging.debug('Identity of vector source is %d', id(vector_source))
         if self.vector_source:
             logging.info('Populating vector source %s prior to transform', self.vector_source)
+            logging.info('Using %d vocabulary entries ', len(voc))
             self.vector_source.populate_vector_space(voc.keys())
             try:
                 logging.debug('The BallTree is %s', vector_source.nbrs)

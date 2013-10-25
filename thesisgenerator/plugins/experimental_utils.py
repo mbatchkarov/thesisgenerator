@@ -12,7 +12,7 @@ sys.path.append('../..')
 from thesisgenerator.composers.vectorstore import CompositeVectorSource, UnigramVectorSource
 from thesisgenerator.utils.reflection_utils import get_named_object, get_intersection_of_parameters
 from thesisgenerator.utils.data_utils import tokenize_data, load_text_data_into_memory, \
-    _load_tokenizer
+    load_tokenizer
 from thesisgenerator.utils.conf_file_utils import parse_config_file
 from thesisgenerator.utils.misc import get_susx_mysql_conn
 from thesisgenerator.plugins.file_generators import _exp16_file_iterator, _exp1_file_iterator, \
@@ -160,7 +160,7 @@ def run_experiment(expid, subexpid=None, num_workers=4,
             # accessing empty things
             vector_source = []
 
-    tokenizer = _load_tokenizer(
+    tokenizer = load_tokenizer(
         joblib_caching=conf['joblib_caching'],
         normalise_entities=conf['feature_extraction']['normalise_entities'],
         use_pos=conf['feature_extraction']['use_pos'],

@@ -33,7 +33,7 @@ from thesisgenerator.utils.misc import ChainCallable
 from thesisgenerator.classifiers import LeaveNothingOut, PredefinedIndicesIterator, SubsamplingPredefinedIndicesIterator, PicklingPipeline
 from thesisgenerator.utils.conf_file_utils import set_in_conf_file, parse_config_file
 from thesisgenerator.utils.data_utils import tokenize_data, load_text_data_into_memory, \
-    _load_tokenizer
+    load_tokenizer
 from thesisgenerator import config
 from thesisgenerator.plugins.dumpers import FeatureVectorsCsvDumper
 from thesisgenerator.plugins.crossvalidation import naming_cross_val_score
@@ -314,8 +314,8 @@ def _run_tasks(configuration, n_jobs, data, vector_source):
                 logging.debug('The vector source is is %s', vector_source)
                 # pass the same vector source to the vectorizer, feature selector and metadata stripper
                 # that way the stripper can call vector_source.populate() after the feature selector has had its say,
-            # and that update source will then be available to the vectorizer at decode time
-        #fit_params = {
+                # and that update source will then be available to the vectorizer at decode time
+            #fit_params = {
         #    'vect__vector_source': vector_source,
         #    'fs__vector_source': vector_source,
         #    'stripper__vector_source': vector_source,
@@ -517,6 +517,6 @@ if __name__ == '__main__':
 
     conf, configspec_file = parse_config_file(conf_file)
     data = load_text_data_into_memory(conf)
-    tokenizer = _load_tokenizer(conf)
+    tokenizer = load_tokenizer(conf)
     data = tokenize_data(data, tokenizer)
     go(conf_file, log_dir, data, vector_store, classpath=classpath, clean=clean, n_jobs=1)

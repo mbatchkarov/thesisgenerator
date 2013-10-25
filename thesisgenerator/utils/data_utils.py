@@ -34,8 +34,8 @@ def load_text_data_into_memory(training_path, test_path=None, input_generator=''
     return (x_train, y_train, x_test, y_test), (training_path, test_path)
 
 
-def _load_tokenizer(normalise_entities=False, use_pos=True, coarse_pos=True, lemmatize=True,
-                    lowercase=True, remove_stopwords=False, remove_short_words=False, joblib_caching=False):
+def load_tokenizer(normalise_entities=False, use_pos=True, coarse_pos=True, lemmatize=True,
+                   lowercase=True, remove_stopwords=False, remove_short_words=False, joblib_caching=False):
     """
     Initialises the state of helper modules from a config object
     """

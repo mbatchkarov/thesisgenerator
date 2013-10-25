@@ -11,7 +11,7 @@ from thesisgenerator.composers.vectorstore import CompositeVectorSource, Unigram
     UnigramDummyComposer, PrecomputedSimilaritiesVectorSource
 from thesisgenerator.plugins.bov import ThesaurusVectorizer
 from thesisgenerator.plugins.dumpers import FeatureVectorsCsvDumper
-from thesisgenerator.utils.data_utils import load_text_data_into_memory, _load_tokenizer, tokenize_data
+from thesisgenerator.utils.data_utils import load_text_data_into_memory, load_tokenizer, tokenize_data
 
 
 __author__ = 'mmb28'
@@ -47,7 +47,7 @@ class TestVectorBackedSelectKBest(TestCase):
             test_path='thesisgenerator/resources/test-ev',
         )
 
-        tokenizer = _load_tokenizer()
+        tokenizer = load_tokenizer()
         x_train, y_train, x_test, y_test = tokenize_data(raw_data, tokenizer, data_ids)
 
         if vector_source == 'default':

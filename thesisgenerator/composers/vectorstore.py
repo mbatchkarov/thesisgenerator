@@ -146,7 +146,7 @@ class AdditiveComposer(Composer):
         Contains all sequences of words where we have a distrib vector for each unigram
         they contain. Rejects unigrams.
         """
-        if f[0] == '1-GRAM':
+        if f[0] == '1-GRAM' or f[0] not in self.feature_pattern:
             # no point in composing single-word document features
             return False
 
@@ -268,18 +268,20 @@ class CompositeVectorSource(VectorSource):
         logging.debug('Done building BallTree')
         return self.nbrs
 
-    def dump_vectors(self):
+    def dump_vectors(self, path):
+        logging.info('Dumping all features to disk')
         voc = self.composers[0].unigram_source.distrib_features_vocab
-        data = self.feature_matrix
         import csv
 
         sorted_voc = [x[0] for x in sorted(voc.iteritems(), key=itemgetter(1))]
-        with open('test.csv', 'w') as outfile:
+        with open(path, 'w') as outfile:
             w = csv.writer(outfile, delimiter='\t')
-            for row, feature in self.entry_index.iteritems():
+            for i, (row, feature) in enumerate(self.entry_index.iteritems()):
                 vector = self.feature_matrix[row, :]
                 tuples = zip(sorted_voc, vector)
                 w.writerow([' '.join(feature[1])] + [item for tuple in tuples for item in tuple if tuple[1] != 0])
+                if i % 100 == 0:
+                    logging.info('Saved %d vectors', i)
 
     def _get_vector(self, ngram):
         """
