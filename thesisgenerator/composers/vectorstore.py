@@ -269,26 +269,40 @@ class CompositeVectorSource(VectorSource):
         logging.debug('Done building BallTree')
         return self.nbrs
 
-    def dump_vectors(self, path):
+    def dump_vectors(self, vectors_path, new_entries_path, features_path):
+        """
+        Writes out the vectors, entries and features for all non-unigram features of this vector space to a
+        Byblo-compatible file
+        """
         logging.info('Dumping all features to disk')
         voc = self.composers[0].unigram_source.distrib_features_vocab
         import csv
 
+        new_byblo_entries = {}
         sorted_voc = np.array([x[0] for x in sorted(voc.iteritems(), key=itemgetter(1))])
         m = self.feature_matrix
         things = zip(m.row, m.col, m.data)
-        with open(path, 'w') as outfile:
+        with open(vectors_path, 'w') as outfile:
             w = csv.writer(outfile, delimiter='\t')
             for row, group in groupby(things, lambda x: x[0]):
                 feature = self.entry_index[row]
-                ngrams_and_counts = [(sorted_voc[x[1]], x[2]) for x in group]
                 if feature[0] != '1-GRAM':
-                    logging.info(feature)
+                    ngrams_and_counts = [(sorted_voc[x[1]], x[2]) for x in group]
+                    #logging.info(feature)
                     # todo the document feature needs to be written to the entries.filtered.strings of Byblo
-                w.writerow([' '.join(feature[1])] + list(chain.from_iterable(ngrams_and_counts)))
+                    w.writerow([' '.join(feature[1])] + list(chain.from_iterable(ngrams_and_counts)))
+                    new_byblo_entries[' '.join(feature[1])] = sum(x[1] for x in ngrams_and_counts)
                 if row % 100 == 0:
-                    logging.info('Saved %d vectors', row)
+                    logging.info('Processed %d vectors', row)
 
+        with open(new_entries_path, 'w') as outfile:
+            for entry, count in new_byblo_entries.iteritems():
+                outfile.write('%s\t%d\n' % (entry, count))
+
+        feature_sums = np.array(m.sum(axis=0))[0, :]
+        with open(features_path, 'w') as outfile:
+            for feature, count in zip(sorted_voc, feature_sums):
+                outfile.write('%s\t%d\n' % (feature, count))
 
     def _get_vector(self, ngram):
         """
