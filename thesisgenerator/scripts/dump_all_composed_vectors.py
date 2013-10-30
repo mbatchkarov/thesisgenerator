@@ -1,10 +1,14 @@
 import logging
-from itertools import product
+import sys
 
+sys.path.append('.')
+sys.path.append('..')
+sys.path.append('../..')
+
+from itertools import product
 from joblib import Parallel, delayed
 from numpy import hstack
 from sklearn.pipeline import Pipeline
-
 from thesisgenerator.composers.feature_selectors import VectorBackedSelectKBest, MetadataStripper
 from thesisgenerator.composers.vectorstore import UnigramVectorSource, UnigramDummyComposer, AdditiveComposer, CompositeVectorSource, MultiplicativeComposer
 from thesisgenerator.plugins.bov import ThesaurusVectorizer
@@ -12,6 +16,14 @@ from thesisgenerator.utils.data_utils import load_tokenizer, tokenize_data, load
 
 
 def do_work(unigram_paths, composer_class):
+    dataset = 'wiki' if 'wiki' in unigram_paths[0] else 'gigaw'
+    composer_method = composer_class.__name__[:4]
+    logging.basicConfig(file='bigram_%s_%s.log' % (dataset, composer_method),
+                        level=logging.INFO,
+                        format="%(asctime)s\t%(module)s.%(funcName)s ""(line %(lineno)d)\t%(levelname)s : %(""message)s"
+    )
+
+
     # todo should take a directory containing a thesaurus so that we can read vectors from events file and modify
     # whatever files we need to (entries index, as composition creates new entries)
     unigram_source = UnigramVectorSource(unigram_paths, reduce_dimensionality=False)
@@ -52,18 +64,12 @@ def do_work(unigram_paths, composer_class):
     }
     _ = p.fit_transform(x_tr + x_ev, y=hstack([y_tr, y_ev]), **fit_args)
 
-    dataset = 'wiki' if 'wiki' in unigram_paths[0] else 'gigaw'
-    composer_method = composer_class.__name__[:4]
     p.steps[2][1].vector_source.dump_vectors('bigram_%s_%s.vectors.tsv' % (dataset, composer_method),
                                              'bigram_%s_%s.entries.txt' % (dataset, composer_method),
                                              'bigram_%s_%s.features.txt' % (dataset, composer_method))
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO,
-                        format="%(asctime)s\t%(module)s.%(funcName)s ""(line %(lineno)d)\t%(levelname)s : %(""message)s"
-    )
-
     giga_paths = [
         '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/exp6-12a/exp6.events.strings',
         '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/exp6-12b/exp6.events.strings',
