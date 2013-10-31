@@ -14,6 +14,7 @@ from sklearn.feature_extraction import DictVectorizer
 from sklearn.random_projection import SparseRandomProjection
 
 from thesisgenerator.plugins.thesaurus_loader import Thesaurus
+from thesisgenerator.plugins.tokenizers import DocumentFeature, Token
 
 
 class VectorSource(object):
@@ -22,7 +23,7 @@ class VectorSource(object):
     feature_pattern = {}    # each VectorSource can work with a set of feature types
 
     @abstractmethod
-    def __contains__(self, features):
+    def __contains__(self, feature):
         """
         Filters out document features that cannot be handled by the implementing model. For instance,
         BaroniComposer cannot handle noun compounds or AN compounds for some adjectives. Features
@@ -31,19 +32,8 @@ class VectorSource(object):
         pass
 
     @abstractmethod
-    def _get_vector(self, word):
+    def _get_vector(self, tokens):
         pass
-
-
-#class ExactMatchVectorSource(VectorSource):
-#    feature_pattern = {'1-GRAM', '2-GRAM', '3-GRAM'}
-#    name = 'Exact'
-#
-#    def __contains__(self, features):
-#        return True
-#
-#    def _get_vector(self, word):
-#        raise ValueError('This class cannot provide vectors')
 
 
 class UnigramVectorSource(VectorSource):
@@ -64,12 +54,13 @@ class UnigramVectorSource(VectorSource):
         # distributional features of each unigram in the loaded file
         self.feature_matrix = v.fit_transform([dict(fv) for fv in thesaurus.itervalues()])
 
-        # unigram -> row number in self.feature_matrix that holds corresponding vector
-        self.entry_index = {fv: i for (i, fv) in enumerate(thesaurus.keys())}
+        # Token -> row number in self.feature_matrix that holds corresponding vector
+        self.entry_index = {Token(*fv.split('/')): i for (i, fv) in enumerate(thesaurus.keys())}
 
         # the set of all distributional features, for unit testing only
         self.distrib_features_vocab = v.vocabulary_
 
+        self.available_pos = set(t.pos for t in self.entry_index.keys())
         if reduce_dimensionality:
             logging.info('Reducing dimensionality of unigram vectors from %s to %s',
                          self.feature_matrix.shape[1], dimensions)
@@ -78,17 +69,12 @@ class UnigramVectorSource(VectorSource):
             self.distrib_features_vocab = None
 
 
-    def _get_vector(self, word):
-        # word must be a a string or an iterable. If it's the latter, the first item is used
-
-        if hasattr(word, '__iter__'):  # False for strings, true for lists/tuples
-            if len(word) == 1:
-                word = word[0]
-            else:
-                raise ValueError('Attempting to get unigram vector of non-unigram {}'.format(word))
-
+    def _get_vector(self, tokens):
+        # word must be an iterable of Token objects
         try:
-            row = self.entry_index[word]
+            row = self.entry_index[tokens[0]]
+            if len(tokens) > 1:
+                logging.warn('Attemting to get unigram vector of n-gram %r', tokens)
         except KeyError:
             return None
         return self.feature_matrix[row, :]
@@ -98,7 +84,7 @@ class UnigramVectorSource(VectorSource):
         Accept all unigrams that we have a vector for
         the thing is a unigram and we have a corpus-based vector for that unigram
         """
-        return feature[0] in self.feature_pattern and feature[1][0] in self.entry_index
+        return feature.type in self.feature_pattern and feature.tokens[0] in self.entry_index
 
     def __str__(self):
         return '[UnigramVectorSource with %d %d-dimensional entries]' % self.feature_matrix.shape
@@ -124,11 +110,41 @@ class UnigramDummyComposer(Composer):
     def __contains__(self, feature):
         return feature in self.unigram_source
 
-    def _get_vector(self, sequence):
-        return self.unigram_source._get_vector(sequence)
+    def _get_vector(self, tokens):
+        return self.unigram_source._get_vector(tokens)
 
     def __str__(self):
         return '[UnigramDummyComposer wrapping %s]' % self.unigram_source
+
+
+class OxfordSvoComposer(Composer):
+    name = 'DummySVO'
+    feature_pattern = {'SVO'}
+
+    def __init__(self, unigram_source=None):
+        super(OxfordSvoComposer, self).__init__(unigram_source)
+        if 'V' not in unigram_source.available_pos or \
+                        'N' not in unigram_source.available_pos:
+            raise ValueError('This composer requires a noun and verb unigram vector sources')
+
+    def __contains__(self, feature):
+        """
+        Accept all subject-verb-object phrases where we have a corpus-observed vector for each unigram
+        """
+        if feature.type not in self.feature_pattern:
+            # ignore non-SVO features
+            return False
+
+        for token in feature.tokens:
+            if DocumentFeature('1-GRAM', (token,)) not in self.unigram_source:
+                # ignore ANs containing unknown nouns
+                return False
+
+        return True
+
+    def _get_vector(self, tokens):
+        #todo currently returns just the verb vector, which is wrong
+        return self.unigram_source._get_vector((tokens[1],))
 
 
 class AdditiveComposer(Composer):
@@ -139,21 +155,21 @@ class AdditiveComposer(Composer):
     def __init__(self, unigram_source=None):
         super(AdditiveComposer, self).__init__(unigram_source)
 
-    def _get_vector(self, sequence):
-        return sum(self.unigram_source._get_vector(word) for word in sequence)
+    def _get_vector(self, tokens):
+        return sum(self.unigram_source._get_vector((token,)) for token in tokens)
 
-    def __contains__(self, f):
+    def __contains__(self, feature):
         """
         Contains all sequences of words where we have a distrib vector for each unigram
         they contain. Rejects unigrams.
         """
-        if f[0] == '1-GRAM' or f[0] not in self.feature_pattern:
+        if feature.type == '1-GRAM' or feature.type not in self.feature_pattern:
             # no point in composing single-word document features
             return False
 
         acceptable = True
-        for unigram in f[1]:
-            if ('1-GRAM', (unigram,)) not in self.unigram_source:
+        for unigram in feature.tokens:
+            if DocumentFeature('1-GRAM', (unigram,)) not in self.unigram_source:
                 # ignore n-grams containing unknown unigrams
                 acceptable = False
                 break
@@ -169,10 +185,10 @@ class MultiplicativeComposer(AdditiveComposer):
     def __init__(self, unigram_source=None):
         super(MultiplicativeComposer, self).__init__(unigram_source)
 
-    def _get_vector(self, sequence):
+    def _get_vector(self, tokens):
         return reduce(sp.csr_matrix.multiply,
-                      map(self.unigram_source._get_vector, sequence[1:]),
-                      self.unigram_source._get_vector(sequence[0]))
+                      [self.unigram_source._get_vector((t,)) for t in tokens[1:]],
+                      self.unigram_source._get_vector([tokens[0]]))
 
     def __str__(self):
         return '[MultiplicativeComposer with %d unigram entries]' % (len(self.unigram_source))
@@ -185,18 +201,20 @@ class BaroniComposer(Composer):
 
     def __init__(self, unigram_source=None):
         super(BaroniComposer, self).__init__(unigram_source)
+        if 'N' not in unigram_source.available_pos:
+            raise ValueError('This composer requires a noun unigram vector source')
 
     def __contains__(self, feature):
         """
         Accept all adjective-noun phrases where we have a corpus-observed vector for the noun and
         a learnt matrix (through PLSR) for the adjective
         """
-        if feature[0] not in self.feature_pattern:
+        if feature.type not in self.feature_pattern:
             # ignore non-AN features
             return False
 
-        adj, noun = feature[1]
-        if noun not in self.unigram_source.entry_index.keys():
+        adj, noun = feature.tokens
+        if DocumentFeature('1-GRAM', (noun,)) not in self.unigram_source:
             # ignore ANs containing unknown nouns
             return False
 
@@ -207,9 +225,9 @@ class BaroniComposer(Composer):
 
         return True
 
-    def _get_vector(self, sequence):
+    def _get_vector(self, tokens):
         #todo currently returns just the noun vector, which is wrong
-        return self.unigram_source._get_vector(sequence[-1])
+        return self.unigram_source._get_vector((tokens[-1], ))
 
 
 class CompositeVectorSource(VectorSource):
@@ -227,17 +245,8 @@ class CompositeVectorSource(VectorSource):
                 tmp[p].add(c)
         self.composer_mapping.update(tmp)
 
-    def __contains__(self, item):
-    #for c in self.composers:
-    #print c
-    #print c.accept_features(features)
-    #print
-    #    return {f for c in self.composers for f in c.__contains__(features)}
-        return any(item in c for c in self.composers)
-
-    #def __deepcopy__(self, memo):
-    #    print 'attempting to deepclo vector store, returning self'
-    #    return self
+    def __contains__(self, feature):
+        return any(feature in c for c in self.composers)
 
     def populate_vector_space(self, vocabulary):
         #todo the exact data structure used here will need optimisation
@@ -253,13 +262,14 @@ class CompositeVectorSource(VectorSource):
         """
         logging.debug('Populating vector space with vocabulary %s', vocabulary)
         logging.debug('Composer mapping is %s', self.composer_mapping)
-        vectors = [c._get_vector(data)
-                   for (feature_type, data) in vocabulary
-                   for c in self.composer_mapping[feature_type]
-                   if feature_type in self.composer_mapping and (feature_type, data) in c]
+        vectors = [c._get_vector(f.tokens)
+                   for f in vocabulary
+                   for c in self.composer_mapping[f.type]
+                   if f.type in self.composer_mapping and f in c]
+
         self.feature_matrix = vstack(vectors)
         logging.debug('Building BallTree for matrix of size %s', self.feature_matrix.shape)
-        feature_list = [ngram for ngram in vocabulary for _ in self.composer_mapping[ngram[0]]]
+        feature_list = [f for f in vocabulary for _ in self.composer_mapping[f.type]]
         #todo test if this entry index is correct
         self.entry_index = {i: ngram for i, ngram in enumerate(feature_list)}
         #assert len(feature_list) == self.feature_matrix.shape[0]
@@ -269,12 +279,12 @@ class CompositeVectorSource(VectorSource):
         logging.debug('Done building BallTree')
         return self.nbrs
 
-    def dump_vectors(self, vectors_path, new_entries_path, features_path):
+    def write_vectors_to_disk(self, vectors_path, new_entries_path, features_path):
         """
         Writes out the vectors, entries and features for all non-unigram features of this vector space to a
         Byblo-compatible file
         """
-        logging.info('Dumping all features to disk')
+        logging.info('Writing all features to disk to %s', vectors_path)
         voc = self.composers[0].unigram_source.distrib_features_vocab
         import csv
 
@@ -286,12 +296,12 @@ class CompositeVectorSource(VectorSource):
             w = csv.writer(outfile, delimiter='\t')
             for row, group in groupby(things, lambda x: x[0]):
                 feature = self.entry_index[row]
-                if feature[0] != '1-GRAM':
+                if feature.type != '1-GRAM':
                     ngrams_and_counts = [(sorted_voc[x[1]], x[2]) for x in group]
                     #logging.info(feature)
                     # todo the document feature needs to be written to the entries.filtered.strings of Byblo
-                    w.writerow([' '.join(feature[1])] + list(chain.from_iterable(ngrams_and_counts)))
-                    new_byblo_entries[' '.join(feature[1])] = sum(x[1] for x in ngrams_and_counts)
+                    w.writerow([feature.tokens_as_str()] + list(chain.from_iterable(ngrams_and_counts)))
+                    new_byblo_entries[feature.tokens_as_str()] = sum(x[1] for x in ngrams_and_counts)
                 if row % 100 == 0:
                     logging.info('Processed %d vectors', row)
 
@@ -303,28 +313,29 @@ class CompositeVectorSource(VectorSource):
         with open(features_path, 'w') as outfile:
             for feature, count in zip(sorted_voc, feature_sums):
                 outfile.write('%s\t%d\n' % (feature, count))
+        logging.info('Done writing to disk')
 
-    def _get_vector(self, ngram):
+    def _get_vector(self, feature):
         """
         Returns a set of vector for the specified ngram, one from each sub-source
         """
-        feature_type, data = ngram
-        return [(c.name, c._get_vector(data).todense()) for c in self.composer_mapping[feature_type]]
+        feature_type, tokens = feature.type, feature.tokens
+        return [(c.name, c._get_vector(tokens).todense()) for c in self.composer_mapping[feature_type]]
 
-    def _get_nearest_neighbours(self, ngram):
+    def _get_nearest_neighbours(self, feature):
         """
         Returns (composer, sim, neighbour) tuples for the given n-gram, one from each composer._get_vector
         Accepts structured features
         """
         res = []
-        for comp_name, vector in self._get_vector(ngram):
+        for comp_name, vector in self._get_vector(feature):
             distances, indices = self.nbrs.query(vector, k=2, return_distance=True)
 
             for dist, ind in zip(distances[0, :], indices[0, :]):
                 similarity = 1 - dist
                 neighbour = self.entry_index[ind]
 
-                if (ngram == neighbour and not self.include_self) or 1 - dist < self.sim_threshold:
+                if (feature == neighbour and not self.include_self) or 1 - dist < self.sim_threshold:
                     continue
                 else:
                     data = (comp_name, (neighbour, similarity))
@@ -364,29 +375,24 @@ class PrecomputedSimilaritiesVectorSource(CompositeVectorSource):
     # Feature structure is ('1-GRAM', ('Seattle/N',))
 
         # strip the structural info from feature for thes lookup
-        res = self.th.get(' '.join(feature[1]))
+        res = self.th.get(feature.tokens_as_str())
         # put structural info back in
         return [(
                     'Byblo',
                     (
-                        ('1-GRAM', (x[0],)),
+                        DocumentFeature('1-GRAM', (Token(*x[0].split('/')),)),
                         x[1]
                     )
                 )
                 for x in res] if res else []
 
-    def __contains__(self, features):
+    def __contains__(self, feature):
         # strip the meta information from the feature and use as a string, thesaurus does not contain this info
-
-        return [x for x in features if x[1][0] in self.th.keys()]
+        return ' '.join(map(str, feature.tokens)) in self.th
 
     def keys(self):
         # todo this needs to be removed from the interface of this class
         return self.th.keys()
-
-    def __contains__(self, item):
-        #Accepts structured features
-        return item[1][0] in self.th
 
     def populate_vector_space(self, vocabulary):
         #nothing to do, we have the all-pairs sim matrix already
@@ -408,14 +414,14 @@ class ConstantNeighbourVectorSource(VectorSource):
         self.vocab = vocab
 
 
-    def get_nearest_neighbours(self, thing):
+    def get_nearest_neighbours(self, feature):
         if self.vocab:
             v = choice(self.vocab.keys())
             return [(v, 1.0)]
         else:
             return [
                 (
-                    ('1-GRAM', ('b/n',)),
+                    DocumentFeature('1-GRAM', (Token('b', 'N'),)),
                     1.0
                 )
             ]
@@ -423,11 +429,9 @@ class ConstantNeighbourVectorSource(VectorSource):
     def populate_vector_space(self, thing):
         pass
 
-    def __contains__(self):
-        pass
 
     def _get_vector(self):
         pass
 
-    def __contains__(self, item):
+    def __contains__(self, feature):
         return True

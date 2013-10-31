@@ -7,15 +7,16 @@ from numpy.testing import assert_array_equal
 from scipy.sparse import csr_matrix, issparse
 
 from thesisgenerator.composers.vectorstore import *
+from thesisgenerator.plugins.tokenizers import Token
 
 DIM = 10
 
 path = ['thesisgenerator/resources/thesauri/small.txt.events.strings']
-unigram_feature = ('1-GRAM', ('a/n',))
-unk_unigram_feature = ('1-GRAM', ('UNK/UNK',))
-bigram_feature = ('2-GRAM', ('a/n', 'b/v'))
-unk_bigram_feature = ('2-GRAM', ('a/n', 'UNK/UNK'))
-an_feature = ('AN', ('c/j', 'a/n'))
+unigram_feature = DocumentFeature('1-GRAM', (Token('a', 'N'),))
+unk_unigram_feature = DocumentFeature('1-GRAM', ((Token('unk', 'UNK')),))
+bigram_feature = DocumentFeature('2-GRAM', (Token('a', 'N'), Token('b', 'V')))
+unk_bigram_feature = DocumentFeature('2-GRAM', (Token('a', 'N'), Token('UNK', 'UNK')))
+an_feature = DocumentFeature('AN', (Token('c', 'J'), Token('a', 'n')))
 known_features = set([unigram_feature, bigram_feature, an_feature])
 all_features = set([unigram_feature, bigram_feature, an_feature, unk_unigram_feature, unk_bigram_feature])
 
@@ -29,21 +30,15 @@ class TestUnigramVectorSource(TestCase):
         # vectors come out right
         # a/N	amod:c	2   T:t1	1	T:t2	2	T:t3	3
         assert_array_equal(
-            self.source._get_vector('a/n').todense(),
+            self.source._get_vector((Token('a', 'N'),)).todense(),
             [[0., 2., 0., 1., 2., 3., 0., 0.]]
-        )
-
-        #check if unigram source works when provided with a list
-        assert_array_equal(
-            self.source._get_vector(['b/v']).todense(),
-            [[5., 0., 7., 0., 0., 3., 0., 0.]]
         )
 
         # vocab is in sorted order
         self.assertDictEqual(
-            {'also/rb': 0,
+            {'also/RB': 0,
              'amod:c': 1,
-             'now/rb': 2,
+             'now/RB': 2,
              't:t1': 3,
              't:t2': 4,
              't:t3': 5,
@@ -64,7 +59,7 @@ class TestUnigramVectorSource(TestCase):
             self.assertNotIn(thing, self.source)
 
     def test_dimensionality_reduction(self):
-        v = self.reduced_source._get_vector('a/n')
+        v = self.reduced_source._get_vector((Token('a', 'N'), ))
         self.assertTupleEqual((1, 2), v.shape)
         print v.A
 
@@ -84,7 +79,8 @@ class TestAdditiveVectorSource(TestCase):
     def test_get_nearest_neighbour(self):
         unigrams_vectors = UnigramVectorSource(['thesisgenerator/resources/ones.vectors.txt'])
         composer = CompositeVectorSource([AdditiveComposer(unigrams_vectors)], 0, True)
-        vocab = [('2-GRAM', (x, y)) for (x, y) in combinations(unigrams_vectors.entry_index.iterkeys(), 2)]
+        vocab = [DocumentFeature('2-GRAM', (x, y)) for (x, y) in
+                 combinations(unigrams_vectors.entry_index.iterkeys(), 2)]
         composer.populate_vector_space(vocab)
         print '----------- Setting include_self to True ------------'
         for bigram in vocab:
@@ -92,7 +88,7 @@ class TestAdditiveVectorSource(TestCase):
             self.assertEquals(len(neighbours), 1)
             neighbour, sim = neighbours[0]
             print composer._get_vector(bigram), bigram, neighbours
-            self.assertTupleEqual(bigram, neighbour)
+            self.assertEqual(bigram, neighbour)
             self.assertAlmostEqual(sim, 1, 5)
 
         print '----------- Setting include_self to False ------------'
@@ -195,17 +191,17 @@ class TestSimpleComposers(TestCase):
 
         assert_array_equal(
             np.array([[0, 0, 0, 0, 0, 9, 0, 0]]),
-            mult._get_vector(['a/n', 'b/v']).A
+            mult._get_vector((Token('a', 'N'), Token('b', 'V'))).A
         )
 
         assert_array_equal(
             np.array([[5, 2, 7, 1, 2, 6, 0, 0]]),
-            add._get_vector(['a/n', 'b/v']).A
+            add._get_vector((Token('a', 'N'), Token('b', 'V'))).A
         )
 
         assert_array_equal(
             np.array([[5, 11, 15, 1, 2, 6, 10, 4]]),
-            add._get_vector(['a/n', 'b/v', 'c/j']).A
+            add._get_vector((Token('a', 'N'), Token('b', 'V'), Token('c', 'J'))).A
         )
 
     def test_compose(self):
@@ -230,12 +226,17 @@ class TestSimpleComposers(TestCase):
 
 
 class TestPrecomputedSimSource(TestCase):
-    def test_retrieval(self):
-        source = PrecomputedSimilaritiesVectorSource(
+    def setUp(self):
+        self.source = PrecomputedSimilaritiesVectorSource(
             thesaurus_files=['thesisgenerator/resources/exp0-0a.strings'],
             sim_threshold=0, include_self=False)
 
+
+    def test_retrieval(self):
         self.assertTupleEqual(
-            source.get_nearest_neighbours(('1-GRAM', ('cat/n',)))[0],
-            (('1-GRAM', ('dog/n',)), 0.8)
+            self.source.get_nearest_neighbours(DocumentFeature('1-GRAM', (Token('cat', 'N'),)))[0],
+            (DocumentFeature('1-GRAM', (Token('dog', 'N'),)), 0.8)
         )
+
+    def test_contains(self):
+        self.assertTrue(self.source.__contains__(DocumentFeature('1-GRAM', (Token('cat', 'N'),))))

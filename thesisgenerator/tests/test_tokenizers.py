@@ -2,7 +2,7 @@
 from unittest import TestCase
 from joblib import Memory
 from thesisgenerator.classifiers import NoopTransformer
-from thesisgenerator.plugins.tokenizers import XmlTokenizer
+from thesisgenerator.plugins.tokenizers import XmlTokenizer, Token
 
 try:
     import xml.etree.cElementTree as ET
@@ -56,8 +56,11 @@ class Test_tokenizer(TestCase):
 
             # tokenize the same corpus repeatedly
             for j in range(10):
-                tokenised_docs = tokenizer.tokenize_corpus(corpus, self.doc_name)
-                self.assertListEqual(tokenised_docs, [[['Cats', 'like', 'dogs']]])
+                # get only the first sentence of the corpus
+                tokenised_docs = self._strip_dependency_tree(tokenizer.tokenize_corpus(corpus, self.doc_name)[0])
+                self.assertListEqual(tokenised_docs, [[Token('Cats', '', 1),
+                                                       Token('like', '', 2),
+                                                       Token('dogs', '', 3)]])
                 # a corpus is a list of documents, which is a list of sentences, which is a list of tokens
 
                 if using_joblib:
@@ -76,23 +79,29 @@ class Test_tokenizer(TestCase):
             self.assertTrue(tokenizer.use_pos)
             #self.assertTrue(tokenizer.important_params['use_pos'])
 
-            tokenised_docs = tokenizer.tokenize_corpus(corpus, self.doc_name)
-            self.assertListEqual(tokenised_docs, [[['Cats/NNP', 'like/VB', 'dogs/NNP']]])
+            tokenised_docs = self._strip_dependency_tree(tokenizer.tokenize_corpus(corpus, self.doc_name)[0])
+            self.assertListEqual(tokenised_docs, [[Token('Cats', 'NNP', 1),
+                                                   Token('like', 'VB', 2),
+                                                   Token('dogs', 'NNP', 3)]])
 
             # changing the parameters of the tokenizer should cause a cache miss
             self.assertEqual(tokenizer.cache_miss_count, 2 if using_joblib else j + 2)
 
             tokenizer.coarse_pos = True
-            tokenised_docs = tokenizer.tokenize_corpus(corpus, self.doc_name)
-            self.assertListEqual(tokenised_docs, [[['Cats/N', 'like/V', 'dogs/N']]])
+            tokenised_docs = self._strip_dependency_tree(tokenizer.tokenize_corpus(corpus, self.doc_name)[0])
+            self.assertListEqual(tokenised_docs, [[Token('Cats', 'N', 1),
+                                                   Token('like', 'V', 2),
+                                                   Token('dogs', 'N', 3)]])
             # another parameter change, another cache miss
             self.assertEqual(tokenizer.cache_miss_count, 3 if using_joblib else j + 3)
 
             # changing a parameter back to what is was should cause a cache hit
             tokenizer.use_pos = False
             tokenizer.coarse_pos = False
-            tokenised_docs = tokenizer.tokenize_corpus(corpus, self.doc_name)
-            self.assertListEqual(tokenised_docs, [[['Cats', 'like', 'dogs']]])
+            tokenised_docs = self._strip_dependency_tree(tokenizer.tokenize_corpus(corpus, self.doc_name)[0])
+            self.assertListEqual(tokenised_docs, [[Token('Cats', '', 1),
+                                                   Token('like', '', 2),
+                                                   Token('dogs', '', 3)]])
             self.assertEqual(tokenizer.cache_miss_count, 3 if using_joblib else j + 4)
 
         import shutil
@@ -104,13 +113,17 @@ class Test_tokenizer(TestCase):
         tests xml_tokenizer's lowercasing facility
         """
 
-        tokens = self.tokenizer.tokenize_doc(self.doc)
-        self.assertListEqual(tokens, [['Cats', 'like', 'dogs']])
+        tokens = self._strip_dependency_tree(self.tokenizer.tokenize_doc(self.doc))
+        self.assertListEqual(tokens, [[Token('Cats', '', 1),
+                                       Token('like', '', 2),
+                                       Token('dogs', '', 3)]])
 
         self.params['lowercase'] = True
         self.tokenizer = XmlTokenizer(**self.params)
-        tokens = self.tokenizer.tokenize_doc(self.doc)
-        self.assertListEqual(tokens, [['cats', 'like', 'dogs']])
+        tokens = self._strip_dependency_tree(self.tokenizer.tokenize_doc(self.doc))
+        self.assertListEqual(tokens, [[Token('cats', '', 1),
+                                       Token('like', '', 2),
+                                       Token('dogs', '', 3)]])
 
     def test_xml_tokenizer_stopwords(self):
         """
@@ -126,13 +139,15 @@ class Test_tokenizer(TestCase):
                 element.find('word').text = 'the'
 
         self.tokenizer.remove_stopwords = True
-        tokens = self.tokenizer.tokenize_doc(ET.tostring(tree))
-        self.assertListEqual(tokens, [['Cats', 'dogs']])
+        tokens = self._strip_dependency_tree(self.tokenizer.tokenize_doc(ET.tostring(tree)))
+        self.assertListEqual(tokens, [[Token('Cats', '', 1),
+                                       Token('dogs', '', 3)]])
 
         self.tokenizer.use_pos = True
         self.tokenizer.coarse_pos = True
-        tokens = self.tokenizer.tokenize_doc(ET.tostring(tree))
-        self.assertListEqual(tokens, [['Cats/N', 'dogs/N']])
+        tokens = self._strip_dependency_tree(self.tokenizer.tokenize_doc(ET.tostring(tree)))
+        self.assertListEqual(tokens, [[Token('Cats', 'N', 1),
+                                       Token('dogs', 'N', 3)]])
 
     def test_xml_tokenizer_short_words(self):
         """
@@ -140,28 +155,34 @@ class Test_tokenizer(TestCase):
         """
         self.tokenizer.lemmatize = True
         self.tokenizer.remove_short_words = True
-        tokens = self.tokenizer.tokenize_doc(self.doc)
-        self.assertListEqual(tokens, [['like']])
+        tokens = self._strip_dependency_tree(self.tokenizer.tokenize_doc(self.doc))
+        self.assertListEqual(tokens, [[Token('like', '', 2)]])
 
         self.tokenizer.use_pos = True
         self.tokenizer.coarse_pos = True
-        tokens = self.tokenizer.tokenize_doc(self.doc)
-        self.assertListEqual(tokens, [['like/V']])
+        tokens = self._strip_dependency_tree(self.tokenizer.tokenize_doc(self.doc))
+        self.assertListEqual(tokens, [[Token('like', 'V', 2)]])
 
     def test_xml_tokenizer_pos(self):
         """
         Tests xml_tokenizer's coarse_pos and use_pos facilities
         """
-        tokens = self.tokenizer.tokenize_doc(self.doc)
-        self.assertListEqual(tokens, [['Cats', 'like', 'dogs']])
+        tokens = self._strip_dependency_tree(self.tokenizer.tokenize_doc(self.doc))
+        self.assertListEqual(tokens, [[Token('Cats', '', 1),
+                                       Token('like', '', 2),
+                                       Token('dogs', '', 3)]])
 
         self.tokenizer.use_pos = True
-        tokens = self.tokenizer.tokenize_doc(self.doc)
-        self.assertListEqual(tokens, [['Cats/NNP', 'like/VB', 'dogs/NNP']])
+        tokens = self._strip_dependency_tree(self.tokenizer.tokenize_doc(self.doc))
+        self.assertListEqual(tokens, [[Token('Cats', 'NNP', 1),
+                                       Token('like', 'VB', 2),
+                                       Token('dogs', 'NNP', 3)]])
 
         self.tokenizer.coarse_pos = True
-        tokens = self.tokenizer.tokenize_doc(self.doc)
-        self.assertListEqual(tokens, [['Cats/N', 'like/V', 'dogs/N']])
+        tokens = self._strip_dependency_tree(self.tokenizer.tokenize_doc(self.doc))
+        self.assertListEqual(tokens, [[Token('Cats', 'N', 1),
+                                       Token('like', 'V', 2),
+                                       Token('dogs', 'N', 3)]])
 
     def test_xml_tokenizer_lemmatize(self):
         """
@@ -169,8 +190,10 @@ class Test_tokenizer(TestCase):
         """
 
         self.tokenizer.lemmatize = True
-        tokens = self.tokenizer.tokenize_doc(self.doc)
-        self.assertListEqual(tokens, [['Cat', 'like', 'dog']])
+        tokens = self._strip_dependency_tree(self.tokenizer.tokenize_doc(self.doc))
+        self.assertListEqual(tokens, [[Token('Cat', '', 1),
+                                       Token('like', '', 2),
+                                       Token('dog', '', 3)]])
 
     def test_xml_tokenizer_common_settings(self):
         """
@@ -184,12 +207,23 @@ class Test_tokenizer(TestCase):
         self.tokenizer.lowercase = True
         self.tokenizer.normalise_entities = True
 
-        tokens = self.tokenizer.tokenize_doc(self.doc)
-        self.assertListEqual(tokens, [['cat/n', 'like/v', '__ner-org__']])
+        tokens = self._strip_dependency_tree(self.tokenizer.tokenize_doc(self.doc))
+        self.assertListEqual(tokens, [[
+                                          Token('cat', 'N', 1),
+                                          Token('like', 'V', 2),
+                                          Token('__NER-ORG__', '', 3)
+                                      ]])
 
         self.tokenizer.lowercase = False
-        tokens = self.tokenizer.tokenize_doc(self.doc)
-        self.assertListEqual(tokens, [['Cat/N', 'like/V', '__NER-ORG__']])
+        tokens = self._strip_dependency_tree(self.tokenizer.tokenize_doc(self.doc))
+        self.assertListEqual(tokens, [[
+                                          Token('Cat', 'N', 1),
+                                          Token('like', 'V', 2),
+                                          Token('__NER-ORG__', '', 3)
+                                      ]])
+
+    def _strip_dependency_tree(self, tokens):
+        return [sent[0] for sent in tokens]
 
     def test_is_number(self):
         is_number = self.tokenizer._is_number
@@ -203,3 +237,4 @@ class Test_tokenizer(TestCase):
         self.assertTrue(is_number('123,300'))
 
         self.assertFalse(is_number('asdf'))
+        # todo tests for dependency-parsed input data

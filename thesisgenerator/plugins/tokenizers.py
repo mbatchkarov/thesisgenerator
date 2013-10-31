@@ -1,10 +1,14 @@
 # coding=utf-8
 from collections import defaultdict
-# import locale
 from copy import deepcopy
+from functools import total_ordering
 import logging
+
 from sklearn.feature_extraction.stop_words import ENGLISH_STOP_WORDS
+import networkx as nx
+
 from thesisgenerator.classifiers import NoopTransformer
+
 
 try:
     import xml.etree.cElementTree as ET
@@ -13,14 +17,56 @@ except ImportError:
     import xml.etree.ElementTree as ET
 
 
-#def build_tokenizer(**kwargs):
-#    global tokenizer
-#    tokenizer = XmlTokenizer(**kwargs)
-#    return tokenizer
-#
-#
-#def get_tokenizer():
-#    return tokenizer
+@total_ordering
+class Token(object):
+    def __init__(self, text, pos, index=0):
+        self.text = text
+        self.pos = pos
+        self.index = index
+
+    def __str__(self):
+        return '{}/{}'.format(self.text, self.pos) if self.pos else self.text
+
+    def __repr__(self):
+        return self.__str__()
+
+    def __eq__(self, other):
+        return (not self < other) and (not other < self)
+
+    def __lt__(self, other):
+        return (self.text, self.pos) < (other.text, other.pos)
+
+    def __hash__(self):
+        return hash((self.text, self.pos))
+
+
+class DocumentFeature(object):
+    def __init__(self, type, tokens):
+        self.type = type
+        self.tokens = tokens
+
+    def tokens_as_str(self):
+        """
+        Represents the features of this document as a human-readable string
+        DocumentFeature('1-GRAM', ('X', 'Y',)) -> 'X Y'
+        """
+        return ' '.join(str(t) for t in self.tokens)
+
+    def __str__(self):
+        return '{}:{}'.format(self.type, self.tokens)
+
+    def __repr__(self):
+        return self.__str__()
+
+    def __eq__(self, other):
+        return (isinstance(other, self.__class__)
+                and self.__dict__ == other.__dict__)
+
+    def __lt__(self, other):
+        return (self.type, self.tokens) < (other.type, other.tokens)
+
+    def __hash__(self):
+        return hash((self.type, self.tokens))
 
 
 class XmlTokenizer(object):
@@ -148,11 +194,9 @@ class XmlTokenizer(object):
                 # logging.debug('Tokenizer ignoring short word %s' % txt)
                 continue
 
-            pos = element.find('POS').text.upper()
-            if self.use_pos:
-                if self.coarse_pos:
-                    pos = self.pos_coarsification_map[pos.upper()]
-                txt = '%s/%s' % (txt, pos)
+            pos = element.find('POS').text.upper() if self.use_pos else ''
+            if self.coarse_pos:
+                pos = self.pos_coarsification_map[pos.upper()]
 
             if self.normalise_entities:
                 try:
@@ -166,17 +210,40 @@ class XmlTokenizer(object):
 
                 if iob_tag != 'O':
                     txt = '__NER-%s__' % iob_tag
+                    pos = '' # normalised named entities don't need a PoS tag
 
             if pos == 'PUNCT' or am_i_a_number:
                 # logging.debug('Tokenizer ignoring stopword %s' % txt)
                 continue
 
-            if self.lowercase:
+            if self.lowercase and '__NER' not in txt:
                 txt = txt.lower()
 
-            tokens.append(txt)
+            tokens.append(Token(txt, pos, int(element.get('id'))))
 
-        return tokens
+        # build a graph from the dependency information available in the input
+        tokens_ids = set(x.index for x in tokens)
+        dep_tree = nx.DiGraph()
+        basic_dependencies = tree.find('basic-dependencies')
+        if not basic_dependencies:
+            return tokens, (dep_tree, None)
+
+        for dep in basic_dependencies.findall('.//dep'):
+            type = dep.get('type')
+            head = dep.find('governor')
+            head_idx = int(head.get('idx'))
+            #head_txt = head.text
+
+            dependent = dep.find('dependent')
+            dependent_idx = int(dependent.get('idx'))
+            #dependent_txt = dependent.text
+            if dependent_idx in tokens_ids and head_idx in tokens_ids:
+                dep_tree.add_edge(head_idx, dependent_idx, type=type)
+                #a=nx.draw(dep_tree, nx.graphviz_layout(dep_tree,prog='dot'), font_size=8, node_size=500,
+                #          edge_labels = [x[2]['type'] for x in dep_tree.edges(data=True)])
+                #import matplotlib.pyplot as plt
+                #plt.savefig("atlas.png",dpi=275)
+        return tokens, (dep_tree, {t.index: t for t in tokens})
 
     def tokenize_doc(self, doc, **kwargs):
         """
@@ -185,6 +252,10 @@ class XmlTokenizer(object):
         If requested, the named entities will be replaced with the respective
          type, e.g. PERSON or ORG, otherwise numbers and punctuation will be
          canonicalised
+
+         :returns: a list of sentence tuple of the form (tokens_list,
+                                                (dependency_graph, {token index in sentence -> token object})
+                                                )
         """
 
 

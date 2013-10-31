@@ -9,6 +9,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from thesisgenerator.classifiers import NoopTransformer
 from thesisgenerator.plugins import tokenizers
 from thesisgenerator.plugins.bov_feature_handlers import get_token_handler, get_stats_recorder
+from thesisgenerator.plugins.tokenizers import DocumentFeature
 
 
 class ThesaurusVectorizer(TfidfVectorizer):
@@ -40,6 +41,9 @@ class ThesaurusVectorizer(TfidfVectorizer):
         through reflection. When __init__ terminates the class invariants
         have not been established, make sure to check& establish them in
         fit_transform()
+
+        :param ngram_range: tuple(int,int), what n-grams to extract. If the range is (x,0), no n-ngrams of
+        consecutive words will be extracted.
         """
         self.use_tfidf = use_tfidf
         self.pipe_id = pipe_id
@@ -128,6 +132,21 @@ class ThesaurusVectorizer(TfidfVectorizer):
         next(b, None)
         return izip(a, b)
 
+    def _extract_features_from_dependency_tree(self, features, parse_tree, token_indices):
+        # extract sentence-internal adjective-noun compounds
+        amods = [x[:2] for x in parse_tree.edges(data=True) if x[2]['type'] == 'amod']
+        for head, dep in amods:
+            features.append(DocumentFeature('AN', (token_indices[dep], token_indices[head])))
+
+        # extract sentence-internal subject-verb-direct object compounds
+        # todo how do we handle prepositional objects?
+        verbs = [t.index for t in token_indices.values() if t.pos == 'V']
+        subjects = set([(head, dep) for head, dep, opts in parse_tree.edges(data=True) if opts['type'] == 'nsubj'])
+        objects = set([(head, dep) for head, dep, opts in parse_tree.edges(data=True) if opts['type'] == 'dobj'])
+        subjverbobj = [(s[1], v, o[1]) for v in verbs for s in subjects for o in objects if s[0] == v and o[0] == v]
+        for s, v, o in subjverbobj:
+            features.append(DocumentFeature('SVO', (token_indices[s], token_indices[v], token_indices[o])))
+
     def my_feature_extractor(self, sentences, ngram_range=(1, 1)):
         """
         Turn a document( a list of tokens) into a sequence of features. These
@@ -139,17 +158,24 @@ class ThesaurusVectorizer(TfidfVectorizer):
 
         # extract sentence-internal token n-grams
         min_n, max_n = map(int, ngram_range)
-        for sentence in sentences:
+        for sentence, (parse_tree, token_indices) in sentences:
+            if parse_tree:
+                self._extract_features_from_dependency_tree(features, parse_tree, token_indices)
+            else:
+                logging.warn('Dependency tree not available')
+
+        # extract sentence-internal n-grams
+        if max_n > 0:
             n_tokens = len(sentence)
             for n in xrange(min_n, min(max_n + 1, n_tokens + 1)):
                 for i in xrange(n_tokens - n + 1):
-                    features.append(('%d-GRAM' % n, tuple(sentence[i: i + n])))
+                    features.append(DocumentFeature('%d-GRAM' % n, tuple(sentence[i: i + n])))
 
-        # extract sentence-internal adjective-noun compounds
-        for sentence in sentences:
-            for a, b in self._walk_pairwise(sentence):
-                if a.upper().endswith('/J') and b.upper().endswith('/N'):
-                    features.append(('AN', (a, b)))
+
+        #for sentence in sentences:
+        #    for a, b in self._walk_pairwise(sentence):
+        #        if a.upper().endswith('/J') and b.upper().endswith('/N'):
+        #            features.append(('AN', (a, b)))
 
         #return self.vector_source.accept_features(features)  # + last_chars + shapes
         return features  # + last_chars + shapes

@@ -11,20 +11,21 @@ from thesisgenerator.composers.vectorstore import CompositeVectorSource, Unigram
     UnigramDummyComposer, PrecomputedSimilaritiesVectorSource
 from thesisgenerator.plugins.bov import ThesaurusVectorizer
 from thesisgenerator.plugins.dumpers import FeatureVectorsCsvDumper
+from thesisgenerator.plugins.tokenizers import Token
 from thesisgenerator.utils.data_utils import load_text_data_into_memory, load_tokenizer, tokenize_data
 
 
 __author__ = 'mmb28'
 
 
-class TestVectorBackedSelectKBest(TestCase):
-    def _strip(self, mydict):
-        """{ ('1-GRAM', ('X',)) : int} -> {'X' : int}"""
-        for k, v in mydict.iteritems():
-            self.assertEquals(len(k), 2)
-        return {' '.join(k[1]): v for k, v in mydict.iteritems()}
+def strip(mydict):
+    """{ DocumentFeature('1-GRAM', ('X', 'Y',)) : int} -> {'X Y' : int}"""
+    return {feature.tokens_as_str(): count for feature, count in mydict.iteritems()}
 
+
+class TestVectorBackedSelectKBest(TestCase):
     def setUp(self):
+        self.maxDiff = None
         self.training_matrix_signifier_bigrams = np.array(
             [[1., 1., 0., 0., 1., 0., 1., 0., 1., 0.],
              [1., 1., 0., 0., 1., 0., 1., 0., 1., 0.],
@@ -59,7 +60,7 @@ class TestVectorBackedSelectKBest(TestCase):
         if delete_kid:
             # the set of vectors we load from disk covers all unigrams in the training set, which makes it boring
             # let's remove one entry
-            del unigrams_vectors.entry_index['kid/n']
+            del unigrams_vectors.entry_index[Token('kid', 'N')]
             unigrams_vectors.feature_matrix = unigrams_vectors.feature_matrix[:, :-1]
 
         pipeline_list = [
@@ -76,7 +77,7 @@ class TestVectorBackedSelectKBest(TestCase):
 
         tr_matrix, tr_voc = self.p.fit_transform(x_train, y_train, **fit_params)
         ev_matrix, ev_voc = self.p.transform(x_test)
-        return tr_matrix.A, self._strip(tr_voc), ev_matrix.A, self._strip(ev_voc)
+        return tr_matrix.A, strip(tr_voc), ev_matrix.A, strip(ev_voc)
 
     def test_unigrams_without_feature_selection(self):
         """
@@ -90,12 +91,12 @@ class TestVectorBackedSelectKBest(TestCase):
         tr_matrix, tr_voc, ev_matrix, ev_voc = self._do_feature_selection(False, 'all', vector_source=None)
         # should work without a vector source, because we use signified encoding only and no vector-based FS
         voc = {
-            'cat/n': 0,
-            'dog/n': 1,
-            'game/n': 2,
-            'kid/n': 3,
-            'like/v': 4,
-            'play/v': 5
+            'cat/N': 0,
+            'dog/N': 1,
+            'game/N': 2,
+            'kid/N': 3,
+            'like/V': 4,
+            'play/V': 5
         }
         self.assertDictEqual(tr_voc, ev_voc)
         self.assertDictEqual(tr_voc, voc)
@@ -119,12 +120,12 @@ class TestVectorBackedSelectKBest(TestCase):
         tr_matrix, tr_voc, ev_matrix, ev_voc = self._do_feature_selection(True, 'all', delete_kid=True)
 
         voc = {
-            'cat/n': 0,
-            'dog/n': 1,
-            'game/n': 2,
-            #'kid/n': 3, # removed because vector is missing, this happens in self._do_feature_selection
-            'like/v': 3,
-            'play/v': 4
+            'cat/N': 0,
+            'dog/N': 1,
+            'game/N': 2,
+            #'kid/N': 3, # removed because vector is missing, this happens in self._do_feature_selection
+            'like/V': 3,
+            'play/V': 4
         }
         self.assertDictEqual(tr_voc, voc)
         self.assertDictEqual(tr_voc, ev_voc)
@@ -152,12 +153,12 @@ class TestVectorBackedSelectKBest(TestCase):
         # feature scores at train time are [ 1.  1.  2.  2.  1.  2.]. These are provided by sklearn and I have not
         # verified them. Higher seems to be better (the textbook implementation of chi2 says lower is better)
         voc = {
-            #'cat/n': 0, # removed because their chi2 score is low
-            #'dog/n': 1,
-            'game/n': 0,
-            'kid/n': 1,
-            #'like/v': 4,
-            'play/v': 2
+            #'cat/N': 0, # removed because their chi2 score is low
+            #'dog/N': 1,
+            'game/N': 0,
+            'kid/N': 1,
+            #'like/V': 4,
+            'play/V': 2
         }
         self.assertDictEqual(tr_voc, voc)
         self.assertDictEqual(tr_voc, ev_voc)
@@ -182,12 +183,12 @@ class TestVectorBackedSelectKBest(TestCase):
 
         self.assertDictEqual(tr_voc, ev_voc)
         voc = {
-            #'cat/n': 0, # removed because of low chi2 score
-            #'dog/n': 1,  # removed because of low chi2 score
-            'game/n': 0,
-            #'kid/n': 3, # removed because vector is missing
-            #'like/v': 4,  # removed because of low chi2 score
-            'play/v': 1
+            #'cat/N': 0, # removed because of low chi2 score
+            #'dog/N': 1,  # removed because of low chi2 score
+            'game/N': 0,
+            #'kid/N': 3, # removed because vector is missing
+            #'like/V': 4,  # removed because of low chi2 score
+            'play/V': 1
         }
         # feature scores at train time are [ 1.  1.  2.  2.  1.  2.]
         self.assertDictEqual(tr_voc, voc)
@@ -213,16 +214,16 @@ class TestVectorBackedSelectKBest(TestCase):
 
         # vocabulary sorted by feature length and then alphabetically-- default behaviour of python's sorted()
         self.assertDictEqual(tr_voc,
-                             {'cat/n': 0,
-                              'dog/n': 1,
-                              'game/n': 2,
-                              'kid/n': 3,
-                              'like/v': 4,
-                              'play/v': 5,
-                              'cat/n like/v': 6,
-                              'kid/n play/v': 7,
-                              'like/v dog/n': 8,
-                              'play/v game/n': 9})
+                             {'cat/N': 0,
+                              'dog/N': 1,
+                              'game/N': 2,
+                              'kid/N': 3,
+                              'like/V': 4,
+                              'play/V': 5,
+                              'cat/N like/V': 6,
+                              'kid/N play/V': 7,
+                              'like/V dog/N': 8,
+                              'play/V game/N': 9})
 
         t.assert_array_equal(tr_matrix, self.training_matrix_signifier_bigrams)
 
@@ -237,16 +238,16 @@ class TestVectorBackedSelectKBest(TestCase):
 
         # feature scores are [ 1.  1.  2.  2.  1.  2.  1.  2.  1.  2.]
         self.assertDictEqual(tr_voc,
-                             {#'cat/n': 0, # removed because of low chi2-score
-                              #'dog/n': 1,
-                              'game/n': 0,
-                              'kid/n': 1,
-                              #'like/v': 4,
-                              'play/v': 2,
-                              #'cat/n like/v': 6,
-                              'kid/n play/v': 3,
-                              #'like/v dog/n': 8,
-                              'play/v game/n': 4})
+                             {#'cat/N': 0, # removed because of low chi2-score
+                              #'dog/N': 1,
+                              'game/N': 0,
+                              'kid/N': 1,
+                              #'like/V': 4,
+                              'play/V': 2,
+                              #'cat/N like/V': 6,
+                              'kid/N play/V': 3,
+                              #'like/V dog/N': 8,
+                              'play/V game/N': 4})
         t.assert_array_equal(tr_matrix, np.array([[0., 0., 0., 0., 0.],
                                                   [0., 0., 0., 0., 0.],
                                                   [1., 1., 1., 1., 1.]]))
@@ -261,7 +262,7 @@ class TestVectorBackedSelectKBest(TestCase):
         composer = PrecomputedSimilaritiesVectorSource(['thesisgenerator/resources/exp0-0a.strings'])
 
         # patch it to ensure it contains some bigram entries, as if they were calculated on the fly
-        composer.th['like/v fruit/n'] = [('like/v', 0.8)]
+        composer.th['like/V fruit/N'] = [('like/V', 0.8)]
         tr_matrix, tr_voc, ev_matrix, ev_voc = self._do_feature_selection(False, 'all', handler='SignifierSignified',
                                                                           vector_source=composer, max_feature_len=2)
         self.assertTupleEqual(ev_matrix.shape, (3, 10))
@@ -281,8 +282,14 @@ class TestVectorBackedSelectKBest(TestCase):
             # the columns are u'id', u'target', u'total_feat_weight', u'nonzero_feats', followed by feature vectors
             # check that we have the right number of columns
             self.assertEquals(len(df.columns), 4 + len(voc))
+
             # check that column names match the vocabulary (after stripping feature metadata)
-            self.assertDictEqual(voc, self._strip({eval(v): i for i, v in enumerate(df.columns[4:])}))
+            #self.assertDictEqual(voc,
+            #                     {' '.join(v.split('(')[1].split(')')[0].split(', ')): i
+            #                      for i, v in enumerate(df.columns[4:])})
+
+            # too much work to convert the strings back to a DocumentFeature object, just check the length
+            self.assertEquals(len(voc), len(df.columns[4:]))
             #check that feature vectors are written correctly
             t.assert_array_equal(matrix, df.ix[:, 4:].as_matrix())
             os.remove(filename)

@@ -46,7 +46,7 @@ class Thesaurus(dict):
                     # and pairs for (neighbour, similarity)
                         continue
                     if tokens[0] != FILTERED:
-                        to_insert = [(word.lower(), float(sim)) for
+                        to_insert = [(_lower_without_pos(word), float(sim)) for
                                      (word, sim)
                                      in
                                      _iterate_nonoverlapping_pairs(tokens, 1)
@@ -54,7 +54,7 @@ class Thesaurus(dict):
                                      word.lower() != FILTERED and
                                      float(sim) > self.sim_threshold]
                         if self.include_self:
-                            to_insert.insert(0, (tokens[0].lower(), 1.0))
+                            to_insert.insert(0, (_lower_without_pos(tokens[0]), 1.0))
                             # the step above may filter out all neighbours
                             # of an entry. if this happens, do not bother
                             # adding it
@@ -62,8 +62,8 @@ class Thesaurus(dict):
                             if tokens[0] in self:
                                 logging.error('Multiple entries for "%s" '
                                               'found' % tokens[0])
-                            key = tokens[0].lower()
-                            if not self.has_key(key):
+                            key = _lower_without_pos(tokens[0])
+                            if key not in self:
                                 self[key] = []
                             self[key].extend(to_insert)
 
@@ -71,6 +71,18 @@ class Thesaurus(dict):
                             #  has not already been lowercased- may result in
                             # multiple neighbour lists for the same entry
 
+
+def _lower_without_pos(word_with_pos):
+    """
+    Lowercase just the word and not its PoS tag
+    """
+    try:
+        word, pos = word_with_pos.split('/')
+    except ValueError:
+        # no pos
+        word, pos = word_with_pos, ''
+
+    return '/'.join([word.lower(), pos]) if pos else word.lower()
 
 # END OF CLASS
 def _iterate_nonoverlapping_pairs(iterable, beg):

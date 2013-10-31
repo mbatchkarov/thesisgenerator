@@ -12,6 +12,7 @@ from thesisgenerator.composers.vectorstore import PrecomputedSimilaritiesVectorS
 
 from thesisgenerator.plugins import tokenizers
 from thesisgenerator import __main__
+from thesisgenerator.tests.test_feature_selectors import strip
 from thesisgenerator.utils.data_utils import load_text_data_into_memory, tokenize_data
 
 
@@ -73,8 +74,8 @@ class TestThesaurusVectorizer(TestCase):
             [1, 1, 0],
             [0, 0, 1],
         ])
-        self.pruned_vocab = {'a/n': 0, 'b/n': 1, 'd/n': 2}
-        self.full_vocab = {'a/n': 0, 'b/n': 1, 'c/n': 2, 'd/n': 3, 'e/n': 4, 'f/n': 5}
+        self.pruned_vocab = {'a/N': 0, 'b/N': 1, 'd/N': 2}
+        self.full_vocab = {'a/N': 0, 'b/N': 1, 'c/N': 2, 'd/N': 3, 'e/N': 4, 'f/N': 5}
 
     def _load_data(self, prefix):
         """
@@ -109,7 +110,6 @@ class TestThesaurusVectorizer(TestCase):
         # self.x_tr, y_tr, x_test and y_test must have been initialised
         # also, self.tokenizer and self.thesaurus must have been initialised
         if vector_source:
-            #pipeline.named_steps['vect'].thesaurus_getter = thesaurus_getter
             self.vector_source = vector_source
 
         pipeline, fit_params = __main__._build_pipeline(
@@ -148,12 +148,6 @@ class TestThesaurusVectorizer(TestCase):
             if os.path.exists(f):
                 os.remove(f)
 
-    def _strip(self, mydict):
-        #{ ('1-GRAM', ('X',)) : int} -> {'X' : int}
-        for k, v in mydict.iteritems():
-            self.assertEquals(len(k), 2)
-        return {k[1][0]: v for k, v in mydict.iteritems()}
-
     def test_baseline_use_all_features_signifier_only_23(self):
         self.feature_extraction_conf['vocab_from_thes'] = False
         self._thesaurus_opts['thesaurus_files'] = \
@@ -164,10 +158,7 @@ class TestThesaurusVectorizer(TestCase):
             _load_data('thesisgenerator/resources/test-baseline')
 
         x1, x2, voc = self._vectorize_data()
-
-        self.assertDictEqual({'a/n': 0, 'b/n': 1, 'c/n': 2,
-                              'd/n': 3, 'e/n': 4, 'f/n': 5},
-                             self._strip(voc))
+        self.assertDictEqual(self.full_vocab, strip(voc))
 
         self.assertIsInstance(x1, sp.spmatrix)
         t.assert_array_equal(
@@ -193,7 +184,7 @@ class TestThesaurusVectorizer(TestCase):
 
         x1, x2, voc = self._vectorize_data()
 
-        self.assertDictEqual(self.pruned_vocab, self._strip(voc))
+        self.assertDictEqual(self.pruned_vocab, strip(voc))
 
         #self.assertIsInstance(x1, sp.spmatrix)
         t.assert_array_equal(
@@ -225,7 +216,7 @@ class TestThesaurusVectorizer(TestCase):
         x1, x2, voc = self._vectorize_data()
 
         self.assertDictEqual(self.full_vocab,
-                             self._strip(voc))
+                             strip(voc))
 
         self.assertIsInstance(x1, sp.spmatrix)
         t.assert_array_equal(
@@ -257,7 +248,7 @@ class TestThesaurusVectorizer(TestCase):
 
         x1, x2, voc = self._vectorize_data()
 
-        self.assertDictEqual(self.pruned_vocab, self._strip(voc))
+        self.assertDictEqual(self.pruned_vocab, strip(voc))
 
         self.assertIsInstance(x1, sp.spmatrix)
         t.assert_array_equal(
@@ -288,8 +279,7 @@ class TestThesaurusVectorizer(TestCase):
 
         x1, x2, voc = self._vectorize_data()
 
-        self.assertDictEqual(self.full_vocab,
-                             self._strip(voc))
+        self.assertDictEqual(self.full_vocab, strip(voc))
 
         self.assertIsInstance(x1, sp.spmatrix)
         t.assert_array_equal(
@@ -320,7 +310,7 @@ class TestThesaurusVectorizer(TestCase):
 
         x1, x2, voc = self._vectorize_data()
 
-        self.assertDictEqual(self.pruned_vocab, self._strip(voc))
+        self.assertDictEqual(self.pruned_vocab, strip(voc))
 
         self.assertIsInstance(x1, sp.spmatrix)
         t.assert_array_equal(
@@ -351,8 +341,7 @@ class TestThesaurusVectorizer(TestCase):
         source = ConstantNeighbourVectorSource()
         x1, x2, voc = self._vectorize_data(source)
 
-        self.assertDictEqual(self.full_vocab,
-                             self._strip(voc))
+        self.assertDictEqual(self.full_vocab, strip(voc))
 
         self.assertIsInstance(x1, sp.spmatrix)
         t.assert_array_equal(
@@ -369,7 +358,7 @@ class TestThesaurusVectorizer(TestCase):
             )
         )
         # the thesaurus will always say the neighbour for something is
-        #  b/n with a similarity of 1, and we look up 11 tokens overall in
+        #  b/N with a similarity of 1, and we look up 11 tokens overall in
         #  the test document
         source.vocab = voc
         x1, x2, voc = self._vectorize_data(source)
@@ -378,4 +367,4 @@ class TestThesaurusVectorizer(TestCase):
         # seven tokens will be looked up, with random in-vocabulary neighbours
         # returned each time. Std>0 shows that it's not the same thing
         # returned each time
-        print x2
+        #print x2
