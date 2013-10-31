@@ -10,18 +10,25 @@ from joblib import Parallel, delayed
 from numpy import hstack
 from sklearn.pipeline import Pipeline
 from thesisgenerator.composers.feature_selectors import VectorBackedSelectKBest, MetadataStripper
-from thesisgenerator.composers.vectorstore import UnigramVectorSource, UnigramDummyComposer, AdditiveComposer, CompositeVectorSource, MultiplicativeComposer
+from thesisgenerator.composers.vectorstore import UnigramVectorSource, UnigramDummyComposer, AdditiveComposer, \
+    CompositeVectorSource, MultiplicativeComposer, BaroniComposer, OxfordSvoComposer
 from thesisgenerator.plugins.bov import ThesaurusVectorizer
 from thesisgenerator.utils.data_utils import load_tokenizer, tokenize_data, load_text_data_into_memory
 
 
-def do_work(unigram_paths, composer_class):
+def do_work(unigram_paths, composer_class, data_paths, log_to_console=False):
     dataset = 'wiki' if 'wiki' in unigram_paths[0] else 'gigaw'
-    composer_method = composer_class.__name__[:4]
-    logging.basicConfig(filename='bigram_%s_%s.log' % (dataset, composer_method),
-                        level=logging.INFO,
-                        format="%(asctime)s\t%(module)s.%(funcName)s ""(line %(lineno)d)\t%(levelname)s : %(""message)s"
+    #composer_method = composer_class.__name__[:4]
+    composer_method = 'bar_svo_unigr'
+
+    params = dict(
+        filename='bigram_%s_%s.log' % (dataset, composer_method),
+        level=logging.INFO,
+        format="%(asctime)s\t%(module)s.%(funcName)s ""(line %(lineno)d)\t%(levelname)s : %(""message)s"
     )
+    if log_to_console:
+        del params['filename']
+    logging.basicConfig(**params)
 
 
     # todo should take a directory containing a thesaurus so that we can read vectors from events file and modify
@@ -29,13 +36,16 @@ def do_work(unigram_paths, composer_class):
     unigram_source = UnigramVectorSource(unigram_paths, reduce_dimensionality=False)
     composers = [
         UnigramDummyComposer(unigram_source),
-        composer_class(unigram_source)
+        BaroniComposer(unigram_source),
+        OxfordSvoComposer(unigram_source),
+        #composer_class(unigram_source)
     ]
     vector_source = CompositeVectorSource(composers, 0, False)
 
+    train, test = data_paths
     raw_data, data_ids = load_text_data_into_memory(
-        training_path='sample-data/reuters21578/r8train-tagged-grouped',
-        test_path='sample-data/reuters21578/r8test-tagged-grouped',
+        training_path=train,
+        test_path=test,
         shuffle_targets=False
     )
 
@@ -64,12 +74,16 @@ def do_work(unigram_paths, composer_class):
     }
     _ = p.fit_transform(x_tr + x_ev, y=hstack([y_tr, y_ev]), **fit_args)
 
-    p.steps[2][1].vector_source.dump_vectors('bigram_%s_%s.vectors.tsv' % (dataset, composer_method),
-                                             'bigram_%s_%s.entries.txt' % (dataset, composer_method),
+    p.steps[2][1].vector_source.write_vectors_to_disk('bigram_%s_%s.vectors.tsv' % (dataset, composer_method),
+                                                      'bigram_%s_%s.entries.txt' % (dataset, composer_method),
                                              'bigram_%s_%s.features.txt' % (dataset, composer_method))
 
 
 if __name__ == '__main__':
+    """
+    Call with any command-line parameters to enable debug mode
+    """
+
     giga_paths = [
         '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/exp6-12a/exp6.events.strings',
         '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/exp6-12b/exp6.events.strings',
@@ -86,5 +100,18 @@ if __name__ == '__main__':
 
     composers = [AdditiveComposer, MultiplicativeComposer]
     paths = [giga_paths, wiki_paths]
+    n_jobs = 4
+    data_paths = ('sample-data/reuters21578/r8train-tagged-grouped',
+                  'sample-data/reuters21578/r8test-tagged-grouped')
 
-    Parallel(n_jobs=2)(delayed(do_work)(path, composer) for composer, path in product(composers, paths))
+    debug = len(sys.argv) > 1
+    if debug:
+        #giga_paths.pop(0)
+        #giga_paths.pop(0)
+        #wiki_paths.pop(-1)
+        #wiki_paths.pop(-1)
+        n_jobs = 1
+        data_paths = ['%s-small' % corpus_path for corpus_path in data_paths]
+
+    Parallel(n_jobs=n_jobs)(delayed(do_work)(path, composer, data_paths, log_to_console=debug)
+                            for composer, path in product(composers, paths))
