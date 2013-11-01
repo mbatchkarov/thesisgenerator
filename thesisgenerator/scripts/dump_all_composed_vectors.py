@@ -5,18 +5,17 @@ sys.path.append('.')
 sys.path.append('..')
 sys.path.append('../..')
 
-from itertools import product
 from joblib import Parallel, delayed
 from numpy import hstack
 from sklearn.pipeline import Pipeline
 from thesisgenerator.composers.feature_selectors import VectorBackedSelectKBest, MetadataStripper
-from thesisgenerator.composers.vectorstore import UnigramVectorSource, UnigramDummyComposer, AdditiveComposer, \
-    CompositeVectorSource, MultiplicativeComposer, BaroniComposer, OxfordSvoComposer
+from thesisgenerator.composers.vectorstore import UnigramVectorSource, UnigramDummyComposer, \
+    CompositeVectorSource, BaroniComposer, OxfordSvoComposer
 from thesisgenerator.plugins.bov import ThesaurusVectorizer
 from thesisgenerator.utils.data_utils import load_tokenizer, tokenize_data, load_text_data_into_memory
 
 
-def do_work(unigram_paths, composer_class, data_paths, log_to_console=False):
+def do_work(unigram_paths, data_paths, log_to_console=False):
     dataset = 'wiki' if 'wiki' in unigram_paths[0] else 'gigaw'
     #composer_method = composer_class.__name__[:4]
     composer_method = 'bar_svo_unigr'
@@ -76,7 +75,7 @@ def do_work(unigram_paths, composer_class, data_paths, log_to_console=False):
 
     p.steps[2][1].vector_source.write_vectors_to_disk('bigram_%s_%s.vectors.tsv' % (dataset, composer_method),
                                                       'bigram_%s_%s.entries.txt' % (dataset, composer_method),
-                                             'bigram_%s_%s.features.txt' % (dataset, composer_method))
+                                                      'bigram_%s_%s.features.txt' % (dataset, composer_method))
 
 
 if __name__ == '__main__':
@@ -98,11 +97,11 @@ if __name__ == '__main__':
         '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/wikipedia_t100/wiki_t100f100_nouns_deps/wikipedia_nounsdeps_t100.pbfiltered.events.strings',
     ]
 
-    composers = [AdditiveComposer, MultiplicativeComposer]
-    paths = [giga_paths, wiki_paths]
+    #composers = [AdditiveComposer, MultiplicativeComposer]
+    vector_paths = [giga_paths, wiki_paths]
     n_jobs = 4
-    data_paths = ('sample-data/reuters21578/r8train-tagged-grouped',
-                  'sample-data/reuters21578/r8test-tagged-grouped')
+    data_path = ('sample-data/reuters21578/r8train-tagged-grouped',
+                 'sample-data/reuters21578/r8test-tagged-grouped')
 
     debug = len(sys.argv) > 1
     if debug:
@@ -111,7 +110,7 @@ if __name__ == '__main__':
         #wiki_paths.pop(-1)
         #wiki_paths.pop(-1)
         n_jobs = 1
-        data_paths = ['%s-small' % corpus_path for corpus_path in data_paths]
+        data_path = ['%s-small' % corpus_path for corpus_path in data_path]
 
-    Parallel(n_jobs=n_jobs)(delayed(do_work)(path, composer, data_paths, log_to_console=debug)
-                            for composer, path in product(composers, paths))
+    Parallel(n_jobs=n_jobs)(delayed(do_work)(vectors_path, data_path, log_to_console=debug)
+                            for vectors_path in vector_paths)
