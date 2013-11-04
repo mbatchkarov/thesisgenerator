@@ -224,8 +224,9 @@ class XmlTokenizer(object):
         # build a graph from the dependency information available in the input
         tokens_ids = set(x.index for x in tokens)
         dep_tree = nx.DiGraph()
-        basic_dependencies = tree.find('basic-dependencies')
+        basic_dependencies = tree.find('.//basic-dependencies')
         if not basic_dependencies:
+            logging.info('Cant find dependency info in sentence %s', tree.text)
             return tokens, (dep_tree, None)
 
         for dep in basic_dependencies.findall('.//dep'):

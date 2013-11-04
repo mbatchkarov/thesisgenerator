@@ -22,7 +22,7 @@ def do_work(unigram_paths, data_paths, log_to_console=False):
 
     params = dict(
         filename='bigram_%s_%s.log' % (dataset, composer_method),
-        level=logging.INFO,
+        level=logging.DEBUG,
         format="%(asctime)s\t%(module)s.%(funcName)s ""(line %(lineno)d)\t%(levelname)s : %(""message)s"
     )
     if log_to_console:
