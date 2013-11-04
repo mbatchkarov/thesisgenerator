@@ -60,7 +60,7 @@ def do_work(unigram_paths, data_paths, log_to_console=False):
     tokenised_data = tokenize_data(raw_data, tokenizer, data_ids)
 
     p = Pipeline([
-        ('vect', ThesaurusVectorizer(ngram_range=(1, 2), min_df=1, use_tfidf=False)),
+        ('vect', ThesaurusVectorizer(ngram_range=(0, 0), min_df=1, use_tfidf=False)),
         ('fs', VectorBackedSelectKBest(ensure_vectors_exist=True)),
         ('stripper', MetadataStripper())
     ])
