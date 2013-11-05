@@ -260,7 +260,7 @@ class CompositeVectorSource(VectorSource):
          ('AN', ('tough/J', 'stance/N')),
          ('AN', ('year-ago/J', 'period/N'))
         """
-        logging.debug('Populating vector space with vocabulary %s', vocabulary)
+        logging.debug('Populating vector space with algorithm %s and vocabulary %s', algorithm, vocabulary)
         logging.debug('Composer mapping is %s', self.composer_mapping)
         vectors = [c._get_vector(f.tokens)
                    for f in vocabulary

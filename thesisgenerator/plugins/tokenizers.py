@@ -227,28 +227,28 @@ class XmlTokenizer(object):
         dep_tree = nx.DiGraph()
 
         basic_dependencies = tree.find('.//basic-dependencies')
-        if not basic_dependencies:
+        if basic_dependencies:
+            for dep in basic_dependencies.findall('.//dep'):
+                type = dep.get('type')
+                head = dep.find('governor')
+                head_idx = int(head.get('idx'))
+                #head_txt = head.text
+
+                dependent = dep.find('dependent')
+                dependent_idx = int(dependent.get('idx'))
+                #dependent_txt = dependent.text
+                if dependent_idx in tokens_ids and head_idx in tokens_ids:
+                    dep_tree.add_edge(head_idx, dependent_idx, type=type)
+                    #a=nx.draw(dep_tree, nx.graphviz_layout(dep_tree,prog='dot'), font_size=8, node_size=500,
+                    #          edge_labels = [x[2]['type'] for x in dep_tree.edges(data=True)])
+                    #import matplotlib.pyplot as plt
+                    #plt.savefig("atlas.png",dpi=275)
+        else:
             t = ET.ElementTree(tree)
             s = StringIO()
             t.write(s)
             logging.info('Cant find dependency info in sentence: \n %s', s.getvalue())
-            #    return tokens, (dep_tree, None)
 
-        for dep in basic_dependencies.findall('.//dep'):
-            type = dep.get('type')
-            head = dep.find('governor')
-            head_idx = int(head.get('idx'))
-            #head_txt = head.text
-
-            dependent = dep.find('dependent')
-            dependent_idx = int(dependent.get('idx'))
-            #dependent_txt = dependent.text
-            if dependent_idx in tokens_ids and head_idx in tokens_ids:
-                dep_tree.add_edge(head_idx, dependent_idx, type=type)
-                #a=nx.draw(dep_tree, nx.graphviz_layout(dep_tree,prog='dot'), font_size=8, node_size=500,
-                #          edge_labels = [x[2]['type'] for x in dep_tree.edges(data=True)])
-                #import matplotlib.pyplot as plt
-                #plt.savefig("atlas.png",dpi=275)
         return tokens, (dep_tree, {t.index: t for t in tokens})
 
     def tokenize_doc(self, doc, **kwargs):
