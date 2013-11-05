@@ -126,6 +126,9 @@ class MetadataStripper(BaseEstimator, TransformerMixin):
      defensive checks
     """
 
+    def __init__(self, nn_algorithm='ball_tree'):
+        self.nn_algorithm = nn_algorithm
+
     def fit(self, X, y, vector_source=None):
         matrix, voc = X
         self.vector_source = vector_source
@@ -133,7 +136,7 @@ class MetadataStripper(BaseEstimator, TransformerMixin):
         if self.vector_source:
             logging.info('Populating vector source %s prior to transform', self.vector_source)
             logging.info('Using %d vocabulary entries ', len(voc))
-            self.vector_source.populate_vector_space(voc.keys())
+            self.vector_source.populate_vector_space(voc.keys(), algorithm=self.nn_algorithm)
             try:
                 logging.debug('The BallTree is %s', vector_source.nbrs)
             except AttributeError:

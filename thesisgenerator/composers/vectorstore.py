@@ -6,7 +6,7 @@ from random import choice
 
 from operator import itemgetter
 from scipy.spatial.distance import cosine
-from sklearn.neighbors import BallTree
+from sklearn.neighbors import NearestNeighbors
 import numpy as np
 import scipy.sparse as sp
 from scipy.sparse import vstack
@@ -248,7 +248,7 @@ class CompositeVectorSource(VectorSource):
     def __contains__(self, feature):
         return any(feature in c for c in self.composers)
 
-    def populate_vector_space(self, vocabulary):
+    def populate_vector_space(self, vocabulary, algorithm='ball_tree'):
         #todo the exact data structure used here will need optimisation
         """
         Input is like:
@@ -275,7 +275,7 @@ class CompositeVectorSource(VectorSource):
         #assert len(feature_list) == self.feature_matrix.shape[0]
         #todo BallTree/KDTree only work with dense inputs
         #self.nbrs = KDTree(n_neighbors=1, algorithm='kd_tree').fit(self.feature_matrix)
-        self.nbrs = BallTree(self.feature_matrix.A, metric=cosine)
+        self.nbrs = NearestNeighbors(metric=cosine, algorithm=algorithm, n_neighbors=2).fit(self.feature_matrix.A)
         logging.debug('Done building BallTree')
         return self.nbrs
 
@@ -329,7 +329,7 @@ class CompositeVectorSource(VectorSource):
         """
         res = []
         for comp_name, vector in self._get_vector(feature):
-            distances, indices = self.nbrs.query(vector, k=2, return_distance=True)
+            distances, indices = self.nbrs.kneighbors(vector, return_distance=True)
 
             for dist, ind in zip(distances[0, :], indices[0, :]):
                 similarity = 1 - dist
@@ -394,7 +394,7 @@ class PrecomputedSimilaritiesVectorSource(CompositeVectorSource):
         # todo this needs to be removed from the interface of this class
         return self.th.keys()
 
-    def populate_vector_space(self, vocabulary):
+    def populate_vector_space(self, vocabulary, algorithm=None):
         #nothing to do, we have the all-pairs sim matrix already
         pass
 
@@ -426,7 +426,7 @@ class ConstantNeighbourVectorSource(VectorSource):
                 )
             ]
 
-    def populate_vector_space(self, thing):
+    def populate_vector_space(self, thing, algorithm=None):
         pass
 
 
