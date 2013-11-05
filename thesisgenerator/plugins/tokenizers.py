@@ -1,4 +1,5 @@
 # coding=utf-8
+from StringIO import StringIO
 from collections import defaultdict
 from copy import deepcopy
 from functools import total_ordering
@@ -224,10 +225,14 @@ class XmlTokenizer(object):
         # build a graph from the dependency information available in the input
         tokens_ids = set(x.index for x in tokens)
         dep_tree = nx.DiGraph()
+
         basic_dependencies = tree.find('.//basic-dependencies')
-        #if not basic_dependencies:
-        #    logging.info('Cant find dependency info in sentence %s', tree.text)
-        #    return tokens, (dep_tree, None)
+        if not basic_dependencies:
+            t = ET.ElementTree(tree)
+            s = StringIO()
+            t.write(s)
+            logging.info('Cant find dependency info in sentence: \n %s', s.getvalue())
+            #    return tokens, (dep_tree, None)
 
         for dep in basic_dependencies.findall('.//dep'):
             type = dep.get('type')
