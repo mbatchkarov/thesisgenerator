@@ -70,28 +70,28 @@ def run_byblo(conf_file):
     run_and_log_output('./byblo.sh @{}'.format(conf_file))
 
 
-def unindex_all_byblo_vectors(infile_name):
+def unindex_all_byblo_vectors(outfile_name):
     """
     unindexes byblo's vector files to a string representation
 
-    :param infile_name: the name of the input file used when these vector files were produced
+    :param outfile_name: the name of the input file used when these vector files were produced
     """
     run_and_log_output(
         './tools.sh unindex-events -i {0}.events.filtered -o {0}.events.filtered.strings '
-        '-Xe {0}.entry-index -Xf {0}.feature-index -et JDBM'.format(infile_name))
+        '-Xe {0}.entry-index -Xf {0}.feature-index -et JDBM'.format(outfile_name))
     run_and_log_output(
         './tools.sh unindex-features -et JDBM  -i {0}.features.filtered  '
-        '-o {0}.features.filtered.strings  -Xf {0}.feature-index -Ef'.format(infile_name))
+        '-o {0}.features.filtered.strings  -Xf {0}.feature-index -Ef'.format(outfile_name))
     run_and_log_output(
         './tools.sh unindex-entries -et JDBM  -i {0}.entries.filtered  '
-        '-o {0}.entries.filtered.strings  -Xe {0}.entry-index -Ee'.format(infile_name))
+        '-o {0}.entries.filtered.strings  -Xe {0}.entry-index -Ee'.format(outfile_name))
 
 
-def reindex_all_byblo_vectors(infile_name):
+def reindex_all_byblo_vectors(output_prefix):
     """rebuild index from a string representation"""
     run_and_log_output('./tools.sh index-features -et JDBM  -i {0}.features.filtered.strings  '
-                       '-o {0}.features.filtered -Xf {0}.feature-index'.format(infile_name))
+                       '-o {0}.features.filtered -Xf {0}.feature-index'.format(output_prefix))
     run_and_log_output('./tools.sh index-entries -et JDBM  -i {0}.entries.filtered.strings '
-                       '-o {0}.entries.filtered -Xe {0}.entry-index'.format(infile_name))
+                       '-o {0}.entries.filtered -Xe {0}.entry-index'.format(output_prefix))
     run_and_log_output('./tools.sh index-events -et JDBM -i {0}.events.filtered.strings '
-                       '-o {0}.events.filtered -Xe {0}.entry-index -Xf {0}.feature-index'.format(infile_name))
+                       '-o {0}.events.filtered -Xe {0}.entry-index -Xf {0}.feature-index'.format(output_prefix))

@@ -1,4 +1,5 @@
 import logging
+import os
 import sys
 
 sys.path.append('.')
@@ -15,10 +16,23 @@ from thesisgenerator.plugins.bov import ThesaurusVectorizer
 from thesisgenerator.utils.data_utils import load_tokenizer, tokenize_data, load_text_data_into_memory
 
 
-def do_work(unigram_paths, data_paths, log_to_console=False):
-    dataset = 'wiki' if 'wiki' in unigram_paths[0] else 'gigaw'
-    #composer_method = composer_class.__name__[:4]
-    composer_method = 'bar_svo_unigr'
+def write_vectors(unigram_paths, data_paths, output_dir='.', log_to_console=False):
+    if 'wiki' in unigram_paths[0]:
+        dataset = 'wiki'
+    elif '7head' in unigram_paths[0]:
+        dataset = '7head'
+    else:
+        dataset = 'gigaw'
+        #composer_method = composer_class.__name__[:4]
+    composer_method = 'bar_svo'
+
+    output_files = ('bigram_%s_%s.vectors.tsv' % (dataset, composer_method),
+                    'bigram_%s_%s.entries.txt' % (dataset, composer_method),
+                    'bigram_%s_%s.features.txt' % (dataset, composer_method))
+    output_files = [os.path.join(output_dir, x) for x in output_files]
+
+    if all(os.path.exists(f) for f in output_files):
+        return output_files
 
     params = dict(
         filename='bigram_%s_%s.log' % (dataset, composer_method),
@@ -73,35 +87,41 @@ def do_work(unigram_paths, data_paths, log_to_console=False):
     }
     _ = p.fit_transform(x_tr + x_ev, y=hstack([y_tr, y_ev]), **fit_args)
 
-    p.steps[2][1].vector_source.write_vectors_to_disk('bigram_%s_%s.vectors.tsv' % (dataset, composer_method),
-                                                      'bigram_%s_%s.entries.txt' % (dataset, composer_method),
-                                                      'bigram_%s_%s.features.txt' % (dataset, composer_method))
+    p.steps[2][1].vector_source.write_vectors_to_disk(*output_files)
+    return output_files
 
+
+giga_paths = [
+    '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/exp6-12a/exp6.events.strings',
+    '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/exp6-12b/exp6.events.strings',
+    '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/exp6-12c/exp6.events.strings',
+    '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/exp6-12d/exp6.events.strings'
+]
+
+wiki_paths = [
+    '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/wikipedia_t100/wiki_t100f100_adjs_deps/wikipedia_adjsdeps_t100.pbfiltered.events.strings',
+    '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/wikipedia_t100/wiki_t100f100_advs_deps/wikipedia_advsdeps_t100.pbfiltered.events.strings',
+    '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/wikipedia_t100/wiki_t100f100_verbs_deps/wikipedia_verbsdeps_t100.pbfiltered.events.strings',
+    '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/wikipedia_t100/wiki_t100f100_nouns_deps/wikipedia_nounsdeps_t100.pbfiltered.events.strings',
+]
+
+toy_paths = [
+    '/Volumes/LocalDataHD/mmb28/NetBeansProjects/Byblo-2.2.0/sample-data/7head.txt.events.filtered.strings'
+]
+
+n_jobs = 4
+data_path = ('/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data/reuters21578/r8train-tagged-grouped',
+             '/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data/reuters21578/r8test-tagged-grouped')
 
 if __name__ == '__main__':
     """
     Call with any command-line parameters to enable debug mode
     """
 
-    giga_paths = [
-        '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/exp6-12a/exp6.events.strings',
-        '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/exp6-12b/exp6.events.strings',
-        '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/exp6-12c/exp6.events.strings',
-        '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/exp6-12d/exp6.events.strings'
-    ]
-
-    wiki_paths = [
-        '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/wikipedia_t100/wiki_t100f100_adjs_deps/wikipedia_adjsdeps_t100.pbfiltered.events.strings',
-        '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/wikipedia_t100/wiki_t100f100_advs_deps/wikipedia_advsdeps_t100.pbfiltered.events.strings',
-        '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/wikipedia_t100/wiki_t100f100_verbs_deps/wikipedia_verbsdeps_t100.pbfiltered.events.strings',
-        '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/wikipedia_t100/wiki_t100f100_nouns_deps/wikipedia_nounsdeps_t100.pbfiltered.events.strings',
-    ]
 
     #composers = [AdditiveComposer, MultiplicativeComposer]
-    vector_paths = [giga_paths, wiki_paths]
-    n_jobs = 4
-    data_path = ('sample-data/reuters21578/r8train-tagged-grouped',
-                 'sample-data/reuters21578/r8test-tagged-grouped')
+    #vector_paths = [giga_paths, wiki_paths]
+    vector_paths = [toy_paths]
 
     debug = len(sys.argv) > 1
     if debug:
@@ -112,5 +132,8 @@ if __name__ == '__main__':
         n_jobs = 1
         data_path = ['%s-small' % corpus_path for corpus_path in data_path]
 
-    Parallel(n_jobs=n_jobs)(delayed(do_work)(vectors_path, data_path, log_to_console=debug)
-                            for vectors_path in vector_paths)
+    output_files = Parallel(n_jobs=n_jobs)(delayed(write_vectors)(vectors_path, data_path, log_to_console=debug)
+                                           for vectors_path in vector_paths)
+    for vectors, entries, features in output_files:
+        print vectors, entries, features
+
