@@ -72,17 +72,23 @@ class Thesaurus(dict):
                             # multiple neighbour lists for the same entry
 
 
-def _lower_without_pos(word_with_pos):
+def _lower_without_pos(words_with_pos):
     """
-    Lowercase just the word and not its PoS tag
+    Lowercase just the words and not theis PoS tags
     """
-    try:
-        word, pos = word_with_pos.split('/')
-    except ValueError:
-        # no pos
-        word, pos = word_with_pos, ''
+    unigrams = words_with_pos.split(' ')
+    words = []
 
-    return '/'.join([word.lower(), pos]) if pos else word.lower()
+    for unigram in unigrams:
+        try:
+            word, pos = unigram.split('/')
+        except ValueError:
+            # no pos
+            word, pos = words_with_pos, ''
+
+        words.append('/'.join([word.lower(), pos]) if pos else word.lower())
+
+    return ' '.join(words)
 
 # END OF CLASS
 def _iterate_nonoverlapping_pairs(iterable, beg):
