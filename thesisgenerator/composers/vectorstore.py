@@ -314,7 +314,8 @@ class CompositeVectorSource(VectorSource):
         feature_sums = np.array(m.sum(axis=0))[0, :]
         with open(features_path, 'w') as outfile:
             for feature, count in zip(sorted_voc, feature_sums):
-                outfile.write('%s\t%d\n' % (feature, count))
+                if count > 0:
+                    outfile.write('%s\t%d\n' % (feature, count))
         logging.info('Done writing to disk')
 
     def _get_vector(self, feature):
