@@ -294,7 +294,7 @@ class CompositeVectorSource(VectorSource):
         sorted_voc = np.array([x[0] for x in sorted(voc.iteritems(), key=itemgetter(1))])
         m = self.feature_matrix
         things = zip(m.row, m.col, m.data)
-        with open(vectors_path, 'w') as outfile:
+        with open(vectors_path, 'wb') as outfile:
             w = csv.writer(outfile, delimiter='\t')
             for row, group in groupby(things, lambda x: x[0]):
                 feature = self.entry_index[row]
