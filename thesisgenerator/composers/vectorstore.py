@@ -248,7 +248,7 @@ class CompositeVectorSource(VectorSource):
     def __contains__(self, feature):
         return any(feature in c for c in self.composers)
 
-    def populate_vector_space(self, vocabulary, algorithm='ball_tree'):
+    def populate_vector_space(self, vocabulary, algorithm='ball_tree', build_tree=True):
         #todo the exact data structure used here will need optimisation
         """
         Input is like:
@@ -268,15 +268,17 @@ class CompositeVectorSource(VectorSource):
                    if f.type in self.composer_mapping and f in c]
 
         self.feature_matrix = vstack(vectors)
-        logging.debug('Building BallTree for matrix of size %s', self.feature_matrix.shape)
         feature_list = [f for f in vocabulary for _ in self.composer_mapping[f.type]]
         #todo test if this entry index is correct
         self.entry_index = {i: ngram for i, ngram in enumerate(feature_list)}
         #assert len(feature_list) == self.feature_matrix.shape[0]
         #todo BallTree/KDTree only work with dense inputs
-        #self.nbrs = KDTree(n_neighbors=1, algorithm='kd_tree').fit(self.feature_matrix)
-        self.nbrs = NearestNeighbors(metric=cosine, algorithm=algorithm, n_neighbors=2).fit(self.feature_matrix.A)
-        logging.debug('Done building BallTree')
+
+        if build_tree:
+            logging.debug('Building BallTree for matrix of size %s', self.feature_matrix.shape)
+            #self.nbrs = KDTree(n_neighbors=1, algorithm='kd_tree').fit(self.feature_matrix)
+            self.nbrs = NearestNeighbors(metric=cosine, algorithm=algorithm, n_neighbors=2).fit(self.feature_matrix.A)
+            logging.debug('Done building BallTree')
         return self.nbrs
 
     def write_vectors_to_disk(self, vectors_path, new_entries_path, features_path):
@@ -394,7 +396,7 @@ class PrecomputedSimilaritiesVectorSource(CompositeVectorSource):
         # todo this needs to be removed from the interface of this class
         return self.th.keys()
 
-    def populate_vector_space(self, vocabulary, algorithm=None):
+    def populate_vector_space(self, *args, **kwargs):
         #nothing to do, we have the all-pairs sim matrix already
         pass
 
@@ -426,7 +428,7 @@ class ConstantNeighbourVectorSource(VectorSource):
                 )
             ]
 
-    def populate_vector_space(self, thing, algorithm=None):
+    def populate_vector_space(self, *args, **kwargs):
         pass
 
 

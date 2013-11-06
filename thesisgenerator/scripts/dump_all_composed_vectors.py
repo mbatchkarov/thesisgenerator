@@ -62,7 +62,7 @@ def do_work(unigram_paths, data_paths, log_to_console=False):
     p = Pipeline([
         ('vect', ThesaurusVectorizer(ngram_range=(0, 0), min_df=1, use_tfidf=False)),
         ('fs', VectorBackedSelectKBest(ensure_vectors_exist=True)),
-        ('stripper', MetadataStripper(nn_algorithm='brute'))
+        ('stripper', MetadataStripper(nn_algorithm='brute', build_tree=False))
     ])
     x_tr, y_tr, x_ev, y_ev = tokenised_data
 
