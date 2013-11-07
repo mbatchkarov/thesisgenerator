@@ -47,7 +47,8 @@ class UnigramVectorSource(VectorSource):
         thesaurus = Thesaurus(
             thesaurus_files=unigram_paths,
             sim_threshold=0,
-            include_self=False)
+            include_self=False,
+            aggressive_lowercasing=False)
 
         v = DictVectorizer(sparse=True, dtype=np.int32)
 
@@ -74,7 +75,7 @@ class UnigramVectorSource(VectorSource):
         try:
             row = self.entry_index[tokens[0]]
             if len(tokens) > 1:
-                logging.warn('Attemting to get unigram vector of n-gram %r', tokens)
+                logging.warn('Attempting to get unigram vector of n-gram %r', tokens)
         except KeyError:
             return None
         return self.feature_matrix[row, :]
@@ -288,21 +289,21 @@ class CompositeVectorSource(VectorSource):
         """
         logging.info('Writing all features to disk to %s', vectors_path)
         voc = self.composers[0].unigram_source.distrib_features_vocab
-        import csv
 
         new_byblo_entries = {}
         sorted_voc = np.array([x[0] for x in sorted(voc.iteritems(), key=itemgetter(1))])
         m = self.feature_matrix
         things = zip(m.row, m.col, m.data)
         with open(vectors_path, 'wb') as outfile:
-            w = csv.writer(outfile, delimiter='\t')
             for row, group in groupby(things, lambda x: x[0]):
                 feature = self.entry_index[row]
                 if feature.type != '1-GRAM':
                     ngrams_and_counts = [(sorted_voc[x[1]], x[2]) for x in group]
                     #logging.info(feature)
-                    # todo the document feature needs to be written to the entries.filtered.strings of Byblo
-                    w.writerow([feature.tokens_as_str()] + list(chain.from_iterable(ngrams_and_counts)))
+                    outfile.write('%s\t%s\n' % (
+                        feature.tokens_as_str(),
+                        '\t'.join(map(str, chain.from_iterable(ngrams_and_counts)))
+                    ))
                     new_byblo_entries[feature.tokens_as_str()] = sum(x[1] for x in ngrams_and_counts)
                 if row % 100 == 0:
                     logging.info('Processed %d vectors', row)

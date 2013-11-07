@@ -1,7 +1,7 @@
 # coding=utf-8
 from unittest import TestCase
 from thesisgenerator.plugins import thesaurus_loader
-from thesisgenerator.plugins.thesaurus_loader import _iterate_nonoverlapping_pairs, _lower_without_pos
+from thesisgenerator.plugins.thesaurus_loader import _iterate_nonoverlapping_pairs, _smart_lower
 
 __author__ = 'mmb28'
 
@@ -69,10 +69,14 @@ class TestLoad_thesauri(TestCase):
                     self.assertNotEqual(entry, neighbours[0][0])
                     self.assertGreaterEqual(1, neighbours[0][1])
 
-    def test_lower_without_pos(self):
-        self.assertEquals(_lower_without_pos('Cat/N'), 'cat/N')
-        self.assertEquals(_lower_without_pos('Cat/n'), 'cat/n')
-        self.assertEquals(_lower_without_pos('Red/J CaT/N'), 'red/J cat/N')
+    def test_smart_lower(self):
+        # test that the PoS of an n-gram entry is not lowercased
+        self.assertEquals(_smart_lower('Cat/N'), 'cat/N')
+        self.assertEquals(_smart_lower('Cat/n'), 'cat/n')
+        self.assertEquals(_smart_lower('Red/J CaT/N'), 'red/J cat/N')
+
+        # test that features are not touched
+        self.assertEquals(_smart_lower('amod-DEP:former', aggressive_lowercasing=False), 'amod-DEP:former')
 
     def test_iterate_nonoverlapping_pairs(self):
         inp = [0, 1, 2, 3, 4, 5, 6, 7, 8]

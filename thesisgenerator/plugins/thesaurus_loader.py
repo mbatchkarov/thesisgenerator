@@ -3,12 +3,16 @@ import logging
 
 
 class Thesaurus(dict):
-    def __init__(self, thesaurus_files='', sim_threshold=0, include_self=False):
+    def __init__(self, thesaurus_files='', sim_threshold=0, include_self=False, aggressive_lowercasing=True):
+        """
+        :param aggressive_lowercasing: if true, most of what is read will be lowercased (excluding PoS tags), so
+        Cat/N -> cat/N. This is desirable when reading full thesauri with this class. If False, no lowercasing
+        will take place. This might be desirable when readings feature lists
+        """
         self.thesaurus_files = thesaurus_files
         self.sim_threshold = sim_threshold
         self.include_self = include_self
-        # make this class act like a defaultdict(list)
-        #self.default_factory = list
+        self.aggressive_lowercasing = aggressive_lowercasing
 
         self._read_from_disk()
 
@@ -46,15 +50,13 @@ class Thesaurus(dict):
                     # and pairs for (neighbour, similarity)
                         continue
                     if tokens[0] != FILTERED:
-                        to_insert = [(_lower_without_pos(word), float(sim)) for
-                                     (word, sim)
-                                     in
+                        to_insert = [(_smart_lower(word, self.aggressive_lowercasing), float(sim))
+                                     for (word, sim) in
                                      _iterate_nonoverlapping_pairs(tokens, 1)
-                                     if
-                                     word.lower() != FILTERED and
-                                     float(sim) > self.sim_threshold]
+                                     if word.lower() != FILTERED and
+                                        float(sim) > self.sim_threshold]
                         if self.include_self:
-                            to_insert.insert(0, (_lower_without_pos(tokens[0]), 1.0))
+                            to_insert.insert(0, (_smart_lower(tokens[0]), 1.0))
                             # the step above may filter out all neighbours
                             # of an entry. if this happens, do not bother
                             # adding it
@@ -62,7 +64,7 @@ class Thesaurus(dict):
                             if tokens[0] in self:
                                 logging.error('Multiple entries for "%s" '
                                               'found' % tokens[0])
-                            key = _lower_without_pos(tokens[0])
+                            key = _smart_lower(tokens[0], self.aggressive_lowercasing)
                             if key not in self:
                                 self[key] = []
                             self[key].extend(to_insert)
@@ -72,13 +74,15 @@ class Thesaurus(dict):
                             # multiple neighbour lists for the same entry
 
 
-def _lower_without_pos(words_with_pos):
+def _smart_lower(words_with_pos, aggressive_lowercasing=True):
     """
     Lowercase just the words and not theis PoS tags
     """
+    if not aggressive_lowercasing:
+        return words_with_pos
+
     unigrams = words_with_pos.split(' ')
     words = []
-
     for unigram in unigrams:
         try:
             word, pos = unigram.split('/')
