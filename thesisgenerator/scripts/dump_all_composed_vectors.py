@@ -1,3 +1,4 @@
+from itertools import chain
 import logging
 import os
 import sys
@@ -25,14 +26,6 @@ def write_vectors(unigram_paths, data_paths, output_dir='.', log_to_console=Fals
         dataset = 'gigaw'
         #composer_method = composer_class.__name__[:4]
     composer_method = 'bar_svo'
-
-    output_files = ('bigram_%s_%s.vectors.tsv' % (dataset, composer_method),
-                    'bigram_%s_%s.entries.txt' % (dataset, composer_method),
-                    'bigram_%s_%s.features.txt' % (dataset, composer_method))
-    output_files = [os.path.join(output_dir, x) for x in output_files]
-
-    if all(os.path.exists(f) for f in output_files):
-        return output_files
 
     params = dict(
         filename='bigram_%s_%s.log' % (dataset, composer_method),
@@ -87,8 +80,16 @@ def write_vectors(unigram_paths, data_paths, output_dir='.', log_to_console=Fals
     }
     _ = p.fit_transform(x_tr + x_ev, y=hstack([y_tr, y_ev]), **fit_args)
 
-    p.steps[2][1].vector_source.write_vectors_to_disk(*output_files)
-    return output_files
+    all_files = []
+    for feature_type in ['AN', 'SVO', 'VO']:
+        output_files = ('%s_%s_%s.vectors.tsv' % (feature_type, dataset, composer_method),
+                        '%s_%s_%s.entries.txt' % (feature_type, dataset, composer_method),
+                        '%s_%s_%s.features.txt' % (feature_type, dataset, composer_method))
+        output_files = [os.path.join(output_dir, x) for x in output_files]
+
+        p.steps[2][1].vector_source.write_vectors_to_disk(*chain(output_files, [feature_type]))
+        all_files.append(output_files)
+    return all_files
 
 
 giga_paths = [

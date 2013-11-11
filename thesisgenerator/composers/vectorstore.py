@@ -282,7 +282,7 @@ class CompositeVectorSource(VectorSource):
             logging.debug('Done building BallTree')
         return self.nbrs
 
-    def write_vectors_to_disk(self, vectors_path, new_entries_path, features_path):
+    def write_vectors_to_disk(self, vectors_path, new_entries_path, features_path, feature_type):
         """
         Writes out the vectors, entries and features for all non-unigram features of this vector space to a
         Byblo-compatible file
@@ -294,29 +294,32 @@ class CompositeVectorSource(VectorSource):
         sorted_voc = np.array([x[0] for x in sorted(voc.iteritems(), key=itemgetter(1))])
         m = self.feature_matrix
         things = zip(m.row, m.col, m.data)
+        selected_rows = []
         with open(vectors_path, 'wb') as outfile:
             for row, group in groupby(things, lambda x: x[0]):
                 feature = self.entry_index[row]
-                if feature.type != '1-GRAM':
+                if feature.type == feature_type:
+                    selected_rows.append(row)
                     ngrams_and_counts = [(sorted_voc[x[1]], x[2]) for x in group]
                     #logging.info(feature)
                     outfile.write('%s\t%s\n' % (
                         feature.tokens_as_str(),
                         '\t'.join(map(str, chain.from_iterable(ngrams_and_counts)))
                     ))
-                    new_byblo_entries[feature.tokens_as_str()] = sum(x[1] for x in ngrams_and_counts)
+                    new_byblo_entries[feature] = sum(x[1] for x in ngrams_and_counts)
                 if row % 100 == 0:
                     logging.info('Processed %d vectors', row)
 
         with open(new_entries_path, 'w') as outfile:
             for entry, count in new_byblo_entries.iteritems():
-                outfile.write('%s\t%d\n' % (entry, count))
+                outfile.write('%s\t%d\n' % (entry.tokens_as_str(), count))
 
-        feature_sums = np.array(m.sum(axis=0))[0, :]
         with open(features_path, 'w') as outfile:
-            for feature, count in zip(sorted_voc, feature_sums):
-                if count > 0:
-                    outfile.write('%s\t%d\n' % (feature, count))
+            if selected_rows: # guard agains empty files
+                feature_sums = np.array(m.tocsr()[selected_rows].sum(axis=0))[0, :]
+                for feature, count in zip(sorted_voc, feature_sums):
+                    if count > 0:
+                        outfile.write('%s\t%d\n' % (feature, count))
         logging.info('Done writing to disk')
 
     def _get_vector(self, feature):
