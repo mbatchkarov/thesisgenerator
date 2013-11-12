@@ -46,6 +46,32 @@ class DocumentFeature(object):
         self.type = type
         self.tokens = tokens
 
+    @classmethod
+    def from_string(cls, string):
+        """
+        Takes a string representing a DocumentFeature and creates and object out of it. String format is
+        "word/POS" or "word1/PoS1 word2/PoS2",... The type of the feature will be inferred from the length and
+        PoS tags of the input string. Currently supports 1-GRAM, AN, SVO and SV.
+
+        :type string: str
+        """
+        tokens = string.strip().split(' ')
+        if len(tokens) > 3:
+            raise ValueError('Unrecognised document feature %s' % string)
+        words = [x.split('/') for x in tokens]
+        tokens = tuple(Token(word, pos) for (word, pos) in words)
+
+        if len(tokens) == 1:
+            t = '1-GRAM'
+        elif ''.join([t.pos for t in tokens]) == 'NVN':
+            t = 'SVO'
+        elif ''.join([t.pos for t in tokens]) == 'JN':
+            t = 'AN'
+        elif ''.join([t.pos for t in tokens]) == 'VN':
+            t = 'VO'
+
+        return DocumentFeature(t, tokens)
+
     def tokens_as_str(self):
         """
         Represents the features of this document as a human-readable string

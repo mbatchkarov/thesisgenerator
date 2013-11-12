@@ -386,9 +386,9 @@ class PrecomputedSimilaritiesVectorSource(CompositeVectorSource):
         # put structural info back in
         return [(
                     'Byblo',
-                    (
-                        DocumentFeature('1-GRAM', (Token(*x[0].split('/')),)),
-                        x[1]
+                    (# create a DocumentFeature object based on the string provided by thesaurus
+                     DocumentFeature.from_string(x[0]),
+                     x[1]
                     )
                 )
                 for x in res] if res else []

@@ -2,7 +2,7 @@
 from unittest import TestCase
 from joblib import Memory
 from thesisgenerator.classifiers import NoopTransformer
-from thesisgenerator.plugins.tokenizers import XmlTokenizer, Token
+from thesisgenerator.plugins.tokenizers import XmlTokenizer, Token, DocumentFeature
 
 try:
     import xml.etree.cElementTree as ET
@@ -238,3 +238,18 @@ class Test_tokenizer(TestCase):
 
         self.assertFalse(is_number('asdf'))
         # todo tests for dependency-parsed input data
+
+    def test_document_feature_from_string(self):
+        x = DocumentFeature.from_string('big/J cat/N')
+        y = DocumentFeature('AN', (Token('big', 'J'), Token('cat', 'N')))
+        self.assertEqual(y, x)
+
+        self.assertEqual(
+            DocumentFeature('1-GRAM', (Token('cat', 'N'), )),
+            DocumentFeature.from_string('cat/N ')
+        )
+
+        self.assertEqual(
+            DocumentFeature('SVO', (Token('dog', 'N'), Token('chase', 'V'), Token('cat', 'N'))),
+            DocumentFeature.from_string('dog/N chase/V cat/N')
+        )
