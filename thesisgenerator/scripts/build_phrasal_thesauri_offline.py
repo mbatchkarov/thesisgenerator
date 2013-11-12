@@ -6,9 +6,10 @@ sys.path.append('.')
 sys.path.append('..')
 sys.path.append('../..')
 from glob import glob
+from shutil import copytree, rmtree
 from thesisgenerator.plugins.thesaurus_loader import Thesaurus
 from thesisgenerator.utils.cmd_utils import set_stage_in_byblo_conf_file, run_byblo, parse_byblo_conf_file, \
-    reindex_all_byblo_vectors, run_and_log_output, unindex_all_byblo_vectors
+    reindex_all_byblo_vectors, run_and_log_output, unindex_all_byblo_vectors, set_output_in_byblo_conf_file
 from thesisgenerator.scripts import dump_all_composed_vectors as dump
 
 
@@ -64,21 +65,35 @@ def _find_conf_file(thesaurus_dir):
     return glob(os.path.join(thesaurus_dir, '*conf*'))[0]
 
 
+def _find_allpairs_file(thesaurus_dir):
+    return glob(os.path.join(thesaurus_dir, '*sims.neighbours.strings'))[0]
+
+
 def _find_output_prefix(thesaurus_dir):
     return os.path.commonprefix(glob(os.path.join(thesaurus_dir, '*filtered*')))[:-1]
 
 
-def do_second_part(thesaurus_dir, feature_type=None):
-    thes_prefix = _find_output_prefix(thesaurus_dir)
-    byblo_conf_file = _find_conf_file(thesaurus_dir)
+def do_second_part(thesaurus_dir, add_feature_type=None):
+    if add_feature_type:
+        # if entries are to be added, make a copy of the entire output of the first stage so
+        # that the unmodified thesaurus can still be built
+        tweaked_vector_files = _find_new_files(add_feature_type, ngram_vectors_dir)
+        new_thes_dir = thesaurus_dir + '-ngrams'
+        if os.path.exists(new_thes_dir):
+            rmtree(new_thes_dir) # copytree will fail if target exists
+        copytree(thesaurus_dir, new_thes_dir)
+        thesaurus_dir = new_thes_dir
+        add_new_vectors(new_thes_dir, *tweaked_vector_files)
 
-    if feature_type:
-        tweaked_vector_files = _find_new_files(feature_type, ngram_vectors_dir)
-        add_new_vectors(thesaurus_dir, *tweaked_vector_files)
         # restore indices from strings
+        thes_prefix = _find_output_prefix(new_thes_dir)
         reindex_all_byblo_vectors(thes_prefix)
 
     # re-run all-pairs similarity
+    # first change output prefix in conf file, in case the if-statement above has made a new working directory
+    byblo_conf_file = _find_conf_file(thesaurus_dir)
+    # tell byblo to only do the later stages
+    set_output_in_byblo_conf_file(byblo_conf_file, thesaurus_dir)
     set_stage_in_byblo_conf_file(byblo_conf_file, 2)
     run_byblo(byblo_conf_file)
     set_stage_in_byblo_conf_file(byblo_conf_file, 0)
@@ -91,7 +106,7 @@ if __name__ == '__main__':
     byblo_base_dir = '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/Byblo-2.2.0/' # trailing slash required
 
     thesaurus_dirs = [
-        os.path.join(byblo_base_dir, '..', 'exp6-12%s' % x) for x in 'abcd'
+        os.path.abspath(os.path.join(byblo_base_dir, '..', 'exp6-12%s' % x)) for x in 'abcd'
     ]
 
     ngram_vectors_dir = os.path.join(byblo_base_dir, '..', 'exp6-12-ngrams')
@@ -116,18 +131,26 @@ if __name__ == '__main__':
                        log_to_console=True,
                        output_dir=ngram_vectors_dir)
 
-    # add AN phrases to noun thesaurus, SVO to verb thesaurus, and rebuild
-    do_second_part(thesaurus_dirs[0], feature_type='AN') # nouns
-    do_second_part(thesaurus_dirs[1], feature_type='SVO') # verbs
+    ## add AN phrases to noun thesaurus, SVO to verb thesaurus, and rebuild
+    do_second_part(thesaurus_dirs[0], add_feature_type='AN') # nouns with ngrams
+    do_second_part(thesaurus_dirs[0]) # nouns
+    do_second_part(thesaurus_dirs[1]) # verbs
+    do_second_part(thesaurus_dirs[1], add_feature_type='SVO') # verbs with ngrams
     #do_second_part('VO', thesaurus_dirs[1])
     do_second_part(thesaurus_dirs[2]) # adjectives
     do_second_part(thesaurus_dirs[3]) # adverbs
 
-    thesaurus = Thesaurus(['{}.sims.neighbours.strings'.format(_find_output_prefix(thesaurus_dirs[0]))])
-    print thesaurus.get('expand/V force/N')
-    print thesaurus.get('military/J force/N')
-    print thesaurus.get('thursday/N')
+    for thesaurus in [
+        Thesaurus([_find_allpairs_file(thesaurus_dirs[0])]),
+        Thesaurus([_find_allpairs_file(thesaurus_dirs[0] + '-ngrams')])]:
+        print thesaurus.get('thursday/N')
+        print thesaurus.get('expand/V force/N')
+        print thesaurus.get('military/J force/N')
+        print '--------------------'
 
-    thesaurus = Thesaurus(['{}.sims.neighbours.strings'.format(_find_output_prefix(thesaurus_dirs[1]))])
-    print thesaurus.get('think/V')
-    print thesaurus.get('center/N sign/V agreement/N')
+    for thesaurus in [
+        Thesaurus([_find_allpairs_file(thesaurus_dirs[1])]),
+        Thesaurus([_find_allpairs_file(thesaurus_dirs[1] + '-ngrams')])]:
+        print thesaurus.get('think/V')
+        print thesaurus.get('center/N sign/V agreement/N')
+        print '--------------------'
