@@ -1,8 +1,21 @@
 import inspect
+from itertools import tee, izip
 from configobj import ConfigObj
 from thesisgenerator.utils.reflection_utils import get_named_object
 
 __author__ = 'mmb28'
+
+
+def _walk_pairwise(iterable):
+    """
+    s -> (s0,s1), (s1,s2), (s2, s3), ...
+
+    From http://docs.python.org/2/library/itertools.html
+    """
+
+    a, b = tee(iterable)
+    next(b, None)
+    return izip(a, b)
 
 
 def get_susx_mysql_conn():

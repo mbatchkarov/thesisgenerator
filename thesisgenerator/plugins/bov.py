@@ -1,6 +1,5 @@
 # coding=utf-8
 from collections import defaultdict
-from itertools import izip, tee
 import logging
 import array
 import scipy.sparse as sp
@@ -120,17 +119,6 @@ class ThesaurusVectorizer(TfidfVectorizer):
         #    logging.info('Populating vector source %s prior to transform', self.vector_source)
         #    self.vector_source.populate_vector_space(self.vocabulary_.keys())
         return super(ThesaurusVectorizer, self).transform(raw_documents), self.vocabulary_
-
-    def _walk_pairwise(self, iterable):
-        """
-        s -> (s0,s1), (s1,s2), (s2, s3), ...
-
-        From http://docs.python.org/2/library/itertools.html
-        """
-
-        a, b = tee(iterable)
-        next(b, None)
-        return izip(a, b)
 
     def _extract_features_from_dependency_tree(self, features, parse_tree, token_indices):
         # extract sentence-internal adjective-noun compounds

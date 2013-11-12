@@ -48,6 +48,7 @@ class Thesaurus(dict):
                     if len(tokens) % 2 == 0:
                     # must have an odd number of things, one for the entry
                     # and pairs for (neighbour, similarity)
+                        logging.warn('Dodgy line in thesaurus file: %s\n %s', path, line)
                         continue
                     if tokens[0] != FILTERED:
                         to_insert = [(_smart_lower(word, self.aggressive_lowercasing), float(sim))
