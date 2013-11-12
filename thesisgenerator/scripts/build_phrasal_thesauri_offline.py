@@ -52,17 +52,6 @@ def add_new_vectors(thesaurus_dir, composed_vectors, composed_entries, composed_
                 logging.debug('Ignoring duplicate feature %s with count %s', feature, count)
 
 
-def rebuild_thesaurus(byblo_output_prefix, byblo_conf_file):
-    # restore indices from strings
-    reindex_all_byblo_vectors(byblo_output_prefix)
-
-    # re-run all-pairs similarity
-    set_stage_in_byblo_conf_file(byblo_conf_file, 2)
-
-    run_byblo(byblo_conf_file)
-    set_stage_in_byblo_conf_file(byblo_conf_file, 0)
-
-
 def _find_new_files(feature_type, directory):
     res = \
         glob(os.path.join(directory, '%s*vectors.tsv' % feature_type))[0], \
@@ -79,11 +68,20 @@ def _find_output_prefix(thesaurus_dir):
     return os.path.commonprefix(glob(os.path.join(thesaurus_dir, '*filtered*')))[:-1]
 
 
-def do_second_part(feature_type, thesaurus_dir):
-    tweaked_vector_files = _find_new_files(feature_type, ngram_vectors_dir)
-    add_new_vectors(thesaurus_dir, *tweaked_vector_files)
+def do_second_part(thesaurus_dir, feature_type=None):
     thes_prefix = _find_output_prefix(thesaurus_dir)
-    rebuild_thesaurus(thes_prefix, _find_conf_file(thesaurus_dir))
+    byblo_conf_file = _find_conf_file(thesaurus_dir)
+
+    if feature_type:
+        tweaked_vector_files = _find_new_files(feature_type, ngram_vectors_dir)
+        add_new_vectors(thesaurus_dir, *tweaked_vector_files)
+        # restore indices from strings
+        reindex_all_byblo_vectors(thes_prefix)
+
+    # re-run all-pairs similarity
+    set_stage_in_byblo_conf_file(byblo_conf_file, 2)
+    run_byblo(byblo_conf_file)
+    set_stage_in_byblo_conf_file(byblo_conf_file, 0)
 
 
 if __name__ == '__main__':
@@ -119,9 +117,11 @@ if __name__ == '__main__':
                        output_dir=ngram_vectors_dir)
 
     # add AN phrases to noun thesaurus, SVO to verb thesaurus, and rebuild
-    do_second_part('AN', thesaurus_dirs[0])
-    do_second_part('SVO', thesaurus_dirs[1])
+    do_second_part(thesaurus_dirs[0], feature_type='AN') # nouns
+    do_second_part(thesaurus_dirs[1], feature_type='SVO') # verbs
     #do_second_part('VO', thesaurus_dirs[1])
+    do_second_part(thesaurus_dirs[2]) # adjectives
+    do_second_part(thesaurus_dirs[3]) # adverbs
 
     thesaurus = Thesaurus(['{}.sims.neighbours.strings'.format(_find_output_prefix(thesaurus_dirs[0]))])
     print thesaurus.get('expand/V force/N')
