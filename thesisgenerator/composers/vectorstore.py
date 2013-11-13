@@ -1,5 +1,5 @@
 from abc import ABCMeta, abstractmethod
-from collections import defaultdict, OrderedDict
+from collections import defaultdict
 from itertools import chain, groupby
 import logging
 from random import choice
@@ -239,12 +239,12 @@ class CompositeVectorSource(VectorSource):
 
         self.nbrs, self.feature_matrix, entry_index = [None] * 3     # computed by self.build_peripheral_space()
         self.composers = composers
-        self.composer_mapping = OrderedDict()
-        tmp = defaultdict(set) # feature type -> {composer object}
+        self.composer_mapping = defaultdict(set) # feature type -> {composer object}
+        #tmp = OrderedDict()
         for c in self.composers:
             for p in c.feature_pattern:
-                tmp[p].add(c)
-        self.composer_mapping.update(tmp)
+                self.composer_mapping[p].add(c)
+                #self.composer_mapping.update(tmp)
 
     def __contains__(self, feature):
         return any(feature in c for c in self.composers)
