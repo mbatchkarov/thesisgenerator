@@ -1,7 +1,8 @@
 # coding=utf-8
 from unittest import TestCase
 from thesisgenerator.plugins import thesaurus_loader
-from thesisgenerator.plugins.thesaurus_loader import _iterate_nonoverlapping_pairs, _smart_lower
+from thesisgenerator.plugins.thesaurus_loader import _smart_lower
+from thesisgenerator.utils.misc import walk_nonoverlapping_pairs
 
 __author__ = 'mmb28'
 
@@ -80,5 +81,5 @@ class TestLoad_thesauri(TestCase):
 
     def test_iterate_nonoverlapping_pairs(self):
         inp = [0, 1, 2, 3, 4, 5, 6, 7, 8]
-        output1 = [x for x in _iterate_nonoverlapping_pairs(inp, 1)]
+        output1 = [x for x in walk_nonoverlapping_pairs(inp, 1)]
         self.assertListEqual([(1, 2), (3, 4), (5, 6), (7, 8)], output1)

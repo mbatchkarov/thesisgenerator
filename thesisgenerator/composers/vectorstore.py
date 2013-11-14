@@ -10,7 +10,6 @@ from sklearn.neighbors import NearestNeighbors
 import numpy as np
 import scipy.sparse as sp
 from scipy.sparse import vstack
-from sklearn.feature_extraction import DictVectorizer
 from sklearn.random_projection import SparseRandomProjection
 
 from thesisgenerator.plugins.thesaurus_loader import Thesaurus
@@ -50,16 +49,11 @@ class UnigramVectorSource(VectorSource):
             include_self=False,
             aggressive_lowercasing=False)
 
-        v = DictVectorizer(sparse=True, dtype=np.int32)
-
         # distributional features of each unigram in the loaded file
-        self.feature_matrix = v.fit_transform([dict(fv) for fv in thesaurus.itervalues()])
+        self.feature_matrix, self.distrib_features_vocab, _ = thesaurus.to_sparse_matrix()
 
         # Token -> row number in self.feature_matrix that holds corresponding vector
         self.entry_index = {Token(*fv.split('/')): i for (i, fv) in enumerate(thesaurus.keys())}
-
-        # the set of all distributional features, for unit testing only
-        self.distrib_features_vocab = v.vocabulary_
 
         self.available_pos = set(t.pos for t in self.entry_index.keys())
         if reduce_dimensionality:

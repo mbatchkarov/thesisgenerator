@@ -35,16 +35,8 @@ class TestUnigramVectorSource(TestCase):
         )
 
         # vocab is in sorted order
-        self.assertDictEqual(
-            {'also/RB': 0,
-             'amod:c': 1,
-             'now/RB': 2,
-             't:t1': 3,
-             't:t2': 4,
-             't:t3': 5,
-             't:t4': 6,
-             't:t5': 7,
-            },
+        self.assertListEqual(
+            ['also/RB', 'amod:c', 'now/RB', 't:t1', 't:t2', 't:t3', 't:t4', 't:t5', ],
             self.source.distrib_features_vocab)
 
         self.assertIsNone(self.source._get_vector('jfhjgjdfyjhgb'))
