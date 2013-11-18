@@ -93,10 +93,10 @@ def write_vectors(unigram_paths, data_paths, output_dir='.', log_to_console=Fals
 
 
 giga_paths = [
-    '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/exp6-12a/exp6.events.strings',
-    '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/exp6-12b/exp6.events.strings',
-    '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/exp6-12c/exp6.events.strings',
-    '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/exp6-12d/exp6.events.strings'
+    '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/exp6-12a/exp6.events.filtered.strings',
+    '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/exp6-12b/exp6.events.filtered.strings',
+    '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/exp6-12c/exp6.events.filtered.strings',
+    '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/exp6-12d/exp6.events.filtered.strings'
 ]
 
 wiki_paths = [
@@ -122,7 +122,8 @@ if __name__ == '__main__':
 
     #composers = [AdditiveComposer, MultiplicativeComposer]
     #vector_paths = [giga_paths, wiki_paths]
-    vector_paths = [toy_paths]
+    #vector_paths = [toy_paths]
+    vector_paths = [giga_paths]
 
     debug = len(sys.argv) > 1
     if debug:
@@ -131,7 +132,7 @@ if __name__ == '__main__':
         #wiki_paths.pop(-1)
         #wiki_paths.pop(-1)
         n_jobs = 1
-        data_path = ['%s-small' % corpus_path for corpus_path in data_path]
+        #data_path = ['%s-small' % corpus_path for corpus_path in data_path]
 
     output_files = Parallel(n_jobs=n_jobs)(delayed(write_vectors)(vectors_path, data_path, log_to_console=debug)
                                            for vectors_path in vector_paths)

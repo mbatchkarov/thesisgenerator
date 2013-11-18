@@ -1,16 +1,15 @@
 from abc import ABCMeta, abstractmethod
 from collections import defaultdict
-from itertools import chain, groupby
 import logging
 from random import choice
 
 from operator import itemgetter
 from scipy.spatial.distance import cosine
 from sklearn.neighbors import NearestNeighbors
-import numpy as np
 import scipy.sparse as sp
 from scipy.sparse import vstack
 from sklearn.random_projection import SparseRandomProjection
+from thesisgenerator.composers import utils
 
 from thesisgenerator.plugins.thesaurus_loader import Thesaurus
 from thesisgenerator.plugins.tokenizers import DocumentFeature, Token
@@ -263,9 +262,9 @@ class CompositeVectorSource(VectorSource):
                    if f.type in self.composer_mapping and f in c]
 
         self.feature_matrix = vstack(vectors)
-        feature_list = [f for f in vocabulary for _ in self.composer_mapping[f.type]]
+        self.entry_index = [f for f in vocabulary for _ in self.composer_mapping[f.type]]
         #todo test if this entry index is correct
-        self.entry_index = {i: ngram for i, ngram in enumerate(feature_list)}
+        #self.entry_index = {i: ngram for i, ngram in enumerate(feature_list)}
         #assert len(feature_list) == self.feature_matrix.shape[0]
         #todo BallTree/KDTree only work with dense inputs
 
@@ -276,6 +275,7 @@ class CompositeVectorSource(VectorSource):
             logging.debug('Done building BallTree')
         return self.nbrs
 
+
     def write_vectors_to_disk(self, vectors_path, new_entries_path, features_path, feature_type):
         """
         Writes out the vectors, entries and features for all non-unigram features of this vector space to a
@@ -283,37 +283,11 @@ class CompositeVectorSource(VectorSource):
         """
         logging.info('Writing all features to disk to %s', vectors_path)
         voc = self.composers[0].unigram_source.distrib_features_vocab
-
-        new_byblo_entries = {}
-        sorted_voc = np.array([x[0] for x in sorted(voc.iteritems(), key=itemgetter(1))])
         m = self.feature_matrix
-        things = zip(m.row, m.col, m.data)
-        selected_rows = []
-        with open(vectors_path, 'wb') as outfile:
-            for row, group in groupby(things, lambda x: x[0]):
-                feature = self.entry_index[row]
-                if feature.type == feature_type:
-                    selected_rows.append(row)
-                    ngrams_and_counts = [(sorted_voc[x[1]], x[2]) for x in group]
-                    #logging.info(feature)
-                    outfile.write('%s\t%s\n' % (
-                        feature.tokens_as_str(),
-                        '\t'.join(map(str, chain.from_iterable(ngrams_and_counts)))
-                    ))
-                    new_byblo_entries[feature] = sum(x[1] for x in ngrams_and_counts)
-                if row % 100 == 0:
-                    logging.info('Processed %d vectors', row)
+        entry_index = self.entry_index
 
-        with open(new_entries_path, 'w') as outfile:
-            for entry, count in new_byblo_entries.iteritems():
-                outfile.write('%s\t%d\n' % (entry.tokens_as_str(), count))
-
-        with open(features_path, 'w') as outfile:
-            if selected_rows: # guard agains empty files
-                feature_sums = np.array(m.tocsr()[selected_rows].sum(axis=0))[0, :]
-                for feature, count in zip(sorted_voc, feature_sums):
-                    if count > 0:
-                        outfile.write('%s\t%d\n' % (feature, count))
+        utils.write_vectors_to_disk(m, entry_index, voc, features_path, new_entries_path, vectors_path,
+                                    entry_filter=lambda x: x.type == feature_type)
         logging.info('Done writing to disk')
 
     def _get_vector(self, feature):

@@ -1,5 +1,8 @@
 # coding=utf-8
 import logging
+
+import numpy
+
 from thesisgenerator.utils.misc import walk_nonoverlapping_pairs
 
 
@@ -114,7 +117,7 @@ class Thesaurus(dict):
             for feature in sorted(columns):
                 outfile.write('{}\n'.format(feature))
 
-    def to_sparse_matrix(self, row_transform=None):
+    def to_sparse_matrix(self, row_transform=None, dtype=numpy.float):
         """
         Converts the vectors held in this object to a scipy sparse matrix
         :return: a tuple containing
@@ -124,9 +127,8 @@ class Thesaurus(dict):
         :rtype: tuple
         """
         from sklearn.feature_extraction import DictVectorizer
-        import numpy as np
 
-        self.v = DictVectorizer(sparse=True, dtype=np.int32)
+        self.v = DictVectorizer(sparse=True, dtype=dtype)
         # todo unit test this! v.vocabulary must equal columns of self.export_to_dissect_sparse
 
         # order in which rows are iterated is not guaranteed if the dict if modified, but we're not doing that,
