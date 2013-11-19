@@ -46,6 +46,8 @@ def do_work(vector_file_paths,
         sorted_idx_and_pos_matching = sorted_idx_by_sum[row_of_current_pos]
         # slice off the top desired_count and store them
         pos_to_rows[desired_pos] = sorted_idx_and_pos_matching[-desired_count:]
+        logging.info('Frequency filter keeping %d/%d %s entries ', desired_count,
+                     sum(row_of_current_pos), desired_pos)
     desired_rows = np.sort(np.hstack(x for x in pos_to_rows.values()))
 
     # check that the pos tag of each selected entry is what we think it is
@@ -57,7 +59,8 @@ def do_work(vector_file_paths,
     rows = np.array(rows)[desired_rows]
     pos_tags = pos_tags[desired_rows]
 
-    # removing rows may empty some columns, remove these as well
+    # removing rows may empty some columns, remove these as well. This is probably not very like to occur as we have
+    # already filtered out infrequent features, so the column count will stay roughly the same
     desired_cols = np.ravel(mat.sum(0)) > 0
     mat = mat[:, desired_cols]
     cols = np.array(cols)[desired_cols]
