@@ -18,9 +18,10 @@ logging.basicConfig(level=logging.INFO,
 
 
 def do_work(vector_file_paths,
-            word_limits=[('N', 8000), ('V', 4000), ('J', 4000), ('RB', 2000)],
-            reduce_to=[300, 1000, 5000]):
+            word_limits=[('N', 8), ('V', 4), ('J', 4), ('RB', 2)],
+            reduce_to=[3, 10, 15]):
     thesaurus = Thesaurus(vector_file_paths)
+    logging.info('Converting thesaurus to sparse matrix')
     mat, cols, rows = thesaurus.to_sparse_matrix()
     logging.info('Loaded a data matrix of shape %r', mat.shape)
 
@@ -100,4 +101,6 @@ def do_work(vector_file_paths,
 
 
 if __name__ == '__main__':
-    do_work(dump.giga_paths)
+    do_work(dump.giga_paths,
+            word_limits=[('N', 8000), ('V', 4000), ('J', 4000), ('RB', 200)],
+            reduce_to=[300, 1000, 5000])
