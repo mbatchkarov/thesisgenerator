@@ -17,7 +17,7 @@ from thesisgenerator.plugins.bov import ThesaurusVectorizer
 from thesisgenerator.utils.data_utils import load_tokenizer, tokenize_data, load_text_data_into_memory
 
 
-def write_vectors(unigram_paths, data_paths, output_dir='.', log_to_console=False):
+def write_vectors(unigram_paths, data_paths, output_dir='.', log_to_console=False, composer_method='bar'):
     if 'wiki' in unigram_paths[0]:
         dataset = 'wiki'
     elif '7head' in unigram_paths[0]:
@@ -25,7 +25,6 @@ def write_vectors(unigram_paths, data_paths, output_dir='.', log_to_console=Fals
     else:
         dataset = 'gigaw'
         #composer_method = composer_class.__name__[:4]
-    composer_method = 'bar_svo'
 
     params = dict(
         filename='bigram_%s_%s.log' % (dataset, composer_method),

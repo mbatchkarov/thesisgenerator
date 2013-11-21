@@ -73,17 +73,19 @@ def _find_output_prefix(thesaurus_dir):
     return os.path.commonprefix(glob(os.path.join(thesaurus_dir, '*filtered*')))[:-1]
 
 
-def do_second_part(thesaurus_dir, add_feature_type=None):
+def do_second_part(thesaurus_dir, add_feature_type=[]):
     if add_feature_type:
         # if entries are to be added, make a copy of the entire output of the first stage so
         # that the unmodified thesaurus can still be built
-        tweaked_vector_files = _find_new_files(add_feature_type, ngram_vectors_dir)
-        new_thes_dir = thesaurus_dir + '-ngrams'
+        new_thes_dir = thesaurus_dir + '-with-ngrams'
         if os.path.exists(new_thes_dir):
             rmtree(new_thes_dir) # copytree will fail if target exists
         copytree(thesaurus_dir, new_thes_dir)
         thesaurus_dir = new_thes_dir
-        add_new_vectors(new_thes_dir, *tweaked_vector_files)
+
+        for feature_type in add_feature_type:
+            tweaked_vector_files = _find_new_files(feature_type, ngram_vectors_dir)
+            add_new_vectors(new_thes_dir, *tweaked_vector_files)
 
         # restore indices from strings
         thes_prefix = _find_output_prefix(new_thes_dir)
@@ -105,8 +107,11 @@ if __name__ == '__main__':
 
     byblo_base_dir = '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/Byblo-2.2.0/' # trailing slash required
 
+    #thesaurus_dirs = [
+    #    os.path.abspath(os.path.join(byblo_base_dir, '..', 'exp6-12%s' % x)) for x in 'abcd'
+    #]
     thesaurus_dirs = [
-        os.path.abspath(os.path.join(byblo_base_dir, '..', 'exp6-12%s' % x)) for x in 'abcd'
+        os.path.abspath(os.path.join(byblo_base_dir, '..', 'exp6-12'))
     ]
 
     ngram_vectors_dir = os.path.join(byblo_base_dir, '..', 'exp6-12-ngrams')
@@ -114,43 +119,35 @@ if __name__ == '__main__':
         os.mkdir(ngram_vectors_dir)
 
     os.chdir(byblo_base_dir)
-    for thesaurus_dir in thesaurus_dirs:
-        calculate_unigram_vectors(thesaurus_dir)
+    #for thesaurus_dir in thesaurus_dirs:
+    #    calculate_unigram_vectors(thesaurus_dir)
 
     # mess with vectors, add to/modify entries and events files
     # whether to modify the features file is less obvious- do composed entries have different features
     # to the non-composed ones?
-    tweaked_vector_files = [
-        os.path.join(byblo_base_dir, 'sample-data', 'output', 'bigram_7head_bar_svo.vectors.tsv'),
-        os.path.join(byblo_base_dir, 'sample-data', 'output', 'bigram_7head_bar_svo.entries.txt'),
-        os.path.join(byblo_base_dir, 'sample-data', 'output', 'bigram_7head_bar_svo.features.txt')]
-
     event_files = [glob(os.path.join(dir, '*events.filtered.strings'))[0] for dir in thesaurus_dirs]
     dump.write_vectors(event_files,
                        dump.data_path,
                        log_to_console=True,
                        output_dir=ngram_vectors_dir)
 
-    ## add AN phrases to noun thesaurus, SVO to verb thesaurus, and rebuild
-    do_second_part(thesaurus_dirs[0], add_feature_type='AN') # nouns with ngrams
-    do_second_part(thesaurus_dirs[0]) # nouns
-    do_second_part(thesaurus_dirs[1]) # verbs
-    do_second_part(thesaurus_dirs[1], add_feature_type='SVO') # verbs with ngrams
-    #do_second_part('VO', thesaurus_dirs[1])
-    do_second_part(thesaurus_dirs[2]) # adjectives
-    do_second_part(thesaurus_dirs[3]) # adverbs
+    #do_second_part(thesaurus_dirs[0], add_feature_type=['AN', 'VO', 'SVO']) # all vectors in same thesaurus
+    #do_second_part(thesaurus_dirs[0]) # plain old thesaurus without ngrams
+
+    ### add AN phrases to noun thesaurus, SVO to verb thesaurus, and rebuild
+    #do_second_part(thesaurus_dirs[0], add_feature_type=['AN']) # nouns with ngrams
+    #do_second_part(thesaurus_dirs[0]) # nouns
+    #do_second_part(thesaurus_dirs[1]) # verbs
+    #do_second_part(thesaurus_dirs[1], add_feature_type=['SVO']) # verbs with ngrams
+    ##do_second_part('VO', thesaurus_dirs[1])
+    #do_second_part(thesaurus_dirs[2]) # adjectives
+    #do_second_part(thesaurus_dirs[3]) # adverbs
 
     for thesaurus in [
         Thesaurus([_find_allpairs_file(thesaurus_dirs[0])]),
-        Thesaurus([_find_allpairs_file(thesaurus_dirs[0] + '-ngrams')])]:
-        print thesaurus.get('thursday/N')
-        print thesaurus.get('expand/V force/N')
-        print thesaurus.get('military/J force/N')
-        print '--------------------'
+        Thesaurus([_find_allpairs_file(thesaurus_dirs[0] + '-with-ngrams')])]:
 
-    for thesaurus in [
-        Thesaurus([_find_allpairs_file(thesaurus_dirs[1])]),
-        Thesaurus([_find_allpairs_file(thesaurus_dirs[1] + '-ngrams')])]:
-        print thesaurus.get('think/V')
-        print thesaurus.get('center/N sign/V agreement/N')
+        for entry in ['thursday/N', 'expand/V force/N', 'military/J force/N',
+                      'center/N sign/V agreement/N', 'think/V']:
+            print entry, '------->', thesaurus.get(entry)
         print '--------------------'
