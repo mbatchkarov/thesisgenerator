@@ -129,7 +129,7 @@ def _build_crossvalidation_iterator(config, x_vals, y_vals, x_test=None,
     x_vals = [x_vals[index] for index in seen_indices]
     # y_vals is a row vector, need to transpose it to get the same shape as
     # x_vals
-    y_vals = y_vals[:, seen_indices].transpose()
+    y_vals = y_vals[seen_indices].transpose()
 
     return iterator, validation_indices, x_vals, y_vals
 
