@@ -1,12 +1,12 @@
 import logging
 import sys
+from sklearn.decomposition import TruncatedSVD
 
 sys.path.append('.')
 sys.path.append('..')
 sys.path.append('../..')
 
 from thesisgenerator.plugins.thesaurus_loader import Thesaurus
-from sklearn.decomposition.nmf import NMF
 import numpy, scipy, time
 from thesisgenerator.scripts import dump_all_composed_vectors as dump
 from thesisgenerator.plugins.tokenizers import DocumentFeature
@@ -72,7 +72,7 @@ def do_work(vector_file_paths,
             logging.error('Cannot reduce dimensionality from %d to %d', mat.shape[1], n_components)
             continue
 
-        method = NMF(n_components)
+        method = TruncatedSVD(n_components)
         logging.info('Reducing dimensionality of matrix of shape %r', mat.shape)
         start = time.time()
         reduced_mat = method.fit_transform(mat)
@@ -84,7 +84,7 @@ def do_work(vector_file_paths,
 
         for path, desired_pos in zip(dump.giga_paths, ['N', 'V', 'J', 'RB']):
             basename = path.split('.')[0]
-            basename += '-nmf{}'.format(n_components)
+            basename += '-SVD{}'.format(n_components)
             features_file = basename + '.features.filtered.strings'
             events_file = basename + '.events.filtered.strings'
             entries_file = basename + '.entries.filtered.strings'
@@ -93,7 +93,7 @@ def do_work(vector_file_paths,
             rows_for_this_pos = pos_tags == desired_pos
             tmp_mat = scipy.sparse.coo_matrix(reduced_mat[rows_for_this_pos, :])
             write_vectors_to_disk(tmp_mat, numpy.array(features)[rows_for_this_pos],
-                                  ['NMF:feat{0:05d}'.format(i) for i in range(n_components)],
+                                  ['SVD:feat{0:05d}'.format(i) for i in range(n_components)],
                                   features_file, entries_file, events_file)
             #'tmp/{}-svd{}.features.txt'.format(desired_pos, n_components),
             #'tmp/{}-svd{}.entries.txt'.format(desired_pos, n_components),
