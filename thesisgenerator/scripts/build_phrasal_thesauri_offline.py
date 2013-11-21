@@ -66,10 +66,18 @@ def _find_conf_file(thesaurus_dir):
 
 
 def _find_allpairs_file(thesaurus_dir):
+    # todo this will not work if we're throwing multiple events/features/entries files (eg SVD reduced and non-reduced)
     return glob(os.path.join(thesaurus_dir, '*sims.neighbours.strings'))[0]
 
 
+def _find_events_file(thesaurus_dir):
+    # todo this will not work if we're throwing multiple events/features/entries files (eg SVD reduced and non-reduced)
+    return glob(os.path.join(thesaurus_dir, '*events.filtered.strings'))[0]
+
+
 def _find_output_prefix(thesaurus_dir):
+    # todo this will not work if we're throwing multiple events/features/entries files (eg SVD reduced and non-reduced)
+    # into the same directory
     return os.path.commonprefix(glob(os.path.join(thesaurus_dir, '*filtered*')))[:-1]
 
 
@@ -115,24 +123,30 @@ if __name__ == '__main__':
     ]
 
     ngram_vectors_dir = os.path.join(byblo_base_dir, '..', 'exp6-12-ngrams')
+
+    from thesisgenerator.scripts.reduce_dimensionality import do_work
+
+    do_work([_find_events_file(dir) for dir in thesaurus_dirs])
+
     if not os.path.exists(ngram_vectors_dir):
         os.mkdir(ngram_vectors_dir)
+    sys.exit(0)
 
     os.chdir(byblo_base_dir)
-    #for thesaurus_dir in thesaurus_dirs:
-    #    calculate_unigram_vectors(thesaurus_dir)
+    for thesaurus_dir in thesaurus_dirs:
+        calculate_unigram_vectors(thesaurus_dir)
 
     # mess with vectors, add to/modify entries and events files
     # whether to modify the features file is less obvious- do composed entries have different features
     # to the non-composed ones?
-    event_files = [glob(os.path.join(dir, '*events.filtered.strings'))[0] for dir in thesaurus_dirs]
+    event_files = [_find_events_file(dir) for dir in thesaurus_dirs]
     dump.write_vectors(event_files,
                        dump.data_path,
                        log_to_console=True,
                        output_dir=ngram_vectors_dir)
 
-    #do_second_part(thesaurus_dirs[0], add_feature_type=['AN', 'VO', 'SVO']) # all vectors in same thesaurus
-    #do_second_part(thesaurus_dirs[0]) # plain old thesaurus without ngrams
+    do_second_part(thesaurus_dirs[0], add_feature_type=['AN', 'VO', 'SVO']) # all vectors in same thesaurus
+    do_second_part(thesaurus_dirs[0]) # plain old thesaurus without ngrams
 
     ### add AN phrases to noun thesaurus, SVO to verb thesaurus, and rebuild
     #do_second_part(thesaurus_dirs[0], add_feature_type=['AN']) # nouns with ngrams
