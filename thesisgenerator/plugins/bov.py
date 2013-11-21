@@ -135,6 +135,10 @@ class ThesaurusVectorizer(TfidfVectorizer):
         for s, v, o in subjverbobj:
             features.append(DocumentFeature('SVO', (token_indices[s], token_indices[v], token_indices[o])))
 
+        verbobj = [(v, o[1]) for v in verbs for o in objects if o[0] == v]
+        for v, o in verbobj:
+            features.append(DocumentFeature('VO', (token_indices[v], token_indices[o])))
+
     def my_feature_extractor(self, sentences, ngram_range=(1, 1)):
         """
         Turn a document( a list of tokens) into a sequence of features. These
