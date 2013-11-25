@@ -55,20 +55,24 @@ class DocumentFeature(object):
 
         :type string: str
         """
-        tokens = string.strip().split(' ')
-        if len(tokens) > 3:
-            raise ValueError('Unrecognised document feature %s' % string)
-        words = [x.split('/') for x in tokens]
-        tokens = tuple(Token(word, pos) for (word, pos) in words)
+        try:
+            tokens = string.strip().split(' ')
+            if len(tokens) > 3:
+                raise ValueError('Unrecognised document feature %s' % string)
+            words = [x.split('/') for x in tokens]
+            tokens = tuple(Token(word, pos) for (word, pos) in words)
 
-        if len(tokens) == 1:
-            t = '1-GRAM'
-        elif ''.join([t.pos for t in tokens]) == 'NVN':
-            t = 'SVO'
-        elif ''.join([t.pos for t in tokens]) == 'JN':
-            t = 'AN'
-        elif ''.join([t.pos for t in tokens]) == 'VN':
-            t = 'VO'
+            if len(tokens) == 1:
+                t = '1-GRAM'
+            elif ''.join([t.pos for t in tokens]) == 'NVN':
+                t = 'SVO'
+            elif ''.join([t.pos for t in tokens]) == 'JN':
+                t = 'AN'
+            elif ''.join([t.pos for t in tokens]) == 'VN':
+                t = 'VO'
+        except:
+            logging.error('Cannot create token out of string %s', string)
+            raise
 
         return DocumentFeature(t, tokens)
 
