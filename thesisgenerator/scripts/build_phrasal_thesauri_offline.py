@@ -11,6 +11,7 @@ from thesisgenerator.plugins.thesaurus_loader import Thesaurus
 from thesisgenerator.utils.cmd_utils import set_stage_in_byblo_conf_file, run_byblo, parse_byblo_conf_file, \
     reindex_all_byblo_vectors, run_and_log_output, unindex_all_byblo_vectors, set_output_in_byblo_conf_file
 from thesisgenerator.scripts import dump_all_composed_vectors as dump
+from thesisgenerator.scripts.reduce_dimensionality import do_work
 
 
 def calculate_unigram_vectors(thesaurus_dir):
@@ -66,19 +67,18 @@ def _find_conf_file(thesaurus_dir):
 
 
 def _find_allpairs_file(thesaurus_dir):
-    # todo this will not work if we're throwing multiple events/features/entries files (eg SVD reduced and non-reduced)
-    return glob(os.path.join(thesaurus_dir, '*sims.neighbours.strings'))[0]
+    return [x for x in glob(os.path.join(thesaurus_dir, '*sims.neighbours.strings')) if 'svd' not in x.lower()][0]
 
 
 def _find_events_file(thesaurus_dir):
-    # todo this will not work if we're throwing multiple events/features/entries files (eg SVD reduced and non-reduced)
-    return glob(os.path.join(thesaurus_dir, '*events.filtered.strings'))[0]
+    return [x for x in glob(os.path.join(thesaurus_dir, '*events.filtered.strings')) if 'svd' not in x.lower()][0]
 
 
 def _find_output_prefix(thesaurus_dir):
     # todo this will not work if we're throwing multiple events/features/entries files (eg SVD reduced and non-reduced)
     # into the same directory
-    return os.path.commonprefix(glob(os.path.join(thesaurus_dir, '*filtered*')))[:-1]
+    return os.path.commonprefix(
+        [x for x in glob(os.path.join(thesaurus_dir, '*filtered*')) if 'svd' not in x.lower()])[:-1]
 
 
 def do_second_part(thesaurus_dir, add_feature_type=[]):
@@ -124,17 +124,16 @@ if __name__ == '__main__':
 
     ngram_vectors_dir = os.path.join(byblo_base_dir, '..', 'exp6-12-ngrams')
 
-    from thesisgenerator.scripts.reduce_dimensionality import do_work
-
-    do_work([_find_events_file(dir) for dir in thesaurus_dirs])
-
     if not os.path.exists(ngram_vectors_dir):
         os.mkdir(ngram_vectors_dir)
-    sys.exit(0)
-
     os.chdir(byblo_base_dir)
-    for thesaurus_dir in thesaurus_dirs:
-        calculate_unigram_vectors(thesaurus_dir)
+
+    #for thesaurus_dir in thesaurus_dirs:
+    #    calculate_unigram_vectors(thesaurus_dir)
+
+    # reduce dimensionality
+    do_work([_find_events_file(dir) for dir in thesaurus_dirs], reduce_to=[3, 5])
+    sys.exit(0) # ENOUGH FOR NOW
 
     # mess with vectors, add to/modify entries and events files
     # whether to modify the features file is less obvious- do composed entries have different features
