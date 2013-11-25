@@ -13,6 +13,11 @@ from thesisgenerator.plugins.tokenizers import DocumentFeature
 from thesisgenerator.composers.utils import write_vectors_to_disk
 import numpy as np
 
+try:
+    import cPickle as pickle
+except ImportError:
+    import pickle
+
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s\t%(module)s.%(funcName)s ""(line %(lineno)d)\t%(levelname)s : %(""message)s")
 
@@ -102,6 +107,7 @@ def do_work(vector_file_paths,
             features_file = basename + '.features.filtered.strings'
             events_file = basename + '.events.filtered.strings'
             entries_file = basename + '.entries.filtered.strings'
+            model_file = basename + '.model.pkl'
 
             if len(vector_file_paths) == 1:
                 tmp_mat = scipy.sparse.coo_matrix(reduced_mat)
@@ -116,6 +122,9 @@ def do_work(vector_file_paths,
             write_vectors_to_disk(tmp_mat, tmp_rows,
                                   ['SVD:feat{0:05d}'.format(i) for i in range(n_components)],
                                   features_file, entries_file, events_file)
+
+            with open(model_file, 'w') as outfile:
+                pickle.dump(method, outfile)
 
 
 if __name__ == '__main__':
