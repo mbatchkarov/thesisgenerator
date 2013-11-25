@@ -4,6 +4,8 @@ import logging
 import numpy
 
 from thesisgenerator.utils.misc import walk_nonoverlapping_pairs
+from thesisgenerator.composers.utils import write_vectors_to_disk
+from thesisgenerator.plugins.tokenizers import DocumentFeature
 
 
 class Thesaurus(dict):
@@ -95,6 +97,7 @@ class Thesaurus(dict):
                             # multiple neighbour lists for the same entry
 
     def to_dissect_sparse_files(self, output_prefix, row_transform=None):
+        # todo unit test
         """
         Converting to a dissect sparse matrix format. Writes out 3 files
 
@@ -118,6 +121,7 @@ class Thesaurus(dict):
                 outfile.write('{}\n'.format(feature))
 
     def to_sparse_matrix(self, row_transform=None, dtype=numpy.float):
+        # todo unit test
         """
         Converts the vectors held in this object to a scipy sparse matrix
         :return: a tuple containing
@@ -141,6 +145,7 @@ class Thesaurus(dict):
         return mat, self.v.feature_names_, rows
 
     def to_dissect_space(self):
+        # todo unit test
         from composes.matrix.sparse_matrix import SparseMatrix
         from composes.semantic_space.space import Space
 
@@ -156,6 +161,19 @@ class Thesaurus(dict):
             assert abs(s1 - s2).nnz == 0
 
         return s
+
+    def to_file(self, filename, entry_filter=lambda x: True, row_transform=lambda x: x):
+        # todo unit test
+        mat, cols, rows = self.to_sparse_matrix(row_transform=row_transform)
+        rows = [DocumentFeature.from_string(x) for x in rows]
+        import tempfile
+
+        bla1 = tempfile.NamedTemporaryFile(delete=True)
+        bla2 = tempfile.NamedTemporaryFile(delete=True)
+        write_vectors_to_disk(mat.tocoo(), rows,
+                              cols, bla1.name, bla2.name, filename, entry_filter)
+        return filename
+
 
 # END OF CLASS
 def _smart_lower(words_with_pos, aggressive_lowercasing=True):

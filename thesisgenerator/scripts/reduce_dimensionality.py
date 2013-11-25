@@ -28,6 +28,9 @@ def do_work(vector_file_paths,
             pos_to_split=['N', 'V', 'J', 'RB']):
     """
 
+    Performs truncated SVD. A copy of the trained sklearn SVD estimator will be saved to each directory in
+    vector_file_paths.
+
     :param vector_file_paths: list. If its length is one, all reduced vectors will be written to the same directory.
     Otherwise each separate PoS (as contained in pos_to_split) will be written to its own directory, assuming
     vector_file_paths[i] contains a thesaurus for entries of type pos_to_split[i]
@@ -48,7 +51,7 @@ def do_work(vector_file_paths,
 
     # don't want to do dimensionality reduction on composed vectors
     feature_types = [sorted_idx_and_pos_matching.type for sorted_idx_and_pos_matching in document_features]
-    assert all(x == '1-GRAM' for x in feature_types)
+    assert all(x == '1-GRAM' or x == 'AN' for x in feature_types)
 
     # get the PoS tags of each row in the matrix
     pos_tags = np.array([df.tokens[0].pos for df in document_features])

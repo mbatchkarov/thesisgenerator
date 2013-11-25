@@ -17,10 +17,24 @@ from thesisgenerator.plugins.bov import ThesaurusVectorizer
 from thesisgenerator.utils.data_utils import load_tokenizer, tokenize_data, load_text_data_into_memory
 
 
-def write_vectors(unigram_paths, data_paths, output_dir='.', log_to_console=False, composer_method='bar'):
-    if 'wiki' in unigram_paths[0]:
+def write_vectors(unigram_vector_paths, classification_data_paths, baroni_precomposed_space_file,
+                  output_dir='.', log_to_console=False, composer_method='bar'):
+    """
+    Extracts all composable features from a labelled classification corpus and dumps a vector for each of them
+    to disk
+    :param unigram_vector_paths: a list of files in Byblo events format that contain vectors for all unigrams. This
+    will be used in the composition process
+    :param classification_data_paths:
+    :param baroni_precomposed_space_file:
+    :param output_dir:
+    :param log_to_console:
+    :param composer_method:
+    :return:
+    :rtype: list of strings
+    """
+    if 'wiki' in unigram_vector_paths[0]:
         dataset = 'wiki'
-    elif '7head' in unigram_paths[0]:
+    elif '7head' in unigram_vector_paths[0]:
         dataset = '7head'
     else:
         dataset = 'gigaw'
@@ -38,16 +52,16 @@ def write_vectors(unigram_paths, data_paths, output_dir='.', log_to_console=Fals
 
     # todo should take a directory containing a thesaurus so that we can read vectors from events file and modify
     # whatever files we need to (entries index, as composition creates new entries)
-    unigram_source = UnigramVectorSource(unigram_paths, reduce_dimensionality=False)
+    unigram_source = UnigramVectorSource(unigram_vector_paths, reduce_dimensionality=False)
     composers = [
         UnigramDummyComposer(unigram_source),
-        BaroniComposer(unigram_source),
+        BaroniComposer(unigram_source, baroni_precomposed_space_file),
         OxfordSvoComposer(unigram_source),
         #composer_class(unigram_source)
     ]
     vector_source = CompositeVectorSource(composers, 0, False)
 
-    train, test = data_paths
+    train, test = classification_data_paths
     raw_data, data_ids = load_text_data_into_memory(
         training_path=train,
         test_path=test,
@@ -79,6 +93,7 @@ def write_vectors(unigram_paths, data_paths, output_dir='.', log_to_console=Fals
     }
     _ = p.fit_transform(x_tr + x_ev, y=hstack([y_tr, y_ev]), **fit_args)
 
+    # todo lines below (composition) are logically separate from lines above (feature extraction in R8)
     all_files = []
     for feature_type in ['AN', 'SVO', 'VO']:
         output_files = ('%s_%s_%s.vectors.tsv' % (feature_type, dataset, composer_method),

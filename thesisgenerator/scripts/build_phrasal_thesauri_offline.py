@@ -1,6 +1,7 @@
 import logging
 import os
 import sys
+from scripts.load_translated_byblo_space import train_baroni_composer
 
 sys.path.append('.')
 sys.path.append('..')
@@ -12,6 +13,7 @@ from thesisgenerator.utils.cmd_utils import set_stage_in_byblo_conf_file, run_by
     reindex_all_byblo_vectors, run_and_log_output, unindex_all_byblo_vectors, set_output_in_byblo_conf_file
 from thesisgenerator.scripts import dump_all_composed_vectors as dump
 from thesisgenerator.scripts.reduce_dimensionality import do_work
+from thesisgenerator.composers.utils import reformat_entries, julie_transform
 
 
 def calculate_unigram_vectors(thesaurus_dir):
@@ -110,6 +112,7 @@ def do_second_part(thesaurus_dir, add_feature_type=[]):
 
 
 if __name__ == '__main__':
+    # SET UP A FEW REQUIRED PATHS
     logging.basicConfig(level=logging.INFO,
                         format="%(asctime)s\t%(module)s.%(funcName)s ""(line %(lineno)d)\t%(levelname)s : %(""message)s")
 
@@ -124,6 +127,7 @@ if __name__ == '__main__':
 
     ngram_vectors_dir = os.path.join(byblo_base_dir, '..', 'exp6-12-ngrams')
 
+    # EXTRACT UNIGRAM VECTORS WITH BYBLO
     if not os.path.exists(ngram_vectors_dir):
         os.mkdir(ngram_vectors_dir)
     os.chdir(byblo_base_dir)
@@ -131,9 +135,34 @@ if __name__ == '__main__':
     #for thesaurus_dir in thesaurus_dirs:
     #    calculate_unigram_vectors(thesaurus_dir)
 
-    # reduce dimensionality
-    do_work([_find_events_file(dir) for dir in thesaurus_dirs], reduce_to=[3, 5])
-    sys.exit(0) # ENOUGH FOR NOW
+
+    # REDUCE DIMENSIONALITY
+    files_to_reduce = [_find_events_file(dir) for dir in thesaurus_dirs]
+    # obtain training data for composer, that also needs to be reduced
+    baroni_training_phrases = os.path.abspath(os.path.join(byblo_base_dir, '..', 'phrases', 'julie.ANs.vectors'))
+    thes = Thesaurus(files_to_reduce, aggressive_lowercasing=False)
+    # extract only the nouns out of the thesaurus, other things are not needed to train AN
+    # convert from Julie's format to mine
+    baroni_training_phrases_space = reformat_entries(baroni_training_phrases,
+                                                     'space',
+                                                     function=lambda x: julie_transform(x, separator=' '))
+    # convert to dissect format for composer training
+    baroni_training_phrases_undescore = reformat_entries(baroni_training_phrases,
+                                                         'undersc',
+                                                         function=lambda x: julie_transform(x, separator='_'))
+
+    files_to_reduce.append(baroni_training_phrases_space)
+    do_work(files_to_reduce, reduce_to=[3, 5])
+
+    # TRAIN BARONI COMPOSER
+    baroni_training_nouns = thes.to_file(baroni_training_phrases_space.replace('ANs', 'nouns'),
+                                         entry_filter=lambda x: x.tokens_as_str().endswith('/N'))
+    trained_composer_path = train_baroni_composer(baroni_training_nouns,
+                                                  baroni_training_phrases_undescore,
+                                                  baroni_training_phrases_undescore.replace('vectors', 'AN-model')
+    )
+    sys.exit(0) #ENOUGH FOR NOW
+
 
     # mess with vectors, add to/modify entries and events files
     # whether to modify the features file is less obvious- do composed entries have different features

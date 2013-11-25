@@ -18,7 +18,7 @@ def write_vectors_to_disk(matrix, row_index, column_index, features_path, entrie
     :param entry_filter: callable, called for each entry. Returns true if the entry has to be written and false if
     the entry has to be ignored. Defaults to True.
     """
-    # todo write unit test
+    # todo unit test
     new_byblo_entries = {}
     things = zip(matrix.row, matrix.col, matrix.data)
     selected_rows = []
@@ -49,3 +49,32 @@ def write_vectors_to_disk(matrix, row_index, column_index, features_path, entrie
             for feature, count in zip(column_index, feature_sums):
                 if count > 0:
                     outfile.write('%s\t%f\n' % (feature, count))
+
+
+def reformat_entries(filename, suffix, function, separator='\t'):
+    # todo unit test
+    """
+    Applies a function to the first column of a file **in place**.
+    :param filename: File to apply transformation to.
+    :param function: Function to apply, takes and returns a single string.
+    :param separator: The columns in the file are separated by this.
+    """
+
+    #shutil.copy(filename, filename + '.bak')
+    parts = filename.split('.')
+    parts.insert(-1, suffix)
+    outname = '.'.join(parts)
+    with open(filename) as infile, open(outname, 'w') as outfile:
+        for line in infile:
+            fields = line.split(separator)
+            fields[0] = function(fields[0])
+            outfile.write(separator.join(fields))
+    return outname
+
+
+def julie_transform(input, pos1='J', pos2='N', separator='_'):
+    # todo unit test
+    '''african/J:amod-HEAD:ancestry -> african_ancestry'''
+    noun = input.split(':')[-1]
+    adj = input.split('/')[0]
+    return '{adj}/{pos1}{separator}{noun}/{pos2}'.format(**locals())
