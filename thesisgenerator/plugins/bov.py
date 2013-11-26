@@ -120,11 +120,18 @@ class ThesaurusVectorizer(TfidfVectorizer):
         #    self.vector_source.populate_vector_space(self.vocabulary_.keys())
         return super(ThesaurusVectorizer, self).transform(raw_documents), self.vocabulary_
 
-    def _extract_features_from_dependency_tree(self, features, parse_tree, token_indices):
+    def _extract_features_from_dependency_tree(self, parse_tree, token_indices):
+        #todo this needs tests, esp for robustness to parser errors
         # extract sentence-internal adjective-noun compounds
-        amods = [x[:2] for x in parse_tree.edges(data=True) if x[2]['type'] == 'amod']
+        new_features = []
+
+        # get tuples of (head, dependent) for each amod relation in the tree
+        # also enforce that head is a noun, dependent is an adjective
+        amods = [x[:2] for x in parse_tree.edges(data=True) if x[2]['type'] == 'amod' and
+                                                               token_indices[x[0]].pos == 'N' and
+                                                               token_indices[x[1]].pos == 'J']
         for head, dep in amods:
-            features.append(DocumentFeature('AN', (token_indices[dep], token_indices[head])))
+            new_features.append(DocumentFeature('AN', (token_indices[dep], token_indices[head])))
 
         # extract sentence-internal subject-verb-direct object compounds
         # todo how do we handle prepositional objects?
@@ -133,11 +140,13 @@ class ThesaurusVectorizer(TfidfVectorizer):
         objects = set([(head, dep) for head, dep, opts in parse_tree.edges(data=True) if opts['type'] == 'dobj'])
         subjverbobj = [(s[1], v, o[1]) for v in verbs for s in subjects for o in objects if s[0] == v and o[0] == v]
         for s, v, o in subjverbobj:
-            features.append(DocumentFeature('SVO', (token_indices[s], token_indices[v], token_indices[o])))
+            new_features.append(DocumentFeature('SVO', (token_indices[s], token_indices[v], token_indices[o])))
 
         verbobj = [(v, o[1]) for v in verbs for o in objects if o[0] == v]
         for v, o in verbobj:
-            features.append(DocumentFeature('VO', (token_indices[v], token_indices[o])))
+            new_features.append(DocumentFeature('VO', (token_indices[v], token_indices[o])))
+
+        return new_features
 
     def my_feature_extractor(self, sentences, ngram_range=(1, 1)):
         """
@@ -152,7 +161,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
         min_n, max_n = map(int, ngram_range)
         for sentence, (parse_tree, token_indices) in sentences:
             if parse_tree:
-                self._extract_features_from_dependency_tree(features, parse_tree, token_indices)
+                features.extend(self._extract_features_from_dependency_tree(parse_tree, token_indices))
             else:
                 # sometimes an input document will have a sentence of one word, which has no dependencies
                 # just ignore that and extract all the features that can be extracted without it
@@ -250,7 +259,6 @@ class ThesaurusVectorizer(TfidfVectorizer):
                 params = {'doc_id': doc_id, 'feature': feature,
                           'feature_index_in_vocab': feature_index_in_vocab,
                           'vocabulary': vocabulary, 'j_indices': j_indices, 'values': values}
-                logging.info(feature)
                 if is_in_vocabulary and is_in_th:
                     self.handler.handle_IV_IT_feature(**params)
                 if is_in_vocabulary and not is_in_th:

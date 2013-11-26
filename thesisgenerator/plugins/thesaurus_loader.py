@@ -149,7 +149,7 @@ class Thesaurus(dict):
 
         return mat, self.v.feature_names_, rows
 
-    def to_dissect_space(self):
+    def to_dissect_core_space(self):
         # todo unit test
         from composes.matrix.sparse_matrix import SparseMatrix
         from composes.semantic_space.space import Space

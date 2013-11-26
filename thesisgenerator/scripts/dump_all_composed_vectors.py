@@ -125,8 +125,9 @@ toy_paths = [
 ]
 
 n_jobs = 4
-data_path = ('/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data/reuters21578/r8train-tagged-grouped',
-             '/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data/reuters21578/r8test-tagged-grouped')
+classification_data_path = (
+'/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data/reuters21578/r8train-tagged-grouped',
+'/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data/reuters21578/r8test-tagged-grouped')
 
 if __name__ == '__main__':
     """
@@ -148,8 +149,9 @@ if __name__ == '__main__':
         n_jobs = 1
         #data_path = ['%s-small' % corpus_path for corpus_path in data_path]
 
-    output_files = Parallel(n_jobs=n_jobs)(delayed(write_vectors)(vectors_path, data_path, log_to_console=debug)
-                                           for vectors_path in vector_paths)
+    output_files = Parallel(n_jobs=n_jobs)(
+        delayed(write_vectors)(vectors_path, classification_data_path, log_to_console=debug)
+        for vectors_path in vector_paths)
     for vectors, entries, features in output_files:
         print vectors, entries, features
 

@@ -51,6 +51,10 @@ class UnigramVectorSource(VectorSource):
 
         # distributional features of each unigram in the loaded file
         self.feature_matrix, self.distrib_features_vocab, _ = thesaurus.to_sparse_matrix()
+        # todo optimise- call below will invoke to_sparse_matrix again. to_core_space should be a classmethod
+
+        # todo it's a bit silly to hold a dissect space as well as a Thesaurus object
+        self.dissect_core_space = thesaurus.to_dissect_core_space()
 
         # Token -> row number in self.feature_matrix that holds corresponding vector
         self.entry_index = {Token(*fv.split('/')): i for (i, fv) in enumerate(thesaurus.keys())}
@@ -200,42 +204,66 @@ class BaroniComposer(Composer):
             logging.error('Expected filename, got %s', pretrained_model_file)
             raise ValueError('Model file required to perform composition.')
         with open(pretrained_model_file) as infile:
-            self._composer = load(infile)
+            self.composer = load(infile)
 
         # verify the composer's internal structure matches the unigram source
-        self.available_adjs = set(self._composer.function_space.id2row)
-        features = self._composer.composed_id2column
-        dimensionality = len(self._composer.composed_id2column)
-        # todo where did these features go?
-        assert unigram_source.distrib_features_vocab == self._composer.composed_id2column
+        self.available_adjs = set(self.composer.function_space.id2row)
+        features = self.composer.composed_id2column
+        dimensionality = len(self.composer.composed_id2column)
+
+        assert unigram_source.distrib_features_vocab == self.composer.composed_id2column
         # todo write unigram source to dissect format and instantiate a space
         # todo temp file must be deleted with this object
-        # the assert that my_space.id2column == composer.composed_id2column
+        self.dissect_core_space = unigram_source.dissect_core_space
 
+        # check composed space's columns matche core space's (=unigram source)'s columns
+        assert self.dissect_core_space.id2column == self.composer.composed_id2column
+        #todo this core space must NOT contain any ngrams, and it currently does
 
         if 'N' not in unigram_source.available_pos:
             raise ValueError('This composer requires a noun unigram vector source')
+
+        vector = self._get_vector([Token('african', 'J'), Token('police', 'N')])
+        logging.info(vector)
 
     def __contains__(self, feature):
         """
         Accept all adjective-noun phrases where we have a corpus-observed vector for the noun and
         a learnt matrix (through PLSR) for the adjective
         """
+        # todo expand unit tests now that we have a real composer
         if feature.type not in self.feature_pattern:
             # ignore non-AN features
             return False
 
         adj, noun = feature.tokens
-        if DocumentFeature('1-GRAM', (noun,)) not in self.unigram_source:
+        assert ('J', 'N') == (adj.pos, noun.pos)
+
+        #if DocumentFeature('1-GRAM', (noun,)) not in self.unigram_source:
+        if noun not in self.unigram_source.entry_index:
             # ignore ANs containing unknown nouns
+            # this implementation saves a bit of work by not calling UnigramSource__contains__
             return False
 
         # ignore ANs containing unknown adjectives
         return adj in self.available_adjs
 
     def _get_vector(self, tokens):
-        #todo currently returns just the noun vector, which is wrong
-        return self.unigram_source._get_vector((tokens[-1], ))
+        #todo test properly
+        """
+
+        :param tokens: list of tokens to compose, assumed to be an adjective and a noun, with PoS tags
+        :return:
+         :rtype: 1xN scipy sparse matrix of type numpy.float64 with M stored elements in Compressed Sparse Row format,
+         where N is the dimensionality of the vectors in the unigram source
+        """
+        adj = '{}'.format(tokens[0])
+        noun = '{}'.format(tokens[1])
+        phrase = '{}_{}'.format(adj, noun)
+        x = self.composer.compose([(adj, noun, phrase)], self.dissect_core_space).cooccurrence_matrix.mat
+        #todo could also convert to dense 1D ndarray, vector.A.ravel()
+        return x
+        #return self.unigram_source._get_vector((tokens[-1], ))
 
 
 class CompositeVectorSource(VectorSource):
@@ -254,7 +282,7 @@ class CompositeVectorSource(VectorSource):
                 #self.composer_mapping.update(tmp)
 
     def __contains__(self, feature):
-        return any(feature in c for c in self.composers)
+        return any([feature in c for c in self.composers])
 
     def populate_vector_space(self, vocabulary, algorithm='ball_tree', build_tree=True):
         #todo the exact data structure used here will need optimisation

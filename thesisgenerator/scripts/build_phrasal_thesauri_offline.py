@@ -155,9 +155,13 @@ if __name__ == '__main__':
     # output write everything to the same
     # ...exp6-12/exp6.events.filtered.strings --> ...exp6-12/exp6
     reduced_prefixes = ['.'.join(x.split('.')[:-3]) + '-with-phrases' for x in files_to_reduce[:-1]]
-    # todo pos_limits=[('N', 8000), ('V', 4000), ('J', 4000), ('RB', 200), ('RB', 18000)]
+    # todo feature_type_limits=[('N', 8000), ('V', 4000), ('J', 4000), ('RB', 200), ('AN', 18000)]
     # todo reduce_to=[300, 1000, 5000]
-    reduced_prefixes = do_svd(files_to_reduce, reduced_prefixes, reduce_to=[3, 5])
+    reduced_prefixes = do_svd(files_to_reduce, reduced_prefixes,
+                              feature_type_limits=[('N', 8000), ('V', 4000), ('J', 4000), ('RB', 200), ('AN', 18000)],
+                              reduce_to=[300, 500])
+    # todo verify that vectors come out of the right size, esp. with small training sets
+    # e.g. when reducing to 300 the matrix is 286 dimensional WTF
 
     # TRAIN BARONI COMPOSER
     # train on each SVD-reduced file, not the original one
@@ -178,15 +182,15 @@ if __name__ == '__main__':
                                                       baroni_training_phrases.replace('vectors', 'AN-model'))
 
 
-    # mess with vectors, add to/modify entries and events files
-    # whether to modify the features file is less obvious- do composed entries have different features
-    # to the non-composed ones?
-    event_files = [_find_events_file(dir) for dir in thesaurus_dirs]
-    dump.write_vectors(event_files,
-                       dump.data_path,
-                       trained_composer_path,
-                       log_to_console=True,
-                       output_dir=ngram_vectors_dir)
+        # mess with vectors, add to/modify entries and events files
+        # whether to modify the features file is less obvious- do composed entries have different features
+        # to the non-composed ones?
+        event_files = [_find_events_file(dir) for dir in thesaurus_dirs]
+        dump.write_vectors([all_vectors],
+                           dump.classification_data_path,
+                           trained_composer_path,
+                           log_to_console=True,
+                           output_dir=ngram_vectors_dir)
 
     sys.exit(0) #ENOUGH FOR NOW
 
