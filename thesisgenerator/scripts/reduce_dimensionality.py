@@ -22,26 +22,41 @@ logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s\t%(module)s.%(funcName)s ""(line %(lineno)d)\t%(levelname)s : %(""message)s")
 
 
-def do_work(vector_file_paths,
-            pos_limits=[('N', 8), ('V', 4), ('J', 4), ('RB', 2)],
-            reduce_to=[3, 10, 15],
-            pos_to_split=['N', 'V', 'J', 'RB']):
+def do_svd(input_paths, output_prefixes,
+           feature_type_limits=[('N', 8), ('V', 4), ('J', 4), ('RB', 2), ('AN', 2)],
+           reduce_to=[3, 10, 15],
+           pos_per_output_dir=[]):
     """
 
     Performs truncated SVD. A copy of the trained sklearn SVD estimator will be saved to each directory in
     vector_file_paths.
 
-    :param vector_file_paths: list. If its length is one, all reduced vectors will be written to the same directory.
+    :param input_paths: list. If its length is one, all reduced vectors will be written to the same directory.
     Otherwise each separate PoS (as contained in pos_to_split) will be written to its own directory, assuming
     vector_file_paths[i] contains a thesaurus for entries of type pos_to_split[i]
-    :param pos_limits: how many entries to permit of each PoS
+    :type input_paths: list
+    :param output_prefixes: Where to output the reduced files
+    :param feature_type_limits: how many entries to keep of each DocumentFeature type, by frequency. This is the
+    PoS tag for unigram features and the feature type otherwise. For instance, pass in [('N', 2), ('AN', 3)] to
+    select 2 unigrams of PoS noun and 3 bigrams of type adjective-noun.
     :param reduce_to: what dimensionalities to reduce to
-    :param pos_to_split:
-    :raise ValueError: If the loaded thesaurus is empty.
+    :param pos_per_output_dir: What PoS entries to write in each output dir. The length of this must match
+    the length of input_paths. Permitted values are N, J, V, RB and ALL. If not specified, the same output (all Pos)
+    will go to all output_prefixes
+    :raise ValueError: If the loaded thesaurus is empty/ if
     """
-    thesaurus = Thesaurus(vector_file_paths)
+
+    if pos_per_output_dir:
+        if len(pos_per_output_dir) != len(output_prefixes):
+            raise ValueError('Length of pos_per_output_dir should match length of output_prefixes')
+        else:
+            logging.warn('Will write separate events file per PoS')
+    else:
+        pos_per_output_dir = ['ALL'] * len(output_prefixes)
+
+    thesaurus = Thesaurus(input_paths, aggressive_lowercasing=False)
     if not thesaurus:
-        raise ValueError('Empty thesaurus %r', vector_file_paths)
+        raise ValueError('Empty thesaurus %r', input_paths)
     logging.info('Converting thesaurus to sparse matrix')
     mat, cols, rows = thesaurus.to_sparse_matrix()
     logging.info('Loaded a data matrix of shape %r', mat.shape)
@@ -54,14 +69,13 @@ def do_work(vector_file_paths,
     assert all(x == '1-GRAM' or x == 'AN' for x in feature_types)
 
     # get the PoS tags of each row in the matrix
-    pos_tags = np.array([df.tokens[0].pos for df in document_features])
-    print mat.sum()
+    pos_tags = np.array([df.tokens[0].pos if df.type == '1-GRAM' else df.type for df in document_features])
 
     # find the rows of the matrix that correspond to the most frequent nouns, verbs, ...,
     # as measured by sum of feature counts. This is Byblo's definition of frequency (which is in fact a marginal),
     # but it is strongly correlated with one normally thinks of as entry frequency
     pos_to_rows = {}
-    for desired_pos, desired_count in pos_limits:
+    for desired_pos, desired_count in feature_type_limits:
         row_of_current_pos = pos_tags == desired_pos # what rows are the right PoS tags at, boolean mask array
         # indices of the array sorted by row sum, and where the pos == desired_pos
         sorted_idx_by_sum = np.ravel(mat.sum(1)).argsort()
@@ -89,6 +103,7 @@ def do_work(vector_file_paths,
     cols = np.array(cols)[desired_cols]
     logging.info('Selected only the most frequent entries, matrix size is now %r', mat.shape)
 
+    output_prefixes_with_dims = []
     for n_components in reduce_to:
         if n_components > mat.shape[1]:
             logging.error('Cannot reduce dimensionality from %d to %d', mat.shape[1], n_components)
@@ -104,20 +119,19 @@ def do_work(vector_file_paths,
                                                                                        reduced_mat.shape,
                                                                                        end - start))
 
-        for path, desired_pos in zip(vector_file_paths, pos_to_split):
-            basename = path.split('.')[0]
-            basename += '-SVD{}'.format(n_components)
-            features_file = basename + '.features.filtered.strings'
-            events_file = basename + '.events.filtered.strings'
-            entries_file = basename + '.entries.filtered.strings'
-            model_file = basename + '.model.pkl'
+        for path, desired_pos in zip(output_prefixes, pos_per_output_dir):
+            path += '-SVD{}'.format(n_components)
+            output_prefixes_with_dims.append(path)
+            features_file = path + '.features.filtered.strings'
+            events_file = path + '.events.filtered.strings'
+            entries_file = path + '.entries.filtered.strings'
+            model_file = path + '.model.pkl'
 
-            if len(vector_file_paths) == 1:
+            if desired_pos == 'ALL':
                 tmp_mat = scipy.sparse.coo_matrix(reduced_mat)
                 tmp_rows = rows
             else:
-                logging.warn('Writing separate events file per PoS')
-                logging.info('Writing reduced vector files for PoS {}'.format(desired_pos))
+                logging.warn('Writing reduced vector files for PoS {}'.format(desired_pos))
                 rows_for_this_pos = pos_tags == desired_pos
                 tmp_mat = scipy.sparse.coo_matrix(reduced_mat[rows_for_this_pos, :])
                 tmp_rows = numpy.array(rows)[rows_for_this_pos]
@@ -129,8 +143,12 @@ def do_work(vector_file_paths,
             with open(model_file, 'w') as outfile:
                 pickle.dump(method, outfile)
 
+    return output_prefixes_with_dims
+
 
 if __name__ == '__main__':
-    do_work(dump.giga_paths,
-            pos_limits=[('N', 8000), ('V', 4000), ('J', 4000), ('RB', 200)],
-            reduce_to=[300, 1000, 5000])
+    in_paths = dump.giga_paths
+    out_prefixes = [path.split('.')[0] for path in in_paths]
+    do_svd(in_paths, out_prefixes,
+           feature_type_limits=[('N', 8000), ('V', 4000), ('J', 4000), ('RB', 200)],
+           reduce_to=[300, 1000, 5000])

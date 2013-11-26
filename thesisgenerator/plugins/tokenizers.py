@@ -56,7 +56,7 @@ class DocumentFeature(object):
         :type string: str
         """
         try:
-            tokens = string.strip().split(' ')
+            tokens = string.strip().split('_')
             if len(tokens) > 3:
                 raise ValueError('Unrecognised document feature %s' % string)
             words = [x.split('/') for x in tokens]
@@ -81,7 +81,7 @@ class DocumentFeature(object):
         Represents the features of this document as a human-readable string
         DocumentFeature('1-GRAM', ('X', 'Y',)) -> 'X Y'
         """
-        return ' '.join(str(t) for t in self.tokens)
+        return '_'.join(str(t) for t in self.tokens)
 
     def __str__(self):
         return '{}:{}'.format(self.type, self.tokens)

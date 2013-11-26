@@ -250,6 +250,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
                 params = {'doc_id': doc_id, 'feature': feature,
                           'feature_index_in_vocab': feature_index_in_vocab,
                           'vocabulary': vocabulary, 'j_indices': j_indices, 'values': values}
+                logging.info(feature)
                 if is_in_vocabulary and is_in_th:
                     self.handler.handle_IV_IT_feature(**params)
                 if is_in_vocabulary and not is_in_th:

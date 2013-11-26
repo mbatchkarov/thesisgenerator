@@ -12,7 +12,7 @@ from thesisgenerator.plugins.thesaurus_loader import Thesaurus
 from thesisgenerator.utils.cmd_utils import set_stage_in_byblo_conf_file, run_byblo, parse_byblo_conf_file, \
     reindex_all_byblo_vectors, run_and_log_output, unindex_all_byblo_vectors, set_output_in_byblo_conf_file
 from thesisgenerator.scripts import dump_all_composed_vectors as dump
-from thesisgenerator.scripts.reduce_dimensionality import do_work
+from thesisgenerator.scripts.reduce_dimensionality import do_svd
 from thesisgenerator.composers.utils import reformat_entries, julie_transform
 
 
@@ -140,28 +140,42 @@ if __name__ == '__main__':
     files_to_reduce = [_find_events_file(dir) for dir in thesaurus_dirs]
     # obtain training data for composer, that also needs to be reduced
     baroni_training_phrases = os.path.abspath(os.path.join(byblo_base_dir, '..', 'phrases', 'julie.ANs.vectors'))
-    thes = Thesaurus(files_to_reduce, aggressive_lowercasing=False)
-    # extract only the nouns out of the thesaurus, other things are not needed to train AN
-    # convert from Julie's format to mine
-    baroni_training_phrases_space = reformat_entries(baroni_training_phrases,
-                                                     'space',
-                                                     function=lambda x: julie_transform(x, separator=' '))
-    # convert to dissect format for composer training
-    baroni_training_phrases_undescore = reformat_entries(baroni_training_phrases,
-                                                         'undersc',
-                                                         function=lambda x: julie_transform(x, separator='_'))
 
-    files_to_reduce.append(baroni_training_phrases_space)
-    do_work(files_to_reduce, reduce_to=[3, 5])
+    # convert from Julie's format to mine
+    #baroni_training_phrases_space = reformat_entries(baroni_training_phrases,
+    #                                                 'space',
+    #                                                 function=lambda x: julie_transform(x, separator=' '))
+    # convert to dissect format (underscore-separated ANs) for composer training
+    baroni_training_phrases = reformat_entries(baroni_training_phrases,
+                                               'clean',
+                                               function=lambda x: julie_transform(x, separator='_'))
+
+    files_to_reduce.append(baroni_training_phrases)
+
+    # output write everything to the same
+    # ...exp6-12/exp6.events.filtered.strings --> ...exp6-12/exp6
+    reduced_prefixes = ['.'.join(x.split('.')[:-3]) + '-with-phrases' for x in files_to_reduce[:-1]]
+    # todo pos_limits=[('N', 8000), ('V', 4000), ('J', 4000), ('RB', 200), ('RB', 18000)]
+    # todo reduce_to=[300, 1000, 5000]
+    reduced_prefixes = do_svd(files_to_reduce, reduced_prefixes, reduce_to=[3, 5])
 
     # TRAIN BARONI COMPOSER
-    baroni_training_nouns = thes.to_file(baroni_training_phrases_space.replace('ANs', 'nouns'),
-                                         entry_filter=lambda x: x.tokens_as_str().endswith('/N'))
-    trained_composer_path = train_baroni_composer(baroni_training_nouns,
-                                                  baroni_training_phrases_undescore,
-                                                  baroni_training_phrases_undescore.replace('vectors', 'AN-model')
-    )
-    sys.exit(0) #ENOUGH FOR NOW
+    # train on each SVD-reduced file, not the original one
+    for pref in reduced_prefixes:
+        # find file and its svd dimensionality from prefix
+        all_vectors = pref + '.events.filtered.strings'
+        svd_settings = pref.split('-')[-1]
+        # load it and extract just the nouns/ ANs to train Baroni composer on
+        thes = Thesaurus([all_vectors], aggressive_lowercasing=False)
+        baroni_training_nouns = thes.to_file(baroni_training_phrases.replace('ANs', 'onlyN-%s' % svd_settings),
+                                             entry_filter=lambda x: x.type == '1-GRAM' and x.tokens[0].pos == 'N')
+
+        baroni_training_ANs = thes.to_file(baroni_training_phrases.replace('ANs', 'onlyANs-%s' % svd_settings),
+                                           entry_filter=lambda x: x.type == 'AN',
+                                           row_transform=lambda x: x.replace(' ', '_'))
+        trained_composer_path = train_baroni_composer(baroni_training_nouns,
+                                                      baroni_training_ANs,
+                                                      baroni_training_phrases.replace('vectors', 'AN-model'))
 
 
     # mess with vectors, add to/modify entries and events files
@@ -170,8 +184,11 @@ if __name__ == '__main__':
     event_files = [_find_events_file(dir) for dir in thesaurus_dirs]
     dump.write_vectors(event_files,
                        dump.data_path,
+                       trained_composer_path,
                        log_to_console=True,
                        output_dir=ngram_vectors_dir)
+
+    sys.exit(0) #ENOUGH FOR NOW
 
     do_second_part(thesaurus_dirs[0], add_feature_type=['AN', 'VO', 'SVO']) # all vectors in same thesaurus
     do_second_part(thesaurus_dirs[0]) # plain old thesaurus without ngrams

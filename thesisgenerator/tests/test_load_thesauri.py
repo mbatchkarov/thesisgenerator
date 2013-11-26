@@ -74,7 +74,8 @@ class TestLoad_thesauri(TestCase):
         # test that the PoS of an n-gram entry is not lowercased
         self.assertEquals(_smart_lower('Cat/N'), 'cat/N')
         self.assertEquals(_smart_lower('Cat/n'), 'cat/n')
-        self.assertEquals(_smart_lower('Red/J CaT/N'), 'red/J cat/N')
+        self.assertEquals(_smart_lower('Red/J_CaT/N'), 'red/J_cat/N')
+        self.assertEquals(_smart_lower('Red/J CaT/N', separator=' '), 'red/J cat/N')
 
         # test that features are not touched
         self.assertEquals(_smart_lower('amod-DEP:former', aggressive_lowercasing=False), 'amod-DEP:former')

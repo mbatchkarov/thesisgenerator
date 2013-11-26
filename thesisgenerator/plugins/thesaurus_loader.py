@@ -9,7 +9,8 @@ from thesisgenerator.plugins.tokenizers import DocumentFeature
 
 
 class Thesaurus(dict):
-    def __init__(self, thesaurus_files='', sim_threshold=0, include_self=False, aggressive_lowercasing=True):
+    def __init__(self, thesaurus_files='', sim_threshold=0, include_self=False,
+                 aggressive_lowercasing=True, ngram_separator='_'):
         """
          A container that can read Byblo-formatted events (vectors) files OR sims files. Each entry can be of the form
 
@@ -34,11 +35,13 @@ class Thesaurus(dict):
             Cat/N -> cat/N. This is desirable when reading full thesauri with this class. If False, no lowercasing
             will take place. This might be desirable when readings feature lists
         :type aggressive_lowercasing: bool
+        :param ngram_separator: When n_gram entries are read in, what are the indidivual tokens separated by
         """
         self.thesaurus_files = thesaurus_files
         self.sim_threshold = sim_threshold
         self.include_self = include_self
         self.aggressive_lowercasing = aggressive_lowercasing
+        self.ngram_separator = ngram_separator
 
         self._read_from_disk()
 
@@ -77,17 +80,19 @@ class Thesaurus(dict):
                         logging.warn('Dodgy line in thesaurus file: %s\n %s', path, line)
                         continue
                     if tokens[0] != FILTERED:
-                        to_insert = [(_smart_lower(word, self.aggressive_lowercasing), float(sim))
+                        to_insert = [(_smart_lower(word, self.ngram_separator, self.aggressive_lowercasing), float(sim))
                                      for (word, sim) in walk_nonoverlapping_pairs(tokens, 1)
                                      if word.lower() != FILTERED and float(sim) > self.sim_threshold]
                         if self.include_self:
-                            to_insert.insert(0, (_smart_lower(tokens[0]), 1.0))
+                            to_insert.insert(0, (_smart_lower(tokens[0],
+                                                              self.ngram_separator,
+                                                              self.aggressive_lowercasing), 1.0))
                             # the step above may filter out all neighbours of an entry. if this happens,
                             # do not bother adding it
                         if len(to_insert) > 0:
                             if tokens[0] in self:
                                 logging.error('Multiple entries for "%s" found. Accepting last entry.' % tokens[0])
-                            key = _smart_lower(tokens[0], self.aggressive_lowercasing)
+                            key = _smart_lower(tokens[0], self.ngram_separator, self.aggressive_lowercasing)
                             if key not in self:
                                 self[key] = []
                             self[key].extend(to_insert)
@@ -164,6 +169,17 @@ class Thesaurus(dict):
 
     def to_file(self, filename, entry_filter=lambda x: True, row_transform=lambda x: x):
         # todo unit test
+        """
+        Writes this thesaurus to a Byblo-compatible events file like the one it was most likely read from. In the
+        process converts all entries to a DocumentFeature.
+        :param filename:
+        :param entry_filter: Called for every DocumentFeature that is an entry in this thesaurus. The vector will
+         only be written if this callable return true
+        :param row_transform: Callable, any transformation that might need to be done to each entry before converting
+         it to a DocumentFeature. This is needed because some entries (e.g. african/J:amod-HEAD:leader) are not
+         directly convertible (needs to be african/J leader/N)
+        :return: :rtype:
+        """
         mat, cols, rows = self.to_sparse_matrix(row_transform=row_transform)
         rows = [DocumentFeature.from_string(x) for x in rows]
         import tempfile
@@ -176,14 +192,14 @@ class Thesaurus(dict):
 
 
 # END OF CLASS
-def _smart_lower(words_with_pos, aggressive_lowercasing=True):
+def _smart_lower(words_with_pos, separator='_', aggressive_lowercasing=True):
     """
     Lowercase just the words and not their PoS tags
     """
     if not aggressive_lowercasing:
         return words_with_pos
 
-    unigrams = words_with_pos.split(' ')
+    unigrams = words_with_pos.split(separator)
     words = []
     for unigram in unigrams:
         try:
@@ -194,4 +210,4 @@ def _smart_lower(words_with_pos, aggressive_lowercasing=True):
 
         words.append('/'.join([word.lower(), pos]) if pos else word.lower())
 
-    return ' '.join(words)
+    return separator.join(words)

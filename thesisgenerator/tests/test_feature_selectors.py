@@ -220,10 +220,10 @@ class TestVectorBackedSelectKBest(TestCase):
                               'kid/N': 3,
                               'like/V': 4,
                               'play/V': 5,
-                              'cat/N like/V': 6,
-                              'kid/N play/V': 7,
-                              'like/V dog/N': 8,
-                              'play/V game/N': 9})
+                              'cat/N_like/V': 6,
+                              'kid/N_play/V': 7,
+                              'like/V_dog/N': 8,
+                              'play/V_game/N': 9})
 
         t.assert_array_equal(tr_matrix, self.training_matrix_signifier_bigrams)
 
@@ -245,9 +245,9 @@ class TestVectorBackedSelectKBest(TestCase):
                               #'like/V': 4,
                               'play/V': 2,
                               #'cat/N like/V': 6,
-                              'kid/N play/V': 3,
+                              'kid/N_play/V': 3,
                               #'like/V dog/N': 8,
-                              'play/V game/N': 4})
+                              'play/V_game/N': 4})
         t.assert_array_equal(tr_matrix, np.array([[0., 0., 0., 0., 0.],
                                                   [0., 0., 0., 0., 0.],
                                                   [1., 1., 1., 1., 1.]]))
@@ -262,7 +262,7 @@ class TestVectorBackedSelectKBest(TestCase):
         composer = PrecomputedSimilaritiesVectorSource(['thesisgenerator/resources/exp0-0a.strings'])
 
         # patch it to ensure it contains some bigram entries, as if they were calculated on the fly
-        composer.th['like/V fruit/N'] = [('like/V', 0.8)]
+        composer.th['like/V_fruit/N'] = [('like/V', 0.8)]
         tr_matrix, tr_voc, ev_matrix, ev_voc = self._do_feature_selection(False, 'all', handler='SignifierSignified',
                                                                           vector_source=composer, max_feature_len=2)
         self.assertTupleEqual(ev_matrix.shape, (3, 10))

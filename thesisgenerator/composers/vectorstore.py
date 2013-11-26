@@ -2,15 +2,16 @@ from abc import ABCMeta, abstractmethod
 from collections import defaultdict
 import logging
 from random import choice
-
 from operator import itemgetter
+from pickle import load
+
 from scipy.spatial.distance import cosine
 from sklearn.neighbors import NearestNeighbors
 import scipy.sparse as sp
 from scipy.sparse import vstack
 from sklearn.random_projection import SparseRandomProjection
-from thesisgenerator.composers import utils
 
+from thesisgenerator.composers import utils
 from thesisgenerator.plugins.thesaurus_loader import Thesaurus
 from thesisgenerator.plugins.tokenizers import DocumentFeature, Token
 
@@ -193,8 +194,25 @@ class BaroniComposer(Composer):
     feature_pattern = {'AN'}
     name = 'Baroni'
 
-    def __init__(self, unigram_source=None):
+    def __init__(self, unigram_source=None, pretrained_model_file=None):
         super(BaroniComposer, self).__init__(unigram_source)
+        if not pretrained_model_file:
+            logging.error('Expected filename, got %s', pretrained_model_file)
+            raise ValueError('Model file required to perform composition.')
+        with open(pretrained_model_file) as infile:
+            self._composer = load(infile)
+
+        # verify the composer's internal structure matches the unigram source
+        self.available_adjs = set(self._composer.function_space.id2row)
+        features = self._composer.composed_id2column
+        dimensionality = len(self._composer.composed_id2column)
+        # todo where did these features go?
+        assert unigram_source.distrib_features_vocab == self._composer.composed_id2column
+        # todo write unigram source to dissect format and instantiate a space
+        # todo temp file must be deleted with this object
+        # the assert that my_space.id2column == composer.composed_id2column
+
+
         if 'N' not in unigram_source.available_pos:
             raise ValueError('This composer requires a noun unigram vector source')
 
@@ -212,12 +230,8 @@ class BaroniComposer(Composer):
             # ignore ANs containing unknown nouns
             return False
 
-        # todo enable this
-        #if adj not in self.adjective_matrices.keys():
-        #        # ignore ANs containing unknown adjectives
-        #        continue
-
-        return True
+        # ignore ANs containing unknown adjectives
+        return adj in self.available_adjs
 
     def _get_vector(self, tokens):
         #todo currently returns just the noun vector, which is wrong
@@ -363,7 +377,7 @@ class PrecomputedSimilaritiesVectorSource(CompositeVectorSource):
 
     def __contains__(self, feature):
         # strip the meta information from the feature and use as a string, thesaurus does not contain this info
-        return ' '.join(map(str, feature.tokens)) in self.th
+        return '_'.join(map(str, feature.tokens)) in self.th
 
     def keys(self):
         # todo this needs to be removed from the interface of this class

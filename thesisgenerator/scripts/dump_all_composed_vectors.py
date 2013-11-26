@@ -17,7 +17,7 @@ from thesisgenerator.plugins.bov import ThesaurusVectorizer
 from thesisgenerator.utils.data_utils import load_tokenizer, tokenize_data, load_text_data_into_memory
 
 
-def write_vectors(unigram_vector_paths, classification_data_paths, baroni_precomposed_space_file,
+def write_vectors(unigram_vector_paths, classification_data_paths, pretrained_AN_composer_file,
                   output_dir='.', log_to_console=False, composer_method='bar'):
     """
     Extracts all composable features from a labelled classification corpus and dumps a vector for each of them
@@ -25,7 +25,7 @@ def write_vectors(unigram_vector_paths, classification_data_paths, baroni_precom
     :param unigram_vector_paths: a list of files in Byblo events format that contain vectors for all unigrams. This
     will be used in the composition process
     :param classification_data_paths:
-    :param baroni_precomposed_space_file:
+    :param pretrained_AN_composer_file: path to pre-trained Baroni AN composer file
     :param output_dir:
     :param log_to_console:
     :param composer_method:
@@ -55,7 +55,7 @@ def write_vectors(unigram_vector_paths, classification_data_paths, baroni_precom
     unigram_source = UnigramVectorSource(unigram_vector_paths, reduce_dimensionality=False)
     composers = [
         UnigramDummyComposer(unigram_source),
-        BaroniComposer(unigram_source, baroni_precomposed_space_file),
+        BaroniComposer(unigram_source, pretrained_AN_composer_file),
         OxfordSvoComposer(unigram_source),
         #composer_class(unigram_source)
     ]
