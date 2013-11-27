@@ -120,8 +120,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
         #    self.vector_source.populate_vector_space(self.vocabulary_.keys())
         return super(ThesaurusVectorizer, self).transform(raw_documents), self.vocabulary_
 
-    def _extract_features_from_dependency_tree(self, parse_tree, token_indices):
-        #todo this needs tests, esp for robustness to parser errors
+    def extract_features_from_dependency_tree(self, parse_tree, token_indices):
         # extract sentence-internal adjective-noun compounds
         new_features = []
 
@@ -161,7 +160,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
         min_n, max_n = map(int, ngram_range)
         for sentence, (parse_tree, token_indices) in sentences:
             if parse_tree:
-                features.extend(self._extract_features_from_dependency_tree(parse_tree, token_indices))
+                features.extend(self.extract_features_from_dependency_tree(parse_tree, token_indices))
             else:
                 # sometimes an input document will have a sentence of one word, which has no dependencies
                 # just ignore that and extract all the features that can be extracted without it

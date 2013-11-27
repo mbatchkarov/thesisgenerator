@@ -302,7 +302,8 @@ class XmlTokenizer(object):
             sentences = []
             for sent_element in tree.findall('.//sentence'):
                 sentences.append(self._process_sentence(sent_element))
-        except ET.ParseError:
+        except ET.ParseError as e:
+            logging.error('Parse error %s', e)
             pass
             # on OSX the .DS_Store file is passed in, if it exists
             # just ignore it
