@@ -102,7 +102,6 @@ class Thesaurus(dict):
                             # multiple neighbour lists for the same entry
 
     def to_dissect_sparse_files(self, output_prefix, row_transform=None):
-        # todo unit test
         """
         Converting to a dissect sparse matrix format. Writes out 3 files
 
@@ -126,7 +125,6 @@ class Thesaurus(dict):
                 outfile.write('{}\n'.format(feature))
 
     def to_sparse_matrix(self, row_transform=None, dtype=numpy.float):
-        # todo unit test
         """
         Converts the vectors held in this object to a scipy sparse matrix
         :return: a tuple containing
@@ -138,7 +136,6 @@ class Thesaurus(dict):
         from sklearn.feature_extraction import DictVectorizer
 
         self.v = DictVectorizer(sparse=True, dtype=dtype)
-        # todo unit test this! v.vocabulary must equal columns of self.export_to_dissect_sparse
 
         # order in which rows are iterated is not guaranteed if the dict if modified, but we're not doing that,
         # so it's all fine
@@ -150,7 +147,6 @@ class Thesaurus(dict):
         return mat, self.v.feature_names_, rows
 
     def to_dissect_core_space(self):
-        # todo unit test
         from composes.matrix.sparse_matrix import SparseMatrix
         from composes.semantic_space.space import Space
 
@@ -168,7 +164,6 @@ class Thesaurus(dict):
         return s
 
     def to_file(self, filename, entry_filter=lambda x: True, row_transform=lambda x: x):
-        # todo unit test
         """
         Writes this thesaurus to a Byblo-compatible events file like the one it was most likely read from. In the
         process converts all entries to a DocumentFeature.
