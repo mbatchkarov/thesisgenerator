@@ -5,31 +5,38 @@ from thesisgenerator.plugins.bov import ThesaurusVectorizer
 from thesisgenerator.plugins.tokenizers import XmlTokenizer, DocumentFeature, Token
 
 
-@pytest.fixture
+@pytest.fixture(scope='module')
+def valid_AN_features():
+    return [('big', 'cat'), ('black', 'cat'), ('small', 'bird'), ('red', 'bird')]
+
+
+@pytest.fixture(scope='module')
 def vectorizer():
     return ThesaurusVectorizer()
 
 
-@pytest.fixture
+@pytest.fixture(scope='module')
 def black_cat_parse_tree():
     with open('thesisgenerator/resources/tokenizer/black_cat.tagged') as infile:
         txt = infile.read()
     t = XmlTokenizer()
     sentence, (parse_tree, token_index) = t.tokenize_doc(txt)[0]
-    assert len(sentence) == len(parse_tree.nodes()) == 9
+    assert len(sentence) == len(parse_tree.nodes()) == 14
     return parse_tree, token_index
 
 
-def test_extract_features_from_correct_dependency_tree(black_cat_parse_tree, vectorizer):
+def test_extract_features_from_correct_dependency_tree(black_cat_parse_tree, vectorizer, valid_AN_features):
     features = vectorizer.extract_features_from_dependency_tree(*black_cat_parse_tree)
 
-    for adj, noun in [('big', 'cat'), ('black', 'cat'), ('small', 'bird'), ('gray', 'bird')]:
+    for adj, noun in valid_AN_features:
         f = DocumentFeature('AN', (Token(adj, 'J'), Token(noun, 'N')))
         assert f in features
 
     assert DocumentFeature('VO', (Token('eat', 'V'), Token('bird', 'N') )) in features
     assert DocumentFeature('SVO', (Token('cat', 'N'), Token('eat', 'V'), Token('bird', 'N') )) \
         in features
+
+    assert DocumentFeature('NN', (Token('heart', 'N'), Token('surgery', 'N') )) in features
 
 
 def test_extract_features_from_empty_dependency_tree(vectorizer):
@@ -44,13 +51,14 @@ def test_extract_features_from_empty_dependency_tree(vectorizer):
     [
         ('amod', 4),
         ('nsubj', 0),
-        ('dobj', 2)
+        ('dobj', 4)
     ]
 )
 def test_extract_features_from_dependency_tree_with_wrong_relation_types(black_cat_parse_tree,
                                                                          vectorizer,
                                                                          change_to,
-                                                                         expected_feature_count):
+                                                                         expected_feature_count,
+                                                                         valid_AN_features):
     parse_tree, token_index = black_cat_parse_tree
 
     #change all dependencies to amod
@@ -70,7 +78,7 @@ def test_extract_features_from_dependency_tree_with_wrong_relation_types(black_c
     assert len(features) == expected_feature_count
 
     #check that only amods between adj and nouns are extracted
-    for adj, noun in [('big', 'cat'), ('black', 'cat'), ('small', 'bird'), ('gray', 'bird')]:
+    for adj, noun in valid_AN_features:
         f = DocumentFeature('AN', (Token(adj, 'J'), Token(noun, 'N')))
         assert (f in features) == (change_to == 'amod')
 

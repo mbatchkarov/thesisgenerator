@@ -120,30 +120,39 @@ class ThesaurusVectorizer(TfidfVectorizer):
         #    self.vector_source.populate_vector_space(self.vocabulary_.keys())
         return super(ThesaurusVectorizer, self).transform(raw_documents), self.vocabulary_
 
-    def extract_features_from_dependency_tree(self, parse_tree, token_indices):
+    def extract_features_from_dependency_tree(self, parse_tree, token_index):
         # extract sentence-internal adjective-noun compounds
         new_features = []
 
         # get tuples of (head, dependent) for each amod relation in the tree
         # also enforce that head is a noun, dependent is an adjective
         amods = [x[:2] for x in parse_tree.edges(data=True) if x[2]['type'] == 'amod' and
-                                                               token_indices[x[0]].pos == 'N' and
-                                                               token_indices[x[1]].pos == 'J']
+                                                               token_index[x[0]].pos == 'N' and
+                                                               token_index[x[1]].pos == 'J']
         for head, dep in amods:
-            new_features.append(DocumentFeature('AN', (token_indices[dep], token_indices[head])))
+            new_features.append(DocumentFeature('AN', (token_index[dep], token_index[head])))
 
         # extract sentence-internal subject-verb-direct object compounds
         # todo how do we handle prepositional objects?
-        verbs = [t.index for t in token_indices.values() if t.pos == 'V']
-        subjects = set([(head, dep) for head, dep, opts in parse_tree.edges(data=True) if opts['type'] == 'nsubj'])
-        objects = set([(head, dep) for head, dep, opts in parse_tree.edges(data=True) if opts['type'] == 'dobj'])
+        verbs = [t.index for t in token_index.values() if t.pos == 'V']
+        subjects = set([(head, dep) for head, dep, opts in parse_tree.edges(data=True)
+                        if opts['type'] == 'nsubj' and token_index[head].pos == 'V' and token_index[dep].pos == 'N'])
+
+        objects = set([(head, dep) for head, dep, opts in parse_tree.edges(data=True)
+                       if opts['type'] == 'dobj' and token_index[head].pos == 'V' and token_index[dep].pos == 'N'])
         subjverbobj = [(s[1], v, o[1]) for v in verbs for s in subjects for o in objects if s[0] == v and o[0] == v]
         for s, v, o in subjverbobj:
-            new_features.append(DocumentFeature('SVO', (token_indices[s], token_indices[v], token_indices[o])))
+            new_features.append(DocumentFeature('SVO', (token_index[s], token_index[v], token_index[o])))
 
         verbobj = [(v, o[1]) for v in verbs for o in objects if o[0] == v]
         for v, o in verbobj:
-            new_features.append(DocumentFeature('VO', (token_indices[v], token_indices[o])))
+            new_features.append(DocumentFeature('VO', (token_index[v], token_index[o])))
+
+        nns = [x[:2] for x in parse_tree.edges(data=True) if x[2]['type'] == 'nn' and
+                                                             token_index[x[0]].pos == 'N' and
+                                                             token_index[x[1]].pos == 'N']
+        for head, dep in nns:
+            new_features.append(DocumentFeature('NN', (token_index[dep], token_index[head])))
 
         return new_features
 

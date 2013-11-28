@@ -161,7 +161,7 @@ class XmlTokenizer(object):
     def __init__(self, memory=NoopTransformer(), normalise_entities=False, use_pos=True,
                  coarse_pos=True, lemmatize=True, lowercase=True,
                  remove_stopwords=False, remove_short_words=False,
-                 use_cache=False):
+                 use_cache=False, dependency_format='collapsed-ccprocessed'):
         #store all important parameteres
         self.normalise_entities = normalise_entities
         self.use_pos = use_pos
@@ -170,6 +170,7 @@ class XmlTokenizer(object):
         self.lowercase = lowercase
         self.remove_stopwords = remove_stopwords
         self.remove_short_words = remove_short_words
+        self.dependency_format = dependency_format
 
         # store the important parameters for use as joblib keys
         self.important_params = deepcopy(self.__dict__)
@@ -255,8 +256,9 @@ class XmlTokenizer(object):
         # build a graph from the dependency information available in the input
         tokens_ids = set(x.index for x in tokens)
         dep_tree = nx.DiGraph()
+        dep_tree.add_nodes_from(tokens_ids)
 
-        basic_dependencies = tree.find('.//basic-dependencies')
+        basic_dependencies = tree.find('.//{}-dependencies'.format(self.dependency_format))
         if basic_dependencies:
             for dep in basic_dependencies.findall('.//dep'):
                 type = dep.get('type')
