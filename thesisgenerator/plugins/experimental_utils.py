@@ -21,7 +21,6 @@ from thesisgenerator.plugins.file_generators import _exp16_file_iterator, _exp1_
 
 import glob
 from itertools import chain
-import os
 from joblib import Parallel, delayed
 
 from numpy import nonzero

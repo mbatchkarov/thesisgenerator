@@ -407,10 +407,6 @@ class PrecomputedSimilaritiesVectorSource(CompositeVectorSource):
         # strip the meta information from the feature and use as a string, thesaurus does not contain this info
         return '_'.join(map(str, feature.tokens)) in self.th
 
-    def keys(self):
-        # todo this needs to be removed from the interface of this class
-        return self.th.keys()
-
     def populate_vector_space(self, *args, **kwargs):
         #nothing to do, we have the all-pairs sim matrix already
         pass

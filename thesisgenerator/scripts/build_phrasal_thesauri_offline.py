@@ -158,7 +158,8 @@ if __name__ == '__main__':
     # todo feature_type_limits=[('N', 8000), ('V', 4000), ('J', 4000), ('RB', 200), ('AN', 18000)]
     # todo reduce_to=[300, 1000, 5000]
     reduced_prefixes = do_svd(files_to_reduce, reduced_prefixes,
-                              feature_type_limits=[('N', 8000), ('V', 4000), ('J', 4000), ('RB', 200), ('AN', 18000)],
+                              desired_counts_per_feature_type=[('N', 8000), ('V', 4000), ('J', 4000),
+                                                               ('RB', 200), ('AN', 20000), ('NN', 20000)],
                               reduce_to=[300, 500])
     # todo verify that vectors come out of the right size, esp. with small training sets
     # e.g. when reducing to 300 the matrix is 286 dimensional WTF
