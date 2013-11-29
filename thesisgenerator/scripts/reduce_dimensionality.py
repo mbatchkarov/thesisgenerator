@@ -20,7 +20,6 @@ except ImportError:
 
 
 def _filter_out_infrequent_entries(desired_counts_per_feature_type, thesaurus):
-    # todo when any of the desired counts is 0 this will fail
     logging.info('Converting thesaurus to sparse matrix')
     mat, cols, rows = thesaurus.to_sparse_matrix()
     logging.info('Loaded a data matrix of shape %r', mat.shape)
@@ -38,11 +37,16 @@ def _filter_out_infrequent_entries(desired_counts_per_feature_type, thesaurus):
     for desired_pos, desired_count in desired_counts_per_feature_type:
         row_of_current_pos = pos_tags == desired_pos # what rows are the right PoS tags at, boolean mask array
         # indices of the array sorted by row sum, and where the pos == desired_pos
-        sorted_idx_by_sum = np.ravel(mat.sum(1)).argsort()
-        row_of_current_pos = row_of_current_pos[sorted_idx_by_sum]
-        sorted_idx_and_pos_matching = sorted_idx_by_sum[row_of_current_pos]
-        # slice off the top desired_count and store them
-        pos_to_rows[desired_pos] = sorted_idx_and_pos_matching[-desired_count:]
+        if desired_count > 0:
+            sorted_idx_by_sum = np.ravel(mat.sum(1)).argsort()
+            row_of_current_pos = row_of_current_pos[sorted_idx_by_sum]
+            sorted_idx_and_pos_matching = sorted_idx_by_sum[row_of_current_pos]
+            # slice off the top desired_count and store them
+            pos_to_rows[desired_pos] = sorted_idx_and_pos_matching[-desired_count:]
+        else:
+            #do not include
+            pass
+
         logging.info('Frequency filter keeping %d/%d %s entries ', desired_count,
                      sum(row_of_current_pos), desired_pos)
     desired_rows = np.sort(np.hstack(x for x in pos_to_rows.values()))
@@ -60,7 +64,7 @@ def _filter_out_infrequent_entries(desired_counts_per_feature_type, thesaurus):
     mat = mat[:, desired_cols]
     cols = np.array(cols)[desired_cols]
     logging.info('Selected only the most frequent entries, matrix size is now %r', mat.shape)
-    return mat, pos_tags, rows
+    return mat, pos_tags, rows, cols
 
 
 def _do_svd_single(mat, n_components):
@@ -121,8 +125,9 @@ def do_svd(input_paths, output_prefixes,
     :type input_paths: list
     :param output_prefixes: Where to output the reduced files
     :param desired_counts_per_feature_type: how many entries to keep of each DocumentFeature type, by frequency. This is the
-    PoS tag for unigram features and the feature type otherwise. For instance, pass in [('N', 2), ('AN', 3)] to
-    select 2 unigrams of PoS noun and 3 bigrams of type adjective-noun.
+    PoS tag for unigram features and the feature type otherwise. For instance, pass in [('N', 2), ('AN', 0)] to
+    select 2 unigrams of PoS noun and 0 bigrams of type adjective-noun. Types that are not explicitly given a positive
+    desired count are treated as if the desired count is 0.
     :param reduce_to: what dimensionalities to reduce to
     :param pos_per_output_dir: What PoS entries to write in each output dir. The length of this must match
     the length of input_paths. Permitted values are N, J, V, RB and ALL. If not specified, the same output (all Pos)
@@ -140,7 +145,7 @@ def do_svd(input_paths, output_prefixes,
     thesaurus = Thesaurus(input_paths, aggressive_lowercasing=False)
     if not thesaurus:
         raise ValueError('Empty thesaurus %r', input_paths)
-    mat, pos_tags, rows = _filter_out_infrequent_entries(desired_counts_per_feature_type, thesaurus)
+    mat, pos_tags, rows, cols = _filter_out_infrequent_entries(desired_counts_per_feature_type, thesaurus)
 
     output_prefixes_with_dims = []
     for n_components in reduce_to:
