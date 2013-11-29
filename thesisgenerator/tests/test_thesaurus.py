@@ -31,14 +31,14 @@ def _assert_matrix_of_thesaurus_c_is_as_expected(matrix, rows, cols):
     # rows may come in any order
     assert set(rows) == set(['g/N', 'a/N', 'd/J', 'b/V', 'a/J_b/N'])
     # columns must be in alphabetical order
-    assert cols == ['a/N', 'b/V', 'd/J', 'g/N', 'g/V', 'x/X']
+    assert cols == ['a/N', 'b/V', 'd/J', 'g/N', 'x/X']
     # test the vectors for each entry
     expected_matrix = np.array([
-        [0.1, 0., 0.2, 0.8, 0., 0.], # ab
-        [0., 0.1, 0.5, 0.3, 0., 0.], # a
-        [0.1, 0., 0.3, 0.6, 0., 0.], # b
-        [0.5, 0.3, 0., 0., 0.7, 0.], # d
-        [0.3, 0.6, 0.7, 0., 0., 0.9] # g
+        [0.1, 0., 0.2, 0.8, 0.], # ab
+        [0., 0.1, 0.5, 0.3, 0.], # a
+        [0.1, 0., 0.3, 0.6, 0.], # b
+        [0.5, 0.3, 0., 0.7, 0.], # d
+        [0.3, 0.6, 0.7, 0., 0.9] # g
     ])
     # put the rows in the matrix in the order in which they are in expected_matrix
     matrix_ordered_by_rows = matrix[np.argsort(np.array(rows)), :]
@@ -48,7 +48,7 @@ def _assert_matrix_of_thesaurus_c_is_as_expected(matrix, rows, cols):
 def test_to_sparse_matrix(thesaurus_c):
     matrix, cols, rows = thesaurus_c.to_sparse_matrix()
     matrix = matrix.A
-    assert matrix.shape == (5, 6)
+    assert matrix.shape == (5, 5)
 
     _assert_matrix_of_thesaurus_c_is_as_expected(matrix, rows, cols)
 

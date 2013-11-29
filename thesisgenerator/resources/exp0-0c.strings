@@ -1,0 +1,5 @@
+g/N	x/X	0.9	d/J	0.7	b/V	0.6	a/N	0.3
+a/N	d/J	0.5	g/N	0.3	b/V	0.1
+d/J	g/N	0.7	a/N	0.5	b/V	0.3
+b/V	g/N	0.6	d/J	0.3	a/N	0.1
+a/J_b/N	g/N	0.8	d/J	0.2	a/N	0.1
