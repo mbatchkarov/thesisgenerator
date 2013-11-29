@@ -8,6 +8,7 @@ import scipy.sparse as sp
 from thesisgenerator.plugins.thesaurus_loader import Thesaurus
 from thesisgenerator.scripts.reduce_dimensionality import _do_svd_single, \
     _filter_out_infrequent_entries, _write_to_disk
+from thesisgenerator.tests.test_thesaurus import thesaurus_c
 
 
 DIM = 100

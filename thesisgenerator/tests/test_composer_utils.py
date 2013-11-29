@@ -4,6 +4,7 @@ import scipy.sparse as sp
 from thesisgenerator.plugins.tokenizers import DocumentFeature
 from thesisgenerator.tests.test_dimensionality_reduction import _read_and_strip_lines
 from thesisgenerator.composers.utils import write_vectors_to_disk
+from thesisgenerator.tests.test_thesaurus import thesaurus_c
 
 
 __author__ = 'mmb28'
