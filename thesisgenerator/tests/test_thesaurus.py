@@ -14,7 +14,7 @@ from thesisgenerator.utils.misc import walk_nonoverlapping_pairs
 __author__ = 'mmb28'
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture
 def thesaurus_c():
     return Thesaurus(thesaurus_files=['thesisgenerator/resources/exp0-0c.strings'],
                      sim_threshold=0,

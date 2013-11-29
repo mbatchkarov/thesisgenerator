@@ -1,6 +1,7 @@
 from itertools import groupby, chain
 import logging
 import numpy as np
+from scipy.sparse import isspmatrix_coo
 
 __author__ = 'mmb28'
 
@@ -8,17 +9,27 @@ __author__ = 'mmb28'
 def write_vectors_to_disk(matrix, row_index, column_index, features_path, entries_path, vectors_path,
                           entry_filter=lambda x: True):
     """
-
+    Converts a matrix and its associated row/column indices to a Byblo compatible entries/features/event files,
+    possibly applying a tranformation function to each entry
     :param matrix: data matrix of size (n_entries, n_features) in scipy.sparse.coo format
+    :type matrix: scipy.sparse.coo_matrix
     :param row_index: sorted list of DocumentFeature-s representing entry names
+    :type row_index: thesisgenerator.plugins.tokenizer.DocumentFeature
     :param column_index: sorted list of feature names
     :param features_path: where to write the Byblo features file
     :param entries_path: where to write the Byblo entries file
     :param vectors_path: where to write the Byblo events file
-    :param entry_filter: callable, called for each entry. Returns true if the entry has to be written and false if
-    the entry has to be ignored. Defaults to True.
+    :param entry_filter: callable, called for each entry. Takes a single DocumentFeature parameter. Returns true
+    if the entry has to be written and false if the entry has to be ignored. Defaults to True.
     """
     # todo unit test
+    if not isspmatrix_coo(matrix):
+        logging.error('Expected a scipy.sparse.coo matrix, got %s', type(matrix))
+        raise ValueError('Wrong matrix type')
+    if (len(row_index), len(column_index)) != matrix.shape:
+        logging.error('Matrix shape is wrong, expected %dx%s, got %r', len(row_index), len(column_index), matrix.shape)
+        raise ValueError('Matrix shape does not match row_index/column_index size')
+
     new_byblo_entries = {}
     things = zip(matrix.row, matrix.col, matrix.data)
     selected_rows = []
