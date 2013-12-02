@@ -355,7 +355,10 @@ class CompositeVectorSource(VectorSource):
             raise ValueError('No vectors')
         self.feature_matrix = vstack(vectors)
         self.entry_index = [f for f in vocabulary for _ in self.composer_mapping[f.type]]
-        #todo test if this entry index is correct- this is why the composer_mapping thing had to be sorted!!!
+
+        a, b = self.feature_matrix.shape
+        if a < 50 and b < 50: # this may well be a test run, save some more debug info
+            self.debug_entry_index = [(f, c) for f in vocabulary for c in self.composer_mapping[f.type]]
 
         #self.entry_index = {i: ngram for i, ngram in enumerate(feature_list)}
         #assert len(feature_list) == self.feature_matrix.shape[0]

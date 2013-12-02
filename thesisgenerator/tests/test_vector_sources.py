@@ -118,6 +118,27 @@ class TestCompositeVectorSource(TestCase):
                                                UnigramDummyComposer(unigrams_vectors)],
                                               0.0, False)
 
+    def test_entry_index(self):
+        unigrams_vectors = UnigramVectorSource(['thesisgenerator/resources/ones.vectors.txt'])
+        subcomposers = [AdditiveComposer(unigrams_vectors), MultiplicativeComposer(unigrams_vectors),
+                        HeadWordComposer(unigrams_vectors), TailWordComposer(unigrams_vectors)]
+        composer = CompositeVectorSource(subcomposers,
+                                         sim_threshold=0, include_self=True)
+        tokens_only = [x.tokens[0] for x in unigrams_vectors.entry_index.keys()]
+        vocab = [DocumentFeature('2-GRAM', (x, y)) for (x, y) in
+                 combinations(tokens_only, 2)]
+        composer.populate_vector_space(vocab)
+
+        m = composer.feature_matrix.A
+        e = composer.debug_entry_index
+        self.assertEqual(len(e), len(vocab) * len(subcomposers))
+
+        for row, (feature, composer) in enumerate(e):
+            expected = composer._get_vector(feature).A.ravel()
+            observed = m[row, :]
+            assert_array_equal(expected, observed)
+
+
     def test_contains(self):
         self.assertIn(unigram_feature, self.composer)
         self.assertIn(bigram_feature, self.composer)
