@@ -60,11 +60,13 @@ class UnigramVectorSource(VectorSource):
         self.dissect_core_space = thesaurus.to_dissect_core_space()
 
         # Token -> row number in self.feature_matrix that holds corresponding vector
-        self.entry_index = {Token(*fv.split('/')): i for (i, fv) in enumerate(thesaurus.keys())}
+        self.entry_index = {DocumentFeature.from_string(feature): i for (i, feature) in enumerate(thesaurus.keys())}
 
         assert len(self.entry_index) == len(self.dissect_core_space.id2row)
 
-        self.available_pos = set(t.pos for t in self.entry_index.keys())
+        # the pos of all unigrams, the type of all n-grams
+        self.available_pos = set(feature.tokens[0].pos if feature.type == '1-GRAM' else feature.type
+                                 for feature in self.entry_index.keys())
         if reduce_dimensionality:
             logging.info('Reducing dimensionality of unigram vectors from %s to %s',
                          self.feature_matrix.shape[1], dimensions)
@@ -73,17 +75,17 @@ class UnigramVectorSource(VectorSource):
             self.distrib_features_vocab = None
 
 
-    def _get_vector(self, tokens):
+    def _get_vector(self, feature):
         # word must be an iterable of Token objects
         """
         Returns a matrix of size (1, N) for the first token in the provided list. Warns if multiple tokens are given.
-        :param tokens: a list of tokens to get vector for
+        :param feature: a list of tokens to get vector for
         :rtype: scipy.sparse.csr_matrix
         """
         try:
-            row = self.entry_index[tokens[0]]
-            if len(tokens) > 1:
-                logging.warn('Attempting to get unigram vector of n-gram %r', tokens)
+            row = self.entry_index[feature]
+            if len(feature.tokens) > 1:
+                logging.warn('Attempting to get unigram vector of n-gram %r', feature)
         except KeyError:
             return None
         return self.feature_matrix[row, :]
@@ -93,7 +95,7 @@ class UnigramVectorSource(VectorSource):
         Accept all unigrams that we have a vector for
         the thing is a unigram and we have a corpus-based vector for that unigram
         """
-        return feature.type in self.feature_pattern and feature.tokens[0] in self.entry_index
+        return feature.type in self.feature_pattern and feature in self.entry_index
 
     def __str__(self):
         return '[UnigramVectorSource with %d %d-dimensional entries]' % self.feature_matrix.shape
@@ -123,8 +125,8 @@ class UnigramDummyComposer(Composer):
     def __contains__(self, feature):
         return feature in self.unigram_source
 
-    def _get_vector(self, tokens):
-        return self.unigram_source._get_vector(tokens)
+    def _get_vector(self, feature):
+        return self.unigram_source._get_vector(feature)
 
     def __str__(self):
         return '[UnigramDummyComposer wrapping %s]' % self.unigram_source
@@ -156,7 +158,6 @@ class UnigramDummyComposer(Composer):
 #        return True
 #
 #    def _get_vector(self, tokens):
-#        #todo currently returns just the verb vector, which is wrong
 #        return self.unigram_source._get_vector((tokens[1],))
 
 
@@ -168,8 +169,8 @@ class AdditiveComposer(Composer):
     def __init__(self, unigram_source=None):
         super(AdditiveComposer, self).__init__(unigram_source)
 
-    def _get_vector(self, tokens):
-        return sum(self.unigram_source._get_vector((token,)) for token in tokens)
+    def _get_vector(self, feature):
+        return sum(self.unigram_source._get_vector(feature[i]) for i in range(len(feature.tokens)))
 
     def __contains__(self, feature):
         """
@@ -179,14 +180,9 @@ class AdditiveComposer(Composer):
         if feature.type == '1-GRAM' or feature.type not in self.feature_pattern:
             # no point in composing single-word document features
             return False
-
-        acceptable = True
-        for unigram in feature.tokens:
-            if DocumentFeature('1-GRAM', (unigram,)) not in self.unigram_source:
-                # ignore n-grams containing unknown unigrams
-                acceptable = False
-                break
-        return acceptable
+        features = [feature[i] for i in range(len(feature))]
+        x = DocumentFeature.from_string('a/N')
+        return all(feature[i] in self.unigram_source for i in range(len(feature)))
 
     def __str__(self):
         return '[AdditiveComposer with %d unigram entries]' % (len(self.unigram_source))
@@ -198,10 +194,13 @@ class MultiplicativeComposer(AdditiveComposer):
     def __init__(self, unigram_source=None):
         super(MultiplicativeComposer, self).__init__(unigram_source)
 
-    def _get_vector(self, tokens):
-        return reduce(sp.csr_matrix.multiply,
-                      [self.unigram_source._get_vector((t,)) for t in tokens[1:]],
-                      self.unigram_source._get_vector([tokens[0]]))
+    def _get_vector(self, feature):
+        if len(feature) > 1:
+            return reduce(sp.csr_matrix.multiply,
+                          [self.unigram_source._get_vector(t) for t in feature[1:]],
+                          self.unigram_source._get_vector(feature[0]))
+        else:
+            return self.unigram_source._get_vector(feature[0])
 
     def __str__(self):
         return '[MultiplicativeComposer with %d unigram entries]' % (len(self.unigram_source))
@@ -214,8 +213,8 @@ class HeadWordComposer(AdditiveComposer):
         self.feature_pattern = ['2-GRAM', '3-GRAM', 'AN', 'NN', 'VO', 'SVO']
 
 
-    def _get_vector(self, tokens):
-        return self.unigram_source._get_vector([tokens[self.hardcoded_index]])
+    def _get_vector(self, feature):
+        return self.unigram_source._get_vector(feature[self.hardcoded_index])
 
     def __contains__(self, feature):
         if feature.type == '1-GRAM' or feature.type not in self.feature_pattern:
@@ -264,7 +263,7 @@ class BaroniComposer(Composer):
         if 'N' not in unigram_source.available_pos:
             raise ValueError('This composer requires a noun unigram vector source')
 
-        vector = self._get_vector([Token('african', 'J'), Token('police', 'N')])
+        vector = self._get_vector(DocumentFeature.from_string('african/J_police/N'))
         #logging.info(vector)
 
     def __contains__(self, feature):
@@ -282,7 +281,7 @@ class BaroniComposer(Composer):
         assert ('J', 'N') == (modifier.pos, head.pos) or ('N', 'N') == (modifier.pos, head.pos)
 
         #if DocumentFeature('1-GRAM', (noun,)) not in self.unigram_source:
-        if head not in self.unigram_source.entry_index:
+        if DocumentFeature.from_string(str(head)) not in self.unigram_source:
             # ignore ANs containing unknown nouns
             # this implementation saves a bit of work by not calling UnigramSource__contains__
             #print "%s not in entry index" % head
@@ -294,22 +293,22 @@ class BaroniComposer(Composer):
         # ignore ANs containing unknown adjectives
         return str(modifier) in self.available_modifiers
 
-    def _get_vector(self, tokens):
+    def _get_vector(self, feature):
         #todo test properly
         """
 
-        :param tokens: list of tokens to compose, assumed to be an adjective and a noun, with PoS tags
+        :param feature: DocumentFeature to compose, assumed to be an adjective/noun and a noun, with PoS tags
         :return:
          :rtype: 1xN scipy sparse matrix of type numpy.float64 with M stored elements in Compressed Sparse Row format,
          where N is the dimensionality of the vectors in the unigram source
         """
-        adj = '{}'.format(tokens[0])
-        noun = '{}'.format(tokens[1])
-        phrase = '{}_{}'.format(adj, noun)
-        x = self.composer.compose([(adj, noun, phrase)], self.dissect_core_space).cooccurrence_matrix.mat
+        modifier = str(feature[0])
+        head = str(feature[1])
+        phrase = '{}_{}'.format(modifier, head)
+        x = self.composer.compose([(modifier, head, phrase)], self.dissect_core_space).cooccurrence_matrix.mat
         #todo could also convert to dense 1D ndarray, vector.A.ravel()
         return x
-        #return self.unigram_source._get_vector((tokens[-1], ))
+        #return self.unigram_source._get_vector((feature[-1], ))
 
 
 class CompositeVectorSource(VectorSource):
@@ -325,7 +324,7 @@ class CompositeVectorSource(VectorSource):
         self.nbrs, self.feature_matrix, entry_index = [None] * 3     # computed by self.build_peripheral_space()
         self.composers = composers
         self.composer_mapping = defaultdict(set) # feature type -> {composer object}
-        #tmp = OrderedDict()
+        #tmp = OrderedDict() # see below
         for c in self.composers:
             for p in c.feature_pattern:
                 self.composer_mapping[p].add(c)
@@ -348,14 +347,16 @@ class CompositeVectorSource(VectorSource):
         """
         logging.debug('Populating vector space with algorithm %s and vocabulary %s', algorithm, vocabulary)
         logging.debug('Composer mapping is %s', self.composer_mapping)
-        vectors = [c._get_vector(f.tokens)
+        vectors = [c._get_vector(f)
                    for f in vocabulary
                    for c in self.composer_mapping[f.type]
                    if f.type in self.composer_mapping and f in c]
-
+        if not vectors:
+            raise ValueError('No vectors')
         self.feature_matrix = vstack(vectors)
         self.entry_index = [f for f in vocabulary for _ in self.composer_mapping[f.type]]
-        #todo test if this entry index is correct
+        #todo test if this entry index is correct- this is why the composer_mapping thing had to be sorted!!!
+
         #self.entry_index = {i: ngram for i, ngram in enumerate(feature_list)}
         #assert len(feature_list) == self.feature_matrix.shape[0]
         #todo BallTree/KDTree only work with dense inputs
@@ -386,8 +387,7 @@ class CompositeVectorSource(VectorSource):
         """
         Returns a set of vector for the specified ngram, one from each sub-source
         """
-        feature_type, tokens = feature.type, feature.tokens
-        return [(c.name, c._get_vector(tokens).todense()) for c in self.composer_mapping[feature_type]]
+        return [(c.name, c._get_vector(feature).todense()) for c in self.composer_mapping[feature.type]]
 
     def _get_nearest_neighbours(self, feature):
         """

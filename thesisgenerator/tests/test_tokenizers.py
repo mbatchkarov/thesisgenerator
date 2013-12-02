@@ -250,6 +250,38 @@ class Test_tokenizer(TestCase):
         )
 
         self.assertEqual(
+            DocumentFeature('VO', (Token('chase', 'V'), Token('cat', 'N'))),
+            DocumentFeature.from_string('chase/V_cat/N')
+        )
+
+        self.assertEqual(
+            DocumentFeature('NN', (Token('dog', 'N'), Token('cat', 'N'))),
+            DocumentFeature.from_string('dog/N_cat/N')
+        )
+
+        self.assertEqual(
+            DocumentFeature('3-GRAM', (Token('dog', 'V'), Token('chase', 'V'), Token('cat', 'V'))),
+            DocumentFeature.from_string('dog/V_chase/V_cat/V')
+        )
+
+        self.assertEqual(
+            DocumentFeature('2-GRAM', (Token('chase', 'V'), Token('cat', 'V'))),
+            DocumentFeature.from_string('chase/V_cat/V')
+        )
+
+        self.assertEqual(
             DocumentFeature('SVO', (Token('dog', 'N'), Token('chase', 'V'), Token('cat', 'N'))),
             DocumentFeature.from_string('dog/N_chase/V_cat/N')
         )
+
+    def test_document_feature_slicing(self):
+        x = DocumentFeature.from_string('big/J_cat/N')
+        self.assertEqual(x[0], DocumentFeature.from_string('big/J'))
+        self.assertEqual(x[1], DocumentFeature.from_string('cat/N'))
+        self.assertEqual(x[1], DocumentFeature('1-GRAM', (Token('cat', 'N', 1), )))
+        self.assertEqual(x[0:], DocumentFeature.from_string('big/J_cat/N'))
+
+        x = DocumentFeature.from_string('cat/N')
+        self.assertEqual(x[0], DocumentFeature.from_string('cat/N'))
+        self.assertEqual(x[0:], DocumentFeature.from_string('cat/N'))
+        self.assertEqual(x[:], DocumentFeature.from_string('cat/N'))

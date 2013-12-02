@@ -72,6 +72,10 @@ class DocumentFeature(object):
                 t = 'VO'
             elif ''.join([t.pos for t in tokens]) == 'NN':
                 t = 'NN'
+            elif len(tokens) == 2:
+                t = '2-GRAM'
+            elif len(tokens) == 3:
+                t = '3-GRAM'
         except:
             logging.error('Cannot create token out of string %s', string)
             raise
@@ -84,6 +88,29 @@ class DocumentFeature(object):
         DocumentFeature('1-GRAM', ('X', 'Y',)) -> 'X Y'
         """
         return '_'.join(str(t) for t in self.tokens)
+
+    def __len__(self):
+        return len(self.tokens)
+
+    def __getitem__(self, item):
+        '''
+        Override slicing operator. Creates a feature from the tokens of this feature between
+        positions beg (inclusive) and end (exclusive)
+        :param beg:
+        :type beg: int
+        :param end:
+        :type end: int or None
+        :return:
+        :rtype: DocumentFeature
+        '''
+        tokens = self.tokens[item]
+        try:
+            l = len(tokens)
+            return DocumentFeature.from_string('_'.join(map(str, tokens)))
+        except TypeError:
+            # a single token has no len
+            return DocumentFeature.from_string(str(tokens))
+
 
     def __str__(self):
         return '{}:{}'.format(self.type, self.tokens)

@@ -31,7 +31,7 @@ class TestUnigramVectorSource(TestCase):
         # vectors come out right
         # a/N	amod:c	2   T:t1	1	T:t2	2	T:t3	3
         assert_array_equal(
-            self.source._get_vector((Token('a', 'N'),)).todense(),
+            self.source._get_vector(DocumentFeature.from_string('a/N')).todense(),
             [[0., 2., 0., 1., 2., 3., 0., 0.]]
         )
 
@@ -40,7 +40,8 @@ class TestUnigramVectorSource(TestCase):
             ['also/RB', 'amod:c', 'now/RB', 't:t1', 't:t2', 't:t3', 't:t4', 't:t5', ],
             self.source.distrib_features_vocab)
 
-        self.assertIsNone(self.source._get_vector('jfhjgjdfyjhgb'))
+        self.assertIsNone(self.source._get_vector(DocumentFeature.from_string('jfhjgjdfyjhgb/N')))
+        self.assertIsNone(self.source._get_vector(DocumentFeature.from_string('jfhjgjdfyjhgb/J')))
 
     def test_contains(self):
         """
@@ -52,7 +53,7 @@ class TestUnigramVectorSource(TestCase):
             self.assertNotIn(thing, self.source)
 
     def test_dimensionality_reduction(self):
-        v = self.reduced_source._get_vector((Token('a', 'N'), ))
+        v = self.reduced_source._get_vector(DocumentFeature.from_string('a/N'))
         self.assertTupleEqual((1, 2), v.shape)
         print v.A
 
@@ -72,8 +73,9 @@ class TestAdditiveVectorSource(TestCase):
     def test_get_nearest_neighbour(self):
         unigrams_vectors = UnigramVectorSource(['thesisgenerator/resources/ones.vectors.txt'])
         composer = CompositeVectorSource([AdditiveComposer(unigrams_vectors)], 0, True)
+        tokens_only = [x.tokens[0] for x in unigrams_vectors.entry_index.keys()]
         vocab = [DocumentFeature('2-GRAM', (x, y)) for (x, y) in
-                 combinations(unigrams_vectors.entry_index.iterkeys(), 2)]
+                 combinations(tokens_only, 2)]
         composer.populate_vector_space(vocab)
         print '----------- Setting include_self to True ------------'
         for bigram in vocab:
@@ -184,33 +186,34 @@ class TestSimpleComposers(TestCase):
 
         assert_array_equal(
             np.array([[0, 0, 0, 0, 0, 9, 0, 0]]),
-            mult._get_vector((Token('a', 'N'), Token('b', 'V'))).A
+            mult._get_vector(DocumentFeature.from_string('a/N_b/V')).A
         )
 
         assert_array_equal(
             np.array([[5, 2, 7, 1, 2, 6, 0, 0]]),
-            add._get_vector((Token('a', 'N'), Token('b', 'V'))).A
+            add._get_vector(DocumentFeature.from_string('a/N_b/V')).A
         )
 
         assert_array_equal(
             np.array([[5, 11, 15, 1, 2, 6, 10, 4]]),
-            add._get_vector((Token('a', 'N'), Token('b', 'V'), Token('c', 'J'))).A
+            add._get_vector(DocumentFeature.from_string('a/N_b/V_c/J')).A
         )
 
     def test_compose(self):
         add = AdditiveComposer(self.m)
         mult = MultiplicativeComposer(self.m)
 
-        for i in np.arange(1, DIM):
+        for i in range(1, 4):
             print i
-            result = add._get_vector(['a'] * i)
+            df = DocumentFeature.from_string('_'.join(['a/N'] * i))
+            result = add._get_vector(df)
             self.assertTrue(issparse(result))
             assert_array_equal(
                 np.arange(DIM).reshape((1, DIM)) * i,
                 result.A
             )
 
-            result = mult._get_vector(['a'] * i)
+            result = mult._get_vector(df)
             self.assertTrue(issparse(result))
             assert_array_equal(
                 np.arange(DIM).reshape((1, DIM)) ** i,
@@ -246,20 +249,20 @@ class TestPrecomputedSimSource(TestCase):
         self.assertTrue(DocumentFeature.from_string('a/N') in self.source2)
         self.assertTrue(DocumentFeature.from_string('a/J_b/N') in self.source2)
 
-
-class TestBaroniComposer(object):
-    @pytest.fixture
-    def composer(self):
-        unigram_source = UnigramVectorSource(
-            ['thesisgenerator/resources/baroni/julie.onlyN-SVD300.clean.vectors'])
-        model_file = 'thesisgenerator/resources/baroni/julie.ANs.clean.AN-model.model.pkl'
-        return BaroniComposer(unigram_source, model_file)
-
-    def test_contains(self, composer):
-        # that composers only contains african/J and a bunch of nouns
-        assert DocumentFeature.from_string('african/J_price/N') in composer
-        assert DocumentFeature.from_string('african/J_south/N') in composer
-        assert DocumentFeature.from_string('african/J_somemadeupword/N') not in composer
+# commented out because it requires manual setup to binary resources
+#class TestBaroniComposer(object):
+#    @pytest.fixture
+#    def composer(self):
+#        unigram_source = UnigramVectorSource(
+#            ['thesisgenerator/resources/baroni/julie.onlyN-SVD300.clean.vectors'])
+#        model_file = 'thesisgenerator/resources/baroni/julie.ANs.clean.AN-model.model.pkl'
+#        return BaroniComposer(unigram_source, model_file)
+#
+#    def test_contains(self, composer):
+#        # that composers only contains african/J and a bunch of nouns
+#        assert DocumentFeature.from_string('african/J_price/N') in composer
+#        assert DocumentFeature.from_string('african/J_south/N') in composer
+#        assert DocumentFeature.from_string('african/J_somemadeupword/N') not in composer
 
 
 class TestHeadAndTailWordComposers(object):
@@ -282,8 +285,8 @@ class TestHeadAndTailWordComposers(object):
 
     def test_get_vector(self, composers):
         head, tail = composers
-        v1 = head._get_vector(DocumentFeature.from_string('like/V_fruit/N').tokens)
-        v2 = tail._get_vector(DocumentFeature.from_string('like/V_fruit/N').tokens)
+        v1 = head._get_vector(DocumentFeature.from_string('like/V_fruit/N'))
+        v2 = tail._get_vector(DocumentFeature.from_string('like/V_fruit/N'))
         assert v1.shape == v2.shape == (1, 7)
         assert_array_equal(v1.A.ravel(), np.array([0, 0, 0, 0, 0, 0, 0.11]))
         assert_array_equal(v2.A.ravel(), np.array([0.06, 0.05, 0, 0, 0, 0, 0]))

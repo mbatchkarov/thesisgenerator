@@ -11,7 +11,7 @@ from thesisgenerator.composers.vectorstore import CompositeVectorSource, Unigram
     UnigramDummyComposer, PrecomputedSimilaritiesVectorSource
 from thesisgenerator.plugins.bov import ThesaurusVectorizer
 from thesisgenerator.plugins.dumpers import FeatureVectorsCsvDumper
-from thesisgenerator.plugins.tokenizers import Token
+from thesisgenerator.plugins.tokenizers import Token, DocumentFeature
 from thesisgenerator.utils.data_utils import load_text_data_into_memory, load_tokenizer, tokenize_data
 
 
@@ -60,7 +60,7 @@ class TestVectorBackedSelectKBest(TestCase):
         if delete_kid:
             # the set of vectors we load from disk covers all unigrams in the training set, which makes it boring
             # let's remove one entry
-            del unigrams_vectors.entry_index[Token('kid', 'N')]
+            del unigrams_vectors.entry_index[DocumentFeature.from_string('kid/N')]
             unigrams_vectors.feature_matrix = unigrams_vectors.feature_matrix[:, :-1]
 
         pipeline_list = [
