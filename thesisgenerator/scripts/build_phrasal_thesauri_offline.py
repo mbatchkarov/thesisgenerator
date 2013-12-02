@@ -154,15 +154,16 @@ if __name__ == '__main__':
 
     # output write everything to the same
     # ...exp6-12/exp6.events.filtered.strings --> ...exp6-12/exp6
-    reduced_prefixes = ['.'.join(x.split('.')[:-3]) + '-with-phrases' for x in files_to_reduce[:-1]]
+    reduced_prefixes = ['.'.join(x.split('.')[:-3]) + '-with-obs-phrases' for x in files_to_reduce[:-1]]
     # todo feature_type_limits=[('N', 8000), ('V', 4000), ('J', 4000), ('RB', 200), ('AN', 18000)]
     # todo reduce_to=[300, 1000, 5000]
-    reduced_prefixes = do_svd(files_to_reduce, reduced_prefixes,
-                              desired_counts_per_feature_type=[('N', 8000), ('V', 4000), ('J', 4000),
-                                                               ('RB', 200), ('AN', 20000), ('NN', 20000)],
-                              reduce_to=[300, 500])
-    # todo verify that vectors come out of the right size, esp. with small training sets
-    # e.g. when reducing to 300 the matrix is 286 dimensional WTF
+    reduce_to = [300, 500]
+    #do_svd(files_to_reduce, reduced_prefixes,
+    #       desired_counts_per_feature_type=[('N', 8000), ('V', 4000), ('J', 4000),
+    #                                        ('RB', 200), ('AN', 20000), ('NN', 20000)],
+    #       reduce_to=reduce_to)
+
+    reduced_prefixes = ['%s-SVD%d' % (prefix, dims) for prefix in reduced_prefixes for dims in reduce_to]
 
     # TRAIN BARONI COMPOSER
     # train on each SVD-reduced file, not the original one
@@ -172,30 +173,36 @@ if __name__ == '__main__':
         svd_settings = pref.split('-')[-1]
         # load it and extract just the nouns/ ANs to train Baroni composer on
         thes = Thesaurus([all_vectors], aggressive_lowercasing=False)
-        baroni_training_nouns = thes.to_file(baroni_training_phrases.replace('ANs', 'onlyN-%s' % svd_settings),
-                                             entry_filter=lambda x: x.type == '1-GRAM' and x.tokens[0].pos == 'N')
 
-        baroni_training_ANs = thes.to_file(baroni_training_phrases.replace('ANs', 'onlyANs-%s' % svd_settings),
-                                           entry_filter=lambda x: x.type == 'AN',
-                                           row_transform=lambda x: x.replace(' ', '_'))
-        trained_composer_path = train_baroni_composer(baroni_training_nouns,
-                                                      baroni_training_ANs,
-                                                      baroni_training_phrases.replace('vectors', 'AN-model'))
+        baroni_training_nouns = baroni_training_phrases.replace('ANs', 'onlyN-%s' % svd_settings)
+        #thes.to_file(baroni_training_nouns,
+        #             entry_filter=lambda x: x.type == '1-GRAM' and x.tokens[0].pos == 'N')
+
+        baroni_training_ANs = baroni_training_phrases.replace('ANs', 'onlyANs-%s' % svd_settings)
+        #thes.to_file(baroni_training_ANs,
+        #             entry_filter=lambda x: x.type == 'AN',
+        #             row_transform=lambda x: x.replace(' ', '_'))
+
+        baroni_trained_model_output_prefix = baroni_training_phrases.replace('vectors', 'AN-model-%s' % svd_settings)
+        trained_composer_path = baroni_trained_model_output_prefix + '.model.pkl'
+        #trained_composer_path = train_baroni_composer(baroni_training_nouns,
+        #                                              baroni_training_ANs,
+        #                                              baroni_trained_model_output_prefix)
 
 
         # mess with vectors, add to/modify entries and events files
         # whether to modify the features file is less obvious- do composed entries have different features
         # to the non-composed ones?
         event_files = [_find_events_file(dir) for dir in thesaurus_dirs]
-        dump.write_vectors([all_vectors],
-                           dump.classification_data_path,
-                           trained_composer_path,
-                           log_to_console=True,
-                           output_dir=ngram_vectors_dir)
+        dump.compose_and_write_vectors([all_vectors],
+                                       dump.classification_data_path,
+                                       trained_composer_path,
+                                       log_to_console=True,
+                                       output_dir=ngram_vectors_dir)
 
     sys.exit(0) #ENOUGH FOR NOW
 
-    do_second_part(thesaurus_dirs[0], add_feature_type=['AN', 'VO', 'SVO']) # all vectors in same thesaurus
+    do_second_part(thesaurus_dirs[0], add_feature_type=['AN', 'NN']) #'VO', 'SVO' # all vectors in same thesaurus
     do_second_part(thesaurus_dirs[0]) # plain old thesaurus without ngrams
 
     ### add AN phrases to noun thesaurus, SVO to verb thesaurus, and rebuild

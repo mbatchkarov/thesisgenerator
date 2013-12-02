@@ -36,6 +36,9 @@ class VectorSource(object):
 
 
 class UnigramVectorSource(VectorSource):
+    """
+    Holds vectors for a bunch of unigrams.
+    """
     feature_pattern = {'1-GRAM'}
     name = 'Lex'
 
@@ -58,6 +61,7 @@ class UnigramVectorSource(VectorSource):
 
         # Token -> row number in self.feature_matrix that holds corresponding vector
         self.entry_index = {Token(*fv.split('/')): i for (i, fv) in enumerate(thesaurus.keys())}
+        assert len(self.entry_index) == len(self.dissect_core_space.id2row)
 
         self.available_pos = set(t.pos for t in self.entry_index.keys())
         if reduce_dimensionality:
@@ -100,6 +104,10 @@ class Composer(VectorSource):
 
 
 class UnigramDummyComposer(Composer):
+    """
+    This is different from PrecomputedSimilaritiesVectorSource as it contains vectors for each entry and NOT a
+    precomputed all-pairs similarity matrix
+    """
     name = 'Lexical'
     feature_pattern = {'1-GRAM'}
 
@@ -116,34 +124,34 @@ class UnigramDummyComposer(Composer):
         return '[UnigramDummyComposer wrapping %s]' % self.unigram_source
 
 
-class OxfordSvoComposer(Composer):
-    name = 'DummySVO'
-    feature_pattern = {'SVO'}
-
-    def __init__(self, unigram_source=None):
-        super(OxfordSvoComposer, self).__init__(unigram_source)
-        if 'V' not in unigram_source.available_pos or \
-                        'N' not in unigram_source.available_pos:
-            raise ValueError('This composer requires a noun and verb unigram vector sources')
-
-    def __contains__(self, feature):
-        """
-        Accept all subject-verb-object phrases where we have a corpus-observed vector for each unigram
-        """
-        if feature.type not in self.feature_pattern:
-            # ignore non-SVO features
-            return False
-
-        for token in feature.tokens:
-            if DocumentFeature('1-GRAM', (token,)) not in self.unigram_source:
-                # ignore ANs containing unknown nouns
-                return False
-
-        return True
-
-    def _get_vector(self, tokens):
-        #todo currently returns just the verb vector, which is wrong
-        return self.unigram_source._get_vector((tokens[1],))
+#class OxfordSvoComposer(Composer):
+#    name = 'DummySVO'
+#    feature_pattern = {'SVO'}
+#
+#    def __init__(self, unigram_source=None):
+#        super(OxfordSvoComposer, self).__init__(unigram_source)
+#        if 'V' not in unigram_source.available_pos or \
+#                        'N' not in unigram_source.available_pos:
+#            raise ValueError('This composer requires a noun and verb unigram vector sources')
+#
+#    def __contains__(self, feature):
+#        """
+#        Accept all subject-verb-object phrases where we have a corpus-observed vector for each unigram
+#        """
+#        if feature.type not in self.feature_pattern:
+#            # ignore non-SVO features
+#            return False
+#
+#        for token in feature.tokens:
+#            if DocumentFeature('1-GRAM', (token,)) not in self.unigram_source:
+#                # ignore ANs containing unknown nouns
+#                return False
+#
+#        return True
+#
+#    def _get_vector(self, tokens):
+#        #todo currently returns just the verb vector, which is wrong
+#        return self.unigram_source._get_vector((tokens[1],))
 
 
 class AdditiveComposer(Composer):
@@ -195,7 +203,7 @@ class MultiplicativeComposer(AdditiveComposer):
 
 class BaroniComposer(Composer):
     # BaroniComposer composes AN features
-    feature_pattern = {'AN'}
+    feature_pattern = {'AN', 'NN'}
     name = 'Baroni'
 
     def __init__(self, unigram_source=None, pretrained_model_file=None):
@@ -207,46 +215,48 @@ class BaroniComposer(Composer):
             self.composer = load(infile)
 
         # verify the composer's internal structure matches the unigram source
-        self.available_adjs = set(self.composer.function_space.id2row)
+        self.available_modifiers = set(self.composer.function_space.id2row)
         features = self.composer.composed_id2column
         dimensionality = len(self.composer.composed_id2column)
 
         assert unigram_source.distrib_features_vocab == self.composer.composed_id2column
-        # todo write unigram source to dissect format and instantiate a space
-        # todo temp file must be deleted with this object
         self.dissect_core_space = unigram_source.dissect_core_space
 
         # check composed space's columns matche core space's (=unigram source)'s columns
         assert self.dissect_core_space.id2column == self.composer.composed_id2column
-        #todo this core space must NOT contain any ngrams, and it currently does
 
         if 'N' not in unigram_source.available_pos:
             raise ValueError('This composer requires a noun unigram vector source')
 
         vector = self._get_vector([Token('african', 'J'), Token('police', 'N')])
-        logging.info(vector)
+        #logging.info(vector)
 
     def __contains__(self, feature):
         """
-        Accept all adjective-noun phrases where we have a corpus-observed vector for the noun and
-        a learnt matrix (through PLSR) for the adjective
+        Accept all adjective-noun or noun-noun phrases where we have a corpus-observed vector for the head and
+        a learnt matrix (through PLSR) for the modifier
         """
         # todo expand unit tests now that we have a real composer
         if feature.type not in self.feature_pattern:
             # ignore non-AN features
+            #print "%s is not a valid type" % feature.type
             return False
 
-        adj, noun = feature.tokens
-        assert ('J', 'N') == (adj.pos, noun.pos)
+        modifier, head = feature.tokens
+        assert ('J', 'N') == (modifier.pos, head.pos) or ('N', 'N') == (modifier.pos, head.pos)
 
         #if DocumentFeature('1-GRAM', (noun,)) not in self.unigram_source:
-        if noun not in self.unigram_source.entry_index:
+        if head not in self.unigram_source.entry_index:
             # ignore ANs containing unknown nouns
             # this implementation saves a bit of work by not calling UnigramSource__contains__
+            #print "%s not in entry index" % head
             return False
 
+        #if str(modifier) not in self.available_modifiers:
+        #    print "%s not in available modifiers" % modifier
+
         # ignore ANs containing unknown adjectives
-        return adj in self.available_adjs
+        return str(modifier) in self.available_modifiers
 
     def _get_vector(self, tokens):
         #todo test properly
@@ -267,6 +277,10 @@ class BaroniComposer(Composer):
 
 
 class CompositeVectorSource(VectorSource):
+    """
+    An object that takes vectors and composers as parameters and computes nearest neighbours on the fly
+    """
+
     def __init__(self, composers, sim_threshold, include_self):
         self.composers = composers
         self.sim_threshold = sim_threshold
@@ -288,13 +302,13 @@ class CompositeVectorSource(VectorSource):
         #todo the exact data structure used here will need optimisation
         """
         Input is like:
-         ('1-GRAM', ('Seattle/N',)),
-         ('1-GRAM', ('Senate/N',)),
-         ('1-GRAM', ('September/N',)),
-         ('1-GRAM', ('Service/N',)),
-         ('AN', ('similar/J', 'agreement/N')),
-         ('AN', ('tough/J', 'stance/N')),
-         ('AN', ('year-ago/J', 'period/N'))
+         DocumentFeature('1-GRAM', ('Seattle/N',)),
+         DocumentFeature('1-GRAM', ('Senate/N',)),
+         DocumentFeature('1-GRAM', ('September/N',)),
+         DocumentFeature('1-GRAM', ('Service/N',)),
+         DocumentFeature('AN', ('similar/J', 'agreement/N')),
+         DocumentFeature('AN', ('tough/J', 'stance/N')),
+         DocumentFeature('AN', ('year-ago/J', 'period/N'))
         """
         logging.debug('Populating vector space with algorithm %s and vocabulary %s', algorithm, vocabulary)
         logging.debug('Composer mapping is %s', self.composer_mapping)
@@ -360,12 +374,12 @@ class CompositeVectorSource(VectorSource):
                     break
         return res
 
-    def get_nearest_neighbours(self, ngram):
+    def get_nearest_neighbours(self, feature):
         """
         Returns only the third element of what self._get_nearest_neighbours returns
         """
-        #print ngram, self._get_nearest_neighbours(ngram)
-        return map(itemgetter(1), self._get_nearest_neighbours(ngram))
+        #print feature, self._get_nearest_neighbours(feature)
+        return map(itemgetter(1), self._get_nearest_neighbours(feature))
 
     def __str__(self):
         wrapped = ', '.join(str(c) for c in self.composers)
@@ -378,18 +392,28 @@ class CompositeVectorSource(VectorSource):
 class PrecomputedSimilaritiesVectorSource(CompositeVectorSource):
     """
     Wraps a Byblo-computer Thesaurus in the interface of a CompositeVectorSource, deferring the get_nearest_neighbours
-    method to the Thesaurus. Only handles features of the form ('1-GRAM', (X,))
+    method to the Thesaurus. This is different from UnigramDummyComposer as it contains a precomputed all-pairs
+    similarity matrix and NOT vectors for each entry
     """
     feature_pattern = {'1-GRAM'}
     name = 'BybloThes'
 
+
     def __init__(self, thesaurus_files='', sim_threshold=0, include_self=False):
+        '''
+        :param thesaurus_files: List of **all-pairs similarities** files.
+        :type thesaurus_files: list
+        :param sim_threshold:
+        :type sim_threshold: float
+        :param include_self:
+        :type include_self: bool
+        '''
         self.th = Thesaurus(thesaurus_files=thesaurus_files, sim_threshold=sim_threshold, include_self=include_self)
 
     def _get_nearest_neighbours(self, feature):
     # Accepts structured features and strips the meta information from the feature and use as a string
     # Returns (composer, sim, neighbour) tuples
-    # Feature structure is ('1-GRAM', ('Seattle/N',))
+    # Feature structure is DocumentFeature('1-GRAM', ('Seattle/N',))
 
         # strip the structural info from feature for thes lookup
         res = self.th.get(feature.tokens_as_str())
@@ -406,6 +430,9 @@ class PrecomputedSimilaritiesVectorSource(CompositeVectorSource):
     def __contains__(self, feature):
         # strip the meta information from the feature and use as a string, thesaurus does not contain this info
         return '_'.join(map(str, feature.tokens)) in self.th
+
+    def _get_vector(self, feature):
+        raise ValueError('This is a precomputed neighbours object, it does not contain vectors.')
 
     def populate_vector_space(self, *args, **kwargs):
         #nothing to do, we have the all-pairs sim matrix already

@@ -8,6 +8,7 @@ from scipy.sparse import csr_matrix, issparse
 
 from thesisgenerator.composers.vectorstore import *
 from thesisgenerator.plugins.tokenizers import Token
+import pytest
 
 DIM = 10
 
@@ -222,13 +223,40 @@ class TestPrecomputedSimSource(TestCase):
         self.source = PrecomputedSimilaritiesVectorSource(
             thesaurus_files=['thesisgenerator/resources/exp0-0a.strings'],
             sim_threshold=0, include_self=False)
+        self.source2 = PrecomputedSimilaritiesVectorSource(
+            thesaurus_files=['thesisgenerator/resources/exp0-0c.strings'],
+            sim_threshold=0, include_self=False)
 
 
-    def test_retrieval(self):
+    def test_get_nearest_neighbours(self):
         self.assertTupleEqual(
-            self.source.get_nearest_neighbours(DocumentFeature('1-GRAM', (Token('cat', 'N'),)))[0],
+            self.source.get_nearest_neighbours(DocumentFeature.from_string('cat/N'))[0],
             (DocumentFeature('1-GRAM', (Token('dog', 'N'),)), 0.8)
         )
 
+        self.assertTupleEqual(
+            self.source2.get_nearest_neighbours(DocumentFeature.from_string('a/J_b/N'))[0],
+            (DocumentFeature.from_string('g/N'), 0.8)
+        )
+
     def test_contains(self):
-        self.assertTrue(self.source.__contains__(DocumentFeature('1-GRAM', (Token('cat', 'N'),))))
+        self.assertTrue(DocumentFeature.from_string('cat/N') in self.source)
+        self.assertFalse(DocumentFeature.from_string('a/J_b/N') in self.source)
+
+        self.assertTrue(DocumentFeature.from_string('a/N') in self.source2)
+        self.assertTrue(DocumentFeature.from_string('a/J_b/N') in self.source2)
+
+
+class TestBaroniComposer(object):
+    @pytest.fixture
+    def composer(trained_model):
+        unigram_source = UnigramVectorSource(
+            ['thesisgenerator/resources/baroni/julie.onlyN-SVD300.clean.vectors'])
+        model_file = 'thesisgenerator/resources/baroni/julie.ANs.clean.AN-model.model.pkl'
+        return BaroniComposer(unigram_source, model_file)
+
+    def test_contains(self, composer):
+        print composer
+        assert DocumentFeature.from_string('african/J_price/N') in composer
+        assert DocumentFeature.from_string('african/J_south/N') in composer
+        assert DocumentFeature.from_string('african/J_somemadeupword/N') not in composer

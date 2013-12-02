@@ -51,7 +51,7 @@ class DocumentFeature(object):
         """
         Takes a string representing a DocumentFeature and creates and object out of it. String format is
         "word/POS" or "word1/PoS1 word2/PoS2",... The type of the feature will be inferred from the length and
-        PoS tags of the input string. Currently supports 1-GRAM, AN, SVO and SV.
+        PoS tags of the input string. Currently supports 1-GRAM, AN, NN, SVO and SV.
 
         :type string: str
         """
@@ -70,6 +70,8 @@ class DocumentFeature(object):
                 t = 'AN'
             elif ''.join([t.pos for t in tokens]) == 'VN':
                 t = 'VO'
+            elif ''.join([t.pos for t in tokens]) == 'NN':
+                t = 'NN'
         except:
             logging.error('Cannot create token out of string %s', string)
             raise

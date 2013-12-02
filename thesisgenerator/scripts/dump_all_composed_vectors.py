@@ -12,13 +12,13 @@ from numpy import hstack
 from sklearn.pipeline import Pipeline
 from thesisgenerator.composers.feature_selectors import VectorBackedSelectKBest, MetadataStripper
 from thesisgenerator.composers.vectorstore import UnigramVectorSource, UnigramDummyComposer, \
-    CompositeVectorSource, BaroniComposer, OxfordSvoComposer
+    CompositeVectorSource, BaroniComposer
 from thesisgenerator.plugins.bov import ThesaurusVectorizer
 from thesisgenerator.utils.data_utils import load_tokenizer, tokenize_data, load_text_data_into_memory
 
 
-def write_vectors(unigram_vector_paths, classification_data_paths, pretrained_AN_composer_file,
-                  output_dir='.', log_to_console=False, composer_method='bar'):
+def compose_and_write_vectors(unigram_vector_paths, classification_data_paths, pretrained_AN_composer_file,
+                              output_dir='.', log_to_console=False, composer_method='bar'):
     """
     Extracts all composable features from a labelled classification corpus and dumps a vector for each of them
     to disk
@@ -56,10 +56,8 @@ def write_vectors(unigram_vector_paths, classification_data_paths, pretrained_AN
     composers = [
         UnigramDummyComposer(unigram_source),
         BaroniComposer(unigram_source, pretrained_AN_composer_file),
-        OxfordSvoComposer(unigram_source),
-        #composer_class(unigram_source)
     ]
-    vector_source = CompositeVectorSource(composers, 0, False)
+    vector_source = CompositeVectorSource(composers, sim_threshold=0, include_self=False)
 
     train, test = classification_data_paths
     raw_data, data_ids = load_text_data_into_memory(
@@ -95,7 +93,7 @@ def write_vectors(unigram_vector_paths, classification_data_paths, pretrained_AN
 
     # todo lines below (composition) are logically separate from lines above (feature extraction in R8)
     all_files = []
-    for feature_type in ['AN', 'SVO', 'VO']:
+    for feature_type in ['AN', 'NN']:
         output_files = ('%s_%s_%s.vectors.tsv' % (feature_type, dataset, composer_method),
                         '%s_%s_%s.entries.txt' % (feature_type, dataset, composer_method),
                         '%s_%s_%s.features.txt' % (feature_type, dataset, composer_method))
@@ -126,8 +124,8 @@ toy_paths = [
 
 n_jobs = 4
 classification_data_path = (
-'/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data/reuters21578/r8train-tagged-grouped',
-'/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data/reuters21578/r8test-tagged-grouped')
+    '/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data/reuters21578/r8train-tagged-grouped',
+    '/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data/reuters21578/r8test-tagged-grouped')
 
 if __name__ == '__main__':
     """
@@ -139,6 +137,7 @@ if __name__ == '__main__':
     #vector_paths = [giga_paths, wiki_paths]
     #vector_paths = [toy_paths]
     vector_paths = [giga_paths]
+    trained_baroni_model = '/Volumes/LocalDataHD/mmb28/NetBeansProjects/FeatureExtractionToolkit/phrases/julie.ANs.clean.AN-model.model.pkl'
 
     debug = len(sys.argv) > 1
     if debug:
@@ -150,7 +149,8 @@ if __name__ == '__main__':
         #data_path = ['%s-small' % corpus_path for corpus_path in data_path]
 
     output_files = Parallel(n_jobs=n_jobs)(
-        delayed(write_vectors)(vectors_path, classification_data_path, log_to_console=debug)
+        delayed(compose_and_write_vectors)(vectors_path, classification_data_path, trained_baroni_model,
+                                           log_to_console=debug)
         for vectors_path in vector_paths)
     for vectors, entries, features in output_files:
         print vectors, entries, features

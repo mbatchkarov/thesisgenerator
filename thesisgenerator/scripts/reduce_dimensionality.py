@@ -153,8 +153,8 @@ def do_svd(input_paths, output_prefixes,
         if not method:
             continue
 
-        output_prefixes = ['{}-SVD{}'.format(path, n_components) for path in output_prefixes]
-        x = _write_to_disk(reduced_mat, method, output_prefixes, pos_per_output_dir, pos_tags, rows)
+        write_to = ['{}-SVD{}'.format(path, n_components) for path in output_prefixes]
+        x = _write_to_disk(reduced_mat, method, write_to, pos_per_output_dir, pos_tags, rows)
         output_prefixes_with_dims.extend(x)
 
     return output_prefixes_with_dims

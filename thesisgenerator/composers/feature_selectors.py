@@ -73,7 +73,11 @@ class VectorBackedSelectKBest(SelectKBest):
                 self.scores_[index] = 0
                 mask[index] = 0
                 count += 1
-        logging.info('Zeroed %d/%d scores', count, self.scores_.shape[0])
+        total_features = self.scores_.shape[0]
+        logging.info('Zeroed %d/%d scores', count, total_features)
+        if total_features == count:
+            logging.error('Feature selector removed all features')
+            raise ValueError('Empty vocabulary')
         return mask
 
     def _update_vocab_according_to_mask(self, mask):
