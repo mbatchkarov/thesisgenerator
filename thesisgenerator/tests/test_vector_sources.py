@@ -249,14 +249,41 @@ class TestPrecomputedSimSource(TestCase):
 
 class TestBaroniComposer(object):
     @pytest.fixture
-    def composer(trained_model):
+    def composer(self):
         unigram_source = UnigramVectorSource(
             ['thesisgenerator/resources/baroni/julie.onlyN-SVD300.clean.vectors'])
         model_file = 'thesisgenerator/resources/baroni/julie.ANs.clean.AN-model.model.pkl'
         return BaroniComposer(unigram_source, model_file)
 
     def test_contains(self, composer):
-        print composer
+        # that composers only contains african/J and a bunch of nouns
         assert DocumentFeature.from_string('african/J_price/N') in composer
         assert DocumentFeature.from_string('african/J_south/N') in composer
         assert DocumentFeature.from_string('african/J_somemadeupword/N') not in composer
+
+
+class TestHeadAndTailWordComposers(object):
+    @pytest.fixture
+    def composers(self):
+        unigram_vectors = UnigramVectorSource(['thesisgenerator/resources/exp0-0a.strings'])
+
+        return HeadWordComposer(unigram_vectors), TailWordComposer(unigram_vectors)
+
+    def test_contains(self, composers):
+        head, tail = composers
+        for c in composers:
+            for f in ['like/V_fruit/N', 'fruit/N_cat/N', 'kid/N_like/V_fruit/N']:
+                assert DocumentFeature.from_string(f) in c
+
+        assert DocumentFeature.from_string('cat/N') not in head # no unigrams
+        assert DocumentFeature.from_string('cat/N') not in tail # no unigrams
+        assert DocumentFeature.from_string('red/J_cat/N') not in head # no unknown head words
+        assert DocumentFeature.from_string('red/J_cat/N') in tail # no unknown head words
+
+    def test_get_vector(self, composers):
+        head, tail = composers
+        v1 = head._get_vector(DocumentFeature.from_string('like/V_fruit/N').tokens)
+        v2 = tail._get_vector(DocumentFeature.from_string('like/V_fruit/N').tokens)
+        assert v1.shape == v2.shape == (1, 7)
+        assert_array_equal(v1.A.ravel(), np.array([0, 0, 0, 0, 0, 0, 0.11]))
+        assert_array_equal(v2.A.ravel(), np.array([0.06, 0.05, 0, 0, 0, 0, 0]))

@@ -61,6 +61,7 @@ class UnigramVectorSource(VectorSource):
 
         # Token -> row number in self.feature_matrix that holds corresponding vector
         self.entry_index = {Token(*fv.split('/')): i for (i, fv) in enumerate(thesaurus.keys())}
+
         assert len(self.entry_index) == len(self.dissect_core_space.id2row)
 
         self.available_pos = set(t.pos for t in self.entry_index.keys())
@@ -74,6 +75,11 @@ class UnigramVectorSource(VectorSource):
 
     def _get_vector(self, tokens):
         # word must be an iterable of Token objects
+        """
+        Returns a matrix of size (1, N) for the first token in the provided list. Warns if multiple tokens are given.
+        :param tokens: a list of tokens to get vector for
+        :rtype: scipy.sparse.csr_matrix
+        """
         try:
             row = self.entry_index[tokens[0]]
             if len(tokens) > 1:
@@ -199,6 +205,36 @@ class MultiplicativeComposer(AdditiveComposer):
 
     def __str__(self):
         return '[MultiplicativeComposer with %d unigram entries]' % (len(self.unigram_source))
+
+
+class HeadWordComposer(AdditiveComposer):
+    def __init__(self, unigram_source=None):
+        super(HeadWordComposer, self).__init__(unigram_source)
+        self.hardcoded_index = 0
+        self.feature_pattern = ['2-GRAM', '3-GRAM', 'AN', 'NN', 'VO', 'SVO']
+
+
+    def _get_vector(self, tokens):
+        return self.unigram_source._get_vector([tokens[self.hardcoded_index]])
+
+    def __contains__(self, feature):
+        if feature.type == '1-GRAM' or feature.type not in self.feature_pattern:
+            # no point in composing single-word document features
+            return False
+
+        return DocumentFeature('1-GRAM', (feature.tokens[self.hardcoded_index],)) in self.unigram_source
+
+    def __str__(self):
+        return '[HeadWordComposer with %d unigram entries]' % (len(self.unigram_source))
+
+
+class TailWordComposer(HeadWordComposer):
+    def __init__(self, unigram_source=None):
+        super(TailWordComposer, self).__init__(unigram_source)
+        self.hardcoded_index = -1
+
+    def __str__(self):
+        return '[TailWordComposer with %d unigram entries]' % (len(self.unigram_source))
 
 
 class BaroniComposer(Composer):
