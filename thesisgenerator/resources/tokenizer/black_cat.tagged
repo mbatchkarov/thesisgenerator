@@ -1,0 +1,206 @@
+<?xml version="1.0" encoding="UTF-8"?> 
+<?xml-stylesheet href="CoreNLP-to-HTML.xsl" type="text/xsl"?> 
+<root> 
+  <document> 
+    <sentences> 
+      <sentence id="1"> 
+        <tokens> 
+          <token id="1"> 
+            <word>The</word> 
+            <lemma>the</lemma> 
+            <CharacterOffsetBegin>0</CharacterOffsetBegin> 
+            <CharacterOffsetEnd>3</CharacterOffsetEnd> 
+            <POS>DT</POS> 
+            <NER>O</NER> 
+            <Speaker>PER0</Speaker> 
+          </token> 
+          <token id="2"> 
+            <word>big</word> 
+            <lemma>big</lemma> 
+            <CharacterOffsetBegin>4</CharacterOffsetBegin> 
+            <CharacterOffsetEnd>7</CharacterOffsetEnd> 
+            <POS>JJ</POS> 
+            <NER>O</NER> 
+            <Speaker>PER0</Speaker> 
+          </token> 
+          <token id="3"> 
+            <word>black</word> 
+            <lemma>black</lemma> 
+            <CharacterOffsetBegin>8</CharacterOffsetBegin> 
+            <CharacterOffsetEnd>13</CharacterOffsetEnd> 
+            <POS>JJ</POS> 
+            <NER>O</NER> 
+            <Speaker>PER0</Speaker> 
+          </token> 
+          <token id="4"> 
+            <word>cat</word> 
+            <lemma>cat</lemma> 
+            <CharacterOffsetBegin>14</CharacterOffsetBegin> 
+            <CharacterOffsetEnd>17</CharacterOffsetEnd> 
+            <POS>NN</POS> 
+            <NER>O</NER> 
+            <Speaker>PER0</Speaker> 
+          </token> 
+          <token id="5"> 
+            <word>ate</word> 
+            <lemma>eat</lemma> 
+            <CharacterOffsetBegin>18</CharacterOffsetBegin> 
+            <CharacterOffsetEnd>21</CharacterOffsetEnd> 
+            <POS>VBD</POS> 
+            <NER>O</NER> 
+            <Speaker>PER0</Speaker> 
+          </token> 
+          <token id="6"> 
+            <word>the</word> 
+            <lemma>the</lemma> 
+            <CharacterOffsetBegin>22</CharacterOffsetBegin> 
+            <CharacterOffsetEnd>25</CharacterOffsetEnd> 
+            <POS>DT</POS> 
+            <NER>O</NER> 
+            <Speaker>PER0</Speaker> 
+          </token> 
+          <token id="7"> 
+            <word>small</word> 
+            <lemma>small</lemma> 
+            <CharacterOffsetBegin>26</CharacterOffsetBegin> 
+            <CharacterOffsetEnd>31</CharacterOffsetEnd> 
+            <POS>JJ</POS> 
+            <NER>O</NER> 
+            <Speaker>PER0</Speaker> 
+          </token> 
+          <token id="8"> 
+            <word>red</word> 
+            <lemma>red</lemma> 
+            <CharacterOffsetBegin>32</CharacterOffsetBegin> 
+            <CharacterOffsetEnd>35</CharacterOffsetEnd> 
+            <POS>JJ</POS> 
+            <NER>O</NER> 
+            <Speaker>PER0</Speaker> 
+          </token> 
+          <token id="9"> 
+            <word>bird</word> 
+            <lemma>bird</lemma> 
+            <CharacterOffsetBegin>36</CharacterOffsetBegin> 
+            <CharacterOffsetEnd>40</CharacterOffsetEnd> 
+            <POS>NN</POS> 
+            <NER>O</NER> 
+            <Speaker>PER0</Speaker> 
+          </token> 
+          <token id="10"> 
+            <word>and</word> 
+            <lemma>and</lemma> 
+            <CharacterOffsetBegin>41</CharacterOffsetBegin> 
+            <CharacterOffsetEnd>44</CharacterOffsetEnd> 
+            <POS>CC</POS> 
+            <NER>O</NER> 
+            <Speaker>PER0</Speaker> 
+          </token> 
+          <token id="11"> 
+            <word>survived</word> 
+            <lemma>survive</lemma> 
+            <CharacterOffsetBegin>45</CharacterOffsetBegin> 
+            <CharacterOffsetEnd>53</CharacterOffsetEnd> 
+            <POS>VBD</POS> 
+            <NER>O</NER> 
+            <Speaker>PER0</Speaker> 
+          </token> 
+          <token id="12"> 
+            <word>a</word> 
+            <lemma>a</lemma> 
+            <CharacterOffsetBegin>54</CharacterOffsetBegin> 
+            <CharacterOffsetEnd>55</CharacterOffsetEnd> 
+            <POS>DT</POS> 
+            <NER>O</NER> 
+            <Speaker>PER0</Speaker> 
+          </token> 
+          <token id="13"> 
+            <word>heart</word> 
+            <lemma>heart</lemma> 
+            <CharacterOffsetBegin>56</CharacterOffsetBegin> 
+            <CharacterOffsetEnd>61</CharacterOffsetEnd> 
+            <POS>NN</POS> 
+            <NER>O</NER> 
+            <Speaker>PER0</Speaker> 
+          </token> 
+          <token id="14"> 
+            <word>surgery</word> 
+            <lemma>surgery</lemma> 
+            <CharacterOffsetBegin>62</CharacterOffsetBegin> 
+            <CharacterOffsetEnd>69</CharacterOffsetEnd> 
+            <POS>NN</POS> 
+            <NER>O</NER> 
+            <Speaker>PER0</Speaker> 
+          </token> 
+          <token id="15"> 
+            <word>.</word> 
+            <lemma>.</lemma> 
+            <CharacterOffsetBegin>69</CharacterOffsetBegin> 
+            <CharacterOffsetEnd>70</CharacterOffsetEnd> 
+            <POS>.</POS> 
+            <NER>O</NER> 
+            <Speaker>PER0</Speaker> 
+          </token> 
+        </tokens> 
+        <parse>(ROOT (S (NP (DT The) (JJ big) (JJ black) (NN cat)) (VP (VP (VBD ate) (NP (DT the) (JJ small) (JJ red) (NN bird))) (CC and) (VP (VBD survived) (NP (DT a) (NN heart) (NN surgery)))) (. .))) </parse> 
+        <collapsed-ccprocessed-dependencies> 
+          <dep type="root"> 
+            <governor idx="0">ROOT</governor> 
+            <dependent idx="5">ate</dependent> 
+          </dep> 
+          <dep type="det"> 
+            <governor idx="4">cat</governor> 
+            <dependent idx="1">The</dependent> 
+          </dep> 
+          <dep type="amod"> 
+            <governor idx="4">cat</governor> 
+            <dependent idx="2">big</dependent> 
+          </dep> 
+          <dep type="amod"> 
+            <governor idx="4">cat</governor> 
+            <dependent idx="3">black</dependent> 
+          </dep> 
+          <dep type="nsubj"> 
+            <governor idx="5">ate</governor> 
+            <dependent idx="4">cat</dependent> 
+          </dep> 
+          <dep type="nsubj"> 
+            <governor idx="11">survived</governor> 
+            <dependent idx="4">cat</dependent> 
+          </dep> 
+          <dep type="det"> 
+            <governor idx="9">bird</governor> 
+            <dependent idx="6">the</dependent> 
+          </dep> 
+          <dep type="amod"> 
+            <governor idx="9">bird</governor> 
+            <dependent idx="7">small</dependent> 
+          </dep> 
+          <dep type="amod"> 
+            <governor idx="9">bird</governor> 
+            <dependent idx="8">red</dependent> 
+          </dep> 
+          <dep type="dobj"> 
+            <governor idx="5">ate</governor> 
+            <dependent idx="9">bird</dependent> 
+          </dep> 
+          <dep type="conj_and"> 
+            <governor idx="5">ate</governor> 
+            <dependent idx="11">survived</dependent> 
+          </dep> 
+          <dep type="det"> 
+            <governor idx="14">surgery</governor> 
+            <dependent idx="12">a</dependent> 
+          </dep> 
+          <dep type="nn"> 
+            <governor idx="14">surgery</governor> 
+            <dependent idx="13">heart</dependent> 
+          </dep> 
+          <dep type="dobj"> 
+            <governor idx="11">survived</governor> 
+            <dependent idx="14">surgery</dependent> 
+          </dep> 
+        </collapsed-ccprocessed-dependencies> 
+      </sentence> 
+    </sentences> 
+  </document> 
+</root> 
