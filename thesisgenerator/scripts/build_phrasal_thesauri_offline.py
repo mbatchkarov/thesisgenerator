@@ -138,30 +138,31 @@ if __name__ == '__main__':
 
     # REDUCE DIMENSIONALITY
     files_to_reduce = [_find_events_file(dir) for dir in thesaurus_dirs]
+    # output write everything to the same directory
+    # ...exp6-12/exp6.events.filtered.strings --> ...exp6-12/exp6
+    reduced_prefixes = ['.'.join(x.split('.')[:-3]) + '-with-obs-phrases' for x in files_to_reduce]
+
     # obtain training data for composer, that also needs to be reduced
-    baroni_training_phrases = os.path.abspath(os.path.join(byblo_base_dir, '..', 'phrases', 'julie.ANs.vectors'))
+    baroni_training_phrase_types = ['AN', 'NN']
+    baroni_training_phrases = [os.path.abspath(os.path.join(byblo_base_dir, '..', 'phrases',
+                                                            'julie.{}s.vectors'.format(x)))
+                               for x in baroni_training_phrase_types]
 
     # convert from Julie's format to mine
-    #baroni_training_phrases_space = reformat_entries(baroni_training_phrases,
-    #                                                 'space',
-    #                                                 function=lambda x: julie_transform(x, separator=' '))
     # convert to dissect format (underscore-separated ANs) for composer training
-    baroni_training_phrases = reformat_entries(baroni_training_phrases,
-                                               'clean',
-                                               function=lambda x: julie_transform(x, separator='_'))
+    #baroni_training_phrases.append(reformat_entries(baroni_training_phrases[0], 'clean',
+    #                                                function=lambda x: julie_transform(x, separator='_')))
+    #baroni_training_phrases.append(reformat_entries(baroni_training_phrases[1], 'clean',
+    #                                                function=lambda x: julie_transform(x, separator='_', pos1='N')))
 
-    files_to_reduce.append(baroni_training_phrases)
+    # add in observed AN/NN vectors for SVD processing
+    files_to_reduce.extend(baroni_training_phrases)
 
-    # output write everything to the same
-    # ...exp6-12/exp6.events.filtered.strings --> ...exp6-12/exp6
-    reduced_prefixes = ['.'.join(x.split('.')[:-3]) + '-with-obs-phrases' for x in files_to_reduce[:-1]]
     # todo feature_type_limits=[('N', 8000), ('V', 4000), ('J', 4000), ('RB', 200), ('AN', 18000)]
     # todo reduce_to=[300, 1000, 5000]
     reduce_to = [300, 500]
-    #do_svd(files_to_reduce, reduced_prefixes,
-    #       desired_counts_per_feature_type=[('N', 8000), ('V', 4000), ('J', 4000),
-    #                                        ('RB', 200), ('AN', 20000), ('NN', 20000)],
-    #       reduce_to=reduce_to)
+    counts = [('N', 8000), ('V', 4000), ('J', 4000), ('RB', 200), ('AN', 20000), ('NN', 20000)]
+    #do_svd(files_to_reduce, reduced_prefixes, desired_counts_per_feature_type=counts, reduce_to=reduce_to)
 
     reduced_prefixes = ['%s-SVD%d' % (prefix, dims) for prefix in reduced_prefixes for dims in reduce_to]
 
@@ -174,21 +175,25 @@ if __name__ == '__main__':
         # load it and extract just the nouns/ ANs to train Baroni composer on
         thes = Thesaurus([all_vectors], aggressive_lowercasing=False)
 
-        baroni_training_nouns = baroni_training_phrases.replace('ANs', 'onlyN-%s' % svd_settings)
-        #thes.to_file(baroni_training_nouns,
-        #             entry_filter=lambda x: x.type == '1-GRAM' and x.tokens[0].pos == 'N')
+        trained_composers = []
+        for training_phrases, phrase_type in zip(baroni_training_phrases, baroni_training_phrase_types):
+            baroni_training_heads = training_phrases.replace(phrase_type, 'onlyN-%s' % svd_settings)
+            thes.to_file(baroni_training_heads,
+                         entry_filter=lambda x: x.type == '1-GRAM' and x.tokens[0].pos == 'N')
 
-        baroni_training_ANs = baroni_training_phrases.replace('ANs', 'onlyANs-%s' % svd_settings)
-        #thes.to_file(baroni_training_ANs,
-        #             entry_filter=lambda x: x.type == 'AN',
-        #             row_transform=lambda x: x.replace(' ', '_'))
+            baroni_training_only_phrases = training_phrases.replace(phrase_type,
+                                                                    'only%s-%s' % (phrase_type, svd_settings))
+            thes.to_file(baroni_training_only_phrases,
+                         entry_filter=lambda x: x.type == phrase_type,
+                         row_transform=lambda x: x.replace(' ', '_'))
 
-        baroni_trained_model_output_prefix = baroni_training_phrases.replace('vectors', 'AN-model-%s' % svd_settings)
-        trained_composer_path = baroni_trained_model_output_prefix + '.model.pkl'
-        #trained_composer_path = train_baroni_composer(baroni_training_nouns,
-        #                                              baroni_training_ANs,
-        #                                              baroni_trained_model_output_prefix)
-
+            baroni_trained_model_output_prefix = training_phrases.replace('vectors',
+                                                                          '%s-model-%s' % ( phrase_type, svd_settings))
+            trained_composer_path = baroni_trained_model_output_prefix + '.model.pkl'
+            trained_composer_path = train_baroni_composer(baroni_training_heads,
+                                                          baroni_training_only_phrases,
+                                                          baroni_trained_model_output_prefix)
+            trained_composers.append(trained_composer_path)
 
         # mess with vectors, add to/modify entries and events files
         # whether to modify the features file is less obvious- do composed entries have different features
@@ -196,7 +201,7 @@ if __name__ == '__main__':
         event_files = [_find_events_file(dir) for dir in thesaurus_dirs]
         dump.compose_and_write_vectors([all_vectors],
                                        dump.classification_data_path,
-                                       trained_composer_path,
+                                       trained_composers,
                                        log_to_console=True,
                                        output_dir=ngram_vectors_dir)
 

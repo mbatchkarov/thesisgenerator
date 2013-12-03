@@ -263,8 +263,8 @@ class BaroniComposer(Composer):
         if 'N' not in unigram_source.available_pos:
             raise ValueError('This composer requires a noun unigram vector source')
 
-        vector = self._get_vector(DocumentFeature.from_string('african/J_police/N'))
-        #logging.info(vector)
+            #vector = self._get_vector(DocumentFeature.from_string('african/J_police/N'))
+            #logging.info(vector)
 
     def __contains__(self, feature):
         """
@@ -302,8 +302,8 @@ class BaroniComposer(Composer):
          :rtype: 1xN scipy sparse matrix of type numpy.float64 with M stored elements in Compressed Sparse Row format,
          where N is the dimensionality of the vectors in the unigram source
         """
-        modifier = str(feature[0])
-        head = str(feature[1])
+        modifier = str(feature.tokens[0])
+        head = str(feature.tokens[1])
         phrase = '{}_{}'.format(modifier, head)
         x = self.composer.compose([(modifier, head, phrase)], self.dissect_core_space).cooccurrence_matrix.mat
         #todo could also convert to dense 1D ndarray, vector.A.ravel()
@@ -354,11 +354,14 @@ class CompositeVectorSource(VectorSource):
         if not vectors:
             raise ValueError('No vectors')
         self.feature_matrix = vstack(vectors)
-        self.entry_index = [f for f in vocabulary for _ in self.composer_mapping[f.type]]
+        self.entry_index = [f for f in vocabulary for c in self.composer_mapping[f.type]
+                            if f.type in self.composer_mapping and f in c]
 
         a, b = self.feature_matrix.shape
         if a < 50 and b < 50: # this may well be a test run, save some more debug info
-            self.debug_entry_index = [(f, c) for f in vocabulary for c in self.composer_mapping[f.type]]
+            self.debug_entry_index = [(f, c) for f in vocabulary for c in self.composer_mapping[f.type]
+                                      if f.type in self.composer_mapping and f in c]
+
 
         #self.entry_index = {i: ngram for i, ngram in enumerate(feature_list)}
         #assert len(feature_list) == self.feature_matrix.shape[0]

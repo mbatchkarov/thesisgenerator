@@ -27,7 +27,7 @@ def _filter_out_infrequent_entries(desired_counts_per_feature_type, thesaurus):
     document_features = [DocumentFeature.from_string(r) for r in rows]
     # don't want to do dimensionality reduction on composed vectors
     feature_types = [sorted_idx_and_pos_matching.type for sorted_idx_and_pos_matching in document_features]
-    assert all(x == '1-GRAM' or x == 'AN' for x in feature_types)
+    assert all(x == '1-GRAM' or x == 'AN' or x == 'NN' for x in feature_types)
     # get the PoS tags of each row in the matrix
     pos_tags = np.array([df.tokens[0].pos if df.type == '1-GRAM' else df.type for df in document_features])
     # find the rows of the matrix that correspond to the most frequent nouns, verbs, ...,
