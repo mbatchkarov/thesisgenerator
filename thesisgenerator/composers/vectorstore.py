@@ -208,18 +208,24 @@ class MultiplicativeComposer(AdditiveComposer):
 
 
 class MinComposer(MultiplicativeComposer):
+    name = 'Min'
+
     def __init__(self, unigram_source=None):
         super(MinComposer, self).__init__(unigram_source)
         self.function = lambda m, n: np.minimum(m, n)
 
 
 class MaxComposer(AdditiveComposer):
+    name = 'Max'
+
     def __init__(self, unigram_source=None):
         super(MaxComposer, self).__init__(unigram_source)
         self.function = lambda m, n: sp.csr_matrix(np.maximum(m, n))
 
 
 class HeadWordComposer(AdditiveComposer):
+    name = 'Head'
+
     def __init__(self, unigram_source=None):
         super(HeadWordComposer, self).__init__(unigram_source)
         self.hardcoded_index = 0
@@ -238,6 +244,8 @@ class HeadWordComposer(AdditiveComposer):
 
 
 class TailWordComposer(HeadWordComposer):
+    name = 'Tail'
+
     def __init__(self, unigram_source=None):
         super(TailWordComposer, self).__init__(unigram_source)
         self.hardcoded_index = -1
@@ -322,6 +330,7 @@ class CompositeVectorSource(VectorSource):
     """
     An object that takes vectors and composers as parameters and computes nearest neighbours on the fly
     """
+    name = 'Composite'
 
     def __init__(self, composers, sim_threshold, include_self):
         self.composers = composers
@@ -442,7 +451,7 @@ class PrecomputedSimilaritiesVectorSource(CompositeVectorSource):
     similarity matrix and NOT vectors for each entry
     """
     feature_pattern = {'1-GRAM'}
-    name = 'BybloThes'
+    name = 'Precomputed'
 
 
     def __init__(self, thesaurus_files='', sim_threshold=0, include_self=False):
@@ -495,6 +504,7 @@ class ConstantNeighbourVectorSource(VectorSource):
      2) a single random neighbour for every possible entry. That neighbour is chosen from the vocabulary that is
         passed in (as a dict {feature:index} )
     """
+    name = 'Constant'
 
     def __init__(self, vocab=None):
         self.vocab = vocab

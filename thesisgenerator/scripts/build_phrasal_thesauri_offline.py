@@ -1,11 +1,11 @@
 import logging
 import os
 import sys
-from scripts.load_translated_byblo_space import train_baroni_composer
 
 sys.path.append('.')
 sys.path.append('..')
 sys.path.append('../..')
+
 from glob import glob
 from shutil import copytree, rmtree
 from thesisgenerator.plugins.thesaurus_loader import Thesaurus
@@ -14,6 +14,7 @@ from thesisgenerator.utils.cmd_utils import set_stage_in_byblo_conf_file, run_by
 from thesisgenerator.scripts import dump_all_composed_vectors as dump
 from thesisgenerator.scripts.reduce_dimensionality import do_svd
 from thesisgenerator.composers.utils import reformat_entries, julie_transform, julie_transform2
+from thesisgenerator.composers.vectorstore import *
 
 
 def calculate_unigram_vectors(thesaurus_dir):
@@ -144,19 +145,19 @@ if __name__ == '__main__':
 
     # obtain training data for composer, that also needs to be reduced
     baroni_training_phrase_types = ['AN', 'NN']
-    baroni_training_phrases = [os.path.abspath(os.path.join(byblo_base_dir, '..', 'phrases',
-                                                            'julie.{}s.vectors'.format(x)))
-                               for x in baroni_training_phrase_types]
+    #baroni_training_phrases = [os.path.abspath(os.path.join(byblo_base_dir, '..', 'phrases',
+    #                                                        'julie.{}s.vectors'.format(x)))
+    #                           for x in baroni_training_phrase_types]
 
     # convert from Julie's format to mine
     # convert to dissect format (underscore-separated ANs) for composer training
-    baroni_training_phrases.append(reformat_entries(baroni_training_phrases[0], 'clean',
-                                                    function=lambda x: julie_transform(x, separator='_')))
-    baroni_training_phrases.append(reformat_entries(baroni_training_phrases[1], 'clean',
-                                                    function=lambda x: julie_transform2(x, separator='_', pos1='N')))
+    #baroni_training_phrases.append(reformat_entries(baroni_training_phrases[0], 'clean',
+    #                                                function=lambda x: julie_transform(x, separator='_')))
+    #baroni_training_phrases.append(reformat_entries(baroni_training_phrases[1], 'clean',
+    #                                                function=lambda x: julie_transform2(x, separator='_', pos1='N')))
 
     # add in observed AN/NN vectors for SVD processing
-    files_to_reduce.extend(baroni_training_phrases)
+    #files_to_reduce.extend(baroni_training_phrases)
 
     # todo feature_type_limits=[('N', 8000), ('V', 4000), ('J', 4000), ('RB', 200), ('AN', 18000)]
     # todo reduce_to=[300, 1000, 5000]
@@ -176,34 +177,38 @@ if __name__ == '__main__':
         thes = Thesaurus([all_vectors], aggressive_lowercasing=False)
 
         trained_composers = []
-        for training_phrases, phrase_type in zip(baroni_training_phrases, baroni_training_phrase_types):
-            baroni_training_heads = training_phrases.replace(phrase_type, 'onlyN-%s' % svd_settings)
-            thes.to_file(baroni_training_heads,
-                         entry_filter=lambda x: x.type == '1-GRAM' and x.tokens[0].pos == 'N')
-
-            baroni_training_only_phrases = training_phrases.replace(phrase_type,
-                                                                    'only%s-%s' % (phrase_type, svd_settings))
-            thes.to_file(baroni_training_only_phrases,
-                         entry_filter=lambda x: x.type == phrase_type,
-                         row_transform=lambda x: x.replace(' ', '_'))
-
-            baroni_trained_model_output_prefix = training_phrases.replace('vectors',
-                                                                          '%s-model-%s' % ( phrase_type, svd_settings))
-            trained_composer_path = baroni_trained_model_output_prefix + '.model.pkl'
-            trained_composer_path = train_baroni_composer(baroni_training_heads,
-                                                          baroni_training_only_phrases,
-                                                          baroni_trained_model_output_prefix)
-            trained_composers.append(trained_composer_path)
+        #for training_phrases, phrase_type in zip(baroni_training_phrases, baroni_training_phrase_types):
+        #    baroni_training_heads = training_phrases.replace(phrase_type, 'onlyN-%s' % svd_settings)
+        #    thes.to_file(baroni_training_heads,
+        #                 entry_filter=lambda x: x.type == '1-GRAM' and x.tokens[0].pos == 'N')
+        #
+        #    baroni_training_only_phrases = training_phrases.replace(phrase_type,
+        #                                                            'only%s-%s' % (phrase_type, svd_settings))
+        #    thes.to_file(baroni_training_only_phrases,
+        #                 entry_filter=lambda x: x.type == phrase_type,
+        #                 row_transform=lambda x: x.replace(' ', '_'))
+        #
+        #    baroni_trained_model_output_prefix = training_phrases.replace('vectors',
+        #                                                                  '%s-model-%s' % ( phrase_type, svd_settings))
+        #    trained_composer_path = baroni_trained_model_output_prefix + '.model.pkl'
+        #    trained_composer_path = train_baroni_composer(baroni_training_heads,
+        #                                                  baroni_training_only_phrases,
+        #                                                  baroni_trained_model_output_prefix)
+        #    trained_composers.append(trained_composer_path)
 
         # mess with vectors, add to/modify entries and events files
         # whether to modify the features file is less obvious- do composed entries have different features
         # to the non-composed ones?
         event_files = [_find_events_file(dir) for dir in thesaurus_dirs]
+        composer_algos = [AdditiveComposer, MultiplicativeComposer, HeadWordComposer,
+                          TailWordComposer, MinComposer, MaxComposer] # todo add ['head_tail'] here
+
         dump.compose_and_write_vectors([all_vectors],
+                                       'gigaw-%s' % svd_settings,
                                        dump.classification_data_path,
                                        trained_composers,
-                                       log_to_console=True,
-                                       output_dir=ngram_vectors_dir)
+                                       output_dir=ngram_vectors_dir,
+                                       composer_classes=composer_algos)
 
     sys.exit(0) #ENOUGH FOR NOW
 

@@ -11,14 +11,14 @@ from joblib import Parallel, delayed
 from numpy import hstack
 from sklearn.pipeline import Pipeline
 from thesisgenerator.composers.feature_selectors import VectorBackedSelectKBest, MetadataStripper
-from thesisgenerator.composers.vectorstore import UnigramVectorSource, UnigramDummyComposer, \
-    CompositeVectorSource, BaroniComposer
+from thesisgenerator.composers.vectorstore import *
 from thesisgenerator.plugins.bov import ThesaurusVectorizer
 from thesisgenerator.utils.data_utils import load_tokenizer, tokenize_data, load_text_data_into_memory
 
 
-def compose_and_write_vectors(unigram_vector_paths, classification_data_paths, pretrained_Baroni_composer_files,
-                              output_dir='.', log_to_console=False, composer_method='bar'):
+def compose_and_write_vectors(unigram_vector_paths, short_vector_dataset_name, classification_data_paths,
+                              pretrained_Baroni_composer_files,
+                              output_dir='.', composer_classes='bar'):
     """
     Extracts all composable features from a labelled classification corpus and dumps a vector for each of them
     to disk
@@ -28,40 +28,10 @@ def compose_and_write_vectors(unigram_vector_paths, classification_data_paths, p
     :param pretrained_Baroni_composer_files: path to pre-trained Baroni AN composer file
     :type pretrained_Baroni_composer_files: list
     :param output_dir:
-    :param log_to_console:
-    :param composer_method:
+    :param composer_classes:
     :return:
     :rtype: list of strings
     """
-    if 'wiki' in unigram_vector_paths[0]:
-        dataset = 'wiki'
-    elif '7head' in unigram_vector_paths[0]:
-        dataset = '7head'
-    else:
-        dataset = 'gigaw'
-        #composer_method = composer_class.__name__[:4]
-
-    params = dict(
-        filename='bigram_%s_%s.log' % (dataset, composer_method),
-        level=logging.DEBUG,
-        format="%(asctime)s\t%(module)s.%(funcName)s ""(line %(lineno)d)\t%(levelname)s : %(""message)s"
-    )
-    if log_to_console:
-        del params['filename']
-    logging.basicConfig(**params)
-
-
-    # todo should take a directory containing a thesaurus so that we can read vectors from events file and modify
-    # whatever files we need to (entries index, as composition creates new entries)
-    unigram_source = UnigramVectorSource(unigram_vector_paths, reduce_dimensionality=False)
-    composers = [
-        UnigramDummyComposer(unigram_source),
-    ]
-    for path in pretrained_Baroni_composer_files:
-        composers.append(BaroniComposer(unigram_source, path))
-
-    vector_source = CompositeVectorSource(composers, sim_threshold=0, include_self=False)
-
     train, test = classification_data_paths
     raw_data, data_ids = load_text_data_into_memory(
         training_path=train,
@@ -86,24 +56,33 @@ def compose_and_write_vectors(unigram_vector_paths, classification_data_paths, p
         ('stripper', MetadataStripper(nn_algorithm='brute', build_tree=False))
     ])
     x_tr, y_tr, x_ev, y_ev = tokenised_data
+    unigram_source = UnigramVectorSource(unigram_vector_paths, reduce_dimensionality=False)
+    for composer_class in composer_classes:
+        # whatever files we need to (entries index, as composition creates new entries)
+        if composer_class == BaroniComposer:
+            composers = [BaroniComposer(unigram_source, path) for path in pretrained_Baroni_composer_files]
+        else:
+            composers = [composer_class(unigram_source)]
 
-    fit_args = {
-        'stripper__vector_source': vector_source,
-        'vect__vector_source': vector_source,
-        'fs__vector_source': vector_source,
-    }
-    _ = p.fit_transform(x_tr + x_ev, y=hstack([y_tr, y_ev]), **fit_args)
+        vector_source = CompositeVectorSource(composers, sim_threshold=0, include_self=False)
 
-    # todo lines below (composition) are logically separate from lines above (feature extraction in R8)
-    all_files = []
-    for feature_type in ['AN', 'NN']:
-        output_files = ('%s_%s_%s.vectors.tsv' % (feature_type, dataset, composer_method),
-                        '%s_%s_%s.entries.txt' % (feature_type, dataset, composer_method),
-                        '%s_%s_%s.features.txt' % (feature_type, dataset, composer_method))
-        output_files = [os.path.join(output_dir, x) for x in output_files]
+        fit_args = {
+            'stripper__vector_source': vector_source,
+            'vect__vector_source': vector_source,
+            'fs__vector_source': vector_source,
+        }
+        _ = p.fit_transform(x_tr + x_ev, y=hstack([y_tr, y_ev]), **fit_args)
 
-        p.steps[2][1].vector_source.write_vectors_to_disk(*chain(output_files, [feature_type]))
-        all_files.append(output_files)
+        # todo lines below (composition) are logically separate from lines above (feature extraction in R8)
+        all_files = []
+        for feature_type in ['AN', 'NN']:
+            output_files = ('%s_%s_%s.vectors.tsv' % (feature_type, short_vector_dataset_name, composers[0].name),
+                            '%s_%s_%s.entries.txt' % (feature_type, short_vector_dataset_name, composers[0].name),
+                            '%s_%s_%s.features.txt' % (feature_type, short_vector_dataset_name, composers[0].name))
+            output_files = [os.path.join(output_dir, x) for x in output_files]
+
+            p.steps[2][1].vector_source.write_vectors_to_disk(*chain(output_files, [feature_type]))
+            all_files.append(output_files)
     return all_files
 
 
