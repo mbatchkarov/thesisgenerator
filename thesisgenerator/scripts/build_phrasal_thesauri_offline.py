@@ -13,7 +13,7 @@ from thesisgenerator.utils.cmd_utils import set_stage_in_byblo_conf_file, run_by
     reindex_all_byblo_vectors, run_and_log_output, unindex_all_byblo_vectors, set_output_in_byblo_conf_file
 from thesisgenerator.scripts import dump_all_composed_vectors as dump
 from thesisgenerator.scripts.reduce_dimensionality import do_svd
-from thesisgenerator.composers.utils import reformat_entries, julie_transform
+from thesisgenerator.composers.utils import reformat_entries, julie_transform, julie_transform2
 
 
 def calculate_unigram_vectors(thesaurus_dir):
@@ -132,8 +132,8 @@ if __name__ == '__main__':
         os.mkdir(ngram_vectors_dir)
     os.chdir(byblo_base_dir)
 
-    #for thesaurus_dir in thesaurus_dirs:
-    #    calculate_unigram_vectors(thesaurus_dir)
+    for thesaurus_dir in thesaurus_dirs:
+        calculate_unigram_vectors(thesaurus_dir)
 
 
     # REDUCE DIMENSIONALITY
@@ -150,10 +150,10 @@ if __name__ == '__main__':
 
     # convert from Julie's format to mine
     # convert to dissect format (underscore-separated ANs) for composer training
-    #baroni_training_phrases.append(reformat_entries(baroni_training_phrases[0], 'clean',
-    #                                                function=lambda x: julie_transform(x, separator='_')))
-    #baroni_training_phrases.append(reformat_entries(baroni_training_phrases[1], 'clean',
-    #                                                function=lambda x: julie_transform(x, separator='_', pos1='N')))
+    baroni_training_phrases.append(reformat_entries(baroni_training_phrases[0], 'clean',
+                                                    function=lambda x: julie_transform(x, separator='_')))
+    baroni_training_phrases.append(reformat_entries(baroni_training_phrases[1], 'clean',
+                                                    function=lambda x: julie_transform2(x, separator='_', pos1='N')))
 
     # add in observed AN/NN vectors for SVD processing
     files_to_reduce.extend(baroni_training_phrases)
@@ -162,7 +162,7 @@ if __name__ == '__main__':
     # todo reduce_to=[300, 1000, 5000]
     reduce_to = [300, 500]
     counts = [('N', 8000), ('V', 4000), ('J', 4000), ('RB', 200), ('AN', 20000), ('NN', 20000)]
-    #do_svd(files_to_reduce, reduced_prefixes, desired_counts_per_feature_type=counts, reduce_to=reduce_to)
+    do_svd(files_to_reduce, reduced_prefixes, desired_counts_per_feature_type=counts, reduce_to=reduce_to)
 
     reduced_prefixes = ['%s-SVD%d' % (prefix, dims) for prefix in reduced_prefixes for dims in reduce_to]
 
