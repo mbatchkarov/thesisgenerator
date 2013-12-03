@@ -58,9 +58,10 @@ class DocumentFeature(object):
         try:
             tokens = string.strip().split('_')
             if len(tokens) > 3:
-                raise ValueError('Unrecognised document feature %s' % string)
-            words = [x.split('/') for x in tokens]
-            tokens = tuple(Token(word, pos) for (word, pos) in words)
+                raise ValueError('Document feature %s is too long' % string)
+            bits = [x.split('/') for x in tokens]
+            bits = [b for b in bits if len(b) == 2] # if any extra / are present, ignore the token
+            tokens = tuple(Token(word, pos) for (word, pos) in bits)
 
             if len(tokens) == 1:
                 t = '1-GRAM'
@@ -76,6 +77,8 @@ class DocumentFeature(object):
                 t = '2-GRAM'
             elif len(tokens) == 3:
                 t = '3-GRAM'
+            else:
+                t = 'EMPTY'
         except:
             logging.error('Cannot create token out of string %s', string)
             raise

@@ -274,6 +274,11 @@ class Test_tokenizer(TestCase):
             DocumentFeature.from_string('dog/N_chase/V_cat/N')
         )
 
+        self.assertEqual(
+            DocumentFeature('EMPTY', tuple()),
+            DocumentFeature.from_string('a\/s/N')
+        )
+
     def test_document_feature_slicing(self):
         x = DocumentFeature.from_string('big/J_cat/N')
         self.assertEqual(x[0], DocumentFeature.from_string('big/J'))
