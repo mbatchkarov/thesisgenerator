@@ -5,7 +5,7 @@ import sys
 sys.path.append('.')
 sys.path.append('..')
 sys.path.append('../..')
-
+import re
 from glob import glob
 from shutil import copytree, rmtree
 from thesisgenerator.plugins.thesaurus_loader import Thesaurus
@@ -159,21 +159,29 @@ if __name__ == '__main__':
     # add in observed AN/NN vectors for SVD processing
     #files_to_reduce.extend(baroni_training_phrases)
 
-    # todo feature_type_limits=[('N', 8000), ('V', 4000), ('J', 4000), ('RB', 200), ('AN', 18000)]
-    # todo reduce_to=[300, 1000, 5000]
-    reduce_to = [300, 500]
-    counts = [('N', 8000), ('V', 4000), ('J', 4000), ('RB', 200), ('AN', 20000), ('NN', 20000)]
-    do_svd(files_to_reduce, reduced_prefixes, desired_counts_per_feature_type=counts, reduce_to=reduce_to)
+    if False:        # DO NOT DO ANY SVD FOR NOW
+        # todo feature_type_limits=[('N', 8000), ('V', 4000), ('J', 4000), ('RB', 200), ('AN', 18000)]
+        # todo reduce_to=[300, 1000, 5000]
+        reduce_to = [300, 500]
+        counts = [('N', 8000), ('V', 4000), ('J', 4000), ('RB', 200), ('AN', 20000), ('NN', 20000)]
+        do_svd(files_to_reduce, reduced_prefixes, desired_counts_per_feature_type=counts, reduce_to=reduce_to)
 
-    reduced_prefixes = ['%s-SVD%d' % (prefix, dims) for prefix in reduced_prefixes for dims in reduce_to]
+        reduced_prefixes = ['%s-SVD%d' % (prefix, dims) for prefix in reduced_prefixes for dims in reduce_to]
+    else:
+        # look at the original file paths
+        reduced_prefixes = ['.'.join(x.split('.')[:-3]) for x in files_to_reduce]
 
     # TRAIN BARONI COMPOSER
     # train on each SVD-reduced file, not the original one
     for pref in reduced_prefixes:
         # find file and its svd dimensionality from prefix
         all_vectors = pref + '.events.filtered.strings'
-        svd_settings = pref.split('-')[-1]
-        # load it and extract just the nouns/ ANs to train Baroni composer on
+        try:
+            svd_settings = re.search(r'.*(SVD[0-9]+).*', pref).group(1)
+        except AttributeError:
+            # 'NoneType' object has no attribute 'group'
+            svd_settings = ''
+            # load it and extract just the nouns/ ANs to train Baroni composer on
         thes = Thesaurus([all_vectors], aggressive_lowercasing=False)
 
         trained_composers = []
@@ -204,7 +212,7 @@ if __name__ == '__main__':
                           TailWordComposer, MinComposer, MaxComposer] # todo add ['head_tail'] here
 
         dump.compose_and_write_vectors([all_vectors],
-                                       'gigaw-%s' % svd_settings,
+                                       'gigaw-%s' % svd_settings if svd_settings else 'gigaw',
                                        dump.classification_data_path,
                                        trained_composers,
                                        output_dir=ngram_vectors_dir,
