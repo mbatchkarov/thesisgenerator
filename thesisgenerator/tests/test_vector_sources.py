@@ -285,6 +285,36 @@ class TestPrecomputedSimSource(TestCase):
 #        assert DocumentFeature.from_string('african/J_south/N') in composer
 #        assert DocumentFeature.from_string('african/J_somemadeupword/N') not in composer
 
+class TestMinMaxComposer(TestCase):
+    def setUp(self):
+        self.unigrams_vectors = UnigramVectorSource(['thesisgenerator/resources/ones.vectors.txt'])
+        self.min_composer = MinComposer(self.unigrams_vectors)
+        self.max_composer = MaxComposer(self.unigrams_vectors)
+
+    def test_compose(self):
+        f1 = DocumentFeature.from_string('a/N_b/V_c/J')
+        f2 = DocumentFeature.from_string('b/V_c/J')
+        f3 = DocumentFeature.from_string('b/V')
+
+        assert_array_equal(self.min_composer._get_vector(f1).A.ravel(),
+                           np.array([0., 0., 0., 0.]))
+        assert_array_equal(self.max_composer._get_vector(f1).A.ravel(),
+                           np.array([1., 1., 1., 0.]))
+
+        assert_array_equal(self.min_composer._get_vector(f2).A.ravel(),
+                           np.array([0, 0, 0, 0]))
+        assert_array_equal(self.max_composer._get_vector(f2).A.ravel(),
+                           np.array([0, 1, 1, 0]))
+
+        assert_array_equal(self.min_composer._get_vector(f3).A.ravel(),
+                           np.array([0., 1., 0., 0.]))
+
+    def test_contains(self):
+        self.assertIn(DocumentFeature.from_string('a/N_b/V_c/J'), self.max_composer)
+        self.assertIn(DocumentFeature.from_string('b/V_c/J'), self.min_composer)
+        self.assertNotIn(DocumentFeature.from_string('b/V_c/J_x/N'), self.min_composer)
+        self.assertNotIn(DocumentFeature.from_string('b/X_c/X'), self.min_composer)
+
 
 class TestHeadAndTailWordComposers(object):
     @pytest.fixture

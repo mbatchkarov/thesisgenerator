@@ -15,6 +15,8 @@ from thesisgenerator.composers import utils
 from thesisgenerator.plugins.thesaurus_loader import Thesaurus
 from thesisgenerator.plugins.tokenizers import DocumentFeature, Token
 
+import numpy as np
+
 
 class VectorSource(object):
     __metaclass__ = ABCMeta
@@ -110,6 +112,9 @@ class Composer(VectorSource):
             raise ValueError('Composers need a unigram vector source')
         self.unigram_source = unigram_source
 
+    def __repr__(self):
+        return self.__str__()
+
 
 class UnigramDummyComposer(Composer):
     """
@@ -164,7 +169,7 @@ class UnigramDummyComposer(Composer):
 class AdditiveComposer(Composer):
     name = 'Add'
     # composers in general work with n-grams (for simplicity n<4)
-    feature_pattern = {'2-GRAM', '3-GRAM'}
+    feature_pattern = {'2-GRAM', '3-GRAM', 'AN', 'NN', 'VO', 'SVO'}
 
     def __init__(self, unigram_source=None):
         super(AdditiveComposer, self).__init__(unigram_source)
@@ -185,7 +190,7 @@ class AdditiveComposer(Composer):
         return all(feature[i] in self.unigram_source for i in range(len(feature)))
 
     def __str__(self):
-        return '[AdditiveComposer with %d unigram entries]' % (len(self.unigram_source))
+        return '[%s with %d unigram entries]' % (self.__class__.__name__, len(self.unigram_source))
 
 
 class MultiplicativeComposer(AdditiveComposer):
@@ -193,24 +198,32 @@ class MultiplicativeComposer(AdditiveComposer):
 
     def __init__(self, unigram_source=None):
         super(MultiplicativeComposer, self).__init__(unigram_source)
+        self.function = np.multiply
 
     def _get_vector(self, feature):
         if len(feature) > 1:
-            return reduce(sp.csr_matrix.multiply,
-                          [self.unigram_source._get_vector(t) for t in feature[1:]],
-                          self.unigram_source._get_vector(feature[0]))
+            return sp.csr_matrix(reduce(self.function, [self.unigram_source._get_vector(t).A for t in feature[:]]))
         else:
             return self.unigram_source._get_vector(feature[0])
 
-    def __str__(self):
-        return '[MultiplicativeComposer with %d unigram entries]' % (len(self.unigram_source))
+
+class MinComposer(MultiplicativeComposer):
+    def __init__(self, unigram_source=None):
+        super(MinComposer, self).__init__(unigram_source)
+        self.function = lambda m, n: np.minimum(m, n)
+
+
+class MaxComposer(AdditiveComposer):
+    def __init__(self, unigram_source=None):
+        super(MaxComposer, self).__init__(unigram_source)
+        self.function = lambda m, n: sp.csr_matrix(np.maximum(m, n))
 
 
 class HeadWordComposer(AdditiveComposer):
     def __init__(self, unigram_source=None):
         super(HeadWordComposer, self).__init__(unigram_source)
         self.hardcoded_index = 0
-        self.feature_pattern = ['2-GRAM', '3-GRAM', 'AN', 'NN', 'VO', 'SVO']
+        self.feature_pattern = {'2-GRAM', '3-GRAM', 'AN', 'NN', 'VO', 'SVO'}
 
 
     def _get_vector(self, feature):
@@ -223,17 +236,11 @@ class HeadWordComposer(AdditiveComposer):
 
         return DocumentFeature('1-GRAM', (feature.tokens[self.hardcoded_index],)) in self.unigram_source
 
-    def __str__(self):
-        return '[HeadWordComposer with %d unigram entries]' % (len(self.unigram_source))
-
 
 class TailWordComposer(HeadWordComposer):
     def __init__(self, unigram_source=None):
         super(TailWordComposer, self).__init__(unigram_source)
         self.hardcoded_index = -1
-
-    def __str__(self):
-        return '[TailWordComposer with %d unigram entries]' % (len(self.unigram_source))
 
 
 class BaroniComposer(Composer):
@@ -426,9 +433,6 @@ class CompositeVectorSource(VectorSource):
     def __str__(self):
         wrapped = ', '.join(str(c) for c in self.composers)
         return 'Composite[%s, mapping=%s]' % (wrapped, self.composer_mapping)
-
-    def __repr__(self):
-        return self.__str__()
 
 
 class PrecomputedSimilaritiesVectorSource(CompositeVectorSource):
