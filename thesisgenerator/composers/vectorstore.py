@@ -173,9 +173,11 @@ class AdditiveComposer(Composer):
 
     def __init__(self, unigram_source=None):
         super(AdditiveComposer, self).__init__(unigram_source)
+        self.function = np.add
 
     def _get_vector(self, feature):
-        return sum(self.unigram_source._get_vector(feature[i]) for i in range(len(feature.tokens)))
+        return sp.csr_matrix(reduce(self.function, [self.unigram_source._get_vector(t).A for t in feature[:]]))
+
 
     def __contains__(self, feature):
         """
@@ -197,9 +199,6 @@ class MultiplicativeComposer(AdditiveComposer):
     def __init__(self, unigram_source=None):
         super(MultiplicativeComposer, self).__init__(unigram_source)
         self.function = np.multiply
-
-    def _get_vector(self, feature):
-        return sp.csr_matrix(reduce(self.function, [self.unigram_source._get_vector(t).A for t in feature[:]]))
 
 
 class MinComposer(MultiplicativeComposer):
