@@ -112,7 +112,7 @@ def do_second_part(thesaurus_dir, add_feature_type=[]):
     set_stage_in_byblo_conf_file(byblo_conf_file, 0)
 
 
-def do_second_part2(thesaurus_dir, vectors_files=[], entries_files=[], features_files=[], copy_to_dir=None):
+def do_second_part2(thesaurus_dir, vectors_files='', entries_files='', features_files='', copy_to_dir=None):
     if copy_to_dir:
         assert vectors_files
         assert entries_files
@@ -122,9 +122,7 @@ def do_second_part2(thesaurus_dir, vectors_files=[], entries_files=[], features_
             rmtree(copy_to_dir) # copytree will fail if target exists
         copytree(thesaurus_dir, copy_to_dir)
 
-        for a, b, c in zip(vectors_files, entries_files, features_files):
-            add_new_vectors(copy_to_dir, a, b, c)
-
+        add_new_vectors(copy_to_dir, vectors_files, entries_files, features_files)
         thesaurus_dir = copy_to_dir
 
     # restore indices from strings
@@ -156,6 +154,9 @@ if __name__ == '__main__':
     ]
 
     ngram_vectors_dir = os.path.join(byblo_base_dir, '..', 'exp6-12-ngrams')
+
+    composer_algos = [AdditiveComposer, MultiplicativeComposer, HeadWordComposer,
+                      TailWordComposer, MinComposer, MaxComposer] # todo add ['observed'] here
 
     # EXTRACT UNIGRAM VECTORS WITH BYBLO
     if not os.path.exists(ngram_vectors_dir):
@@ -200,7 +201,6 @@ if __name__ == '__main__':
 
     # TRAIN BARONI COMPOSER
     # train on each SVD-reduced file, not the original one
-    phrase_vector_files = []
     for pref in reduced_prefixes:
         # find file and its svd dimensionality from prefix
         all_vectors = pref + '.events.filtered.strings'
@@ -236,25 +236,25 @@ if __name__ == '__main__':
         # whether to modify the features file is less obvious- do composed entries have different features
         # to the non-composed ones?
         event_files = [_find_events_file(dir) for dir in thesaurus_dirs]
-        composer_algos = [AdditiveComposer, MultiplicativeComposer, HeadWordComposer,
-                          TailWordComposer, MinComposer, MaxComposer] # todo add ['observed'] here
 
         dump.compose_and_write_vectors([all_vectors],
                                        'gigaw-%s' % svd_settings if svd_settings else 'gigaw',
-                                             dump.classification_data_path,
-                                             trained_composers,
-                                             output_dir=ngram_vectors_dir,
-                                             composer_classes=composer_algos)
-    logging.info(phrase_vector_files)
+                                       dump.classification_data_path,
+                                       trained_composers,
+                                       output_dir=ngram_vectors_dir,
+                                       composer_classes=composer_algos)
 
-    #source = thesaurus_dirs[0]
-    #do_second_part2(source) #original unigram-only thesaurus
-    #for vectors_file, entries_file, features_file in phrase_vector_files:
-    #    # one phrasal thesaurus per composer per SVD setting
-    #    suffix = vectors_file.split('.')[0]
-    #    do_second_part2(source,
-    #                    vectors_file, entries_file, features_file, add_feature_type=['AN', 'NN'],
-    #                    copy_to_dir=source + suffix)
+    source = thesaurus_dirs[0]
+    do_second_part2(source) #original unigram-only thesaurus
+    for c in composer_algos:
+        # one phrasal thesaurus per composer
+        name = c.name
+        vectors_file = os.path.join(ngram_vectors_dir, 'AN_NN_gigaw_{}.vectors.tsv'.format(name))
+        entries_file = os.path.join(ngram_vectors_dir, 'AN_NN_gigaw_{}.entries.txt'.format(name))
+        features_file = os.path.join(ngram_vectors_dir, 'AN_NN_gigaw_{}.features.txt'.format(name))
+        suffix = os.path.basename(vectors_file).split('.')[0]
+        do_second_part2(source, vectors_file, entries_file, features_file, copy_to_dir=source + suffix)
+
     sys.exit(0) #ENOUGH FOR NOW
 
     do_second_part(thesaurus_dirs[0], add_feature_type=['AN', 'NN']) #'VO', 'SVO' # all vectors in same thesaurus
