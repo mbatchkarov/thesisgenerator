@@ -112,6 +112,35 @@ def do_second_part(thesaurus_dir, add_feature_type=[]):
     set_stage_in_byblo_conf_file(byblo_conf_file, 0)
 
 
+def do_second_part2(thesaurus_dir, vectors_files=[], entries_files=[], features_files=[], copy_to_dir=None):
+    if copy_to_dir:
+        assert vectors_files
+        assert entries_files
+        assert features_files
+
+        if os.path.exists(copy_to_dir):
+            rmtree(copy_to_dir) # copytree will fail if target exists
+        copytree(thesaurus_dir, copy_to_dir)
+
+        for a, b, c in zip(vectors_files, entries_files, features_files):
+            add_new_vectors(copy_to_dir, a, b, c)
+
+        thesaurus_dir = copy_to_dir
+
+    # restore indices from strings
+    thes_prefix = _find_output_prefix(thesaurus_dir)
+    reindex_all_byblo_vectors(thes_prefix)
+
+    # re-run all-pairs similarity
+    # first change output prefix in conf file, in case the if-statement above has made a new working directory
+    byblo_conf_file = _find_conf_file(thesaurus_dir)
+    # tell byblo to only do the later stages
+    set_output_in_byblo_conf_file(byblo_conf_file, thesaurus_dir)
+    set_stage_in_byblo_conf_file(byblo_conf_file, 2)
+    run_byblo(byblo_conf_file)
+    set_stage_in_byblo_conf_file(byblo_conf_file, 0)
+
+
 if __name__ == '__main__':
     # SET UP A FEW REQUIRED PATHS
     logging.basicConfig(level=logging.INFO,
@@ -133,8 +162,8 @@ if __name__ == '__main__':
         os.mkdir(ngram_vectors_dir)
     os.chdir(byblo_base_dir)
 
-    for thesaurus_dir in thesaurus_dirs:
-        calculate_unigram_vectors(thesaurus_dir)
+    #for thesaurus_dir in thesaurus_dirs:
+    #    calculate_unigram_vectors(thesaurus_dir)
 
 
     # REDUCE DIMENSIONALITY
@@ -160,8 +189,6 @@ if __name__ == '__main__':
     #files_to_reduce.extend(baroni_training_phrases)
 
     if False:        # DO NOT DO ANY SVD FOR NOW
-        # todo feature_type_limits=[('N', 8000), ('V', 4000), ('J', 4000), ('RB', 200), ('AN', 18000)]
-        # todo reduce_to=[300, 1000, 5000]
         reduce_to = [300, 500]
         counts = [('N', 8000), ('V', 4000), ('J', 4000), ('RB', 200), ('AN', 20000), ('NN', 20000)]
         do_svd(files_to_reduce, reduced_prefixes, desired_counts_per_feature_type=counts, reduce_to=reduce_to)
@@ -173,6 +200,7 @@ if __name__ == '__main__':
 
     # TRAIN BARONI COMPOSER
     # train on each SVD-reduced file, not the original one
+    phrase_vector_files = []
     for pref in reduced_prefixes:
         # find file and its svd dimensionality from prefix
         all_vectors = pref + '.events.filtered.strings'
@@ -209,15 +237,24 @@ if __name__ == '__main__':
         # to the non-composed ones?
         event_files = [_find_events_file(dir) for dir in thesaurus_dirs]
         composer_algos = [AdditiveComposer, MultiplicativeComposer, HeadWordComposer,
-                          TailWordComposer, MinComposer, MaxComposer] # todo add ['head_tail'] here
+                          TailWordComposer, MinComposer, MaxComposer] # todo add ['observed'] here
 
         dump.compose_and_write_vectors([all_vectors],
                                        'gigaw-%s' % svd_settings if svd_settings else 'gigaw',
-                                       dump.classification_data_path,
-                                       trained_composers,
-                                       output_dir=ngram_vectors_dir,
-                                       composer_classes=composer_algos)
+                                             dump.classification_data_path,
+                                             trained_composers,
+                                             output_dir=ngram_vectors_dir,
+                                             composer_classes=composer_algos)
+    logging.info(phrase_vector_files)
 
+    #source = thesaurus_dirs[0]
+    #do_second_part2(source) #original unigram-only thesaurus
+    #for vectors_file, entries_file, features_file in phrase_vector_files:
+    #    # one phrasal thesaurus per composer per SVD setting
+    #    suffix = vectors_file.split('.')[0]
+    #    do_second_part2(source,
+    #                    vectors_file, entries_file, features_file, add_feature_type=['AN', 'NN'],
+    #                    copy_to_dir=source + suffix)
     sys.exit(0) #ENOUGH FOR NOW
 
     do_second_part(thesaurus_dirs[0], add_feature_type=['AN', 'NN']) #'VO', 'SVO' # all vectors in same thesaurus

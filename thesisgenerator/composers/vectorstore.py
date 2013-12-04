@@ -391,7 +391,7 @@ class CompositeVectorSource(VectorSource):
         return self.nbrs
 
 
-    def write_vectors_to_disk(self, vectors_path, new_entries_path, features_path, feature_type):
+    def write_vectors_to_disk(self, feature_types, vectors_path, new_entries_path, features_path):
         """
         Writes out the vectors, entries and features for all non-unigram features of this vector space to a
         Byblo-compatible file
@@ -402,7 +402,7 @@ class CompositeVectorSource(VectorSource):
         entry_index = self.entry_index
 
         utils.write_vectors_to_disk(m, entry_index, voc, features_path, new_entries_path, vectors_path,
-                                    entry_filter=lambda x: x.type == feature_type)
+                                    entry_filter=lambda x: x.type in feature_types)
         logging.info('Done writing to disk')
 
     def _get_vector(self, feature):

@@ -1,6 +1,7 @@
 from itertools import chain
 import logging
 import os
+from pprint import pprint
 import sys
 
 sys.path.append('.')
@@ -14,6 +15,29 @@ from thesisgenerator.composers.feature_selectors import VectorBackedSelectKBest,
 from thesisgenerator.composers.vectorstore import *
 from thesisgenerator.plugins.bov import ThesaurusVectorizer
 from thesisgenerator.utils.data_utils import load_tokenizer, tokenize_data, load_text_data_into_memory
+
+
+def _loop_body(composer_class, output_dir, p, pretrained_Baroni_composer_files, short_vector_dataset_name,
+               unigram_source, x_ev, x_tr, y_ev, y_tr):
+    # whatever files we need to (entries index, as composition creates new entries)
+    if composer_class == BaroniComposer:
+        composers = [BaroniComposer(unigram_source, path) for path in pretrained_Baroni_composer_files]
+    else:
+        composers = [composer_class(unigram_source)]
+    vector_source = CompositeVectorSource(composers, sim_threshold=0, include_self=False)
+    fit_args = {
+        'stripper__vector_source': vector_source,
+        'vect__vector_source': vector_source,
+        'fs__vector_source': vector_source,
+    }
+    _ = p.fit_transform(x_tr + x_ev, y=hstack([y_tr, y_ev]), **fit_args)
+
+    output_files = ('AN_NN_%s_%s.vectors.tsv' % ( short_vector_dataset_name, composers[0].name),
+                    'AN_NN_%s_%s.entries.txt' % ( short_vector_dataset_name, composers[0].name),
+                    'AN_NN_%s_%s.features.txt' % ( short_vector_dataset_name, composers[0].name))
+    output_files = [os.path.join(output_dir, x) for x in output_files]
+
+    p.steps[2][1].vector_source.write_vectors_to_disk({'AN', 'NN'}, *output_files)
 
 
 def compose_and_write_vectors(unigram_vector_paths, short_vector_dataset_name, classification_data_paths,
@@ -57,33 +81,18 @@ def compose_and_write_vectors(unigram_vector_paths, short_vector_dataset_name, c
     ])
     x_tr, y_tr, x_ev, y_ev = tokenised_data
     unigram_source = UnigramVectorSource(unigram_vector_paths, reduce_dimensionality=False)
-    for composer_class in composer_classes:
-        # whatever files we need to (entries index, as composition creates new entries)
-        if composer_class == BaroniComposer:
-            composers = [BaroniComposer(unigram_source, path) for path in pretrained_Baroni_composer_files]
-        else:
-            composers = [composer_class(unigram_source)]
+    Parallel(n_jobs=7)(delayed(_loop_body)(composer_class,
+                                           output_dir,
+                                           p,
+                                           pretrained_Baroni_composer_files,
+                                           short_vector_dataset_name,
+                                           unigram_source,
+                                           x_ev, x_tr,
+                                           y_ev, y_tr) for composer_class in composer_classes)
 
-        vector_source = CompositeVectorSource(composers, sim_threshold=0, include_self=False)
-
-        fit_args = {
-            'stripper__vector_source': vector_source,
-            'vect__vector_source': vector_source,
-            'fs__vector_source': vector_source,
-        }
-        _ = p.fit_transform(x_tr + x_ev, y=hstack([y_tr, y_ev]), **fit_args)
-
-        # todo lines below (composition) are logically separate from lines above (feature extraction in R8)
-        all_files = []
-        for feature_type in ['AN', 'NN']:
-            output_files = ('%s_%s_%s.vectors.tsv' % (feature_type, short_vector_dataset_name, composers[0].name),
-                            '%s_%s_%s.entries.txt' % (feature_type, short_vector_dataset_name, composers[0].name),
-                            '%s_%s_%s.features.txt' % (feature_type, short_vector_dataset_name, composers[0].name))
-            output_files = [os.path.join(output_dir, x) for x in output_files]
-
-            p.steps[2][1].vector_source.write_vectors_to_disk(*chain(output_files, [feature_type]))
-            all_files.append(output_files)
-    return all_files
+    #for composer_class in composer_classes:
+    #    _loop_body(composer_class, output_dir, p, pretrained_Baroni_composer_files,
+    #               short_vector_dataset_name, unigram_source, x_ev, x_tr, y_ev, y_tr)
 
 
 giga_paths = [
