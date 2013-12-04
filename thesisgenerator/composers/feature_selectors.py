@@ -135,13 +135,13 @@ class MetadataStripper(BaseEstimator, TransformerMixin):
         self.build_tree = build_tree
 
     def fit(self, X, y, vector_source=None):
-        matrix, voc = X
+        matrix, self.voc = X # store voc, may be handy for for debugging
         self.vector_source = vector_source
         logging.debug('Identity of vector source is %d', id(vector_source))
         if self.vector_source:
             logging.info('Populating vector source %s prior to transform', self.vector_source)
-            logging.info('Using %d vocabulary entries ', len(voc))
-            self.vector_source.populate_vector_space(voc.keys(),
+            logging.info('Using %d vocabulary entries ', len(self.voc))
+            self.vector_source.populate_vector_space(self.voc.keys(),
                                                      algorithm=self.nn_algorithm,
                                                      build_tree=self.build_tree)
             try:

@@ -65,6 +65,8 @@ class TestAdditiveVectorSource(TestCase):
 
     def test_contains(self):
         self.assertIn(bigram_feature, self.composer)
+        for s in ['b/V_c/J', 'a/N_c/J', 'b/V_b/V_b/V']:
+            self.assertIn(DocumentFeature.from_string(s), self.composer)
 
         self.assertNotIn(unigram_feature, self.composer)
         self.assertNotIn(unk_unigram_feature, self.composer)

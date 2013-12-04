@@ -182,12 +182,10 @@ class AdditiveComposer(Composer):
         Contains all sequences of words where we have a distrib vector for each unigram
         they contain. Rejects unigrams.
         """
-        if feature.type == '1-GRAM' or feature.type not in self.feature_pattern:
-            # no point in composing single-word document features
+        if feature.type not in self.feature_pattern:
+            # no point in trying
             return False
-        features = [feature[i] for i in range(len(feature))]
-        x = DocumentFeature.from_string('a/N')
-        return all(feature[i] in self.unigram_source for i in range(len(feature)))
+        return all(f in self.unigram_source for f in feature[:])
 
     def __str__(self):
         return '[%s with %d unigram entries]' % (self.__class__.__name__, len(self.unigram_source))
@@ -201,10 +199,7 @@ class MultiplicativeComposer(AdditiveComposer):
         self.function = np.multiply
 
     def _get_vector(self, feature):
-        if len(feature) > 1:
-            return sp.csr_matrix(reduce(self.function, [self.unigram_source._get_vector(t).A for t in feature[:]]))
-        else:
-            return self.unigram_source._get_vector(feature[0])
+        return sp.csr_matrix(reduce(self.function, [self.unigram_source._get_vector(t).A for t in feature[:]]))
 
 
 class MinComposer(MultiplicativeComposer):
@@ -215,12 +210,12 @@ class MinComposer(MultiplicativeComposer):
         self.function = lambda m, n: np.minimum(m, n)
 
 
-class MaxComposer(AdditiveComposer):
+class MaxComposer(MinComposer):
     name = 'Max'
 
     def __init__(self, unigram_source=None):
         super(MaxComposer, self).__init__(unigram_source)
-        self.function = lambda m, n: sp.csr_matrix(np.maximum(m, n))
+        self.function = lambda m, n: np.maximum(m, n)
 
 
 class HeadWordComposer(AdditiveComposer):
@@ -236,11 +231,11 @@ class HeadWordComposer(AdditiveComposer):
         return self.unigram_source._get_vector(feature[self.hardcoded_index])
 
     def __contains__(self, feature):
-        if feature.type == '1-GRAM' or feature.type not in self.feature_pattern:
+        if feature.type not in self.feature_pattern:
             # no point in composing single-word document features
             return False
 
-        return DocumentFeature('1-GRAM', (feature.tokens[self.hardcoded_index],)) in self.unigram_source
+        return feature[self.hardcoded_index] in self.unigram_source
 
 
 class TailWordComposer(HeadWordComposer):
