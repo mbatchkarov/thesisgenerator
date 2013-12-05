@@ -271,6 +271,7 @@ class XmlTokenizer(object):
             if self.coarse_pos:
                 pos = self.pos_coarsification_map[pos.upper()]
 
+            iob_tag = 'MISSING'
             if self.normalise_entities:
                 try:
                     iob_tag = element.find('NER').text.upper()
@@ -292,6 +293,14 @@ class XmlTokenizer(object):
             if self.lowercase and '__NER' not in txt:
                 txt = txt.lower()
 
+            if '/' in txt or '_' in txt:
+            # I use these chars as separators later, remove them now to avoid problems down the line
+                if iob_tag in {'O', 'MISSING'}:
+                    logging.info('Funny token found: %s, pos is %s', txt, pos)
+                    continue
+                else:
+                    # I put the underscore there, e.g. __NER-LOCATION__!
+                    pass
             tokens.append(Token(txt, pos, int(element.get('id'))))
 
         # build a graph from the dependency information available in the input
@@ -299,9 +308,9 @@ class XmlTokenizer(object):
         dep_tree = nx.DiGraph()
         dep_tree.add_nodes_from(tokens_ids)
 
-        basic_dependencies = tree.find('.//{}-dependencies'.format(self.dependency_format))
-        if basic_dependencies:
-            for dep in basic_dependencies.findall('.//dep'):
+        dependencies = tree.find('.//{}-dependencies'.format(self.dependency_format))
+        if dependencies:
+            for dep in dependencies.findall('.//dep'):
                 type = dep.get('type')
                 head = dep.find('governor')
                 head_idx = int(head.get('idx'))

@@ -125,18 +125,61 @@ class Test_tokenizer(TestCase):
                                        Token('like', '', 2),
                                        Token('dogs', '', 3)]])
 
+    def test_dependencies(self):
+        self.params['use_pos'] = True
+        self.params['coarse_pos'] = True
+        self.params['lowercase'] = True
+        self.tokenizer = XmlTokenizer(**self.params)
+        self.tokenizer.remove_stopwords = True
+
+        with open('thesisgenerator/resources/earn_1-with-deps.tagged') as infile:
+            doc = infile.read()
+
+        sent, (dep_tree, token_index) = self.tokenizer.tokenize_doc(doc)[0]
+
+        # token index is 1-indexed, as is the output of Stanford
+        self.assertDictEqual(token_index, {
+            1: Token('cats', 'N', 0),
+            2: Token('like', 'V', 1),
+            3: Token('dogs', 'N', 2),
+        })
+        self.assertEqual(len(dep_tree.edges()), 2)
+        self.assertEqual(dep_tree.succ[2][1]['type'], 'nsubj') # 1 is the nsubj of 2
+        self.assertEqual(dep_tree.succ[2][3]['type'], 'dobj') # 3 is the dobj of 2
+
+        # remove the subject of the sentence and check that dependency is gone
+        tree = self._replace_word_in_document('cat', 'the', document=doc)
+        sent, (dep_tree, token_index) = self.tokenizer.tokenize_doc(ET.tostring(tree))[0]
+
+        self.assertDictEqual(token_index, {
+            #1: Token('cats', 'N', 0), # remove
+            2: Token('like', 'V', 1),
+            3: Token('dogs', 'N', 2),
+        })
+        self.assertEqual(len(dep_tree.edges()), 1)
+        self.assertEqual(dep_tree.succ[2][3]['type'], 'dobj') # 3 is the dobj of 2
+        self.assertNotIn(1, dep_tree.succ[2]) # the subject isn't there anymore
+
+
+    def _replace_word_in_document(self, original, replacement, document=None):
+        if not document:
+            document = self.doc
+
+        tree = ET.fromstring(document.encode("utf8"))
+        for element in tree.findall('.//token'):
+            txt = element.find('lemma').text
+            if txt.lower() == original:
+                element.find('lemma').text = replacement
+                element.find('word').text = replacement
+        return tree
+
     def test_xml_tokenizer_stopwords(self):
         """
                 tests xml_tokenizer's stopword removal facility
         """
 
         # replace one of the words with a stopword
-        tree = ET.fromstring(self.doc.encode("utf8"))
-        for element in tree.findall('.//token'):
-            txt = element.find('lemma').text
-            if txt == 'like':
-                element.find('lemma').text = 'the'
-                element.find('word').text = 'the'
+        tree = self._replace_word_in_document('like', 'the')
 
         self.tokenizer.remove_stopwords = True
         tokens = self._strip_dependency_tree(self.tokenizer.tokenize_doc(ET.tostring(tree)))
@@ -206,6 +249,8 @@ class Test_tokenizer(TestCase):
         self.tokenizer.coarse_pos = True
         self.tokenizer.lowercase = True
         self.tokenizer.normalise_entities = True
+        self.tokenizer.remove_stopwords = False
+        self.tokenizer.remove_short_words = False
 
         tokens = self._strip_dependency_tree(self.tokenizer.tokenize_doc(self.doc))
         self.assertListEqual(tokens, [[
