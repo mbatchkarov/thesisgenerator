@@ -4,6 +4,7 @@ from collections import defaultdict
 from copy import deepcopy
 from functools import total_ordering
 import logging
+from operator import itemgetter
 
 from sklearn.feature_extraction.stop_words import ENGLISH_STOP_WORDS
 import networkx as nx
@@ -56,11 +57,18 @@ class DocumentFeature(object):
         :type string: str
         """
         try:
+            token_count = string.count('_') + 1
+            pos_count = string.count('/')
+            if token_count != pos_count:
+                return DocumentFeature('EMPTY', tuple())
+
             tokens = string.strip().split('_')
             if len(tokens) > 3:
                 raise ValueError('Document feature %s is too long' % string)
             bits = [x.split('/') for x in tokens]
-            bits = [b for b in bits if len(b) == 2] # if any extra / are present, ignore the token
+            if not all(map(itemgetter(0), bits)):
+                # ignore tokens with no text
+                return DocumentFeature('EMPTY', tuple())
             tokens = tuple(Token(word, pos) for (word, pos) in bits)
 
             if len(tokens) == 1:
@@ -245,8 +253,9 @@ class XmlTokenizer(object):
                 txt = element.find('lemma').text
             else:
                 txt = element.find('word').text
-
-            # check if the token is a number/stopword before things have
+            if '_' in txt:
+                print txt
+                # check if the token is a number/stopword before things have
             # been done to it
             am_i_a_number = self._is_number(txt)
 
