@@ -110,6 +110,31 @@ def unindex_all_byblo_vectors(outfile_name):
         './tools.sh unindex-entries -et JDBM  -i {0}.entries.filtered  '
         '-o {0}.entries.filtered.strings  -Xe {0}.entry-index -Ee'.format(outfile_name))
 
+    # remove the __FILTERED__ feature, entry and event so that it doesn't mess with cosine similarity
+    for file_type in ['entries', 'features']:
+        my_file = '{}.{}.filtered.strings'.format(outfile_name, file_type)
+        with open(my_file) as infile:
+            lines = infile.readlines()
+
+        with open(my_file, 'w+b') as outfile:
+            for line in lines:
+                if '__FILTERED__' not in line:
+                    outfile.write(line)
+                else:
+                    logging.info('Removed line %s from %s', line.strip(), my_file)
+
+    events_file = '{}.events.filtered.strings'.format(outfile_name)
+    with open(events_file) as infile:
+        lines = infile.readlines()
+
+    with open(events_file, 'w+b') as outfile:
+        for line in lines:
+            if not line.startswith('___FILTERED___'):
+                outfile.write('\t'.join(line.split('\t')[:-2]))
+                outfile.write('\n')
+            else:
+                logging.info('Removed line %s from %s', line.strip(), events_file)
+
 
 def reindex_all_byblo_vectors(output_prefix):
     """rebuild index from a string representation"""
