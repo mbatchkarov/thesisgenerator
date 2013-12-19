@@ -1,4 +1,5 @@
 # coding=utf-8
+from collections import Counter
 import logging
 
 import numpy
@@ -90,12 +91,19 @@ class Thesaurus(dict):
                             # the step above may filter out all neighbours of an entry. if this happens,
                             # do not bother adding it
                         if len(to_insert) > 0:
-                            if tokens[0] in self:
-                                logging.error('Multiple entries for "%s" found. Accepting last entry.' % tokens[0])
                             key = _smart_lower(tokens[0], self.ngram_separator, self.aggressive_lowercasing)
-                            if key not in self:
-                                self[key] = []
-                            self[key].extend(to_insert)
+
+                            if key in self:
+                                # todo this better not be a neighbours file, merging doesn't work there
+                                logging.warn('Multiple entries for "%s" found. Merging.' % tokens[0])
+                                c = Counter(dict(self[key]))
+                                # print len(c)
+                                c.update(dict(to_insert))
+                                # print len(to_insert), len(c)
+                                # print '---'
+                                self[key] = [(k,v) for k,v in c.iteritems()]
+                            else:
+                                self[key] = to_insert
 
                             # note- do not attempt to lowercase if the thesaurus
                             #  has not already been lowercased- may result in
