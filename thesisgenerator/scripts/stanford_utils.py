@@ -476,6 +476,7 @@ if __name__ == "__main__":
 
     #Pipeline examples:
     run = set("stanford formatting parsing cleanup".split())
+    #run = set("parsing cleanup".split())
 
     # run = set("formatting parsing cleanup".split())
     # run = set("formatting".split())
@@ -484,11 +485,11 @@ if __name__ == "__main__":
 
     #Fill arguments below, for example:
     execute_pipeline(
-        '/Volumes/LocalDataHD/mmb28/NetBeansProjects/thesisgenerator/sample-data/web',
-        path_to_stanford='/Volumes/LocalDataHD/mmb28/Downloads/stanford-corenlp-full-2013-06-20',
-        path_to_depparser='/Volumes/LocalDataHD/mmb28/NetBeansProjects/parser_repo',
+        '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/data/gigaword-afe-split',
+        path_to_stanford='/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/stanford-corenlp-full-2013-06-20',
+        path_to_depparser='/mnt/lustre/scratch/inf/mmb28/parser_repo_miro',
         # path_to_liblinear='/Volumes/LocalDataHD/mmb28/NetBeansProjects/liblinear',
-        stanford_java_threads=8,
-        parsing_python_processes=4,
+        stanford_java_threads=40,
+        parsing_python_processes=40,
         run=run)
 

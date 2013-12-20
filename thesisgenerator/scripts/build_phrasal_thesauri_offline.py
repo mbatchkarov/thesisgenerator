@@ -150,10 +150,10 @@ if __name__ == '__main__':
     #    os.path.abspath(os.path.join(byblo_base_dir, '..', 'exp6-12%s' % x)) for x in 'abcd'
     #]
     thesaurus_dirs = [
-        os.path.abspath(os.path.join(byblo_base_dir, '..', 'exp6-12'))
+        os.path.abspath(os.path.join(byblo_base_dir, '..', 'exp10-12'))
     ]
 
-    ngram_vectors_dir = os.path.join(byblo_base_dir, '..', 'exp6-12-ngrams')
+    ngram_vectors_dir = os.path.join(byblo_base_dir, '..', 'exp10-12-ngrams')
 
     composer_algos = [AdditiveComposer, MultiplicativeComposer, HeadWordComposer,
                       TailWordComposer, MinComposer, MaxComposer] # todo add ['observed'] here
@@ -163,8 +163,8 @@ if __name__ == '__main__':
         os.mkdir(ngram_vectors_dir)
     os.chdir(byblo_base_dir)
 
-    #for thesaurus_dir in thesaurus_dirs:
-    #    calculate_unigram_vectors(thesaurus_dir)
+    for thesaurus_dir in thesaurus_dirs:
+        calculate_unigram_vectors(thesaurus_dir)
 
 
     # REDUCE DIMENSIONALITY
@@ -198,7 +198,7 @@ if __name__ == '__main__':
     else:
         # look at the original file paths
         reduced_prefixes = ['.'.join(x.split('.')[:-3]) for x in files_to_reduce]
-
+        
     # TRAIN BARONI COMPOSER
     # train on each SVD-reduced file, not the original one
     for pref in reduced_prefixes:
@@ -243,8 +243,9 @@ if __name__ == '__main__':
                                        trained_composers,
                                        output_dir=ngram_vectors_dir,
                                        composer_classes=composer_algos)
-
+    
     source = thesaurus_dirs[0]
+    print source
     do_second_part2(source) #original unigram-only thesaurus
     for c in composer_algos:
         # one phrasal thesaurus per composer

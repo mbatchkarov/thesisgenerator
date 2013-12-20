@@ -1,4 +1,9 @@
 import logging
+import sys
+
+sys.path.append('.')
+sys.path.append('..')
+sys.path.append('../..')
 import os
 from thesisgenerator.plugins.thesaurus_loader import Thesaurus
 from thesisgenerator.composers.utils import write_vectors_to_disk, julie_transform
@@ -20,7 +25,7 @@ def do_work():
     unigram_thesaurus_dir = '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/Byblo-2.2.0/../exp10-12'
     observed_ngram_vectors_dir = all_ngram_vectors_dir + '-observed'
     # where are the observed vectors?
-    observed_vector_file = os.path.join(observed_ngram_vectors_dir, 'julie.ANs.observed.vectors')
+    observed_vector_file = os.path.join(observed_ngram_vectors_dir, 'cleaned.exp10_AN_NNvectors')
 
 
     vectors_file = os.path.join(observed_ngram_vectors_dir, 'exp10.events.filtered.strings')
@@ -29,7 +34,7 @@ def do_work():
 
     th = Thesaurus([observed_vector_file], aggressive_lowercasing=False)
     mat, cols, rows = th.to_sparse_matrix()
-    rows = [DocumentFeature.from_string(julie_transform(x)) for x in rows]
+    rows = [DocumentFeature.from_string(x) for x in rows]
 
     os.chdir(byblo_base_dir)
     write_vectors_to_disk(mat.tocoo(), rows, cols, features_file, entries_file, vectors_file)

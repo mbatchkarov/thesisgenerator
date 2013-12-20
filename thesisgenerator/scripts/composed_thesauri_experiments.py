@@ -1,6 +1,10 @@
 import os
 import shutil
 import sys
+
+sys.path.append('.')
+sys.path.append('..')
+sys.path.append('../..')
 from thesisgenerator.composers.vectorstore import *
 from thesisgenerator.plugins.experimental_utils import run_experiment
 from thesisgenerator.utils.conf_file_utils import set_in_conf_file, parse_config_file
@@ -15,8 +19,8 @@ superbase_conf_file = 'conf/exp35-superbase.conf'
 composer_algos = [AdditiveComposer, MultiplicativeComposer, HeadWordComposer,
                   TailWordComposer, MinComposer, MaxComposer]
 thesauri = [
-    '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/exp6-12AN_NN_gigaw_{}' \
-    '/exp6.sims.neighbours.strings'.format(c.name) for c in composer_algos
+    '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/exp10-12AN_NN_gigaw_{}' \
+    '/exp10.sims.neighbours.strings'.format(c.name) for c in composer_algos
 ]
 thesauri.append('Observed') # todo path to thesaurus with observed AN/NN vectors added in
 
@@ -37,10 +41,9 @@ for offset, thes in enumerate(thesauri):
     shutil.copy(superbase_conf_file, base_conf_file)
 
     set_in_conf_file(base_conf_file, ['vector_sources', 'unigram_paths'], [thes])
-
+    set_in_conf_file(base_conf_file, ['output_dir'], './conf/exp%d/output' % (first_exp + offset))
     config_obj, configspec_file = parse_config_file(base_conf_file)
     print base_conf_file
     print config_obj['vector_sources']['unigram_paths']
 
     run_experiment(first_exp + offset)
-    sys.exit(0)
