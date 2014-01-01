@@ -4,7 +4,6 @@
 Added changes from https://github.com/scikit-learn/scikit-learn/pull/2036
 so that they can be used before they are accepted into scikit-learn
 """
-from copy import deepcopy
 from itertools import count, izip
 from sklearn.base import is_classifier, clone
 from sklearn.cross_validation import check_cv
@@ -148,6 +147,6 @@ def naming_cross_val_score(estimator, X, y=None,
     scores = Parallel(n_jobs=n_jobs, verbose=verbose)(
         delayed(_cross_val_score)(cv_number,
                                   clone(estimator), X, y, score_func,
-                                  train, test, verbose, deepcopy(fit_params))
+                                  train, test, verbose, fit_params)
         for (cv_number, (train, test)) in izip(count(), cv))
     return scores
