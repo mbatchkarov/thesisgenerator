@@ -253,10 +253,7 @@ class XmlTokenizer(object):
                 txt = element.find('lemma').text
             else:
                 txt = element.find('word').text
-            if '_' in txt:
-                print txt
-                # check if the token is a number/stopword before things have
-            # been done to it
+                # check if the token is a number/stopword before things have been done to it
             am_i_a_number = self._is_number(txt)
 
             if self.remove_stopwords and txt.lower() in ENGLISH_STOP_WORDS:
@@ -296,7 +293,7 @@ class XmlTokenizer(object):
             if '/' in txt or '_' in txt:
             # I use these chars as separators later, remove them now to avoid problems down the line
                 if iob_tag in {'O', 'MISSING'}:
-                    logging.info('Funny token found: %s, pos is %s', txt, pos)
+                    #logging.info('Funny token found: %s, pos is %s', txt, pos)
                     continue
                 else:
                     # I put the underscore there, e.g. __NER-LOCATION__!
@@ -325,11 +322,11 @@ class XmlTokenizer(object):
                     #          edge_labels = [x[2]['type'] for x in dep_tree.edges(data=True)])
                     #import matplotlib.pyplot as plt
                     #plt.savefig("atlas.png",dpi=275)
-        else:
-            t = ET.ElementTree(tree)
-            s = StringIO()
-            t.write(s)
-            logging.info('Cant find dependency info in sentence: \n %s', s.getvalue())
+                    #else:
+                    #t = ET.ElementTree(tree)
+                    #s = StringIO()
+                    #t.write(s)
+                    #logging.info('Cant find dependency info in sentence: \n %s', s.getvalue())
 
         return tokens, (dep_tree, {t.index: t for t in tokens})
 
