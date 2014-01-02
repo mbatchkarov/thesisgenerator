@@ -13,9 +13,9 @@ from sklearn.random_projection import SparseRandomProjection
 
 from thesisgenerator.composers import utils
 from thesisgenerator.plugins.thesaurus_loader import Thesaurus
-from thesisgenerator.plugins.tokenizers import DocumentFeature, Token
 
 import numpy as np
+from thesisgenerator.plugins.tokens import DocumentFeature, Token
 
 
 class VectorSource(object):

@@ -11,7 +11,7 @@ from thesisgenerator.composers.vectorstore import CompositeVectorSource, Unigram
     UnigramDummyComposer, PrecomputedSimilaritiesVectorSource
 from thesisgenerator.plugins.bov import ThesaurusVectorizer
 from thesisgenerator.plugins.dumpers import FeatureVectorsCsvDumper
-from thesisgenerator.plugins.tokenizers import Token, DocumentFeature
+from thesisgenerator.plugins.tokens import DocumentFeature, Token
 from thesisgenerator.utils.data_utils import load_text_data_into_memory, load_tokenizer, tokenize_data
 
 

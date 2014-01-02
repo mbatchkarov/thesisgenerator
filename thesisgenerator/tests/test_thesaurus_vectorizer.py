@@ -2,7 +2,8 @@ import pytest
 import networkx as nx
 
 from thesisgenerator.plugins.bov import ThesaurusVectorizer
-from thesisgenerator.plugins.tokenizers import XmlTokenizer, DocumentFeature, Token
+from thesisgenerator.plugins.tokenizers import XmlTokenizer
+from thesisgenerator.plugins.tokens import DocumentFeature, Token
 
 
 @pytest.fixture(scope='module')

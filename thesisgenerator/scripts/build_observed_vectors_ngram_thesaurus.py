@@ -1,5 +1,6 @@
 import logging
 import sys
+from thesisgenerator.plugins.tokens import DocumentFeature
 
 sys.path.append('.')
 sys.path.append('..')
@@ -7,7 +8,6 @@ sys.path.append('../..')
 import os
 from thesisgenerator.plugins.thesaurus_loader import Thesaurus
 from thesisgenerator.composers.utils import write_vectors_to_disk, julie_transform
-from thesisgenerator.plugins.tokenizers import DocumentFeature
 from thesisgenerator.scripts.build_phrasal_thesauri_offline import do_second_part2
 
 __author__ = 'mmb28'

@@ -1,6 +1,7 @@
 import logging
 import sys
 from sklearn.decomposition import TruncatedSVD
+from thesisgenerator.plugins.tokens import DocumentFeature
 
 sys.path.append('.')
 sys.path.append('..')
@@ -9,7 +10,6 @@ sys.path.append('../..')
 from thesisgenerator.plugins.thesaurus_loader import Thesaurus
 import numpy, scipy, time
 from thesisgenerator.scripts import dump_all_composed_vectors as dump
-from thesisgenerator.plugins.tokenizers import DocumentFeature
 from thesisgenerator.composers.utils import write_vectors_to_disk
 import numpy as np
 

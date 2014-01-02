@@ -3,10 +3,10 @@ from collections import Counter
 import logging
 
 import numpy
+from thesisgenerator.plugins.tokens import DocumentFeature
 
 from thesisgenerator.utils.misc import walk_nonoverlapping_pairs
 from thesisgenerator.composers.utils import write_vectors_to_disk
-from thesisgenerator.plugins.tokenizers import DocumentFeature
 
 
 class Thesaurus(dict):
