@@ -5,6 +5,7 @@ import sys
 sys.path.append('.')
 sys.path.append('..')
 sys.path.append('../..')
+from thesisgenerator.utils.cmd_utils import run_and_log_output
 from thesisgenerator.composers.vectorstore import *
 from thesisgenerator.plugins.experimental_utils import run_experiment
 from thesisgenerator.utils.conf_file_utils import set_in_conf_file, parse_config_file
@@ -46,4 +47,5 @@ for offset, thes in enumerate(thesauri):
     print base_conf_file
     print config_obj['vector_sources']['unigram_paths']
 
-    run_experiment(first_exp + offset)
+    #run_experiment(first_exp + offset)
+    run_and_log_output('qsub -N composed{0} go-single-experiment.sh {0}'.format(first_exp + offset))
