@@ -8,51 +8,40 @@ class DocumentFeature(object):
         self.type = type
         self.tokens = tokens
 
+    _TYPES = dict([ ('NVN', 'SVO'), ('JN', 'AN'), ('VN', 'VO'), ('NN', 'NN') ])
+
     @classmethod
-    def from_string(cls, char* string):
+    def from_string(cls, string):
         """
         Takes a string representing a DocumentFeature and creates and object out of it. String format is
-        "word/POS" or "word1/PoS1 word2/PoS2",... The type of the feature will be inferred from the length and
-        PoS tags of the input string. Currently supports 1-GRAM, AN, NN, SVO and SV.
+        "word/PoS" or "word1/PoS1_word2/PoS2",... The type of the feature will be inferred from the length and
+        PoS tags of the input string.
+
+        From http://codereview.stackexchange.com/questions/38422/speeding-up-a-cython-program/38446?noredirect=1#38446
 
         :type string: str
         """
         try:
-            token_count = string.count('_') + 1
-            pos_count = string.count('/')
-            if token_count != pos_count:
-                return DocumentFeature('EMPTY', tuple())
-
             tokens = string.strip().split('_')
             if len(tokens) > 3:
                 raise ValueError('Document feature %s is too long' % string)
-            bits = [x.split('/') for x in tokens]
-            if not all(map(itemgetter(0), bits)):
-                # ignore tokens with no text
-                return DocumentFeature('EMPTY', tuple())
-            tokens = tuple(Token(word, pos) for (word, pos) in bits)
 
-            if len(tokens) == 1:
-                t = '1-GRAM'
-            elif ''.join([t.pos for t in tokens]) == 'NVN':
-                t = 'SVO'
-            elif ''.join([t.pos for t in tokens]) == 'JN':
-                t = 'AN'
-            elif ''.join([t.pos for t in tokens]) == 'VN':
-                t = 'VO'
-            elif ''.join([t.pos for t in tokens]) == 'NN':
-                t = 'NN'
-            elif len(tokens) == 2:
-                t = '2-GRAM'
-            elif len(tokens) == 3:
-                t = '3-GRAM'
-            else:
-                t = 'EMPTY'
+            tokens = [token.split('/') for token in tokens]
+
+            # Check for too many slashes, too few slashes, or empty words
+            if not all(map(lambda token: len(token) == 2 and token[0], tokens)):
+                #raise ValueError('Invalid document feature %s' % string)
+                return DocumentFeature('EMPTY', tuple())
+
+            tokens = tuple(Token(word, pos) for (word, pos) in tokens)
+
+            type = cls._TYPES.get(''.join([t.pos for t in tokens]),
+                ('EMPTY', '1-GRAM', '2-GRAM', '3-GRAM')[len(tokens)])
         except:
             logging.error('Cannot create token out of string %s', string)
             raise
 
-        return DocumentFeature(t, tokens)
+        return DocumentFeature(type, tokens)
 
     def tokens_as_str(self):
         """
