@@ -93,7 +93,7 @@ def run_experiment(expid, subexpid=None, num_workers=4,
         return
 
     # requested a whole experiment, with a bunch of training data set sizes
-    sizes = chain([2,5,10], range(20, 101, 10))
+    sizes = chain([2, 5, 10], range(20, 101, 10))
     if expid == 0:
         # exp0 is for debugging only, we don't have to do much
         sizes = [10, 20]#range(10, 31, 10)
@@ -187,22 +187,6 @@ def run_experiment(expid, subexpid=None, num_workers=4,
     # run data through the pipeline
     Parallel(n_jobs=1)(delayed(go)(new_conf_file, log_dir, tokenised_data, vector_source, n_jobs=num_workers) for
                        new_conf_file, log_dir in conf_file_iterator)
-
-    # ----------- CONSOLIDATION -----------
-    output_dir = '%s/conf/exp%d/output/' % (prefix, expid)
-    csv_out_fh = open(os.path.join(output_dir, "summary%d.csv" % expid), "w")
-
-    if not ('apollo' in hostname or 'node' in hostname):
-        output_db_conn = get_susx_mysql_conn()
-        writer = ConsolidatedResultsSqlAndCsvWriter(expid, csv_out_fh, output_db_conn)
-    else:
-        writer = ConsolidatedResultsCsvWriter(csv_out_fh)
-    consolidate_results(
-        writer,
-        '%s/conf/exp%d/exp%d_base-variants' % (prefix, expid, expid),
-        '%s/conf/exp%d/logs/' % (prefix, expid),
-        output_dir
-    )
 
 
 if __name__ == '__main__':

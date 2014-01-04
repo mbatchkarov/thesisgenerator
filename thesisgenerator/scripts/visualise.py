@@ -277,20 +277,33 @@ table_descr = {
     32: 'all tokens, signifier, wiki',
     33: 'all tokens, signified, wiki',
     34: 'all tokens, signifier + signified, wiki',
+    35: 'AN_NN_Add, signified, wiki',
+    36: 'AN_NN_Mult, signified, wiki',
+    37: 'AN_NN_First, signified, wiki',
+    38: 'AN_NN_Second, signified, wiki',
+    39: 'AN_NN_Min, signified, wiki',
+    40: 'AN_NN_Max, signified, wiki',
+    41: 'AN_NN_Observed, signified, wiki',
+    42: 'AN_NN_Add, signified, wiki',
+    43: 'AN_NN_Mult, signified, wiki',
+    44: 'AN_NN_First, signified, wiki',
+    45: 'AN_NN_Second, signified, wiki',
+    46: 'AN_NN_Min, signified, wiki',
+    47: 'AN_NN_Max, signified, wiki',
+    48: 'AN_NN_Observed, signified, wiki',
 }
 
 from joblib import Parallel, delayed
 
-Parallel(n_jobs=1)(delayed(coverage_bar_chart)([i], x_columns=['sample_size'])
-                   for i in range(22, 29))
+# Parallel(n_jobs=1)(delayed(coverage_bar_chart)([i], x_columns=['sample_size'])
+#                    for i in range(22, 29))
 
 # for i in range(22, 29):
 #     coverage_bar_chart([i], x_columns=['sample_size'])
 
-classifiers = ['BernoulliNB', 'MultinomialNB', 'LogisticRegression',
-               'MultinomialNBWithBinaryFeatures']
+classifiers = ['BernoulliNB', 'MultinomialNB', 'LogisticRegression']#, 'MultinomialNBWithBinaryFeatures']
 experiment_sets = [
-    [22, 23, 29], # effect of gigaw/wiki as feature selection (signifier, IT tokens) vs 23 as baseline
+    # [22, 23, 29], # effect of gigaw/wiki as feature selection (signifier, IT tokens) vs 23 as baseline
 
     [27, 33], # giga vs wiki as feature expansion (signified, all tokens)
 
@@ -302,8 +315,8 @@ experiment_sets = [
 
     [26, 27], # must be the same
     [23, 32], # must be the same
-
-    # range(22, 33) # all at once
+    range(35, 42), # all composed NP+unigram thesauri at once
+    range(42, 49), # all composed NP thesauri at once
 ]
 
 Parallel(n_jobs=1)(delayed(performance_bar_chart)(experiments, [clf])

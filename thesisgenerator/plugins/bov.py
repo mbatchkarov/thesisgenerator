@@ -134,19 +134,19 @@ class ThesaurusVectorizer(TfidfVectorizer):
 
         # extract sentence-internal subject-verb-direct object compounds
         # todo how do we handle prepositional objects?
-        verbs = [t.index for t in token_index.values() if t.pos == 'V']
-        subjects = set([(head, dep) for head, dep, opts in parse_tree.edges(data=True)
-                        if opts['type'] == 'nsubj' and token_index[head].pos == 'V' and token_index[dep].pos == 'N'])
-
-        objects = set([(head, dep) for head, dep, opts in parse_tree.edges(data=True)
-                       if opts['type'] == 'dobj' and token_index[head].pos == 'V' and token_index[dep].pos == 'N'])
-        subjverbobj = [(s[1], v, o[1]) for v in verbs for s in subjects for o in objects if s[0] == v and o[0] == v]
-        for s, v, o in subjverbobj:
-            new_features.append(DocumentFeature('SVO', (token_index[s], token_index[v], token_index[o])))
-
-        verbobj = [(v, o[1]) for v in verbs for o in objects if o[0] == v]
-        for v, o in verbobj:
-            new_features.append(DocumentFeature('VO', (token_index[v], token_index[o])))
+        # verbs = [t.index for t in token_index.values() if t.pos == 'V']
+        # subjects = set([(head, dep) for head, dep, opts in parse_tree.edges(data=True)
+        #                 if opts['type'] == 'nsubj' and token_index[head].pos == 'V' and token_index[dep].pos == 'N'])
+        #
+        # objects = set([(head, dep) for head, dep, opts in parse_tree.edges(data=True)
+        #                if opts['type'] == 'dobj' and token_index[head].pos == 'V' and token_index[dep].pos == 'N'])
+        # subjverbobj = [(s[1], v, o[1]) for v in verbs for s in subjects for o in objects if s[0] == v and o[0] == v]
+        # for s, v, o in subjverbobj:
+        #     new_features.append(DocumentFeature('SVO', (token_index[s], token_index[v], token_index[o])))
+        #
+        # verbobj = [(v, o[1]) for v in verbs for o in objects if o[0] == v]
+        # for v, o in verbobj:
+        #     new_features.append(DocumentFeature('VO', (token_index[v], token_index[o])))
 
         nns = [x[:2] for x in parse_tree.edges(data=True) if x[2]['type'] == 'nn' and
                                                              token_index[x[0]].pos == 'N' and

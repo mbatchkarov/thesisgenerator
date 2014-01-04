@@ -16,7 +16,7 @@ use this script to run them through the classification framework
 
 __author__ = 'mmb28'
 
-superbase_conf_file = 'conf/exp35-superbase.conf'
+superbase_conf_file = 'conf/exp42-superbase.conf'
 composer_algos = [AdditiveComposer, MultiplicativeComposer, HeadWordComposer,
                   TailWordComposer, MinComposer, MaxComposer]
 thesauri = [
@@ -29,7 +29,7 @@ handler = 'thesisgenerator.plugins.bov_feature_handlers.SignifiedFeatureHandler'
 
 
 # for each Thesaurus
-first_exp = 35
+first_exp = 42
 for offset, thes in enumerate(thesauri):
     experiment_dir = 'conf/exp%d' % (first_exp + offset)
     if not os.path.exists(experiment_dir):

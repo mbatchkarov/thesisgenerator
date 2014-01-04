@@ -223,7 +223,7 @@ def _infer_thesaurus_name(config_obj):
     corpus, features, pos, fef = [], [], [], []
     if thesauri:
         for t in thesauri:
-            pattern = '.*exp(?P<corpus>\d+)-(?P<features>\d+)(?P<pos>[A-Za-z])' \
+            pattern = '.*exp(?P<corpus>\d+)-(?P<features>\d+)(?P<pos>[A-Za-z_]+)' \
                       '(fef(?P<fef>\d+))?.*'
             m = re.match(pattern, t)
             try:

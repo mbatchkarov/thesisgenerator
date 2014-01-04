@@ -5,8 +5,16 @@ import logging
 from operator import itemgetter
 import os
 import itertools
+import platform
 from numpy import count_nonzero
+import sys
+
+sys.path.append('.')
+sys.path.append('..')
+sys.path.append('../..')
 from sklearn.base import TransformerMixin
+from thesisgenerator.plugins.consolidator import consolidate_results
+from thesisgenerator.utils.misc import get_susx_mysql_conn
 
 __author__ = 'mmb28'
 
@@ -199,3 +207,27 @@ class ConsolidatedResultsSqlAndCsvWriter(object):
     def __str__(self):
         return 'ConsolidatedResultsSqliteAndCsvWriter-%s-%s' % (
             self.csv, self.sql_conn)
+
+
+if __name__ == '__main__':
+    # ----------- CONSOLIDATION -----------
+
+    prefix = '/mnt/lustre/scratch/inf/mmb28/thesisgenerator'
+    hostname = platform.node()
+
+    for expid in range(35, 42):
+        output_dir = '%s/conf/exp%d/output/' % (prefix, expid)
+        csv_out_fh = open(os.path.join(output_dir, "summary%d.csv" % expid), "w")
+
+        if not ('apollo' in hostname or 'node' in hostname):
+            output_db_conn = get_susx_mysql_conn()
+            writer = ConsolidatedResultsSqlAndCsvWriter(expid, csv_out_fh, output_db_conn)
+        else:
+            writer = ConsolidatedResultsCsvWriter(csv_out_fh)
+
+        consolidate_results(
+            writer,
+            '%s/conf/exp%d/exp%d_base-variants' % (prefix, expid, expid),
+            '%s/conf/exp%d/logs/' % (prefix, expid),
+            output_dir
+        )
