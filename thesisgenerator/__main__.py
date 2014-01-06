@@ -33,7 +33,7 @@ from thesisgenerator.utils.misc import ChainCallable
 from thesisgenerator.classifiers import LeaveNothingOut, PredefinedIndicesIterator, SubsamplingPredefinedIndicesIterator, PicklingPipeline
 from thesisgenerator.utils.conf_file_utils import set_in_conf_file, parse_config_file
 from thesisgenerator.utils.data_utils import tokenize_data, load_text_data_into_memory, \
-    load_tokenizer
+    load_tokenizer, get_vector_source
 from thesisgenerator import config
 from thesisgenerator.plugins.dumpers import FeatureVectorsCsvDumper
 from thesisgenerator.plugins.crossvalidation import naming_cross_val_score
@@ -315,10 +315,10 @@ def _run_tasks(configuration, n_jobs, data, vector_source):
                 # pass the same vector source to the vectorizer, feature selector and metadata stripper
                 # that way the stripper can call vector_source.populate() after the feature selector has had its say,
                 # and that update source will then be available to the vectorizer at decode time
-            #fit_params = {
-        #    'vect__vector_source': vector_source,
-        #    'fs__vector_source': vector_source,
-        #    'stripper__vector_source': vector_source,
+                #fit_params = {
+                #    'vect__vector_source': vector_source,
+                #    'fs__vector_source': vector_source,
+            #    'stripper__vector_source': vector_source,
         #}
         scores_this_clf = naming_cross_val_score(
             pipeline, x_vals_seen,
@@ -516,7 +516,17 @@ if __name__ == '__main__':
     set_in_conf_file(conf_file, ['classifiers', 'sklearn.neighbors.KNeighborsClassifier', 'run'], False)
 
     conf, configspec_file = parse_config_file(conf_file)
-    data = load_text_data_into_memory(conf)
-    tokenizer = load_tokenizer(conf)
-    data = tokenize_data(data, tokenizer)
+
+    data, data_id = load_text_data_into_memory(conf['training_data'], conf['test_data'])
+    tokenizer = load_tokenizer(
+        joblib_caching=conf['joblib_caching'],
+        normalise_entities=conf['feature_extraction']['normalise_entities'],
+        use_pos=conf['feature_extraction']['use_pos'],
+        coarse_pos=conf['feature_extraction']['coarse_pos'],
+        lemmatize=conf['feature_extraction']['lemmatize'],
+        lowercase=conf['tokenizer']['lowercase'],
+        remove_stopwords=conf['tokenizer']['remove_stopwords'],
+        remove_short_words=conf['tokenizer']['remove_short_words'])
+    data = tokenize_data(data, tokenizer, data_id)
+    vector_store = get_vector_source(conf)
     go(conf_file, log_dir, data, vector_store, classpath=classpath, clean=clean, n_jobs=1)

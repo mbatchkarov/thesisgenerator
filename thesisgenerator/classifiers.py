@@ -216,7 +216,7 @@ class NoopTransformer(BaseEstimator, TransformerMixin):
     Also functions as a joblib cache object that does nothing
     """
 
-    def cache(self, func, ignore=None, verbose=None, mmap_mode=False):
+    def cache(self, func, **kwargs):
         return func
         # for joblib caching, act as a identity decorator
 

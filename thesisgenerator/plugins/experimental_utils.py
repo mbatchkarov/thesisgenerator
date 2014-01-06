@@ -9,25 +9,19 @@ sys.path.append('.')
 sys.path.append('..')
 sys.path.append('../..')
 
-from thesisgenerator.composers.vectorstore import CompositeVectorSource, UnigramVectorSource, \
-    PrecomputedSimilaritiesVectorSource
-from thesisgenerator.utils.reflection_utils import get_named_object, get_intersection_of_parameters
-from thesisgenerator.utils.data_utils import tokenize_data, load_text_data_into_memory, \
-    load_tokenizer
-from thesisgenerator.utils.conf_file_utils import parse_config_file
-from thesisgenerator.utils.misc import get_susx_mysql_conn
-from thesisgenerator.plugins.file_generators import _exp16_file_iterator, _exp1_file_iterator, \
-    _vary_training_size_file_iterator, get_specific_subexperiment_files
-
 import glob
 from itertools import chain
-from joblib import Parallel, delayed
 
+from joblib import Parallel, delayed
 from numpy import nonzero
 
+from thesisgenerator.utils.data_utils import tokenize_data, load_text_data_into_memory, \
+    load_tokenizer, get_vector_source
+from thesisgenerator.utils.conf_file_utils import parse_config_file
+from thesisgenerator.plugins.file_generators import _exp16_file_iterator, _exp1_file_iterator, \
+    _vary_training_size_file_iterator, get_specific_subexperiment_files
 from thesisgenerator.__main__ import go
 from thesisgenerator.plugins.dumpers import *
-from thesisgenerator.plugins.consolidator import consolidate_results
 
 
 def inspect_thesaurus_effect(outdir, clf_name, thesaurus_file, pipeline,
@@ -122,56 +116,7 @@ def run_experiment(expid, subexpid=None, num_workers=4,
         shuffle_targets=conf['shuffle_targets']
     )
 
-    vectors_exist_ = conf['feature_selection']['ensure_vectors_exist']
-    handler_ = conf['feature_extraction']['decode_token_handler']
-    if 'signified' in handler_.lower() or vectors_exist_:
-        # vectors are needed either at decode time (signified handler) or during feature selection
-        paths = conf['vector_sources']['unigram_paths']
-        precomputed = conf['vector_sources']['precomputed']
-
-        if not paths:
-            raise ValueError('You must provide at least one neighbour source because you requested %s '
-                             ' and ensure_vectors_exist=%s' % (handler_, vectors_exist_))
-        if any('events' in x for x in paths) and precomputed:
-            logging.warn('Possible configuration error: you requested precomputed '
-                         'thesauri to be used but passed in the following files: \n%s', paths)
-
-        if not precomputed:
-            # load unigram vectors and initialise required composers based on these vectors
-            if paths:
-                logging.info('Loading unigram vector sources')
-                unigram_source = UnigramVectorSource(paths,
-                                                     reduce_dimensionality=conf['vector_sources'][
-                                                         'reduce_dimensionality'],
-                                                     dimensions=conf['vector_sources']['dimensions'])
-
-            composers = []
-            for section in conf['vector_sources']:
-                if 'composer' in section and conf['vector_sources'][section]['run']:
-                    # the object must only take keyword arguments
-                    composer_class = get_named_object(section)
-                    args = get_intersection_of_parameters(composer_class, conf['vector_sources'][section])
-                    args['unigram_source'] = unigram_source
-                    composers.append(composer_class(**args))
-            if composers and not vector_source:
-                # if a vector_source has not been predefined
-                vector_source = CompositeVectorSource(
-                    composers,
-                    conf['vector_sources']['sim_threshold'],
-                    conf['vector_sources']['include_self'],
-                )
-        else:
-            logging.info('Loading precomputed neighbour sources')
-            vector_source = PrecomputedSimilaritiesVectorSource(
-                paths,
-                conf['vector_sources']['sim_threshold'],
-                conf['vector_sources']['include_self'],
-            )
-    else:
-        if not vector_source:
-            # if a vector source has not been passed in and has not been initialised, then init it to avoid
-            # accessing empty things
-            vector_source = []
+    vector_source = get_vector_source(conf, vector_source=vector_source)
 
     tokenizer = load_tokenizer(
         joblib_caching=conf['joblib_caching'],

@@ -4,8 +4,10 @@ from joblib import Memory
 import numpy as np
 from sklearn.datasets import load_files
 from thesisgenerator.classifiers import NoopTransformer
+from thesisgenerator.composers.vectorstore import UnigramVectorSource, CompositeVectorSource, \
+    PrecomputedSimilaritiesVectorSource
 from thesisgenerator.plugins import tokenizers
-from thesisgenerator.utils.reflection_utils import get_named_object
+from thesisgenerator.utils.reflection_utils import get_named_object, get_intersection_of_parameters
 
 __author__ = 'mmb28'
 
@@ -146,3 +148,57 @@ def _get_data_iterators(path, input_type='content', input_gen=None, shuffle_targ
             'The input type \'%s\' is not supported yet.' % input_type)
 
     return data_iterable, targets_iterable
+
+
+def get_vector_source(conf, vector_source=None):
+    vectors_exist_ = conf['feature_selection']['ensure_vectors_exist']
+    handler_ = conf['feature_extraction']['decode_token_handler']
+    if 'signified' in handler_.lower() or vectors_exist_:
+        # vectors are needed either at decode time (signified handler) or during feature selection
+        paths = conf['vector_sources']['unigram_paths']
+        precomputed = conf['vector_sources']['precomputed']
+
+        if not paths:
+            raise ValueError('You must provide at least one neighbour source because you requested %s '
+                             ' and ensure_vectors_exist=%s' % (handler_, vectors_exist_))
+        if any('events' in x for x in paths) and precomputed:
+            logging.warn('Possible configuration error: you requested precomputed '
+                         'thesauri to be used but passed in the following files: \n%s', paths)
+
+        if not precomputed:
+            # load unigram vectors and initialise required composers based on these vectors
+            if paths:
+                logging.info('Loading unigram vector sources')
+                unigram_source = UnigramVectorSource(paths,
+                                                     reduce_dimensionality=conf['vector_sources'][
+                                                         'reduce_dimensionality'],
+                                                     dimensions=conf['vector_sources']['dimensions'])
+
+            composers = []
+            for section in conf['vector_sources']:
+                if 'composer' in section and conf['vector_sources'][section]['run']:
+                    # the object must only take keyword arguments
+                    composer_class = get_named_object(section)
+                    args = get_intersection_of_parameters(composer_class, conf['vector_sources'][section])
+                    args['unigram_source'] = unigram_source
+                    composers.append(composer_class(**args))
+            if composers and not vector_source:
+                # if a vector_source has not been predefined
+                vector_source = CompositeVectorSource(
+                    composers,
+                    conf['vector_sources']['sim_threshold'],
+                    conf['vector_sources']['include_self'],
+                )
+        else:
+            logging.info('Loading precomputed neighbour sources')
+            vector_source = PrecomputedSimilaritiesVectorSource(
+                paths,
+                conf['vector_sources']['sim_threshold'],
+                conf['vector_sources']['include_self'],
+            )
+    else:
+        if not vector_source:
+            # if a vector source has not been passed in and has not been initialised, then init it to avoid
+            # accessing empty things
+            vector_source = []
+    return vector_source
