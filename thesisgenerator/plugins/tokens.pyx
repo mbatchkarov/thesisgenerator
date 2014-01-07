@@ -1,6 +1,8 @@
 from functools import total_ordering
 import logging
 from operator import itemgetter
+from itertools import izip_longest
+import re
 
 
 class DocumentFeature(object):
@@ -9,39 +11,29 @@ class DocumentFeature(object):
         self.tokens = tokens
 
     _TYPES = dict([ ('NVN', 'SVO'), ('JN', 'AN'), ('VN', 'VO'), ('NN', 'NN') ])
+    #  not an underscore + text + underscore or end of line
+    #  see re.split documentation on capturing (the first two) and non-capturing groups (the last one)
+    _TOKEN_RE = re.compile(r'([^/_]+)/([A-Z]+)(?:_|$)')
 
     @classmethod
     def from_string(cls, string):
-        """
-        Takes a string representing a DocumentFeature and creates and object out of it. String format is
-        "word/PoS" or "word1/PoS1_word2/PoS2",... The type of the feature will be inferred from the length and
-        PoS tags of the input string.
-
-        From http://codereview.stackexchange.com/questions/38422/speeding-up-a-cython-program/38446?noredirect=1#38446
-
-        :type string: str
-        """
         try:
-            tokens = string.strip().split('_')
-            if len(tokens) > 3:
-                raise ValueError('Document feature %s is too long' % string)
-
-            tokens = [token.split('/') for token in tokens]
-
-            # Check for too many slashes, too few slashes, or empty words
-            if not all(map(lambda token: len(token) == 2 and token[0], tokens)):
-                #raise ValueError('Invalid document feature %s' % string)
-                return DocumentFeature('EMPTY', tuple())
-
-            tokens = tuple(Token(word, pos) for (word, pos) in tokens)
-
-            type = cls._TYPES.get(''.join([t.pos for t in tokens]),
+            match = cls._TOKEN_RE.split(string, 3)
+            type = ''.join(match[2::3])
+            match = iter(match)
+            tokens = []
+            for (junk, word, pos) in izip_longest(match, match, match):
+                if junk:        # Either too many tokens, or invalid token
+                    raise ValueError(junk)
+                if not word:
+                    break
+                tokens.append(Token(word, pos))
+            type = cls._TYPES.get(type,
                 ('EMPTY', '1-GRAM', '2-GRAM', '3-GRAM')[len(tokens)])
+            return DocumentFeature(type, tuple(tokens))
         except:
             logging.error('Cannot create token out of string %s', string)
-            raise
-
-        return DocumentFeature(type, tokens)
+            return DocumentFeature('EMPTY', tuple())
 
     def tokens_as_str(self):
         """

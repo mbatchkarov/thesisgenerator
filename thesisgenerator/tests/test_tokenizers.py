@@ -292,7 +292,7 @@ class Test_tokenizer(TestCase):
 
         self.assertEqual(
             DocumentFeature('1-GRAM', (Token('cat', 'N'), )),
-            DocumentFeature.from_string(' cat/N ')
+            DocumentFeature.from_string('cat/N')
         )
 
         self.assertEqual(
@@ -318,6 +318,11 @@ class Test_tokenizer(TestCase):
         self.assertEqual(
             DocumentFeature('SVO', (Token('dog', 'N'), Token('chase', 'V'), Token('cat', 'N'))),
             DocumentFeature.from_string('dog/N_chase/V_cat/N')
+        )
+
+        self.assertEqual(
+            DocumentFeature('2-GRAM', (Token('very', 'RB'), Token('big', 'J'))),
+            DocumentFeature.from_string('very/RB_big/J')
         )
 
         for invalid_string in ['a\/s/N', 'l\/h/N_clinton\/south/N', 'l\/h//N_clinton\/south/N',
