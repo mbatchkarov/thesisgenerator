@@ -2,13 +2,16 @@
 from collections import defaultdict
 import logging
 import array
+import shelve
 import scipy.sparse as sp
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 from thesisgenerator.classifiers import NoopTransformer
+from thesisgenerator.composers.vectorstore import PrecomputedSimilaritiesVectorSource
 from thesisgenerator.plugins import tokenizers
 from thesisgenerator.plugins.bov_feature_handlers import get_token_handler, get_stats_recorder
 from thesisgenerator.plugins.tokens import DocumentFeature
+from thesisgenerator.plugins.thesaurus_loader import Thesaurus
 
 
 class ThesaurusVectorizer(TfidfVectorizer):
@@ -82,8 +85,16 @@ class ThesaurusVectorizer(TfidfVectorizer):
 
     def fit_transform(self, raw_documents, y=None, vector_source=None):
         self.vector_source = vector_source
+        restore = False
+        if isinstance(vector_source, str):
+            # it's a path to a shelved precomputed vector source, we don't need it at training time
+            # todo this assumes we're doing BaseFeatureHandler at train time, something else later
+            self.vector_source = None
+            original_vector_source = vector_source
+            restore = True
+
         logging.debug('Identity of vector source is %d', id(vector_source))
-        if vector_source:
+        if self.vector_source:
             try:
                 logging.debug('The BallTree is %s', vector_source.nbrs)
             except AttributeError:
@@ -95,17 +106,27 @@ class ThesaurusVectorizer(TfidfVectorizer):
                                          self.vector_source)
         self.stats = get_stats_recorder(self.record_stats)
         # a different stats recorder will be used for the testing data
-
         res = super(ThesaurusVectorizer, self).fit_transform(raw_documents, y)
 
         # once training is done, convert all document features (unigrams and composable ngrams)
         # to a ditributional feature vector
         logging.info('Done vectorizing')
+
+        # restore the vector source for decoding
+        if restore:
+            self.vector_source = original_vector_source
         return res, self.vocabulary_
 
     def transform(self, raw_documents):
         # record stats separately for the test set
         self.stats = get_stats_recorder(self.record_stats)
+
+        if isinstance(self.vector_source, str):
+            # it's a path to a shelved vector source
+            # todo this is an ugly hack- I can't be sure it's really a Precomputed....
+            logging.info('Deshelving %s', self.vector_source)
+            d = shelve.open(self.vector_source, flag='r') # read only
+            self.vector_source = PrecomputedSimilaritiesVectorSource(Thesaurus(d))
 
         self.handler = get_token_handler(self.decode_token_handler,
                                          self.k,
@@ -118,7 +139,14 @@ class ThesaurusVectorizer(TfidfVectorizer):
         #if self.vector_source:
         #    logging.info('Populating vector source %s prior to transform', self.vector_source)
         #    self.vector_source.populate_vector_space(self.vocabulary_.keys())
-        return super(ThesaurusVectorizer, self).transform(raw_documents), self.vocabulary_
+        res = super(ThesaurusVectorizer, self).transform(raw_documents), self.vocabulary_
+        try:
+            #  try and close the shelf
+            self.vector_source.th.d.close()
+        except Exception:
+            #  may not be a shelf after all
+            pass
+        return res
 
     def extract_features_from_dependency_tree(self, parse_tree, token_index):
         # extract sentence-internal adjective-noun compounds

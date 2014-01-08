@@ -311,7 +311,7 @@ def _run_tasks(configuration, n_jobs, data, vector_source):
             try:
                 logging.debug('The BallTree is %s', vector_source.nbrs)
             except AttributeError:
-                logging.debug('The vector source is is %s', vector_source)
+                logging.debug('The vector source is %s', vector_source)
                 # pass the same vector source to the vectorizer, feature selector and metadata stripper
                 # that way the stripper can call vector_source.populate() after the feature selector has had its say,
                 # and that update source will then be available to the vectorizer at decode time

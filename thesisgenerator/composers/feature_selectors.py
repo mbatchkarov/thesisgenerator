@@ -141,9 +141,11 @@ class MetadataStripper(BaseEstimator, TransformerMixin):
         if self.vector_source:
             logging.info('Populating vector source %s prior to transform', self.vector_source)
             logging.info('Using %d vocabulary entries ', len(self.voc))
-            self.vector_source.populate_vector_space(self.voc.keys(),
-                                                     algorithm=self.nn_algorithm,
-                                                     build_tree=self.build_tree)
+            if not isinstance(self.vector_source, str):
+                # the vector source may be a shelve file name
+                self.vector_source.populate_vector_space(self.voc.keys(),
+                                                         algorithm=self.nn_algorithm,
+                                                         build_tree=self.build_tree)
             try:
                 logging.debug('The BallTree is %s', vector_source.nbrs)
             except AttributeError:

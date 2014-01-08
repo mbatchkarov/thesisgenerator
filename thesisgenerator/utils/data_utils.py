@@ -196,6 +196,10 @@ def get_vector_source(conf, vector_source=None):
                 conf['vector_sources']['sim_threshold'],
                 conf['vector_sources']['include_self'],
             )
+            filename = 'thes_shelf_%d' % hash(tuple(paths))
+            if not os.path.exists(filename):
+                vector_source.th.to_shelf(filename)
+            vector_source = filename
     else:
         if not vector_source:
             # if a vector source has not been passed in and has not been initialised, then init it to avoid

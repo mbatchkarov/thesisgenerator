@@ -26,6 +26,7 @@ def black_cat_parse_tree():
     return parse_tree, token_index
 
 
+@pytest.skip('Some dependency features manually disabled for performance reasons')
 def test_extract_features_from_correct_dependency_tree(black_cat_parse_tree, vectorizer, valid_AN_features):
     features = vectorizer.extract_features_from_dependency_tree(*black_cat_parse_tree)
 
@@ -47,6 +48,7 @@ def test_extract_features_from_empty_dependency_tree(vectorizer):
     assert not features
 
 
+@pytest.skip('Some dependency features manually disabled for performance reasons')
 @pytest.mark.parametrize(
     ('change_to', 'expected_feature_count'),
     [
