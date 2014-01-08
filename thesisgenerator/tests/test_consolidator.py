@@ -16,7 +16,7 @@ class TestConsolidator(TestCase):
     def setUp(cls):
         prefix = 'thesisgenerator/resources'
         # load a mock unigram thesaurus, bypassing the similarity calculation provided by CompositeVectorSource
-        vector_source = PrecomputedSimilaritiesVectorSource(['thesisgenerator/resources/exp0-0a.strings'])
+        vector_source = PrecomputedSimilaritiesVectorSource.from_file(['thesisgenerator/resources/exp0-0a.strings'])
         run_experiment(0, num_workers=1, predefined_sized=[3, 3, 3], prefix=prefix, vector_source=vector_source)
 
     def tearDown(self):

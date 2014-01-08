@@ -48,7 +48,7 @@ class UnigramVectorSource(VectorSource):
         if not unigram_paths:
             raise ValueError('You must provide a unigram vector file')
 
-        thesaurus = Thesaurus(
+        thesaurus = Thesaurus.from_tsv(
             thesaurus_files=unigram_paths,
             sim_threshold=0,
             include_self=False,
@@ -448,7 +448,11 @@ class PrecomputedSimilaritiesVectorSource(CompositeVectorSource):
     name = 'Precomputed'
 
 
-    def __init__(self, thesaurus_files='', sim_threshold=0, include_self=False):
+    def __init__(self, thesaurus):
+        self.th = thesaurus
+
+    @classmethod
+    def from_file(cls, thesaurus_files='', sim_threshold=0, include_self=False):
         '''
         :param thesaurus_files: List of **all-pairs similarities** files.
         :type thesaurus_files: list
@@ -457,7 +461,10 @@ class PrecomputedSimilaritiesVectorSource(CompositeVectorSource):
         :param include_self:
         :type include_self: bool
         '''
-        self.th = Thesaurus(thesaurus_files=thesaurus_files, sim_threshold=sim_threshold, include_self=include_self)
+        th = Thesaurus.from_tsv(thesaurus_files=thesaurus_files,
+                                sim_threshold=sim_threshold,
+                                include_self=include_self)
+        return PrecomputedSimilaritiesVectorSource(th)
 
     def _get_nearest_neighbours(self, feature):
     # Accepts structured features and strips the meta information from the feature and use as a string

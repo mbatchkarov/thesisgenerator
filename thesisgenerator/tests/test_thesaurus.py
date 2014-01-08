@@ -1,4 +1,6 @@
 # coding=utf-8
+from _bsddb import DBAccessError
+import shelve
 from unittest import TestCase
 import os
 
@@ -16,10 +18,10 @@ __author__ = 'mmb28'
 
 @pytest.fixture
 def thesaurus_c():
-    return Thesaurus(thesaurus_files=['thesisgenerator/resources/exp0-0c.strings'],
-                     sim_threshold=0,
-                     include_self=False,
-                     ngram_separator='_')
+    return Thesaurus.from_tsv(thesaurus_files=['thesisgenerator/resources/exp0-0c.strings'],
+                              sim_threshold=0,
+                              include_self=False,
+                              ngram_separator='_')
 
 
 def test_loading_bigram_thesaurus(thesaurus_c):
@@ -70,7 +72,7 @@ def test_to_file(thesaurus_c, tmpdir):
     """
     filename = str(tmpdir.join('outfile.txt'))
     thesaurus_c.to_file(filename)
-    t1 = Thesaurus([filename])
+    t1 = Thesaurus.from_tsv([filename])
 
     # can't just assert t1 == thesaurus_c, because to_file may reorder the columns
     for k, v in thesaurus_c.iteritems():
@@ -123,10 +125,10 @@ class TestLoad_thesauri(TestCase):
             # 'k': 10,
             'include_self': False
         }
-        self.thesaurus = thesaurus_loader.Thesaurus(**self.params)
+        self.thesaurus = thesaurus_loader.Thesaurus.from_tsv(**self.params)
 
     def _reload_thesaurus(self):
-        self.thesaurus = thesaurus_loader.Thesaurus(**self.params)
+        self.thesaurus = thesaurus_loader.Thesaurus.from_tsv(**self.params)
 
     def test_empty_thesaurus(self):
         self.params['thesaurus_files'] = []
@@ -138,11 +140,38 @@ class TestLoad_thesauri(TestCase):
             self.thesaurus['kasdjhfka']
 
     def _reload_and_assert(self, entry_count, neighbour_count):
-        th = thesaurus_loader.Thesaurus(**self.params)
+        th = thesaurus_loader.Thesaurus.from_tsv(**self.params)
         all_neigh = [x for v in th.values() for x in v]
         self.assertEqual(len(th), entry_count)
         self.assertEqual(len(all_neigh), neighbour_count)
         return th
+
+    def test_from_dict(self):
+        from_dict = thesaurus_loader.Thesaurus(self.thesaurus.d)
+        self.assertDictEqual(self.thesaurus.d, from_dict.d)
+
+    def test_from_shelved_dict(self):
+        filename = 'thesaurus_unit_tests.tmp'
+        self.thesaurus.to_shelf(filename)
+
+        d = shelve.open(filename, flag='r') # read only
+        from_shelf = Thesaurus(d)
+        for k, v in self.thesaurus.iteritems():
+            self.assertEqual(self.thesaurus[k], from_shelf[k])
+
+        #  check mutability
+        self.thesaurus['some_value'] = ('should be possible', 0)
+
+        def modify():
+            from_shelf['some_value'] = ('should not be possible', 0)
+
+        self.assertRaises(DBAccessError, modify)
+
+        # tear down
+        self.assertTrue(os.path.exists(filename))
+        d.close()
+        if os.path.exists(filename):
+            os.unlink(filename)
 
     def test_sim_threshold(self):
         for i, j, k in zip([0, .39, .5, 1], [7, 3, 3, 0], [14, 4, 3, 0]):

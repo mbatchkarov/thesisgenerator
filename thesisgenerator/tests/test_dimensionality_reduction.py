@@ -89,7 +89,7 @@ def test_write_to_file(tmpdir, thesaurus_c):
         assert os.path.exists(events_file)
 
         #check number of entries matches
-        t1 = Thesaurus([events_file])
+        t1 = Thesaurus.from_tsv([events_file])
         assert len(t1) == max_count
 
         # check if the entries file has the right number of entries

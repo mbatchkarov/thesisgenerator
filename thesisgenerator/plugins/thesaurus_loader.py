@@ -1,6 +1,7 @@
 # coding=utf-8
 from collections import Counter
 import logging
+import shelve
 
 import numpy
 from thesisgenerator.plugins.tokens import DocumentFeature
@@ -9,9 +10,9 @@ from thesisgenerator.utils.misc import walk_nonoverlapping_pairs
 from thesisgenerator.composers.utils import write_vectors_to_disk
 
 
-class Thesaurus(dict):
-    def __init__(self, thesaurus_files='', sim_threshold=0, include_self=False,
-                 aggressive_lowercasing=True, ngram_separator='_'):
+class Thesaurus(object):
+    def __init__(self, d):
+
         """
          A container that can read Byblo-formatted events (vectors) files OR sims files. Each entry can be of the form
 
@@ -23,6 +24,33 @@ class Thesaurus(dict):
 
         i.e. entry: [(neighbour, similarity), ...]
 
+        :param d: a dictionary that serves as a basis
+        """
+        self.d = d
+
+    def __getattr__(self, name):
+        return getattr(self.d, name)
+
+    def __setitem__(self, key, value):
+        self.d[key] = value
+
+    def __delitem__(self, key):
+        del self.d[key]
+
+    def __getitem__(self, item):
+        return self.d[item]
+
+    def __contains__(self, item):
+        return item in self.d
+
+    def __len__(self):
+        return len(self.d)
+
+    @classmethod
+    def from_tsv(cls, thesaurus_files='', sim_threshold=0, include_self=False,
+                 aggressive_lowercasing=True, ngram_separator='_'):
+        """
+        Create a Thesaurus by parsing a Byblo-compatible TSV files (events or sims).
         If duplicate values are encoutered during parsing, only the latest will be kept.
 
         :param thesaurus_files: list or tuple of file paths to parse
@@ -38,16 +66,15 @@ class Thesaurus(dict):
         :type aggressive_lowercasing: bool
         :param ngram_separator: When n_gram entries are read in, what are the indidivual tokens separated by
         """
-        self.thesaurus_files = thesaurus_files
-        self.sim_threshold = sim_threshold
-        self.include_self = include_self
-        self.aggressive_lowercasing = aggressive_lowercasing
-        self.ngram_separator = ngram_separator
-
-        self._read_from_disk()
+        return cls._read_from_disk(thesaurus_files,
+                                   sim_threshold,
+                                   include_self,
+                                   ngram_separator,
+                                   aggressive_lowercasing)
 
 
-    def _read_from_disk(self):
+    @classmethod
+    def _read_from_disk(cls, thesaurus_files, sim_threshold, include_self, ngram_separator, aggressive_lowercasing):
         """
         Loads a set Byblo-generated thesaurus form the specified file and
         returns their union. If any of the files has been parsed already a
@@ -64,11 +91,12 @@ class Thesaurus(dict):
         A set of thesauri or an empty dictionary
         """
 
-        if not self.thesaurus_files:
+        if not thesaurus_files:
             logging.warn("No thesaurus specified")
             return {}
 
-        for path in self.thesaurus_files:
+        to_return = dict()
+        for path in thesaurus_files:
             logging.info('Loading thesaurus %s from disk', path)
 
             FILTERED = '___FILTERED___'.lower()
@@ -81,33 +109,41 @@ class Thesaurus(dict):
                         logging.warn('Dodgy line in thesaurus file: %s\n %s', path, line)
                         continue
                     if tokens[0] != FILTERED:
-                        to_insert = [(_smart_lower(word, self.ngram_separator, self.aggressive_lowercasing), float(sim))
+                        to_insert = [(_smart_lower(word, ngram_separator, aggressive_lowercasing), float(sim))
                                      for (word, sim) in walk_nonoverlapping_pairs(tokens, 1)
-                                     if word.lower() != FILTERED and float(sim) > self.sim_threshold]
-                        if self.include_self:
+                                     if word.lower() != FILTERED and float(sim) > sim_threshold]
+                        if include_self:
                             to_insert.insert(0, (_smart_lower(tokens[0],
-                                                              self.ngram_separator,
-                                                              self.aggressive_lowercasing), 1.0))
+                                                              ngram_separator,
+                                                              aggressive_lowercasing), 1.0))
                             # the step above may filter out all neighbours of an entry. if this happens,
                             # do not bother adding it
                         if len(to_insert) > 0:
-                            key = _smart_lower(tokens[0], self.ngram_separator, self.aggressive_lowercasing)
+                            key = _smart_lower(tokens[0], ngram_separator, aggressive_lowercasing)
 
-                            if key in self:
+                            if key in to_return:
                                 # todo this better not be a neighbours file, merging doesn't work there
                                 logging.warn('Multiple entries for "%s" found. Merging.' % tokens[0])
-                                c = Counter(dict(self[key]))
+                                c = Counter(dict(to_return[key]))
                                 # print len(c)
                                 c.update(dict(to_insert))
                                 # print len(to_insert), len(c)
                                 # print '---'
-                                self[key] = [(k,v) for k,v in c.iteritems()]
+                                to_return[key] = [(k, v) for k, v in c.iteritems()]
                             else:
-                                self[key] = to_insert
+                                to_return[key] = to_insert
 
-                            # note- do not attempt to lowercase if the thesaurus
-                            #  has not already been lowercased- may result in
-                            # multiple neighbour lists for the same entry
+                                # note- do not attempt to lowercase if the thesaurus
+                                #  has not already been lowercased- may result in
+                                # multiple neighbour lists for the same entry
+        return Thesaurus(to_return)
+
+    def to_shelf(self, filename):
+        logging.info('Shelving thesaurus of size %d to %s', len(self), filename)
+        d = shelve.open(filename, flag='c') # read and write
+        for entry, features in self.iteritems():
+            d[str(entry)] = features
+        d.close()
 
     def to_dissect_sparse_files(self, output_prefix, row_transform=None):
         """

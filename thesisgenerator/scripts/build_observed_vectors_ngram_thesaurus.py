@@ -15,6 +15,7 @@ __author__ = 'mmb28'
 Build a thesaurus of ngrams using observed vectors for the engrams
 '''
 
+
 def do_work():
     # SET UP A FEW REQUIRED PATHS
     logging.basicConfig(level=logging.INFO,
@@ -27,12 +28,11 @@ def do_work():
     # where are the observed vectors?
     observed_vector_file = os.path.join(observed_ngram_vectors_dir, 'cleaned.exp10_AN_NNvectors')
 
-
     vectors_file = os.path.join(observed_ngram_vectors_dir, 'exp10.events.filtered.strings')
     entries_file = os.path.join(observed_ngram_vectors_dir, 'exp10.entries.filtered.strings')
     features_file = os.path.join(observed_ngram_vectors_dir, 'exp10.features.filtered.strings')
 
-    th = Thesaurus([observed_vector_file], aggressive_lowercasing=False)
+    th = Thesaurus.from_tsv([observed_vector_file], aggressive_lowercasing=False)
     mat, cols, rows = th.to_sparse_matrix()
     rows = [DocumentFeature.from_string(x) for x in rows]
 

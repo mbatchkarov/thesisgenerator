@@ -191,7 +191,7 @@ def get_vector_source(conf, vector_source=None):
                 )
         else:
             logging.info('Loading precomputed neighbour sources')
-            vector_source = PrecomputedSimilaritiesVectorSource(
+            vector_source = PrecomputedSimilaritiesVectorSource.from_file(
                 paths,
                 conf['vector_sources']['sim_threshold'],
                 conf['vector_sources']['include_self'],

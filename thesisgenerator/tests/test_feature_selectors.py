@@ -259,7 +259,7 @@ class TestVectorBackedSelectKBest(TestCase):
         """
 
         # load a mock unigram thesaurus, bypassing the similarity calculation provided by CompositeVectorSource
-        composer = PrecomputedSimilaritiesVectorSource(['thesisgenerator/resources/exp0-0a.strings'])
+        composer = PrecomputedSimilaritiesVectorSource.from_file(['thesisgenerator/resources/exp0-0a.strings'])
 
         # patch it to ensure it contains some bigram entries, as if they were calculated on the fly
         composer.th['like/V_fruit/N'] = [('like/V', 0.8)]

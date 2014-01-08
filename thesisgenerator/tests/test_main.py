@@ -26,7 +26,7 @@ class TestThesaurusVectorizer(TestCase):
             'sim_threshold': 0,
             'include_self': False
         }
-        self.vector_source = PrecomputedSimilaritiesVectorSource(**self._thesaurus_opts)
+        self.vector_source = PrecomputedSimilaritiesVectorSource.from_file(**self._thesaurus_opts)
 
         self.tokenizer_opts = {
             'normalise_entities': False,
@@ -137,7 +137,7 @@ class TestThesaurusVectorizer(TestCase):
         return x1, x2, voc
 
     def _reload_thesaurus_and_tokenizer(self):
-        self.vector_source = PrecomputedSimilaritiesVectorSource(**self._thesaurus_opts)
+        self.vector_source = PrecomputedSimilaritiesVectorSource.from_file(**self._thesaurus_opts)
         self.feature_selection_conf['vector_source'] = self.vector_source
         self.tokenizer = tokenizers.XmlTokenizer(**self.tokenizer_opts)
 

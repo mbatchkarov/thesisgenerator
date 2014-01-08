@@ -142,7 +142,7 @@ def do_svd(input_paths, output_prefixes,
             logging.warn('Will write separate events file per PoS')
     else:
         pos_per_output_dir = ['ALL'] * len(output_prefixes)
-    thesaurus = Thesaurus(input_paths, aggressive_lowercasing=False)
+    thesaurus = Thesaurus.from_tsv(input_paths, aggressive_lowercasing=False)
     if not thesaurus:
         raise ValueError('Empty thesaurus %r', input_paths)
     mat, pos_tags, rows, cols = _filter_out_infrequent_entries(desired_counts_per_feature_type, thesaurus)
