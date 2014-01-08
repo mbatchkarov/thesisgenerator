@@ -316,7 +316,7 @@ experiment_sets = [
     [26, 27], # must be the same
     [23, 32], # must be the same
     range(35, 42), # all composed NP+unigram thesauri at once
-    range(42, 48), # all composed NP thesauri at once
+    range(42, 49), # all composed NP thesauri at once
 ]
 
 Parallel(n_jobs=1)(delayed(performance_bar_chart)(experiments, [clf])

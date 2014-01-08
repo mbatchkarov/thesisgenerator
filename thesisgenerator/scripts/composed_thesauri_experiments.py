@@ -43,6 +43,7 @@ for offset, thes in enumerate(thesauri):
 
     set_in_conf_file(base_conf_file, ['vector_sources', 'unigram_paths'], [thes])
     set_in_conf_file(base_conf_file, ['output_dir'], './conf/exp%d/output' % (first_exp + offset))
+    set_in_conf_file(base_conf_file, ['name'], 'exp%d' % (first_exp + offset))
     config_obj, configspec_file = parse_config_file(base_conf_file)
     print base_conf_file
     print config_obj['vector_sources']['unigram_paths']
