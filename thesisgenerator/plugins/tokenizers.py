@@ -183,6 +183,11 @@ class XmlTokenizer(object):
         dep_tree.add_nodes_from(tokens_ids)
 
         dependencies = tree.find('.//{}-dependencies'.format(self.dependency_format))
+        # some file are formatted like so: <basic-dependencies> ... </basic-dependencies>
+        if not dependencies:
+            # and some like so: <dependencies type="basic-dependencies"> ... </dependencies>
+            # if one fails try the other. If that fails too something is wrong- perhaps corpus has not been parsed?
+            dependencies = tree.find(".//dependencies[@type='{}-dependencies']".format(self.dependency_format))
         if dependencies:
             for dep in dependencies.findall('.//dep'):
                 type = dep.get('type')

@@ -196,6 +196,9 @@ class ThesaurusVectorizer(TfidfVectorizer):
         # extract sentence-internal token n-grams
         min_n, max_n = map(int, ngram_range)
         for sentence, (parse_tree, token_indices) in sentences:
+            if not sentence: # the sentence segmenter sometimes returns empty sentences
+                continue
+
             if parse_tree:
                 features.extend(self.extract_features_from_dependency_tree(parse_tree, token_indices))
             else:
