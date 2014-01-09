@@ -190,14 +190,14 @@ def get_vector_source(conf, vector_source=None):
                     conf['vector_sources']['include_self'],
                 )
         else:
-            logging.info('Loading precomputed neighbour sources')
-            vector_source = PrecomputedSimilaritiesVectorSource.from_file(
-                paths,
-                conf['vector_sources']['sim_threshold'],
-                conf['vector_sources']['include_self'],
-            )
             filename = 'thes_shelf_%d' % hash(tuple(paths))
             if not os.path.exists(filename):
+                logging.info('Loading precomputed neighbour sources')
+                vector_source = PrecomputedSimilaritiesVectorSource.from_file(
+                    paths,
+                    conf['vector_sources']['sim_threshold'],
+                    conf['vector_sources']['include_self'],
+                )
                 vector_source.th.to_shelf(filename)
             vector_source = filename
     else:
