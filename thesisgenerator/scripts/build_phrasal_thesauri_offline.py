@@ -7,7 +7,7 @@ sys.path.append('..')
 sys.path.append('../..')
 import re
 from glob import glob
-from shutil import copytree, rmtree
+import shutil
 from thesisgenerator.plugins.thesaurus_loader import Thesaurus
 from thesisgenerator.utils.cmd_utils import set_stage_in_byblo_conf_file, run_byblo, parse_byblo_conf_file, \
     reindex_all_byblo_vectors, run_and_log_output, unindex_all_byblo_vectors, set_output_in_byblo_conf_file
@@ -84,43 +84,15 @@ def _find_output_prefix(thesaurus_dir):
         [x for x in glob(os.path.join(thesaurus_dir, '*filtered*')) if 'svd' not in x.lower()])[:-1]
 
 
-def do_second_part(thesaurus_dir, add_feature_type=[]):
-    if add_feature_type:
-        # if entries are to be added, make a copy of the entire output of the first stage so
-        # that the unmodified thesaurus can still be built
-        new_thes_dir = thesaurus_dir + '-with-ngrams'
-        if os.path.exists(new_thes_dir):
-            rmtree(new_thes_dir) # copytree will fail if target exists
-        copytree(thesaurus_dir, new_thes_dir)
-        thesaurus_dir = new_thes_dir
-
-        for feature_type in add_feature_type:
-            tweaked_vector_files = _find_new_files(feature_type, ngram_vectors_dir)
-            add_new_vectors(new_thes_dir, *tweaked_vector_files)
-
-        # restore indices from strings
-        thes_prefix = _find_output_prefix(new_thes_dir)
-        reindex_all_byblo_vectors(thes_prefix)
-
-    # re-run all-pairs similarity
-    # first change output prefix in conf file, in case the if-statement above has made a new working directory
-    byblo_conf_file = _find_conf_file(thesaurus_dir)
-    # tell byblo to only do the later stages
-    set_output_in_byblo_conf_file(byblo_conf_file, thesaurus_dir)
-    set_stage_in_byblo_conf_file(byblo_conf_file, 2)
-    run_byblo(byblo_conf_file)
-    set_stage_in_byblo_conf_file(byblo_conf_file, 0)
-
-
-def do_second_part2(thesaurus_dir, vectors_files='', entries_files='', features_files='', copy_to_dir=None):
+def do_second_part(thesaurus_dir, vectors_files='', entries_files='', features_files='', copy_to_dir=None):
     if copy_to_dir:
         assert vectors_files
         assert entries_files
         assert features_files
 
         if os.path.exists(copy_to_dir):
-            rmtree(copy_to_dir) # copytree will fail if target exists
-        copytree(thesaurus_dir, copy_to_dir)
+            shutil.rmtree(copy_to_dir) # copytree will fail if target exists
+        shutil.copytree(thesaurus_dir, copy_to_dir)
 
         add_new_vectors(copy_to_dir, vectors_files, entries_files, features_files)
         thesaurus_dir = copy_to_dir
@@ -139,56 +111,127 @@ def do_second_part2(thesaurus_dir, vectors_files='', entries_files='', features_
     set_stage_in_byblo_conf_file(byblo_conf_file, 0)
 
 
-if __name__ == '__main__':
+def do_second_part_without_base_thesaurus(byblo_conf_file, output_dir, vectors_file='', entries_file='',
+                                          features_file=''):
+    '''
+    Takes a set of plain-text TSB files and builds a thesaurus out of them
+    :param byblo_conf_file: File that specifies filtering, similarity measure, etc
+    :param output_dir: where should the output go
+    :param vectors_file:
+    :param entries_file:
+    :param features_file:
+    '''
+    if not os.path.exists(output_dir):
+        os.mkdir(output_dir)
+
+    all_files = [vectors_file, entries_file, features_file]
+    for f in all_files:
+        shutil.copy(f, output_dir)
+
+    final_conf_file = os.path.join(output_dir, os.path.basename(byblo_conf_file))
+    shutil.copy(byblo_conf_file, output_dir)
+    # restore indices from strings
+    thes_prefix = _find_output_prefix(output_dir)
+    reindex_all_byblo_vectors(thes_prefix)
+
+    # re-run all-pairs similarity
+    # tell byblo to only do the later stages
+    set_output_in_byblo_conf_file(final_conf_file, output_dir)
+
+    open(thes_prefix, 'a').close() # touch this file. Byblo uses the name of the input to find the intermediate files,
+    # and complains if the input file does not exist, even if it is not read.
+
+    set_output_in_byblo_conf_file(final_conf_file, thes_prefix, type='input')
+    set_stage_in_byblo_conf_file(final_conf_file, 2)
+    run_byblo(final_conf_file)
+    set_stage_in_byblo_conf_file(final_conf_file, 0)
+
+
+def build_only_AN_NN_thesauri_without_baroni():
+    # required files: a Byblo conf file, a labelled classification data set
+    # created files:  composed vector files in a dir, thesauri of NPs
+
     # SET UP A FEW REQUIRED PATHS
     logging.basicConfig(level=logging.INFO,
                         format="%(asctime)s\t%(module)s.%(funcName)s ""(line %(lineno)d)\t%(levelname)s : %(""message)s")
 
-    byblo_base_dir = '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/Byblo-2.2.0/' # trailing slash required
+    byblo_base_dir = '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/Byblo-2.2.0/'
 
-    #thesaurus_dirs = [
-    #    os.path.abspath(os.path.join(byblo_base_dir, '..', 'exp6-12%s' % x)) for x in 'abcd'
-    #]
-    thesaurus_dirs = [
-        os.path.abspath(os.path.join(byblo_base_dir, '..', 'exp10-12'))
-    ]
+    unigram_thesaurus_dir = os.path.abspath(os.path.join(byblo_base_dir, '..', 'exp10-12b')) # todo input 1
 
-    ngram_vectors_dir = os.path.join(byblo_base_dir, '..', 'exp10-12-ngrams')
+    ngram_vectors_dir = os.path.join(byblo_base_dir, '..', 'exp10-12-composed-ngrams-MR') # output 1
+    # output 2 is a set of directories <output1>*
 
     composer_algos = [AdditiveComposer, MultiplicativeComposer, HeadWordComposer,
-                      TailWordComposer, MinComposer, MaxComposer] # todo add ['observed'] here
+                      TailWordComposer, MinComposer, MaxComposer] # observed done through a separate script
 
     # EXTRACT UNIGRAM VECTORS WITH BYBLO
     if not os.path.exists(ngram_vectors_dir):
         os.mkdir(ngram_vectors_dir)
     os.chdir(byblo_base_dir)
+    calculate_unigram_vectors(unigram_thesaurus_dir)
 
-    for thesaurus_dir in thesaurus_dirs:
-        calculate_unigram_vectors(thesaurus_dir)
+    # COMPOSE ALL AN/NN VECTORS IN LABELLED SET
+    unigram_vectors_file = _find_events_file(unigram_thesaurus_dir)
+    dump.compose_and_write_vectors([unigram_vectors_file],
+                                   'gigaw', # todo short name of input 2
+                                   dump.classification_data_path_mr, # todo input 2
+                                   None,
+                                   output_dir=ngram_vectors_dir,
+                                   composer_classes=composer_algos)
+
+    # BUILD THESAURI OUT OF COMPOSED VECTORS ONLY
+    byblo_conf_file = _find_conf_file(unigram_thesaurus_dir)
+    for c in composer_algos:
+        # one phrasal thesaurus per composer
+        name = c.name
+        vectors_file = os.path.join(ngram_vectors_dir, 'AN_NN_gigaw_{}.events.filtered.strings'.format(name))
+        entries_file = os.path.join(ngram_vectors_dir, 'AN_NN_gigaw_{}.entries.filtered.strings'.format(name))
+        features_file = os.path.join(ngram_vectors_dir, 'AN_NN_gigaw_{}.features.filtered.strings'.format(name))
+        suffix = os.path.basename(vectors_file).split('.')[0]
+        do_second_part_without_base_thesaurus(byblo_conf_file, unigram_thesaurus_dir + suffix,
+                                              vectors_file, entries_file, features_file)
 
 
+def build_full_composed_thesauri_with_baroni_and_svd():
+    global byblo_base_dir, thesaurus_dirs, ngram_vectors_dir, composer_algos, dir, files_to_reduce, x, reduced_prefixes, baroni_training_phrase_types, reduce_to, counts, prefix, dims, pref, all_vectors, svd_settings, thes, trained_composers, event_files, source, c, name, vectors_file, entries_file, features_file, suffix, thesaurus, entry
+    # SET UP A FEW REQUIRED PATHS
+    logging.basicConfig(level=logging.INFO,
+                        format="%(asctime)s\t%(module)s.%(funcName)s ""(line %(lineno)d)\t%(levelname)s : %(""message)s")
+    byblo_base_dir = '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/Byblo-2.2.0/' # trailing slash required
+    #thesaurus_dirs = [
+    #    os.path.abspath(os.path.join(byblo_base_dir, '..', 'exp6-12%s' % x)) for x in 'abcd'
+    #]
+    thesaurus_dirs = [
+        os.path.abspath(os.path.join(byblo_base_dir, '..', 'exp10-12b'))
+    ]
+    ngram_vectors_dir = os.path.join(byblo_base_dir, '..', 'exp10-12-ngrams-MR')
+    composer_algos = [AdditiveComposer, MultiplicativeComposer, HeadWordComposer,
+                      TailWordComposer, MinComposer, MaxComposer] # todo add ['observed'] here
+    # EXTRACT UNIGRAM VECTORS WITH BYBLO
+    if not os.path.exists(ngram_vectors_dir):
+        os.mkdir(ngram_vectors_dir)
+    os.chdir(byblo_base_dir)
+    # for thesaurus_dir in thesaurus_dirs:
+    #     calculate_unigram_vectors(thesaurus_dir)
     # REDUCE DIMENSIONALITY
     files_to_reduce = [_find_events_file(dir) for dir in thesaurus_dirs]
     # output write everything to the same directory
     # ...exp6-12/exp6.events.filtered.strings --> ...exp6-12/exp6
     reduced_prefixes = ['.'.join(x.split('.')[:-3]) + '-with-obs-phrases' for x in files_to_reduce]
-
     # obtain training data for composer, that also needs to be reduced
     baroni_training_phrase_types = ['AN', 'NN']
     #baroni_training_phrases = [os.path.abspath(os.path.join(byblo_base_dir, '..', 'phrases',
     #                                                        'julie.{}s.vectors'.format(x)))
     #                           for x in baroni_training_phrase_types]
-
     # convert from Julie's format to mine
     # convert to dissect format (underscore-separated ANs) for composer training
     #baroni_training_phrases.append(reformat_entries(baroni_training_phrases[0], 'clean',
     #                                                function=lambda x: julie_transform(x, separator='_')))
     #baroni_training_phrases.append(reformat_entries(baroni_training_phrases[1], 'clean',
     #                                                function=lambda x: julie_transform2(x, separator='_', pos1='N')))
-
     # add in observed AN/NN vectors for SVD processing
     #files_to_reduce.extend(baroni_training_phrases)
-
     if False:        # DO NOT DO ANY SVD FOR NOW
         reduce_to = [300, 500]
         counts = [('N', 8000), ('V', 4000), ('J', 4000), ('RB', 200), ('AN', 20000), ('NN', 20000)]
@@ -238,29 +281,25 @@ if __name__ == '__main__':
         event_files = [_find_events_file(dir) for dir in thesaurus_dirs]
 
         dump.compose_and_write_vectors([all_vectors],
-                                       'gigaw-%s' % svd_settings if svd_settings else 'gigaw',
-                                       dump.classification_data_path,
+                                       'wiki-%s' % svd_settings if svd_settings else 'wiki',
+                                       dump.classification_data_path_mr,
                                        trained_composers,
                                        output_dir=ngram_vectors_dir,
                                        composer_classes=composer_algos)
-
     source = thesaurus_dirs[0]
     print source
-    do_second_part2(source) #original unigram-only thesaurus
+    # do_second_part2(source) #original unigram-only thesaurus
     for c in composer_algos:
         # one phrasal thesaurus per composer
         name = c.name
-        vectors_file = os.path.join(ngram_vectors_dir, 'AN_NN_gigaw_{}.vectors.tsv'.format(name))
-        entries_file = os.path.join(ngram_vectors_dir, 'AN_NN_gigaw_{}.entries.txt'.format(name))
-        features_file = os.path.join(ngram_vectors_dir, 'AN_NN_gigaw_{}.features.txt'.format(name))
+        vectors_file = os.path.join(ngram_vectors_dir, 'AN_NN_wiki_{}.vectors.tsv'.format(name))
+        entries_file = os.path.join(ngram_vectors_dir, 'AN_NN_wiki_{}.entries.txt'.format(name))
+        features_file = os.path.join(ngram_vectors_dir, 'AN_NN_wiki_{}.features.txt'.format(name))
         suffix = os.path.basename(vectors_file).split('.')[0]
-        do_second_part2(source, vectors_file, entries_file, features_file, copy_to_dir=source + suffix)
-
+        do_second_part(source, vectors_file, entries_file, features_file, copy_to_dir=source + suffix)
     sys.exit(0) #ENOUGH FOR NOW
-
     do_second_part(thesaurus_dirs[0], add_feature_type=['AN', 'NN']) #'VO', 'SVO' # all vectors in same thesaurus
     do_second_part(thesaurus_dirs[0]) # plain old thesaurus without ngrams
-
     ### add AN phrases to noun thesaurus, SVO to verb thesaurus, and rebuild
     #do_second_part(thesaurus_dirs[0], add_feature_type=['AN']) # nouns with ngrams
     #do_second_part(thesaurus_dirs[0]) # nouns
@@ -269,7 +308,6 @@ if __name__ == '__main__':
     ##do_second_part('VO', thesaurus_dirs[1])
     #do_second_part(thesaurus_dirs[2]) # adjectives
     #do_second_part(thesaurus_dirs[3]) # adverbs
-
     for thesaurus in [
         Thesaurus([_find_allpairs_file(thesaurus_dirs[0])]),
         Thesaurus([_find_allpairs_file(thesaurus_dirs[0] + '-with-ngrams')])]:
@@ -278,3 +316,8 @@ if __name__ == '__main__':
                       'center/N sign/V agreement/N', 'think/V']:
             print entry, '------->', thesaurus.get(entry)
         print '--------------------'
+
+
+if __name__ == '__main__':
+    build_only_AN_NN_thesauri_without_baroni()
+    # build_full_composed_thesauri_with_baroni_and_svd()

@@ -72,9 +72,7 @@ def reformat_entries(filename, suffix, function, separator='\t'):
     """
 
     #shutil.copy(filename, filename + '.bak')
-    parts = filename.split('.')
-    parts.insert(-1, suffix)
-    outname = '.'.join(parts)
+    outname = '{}{}'.format(filename, suffix)
     with open(filename) as infile, open(outname, 'w') as outfile:
         for line in infile:
             fields = line.split(separator)

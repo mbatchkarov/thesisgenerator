@@ -36,23 +36,23 @@ def set_stage_in_byblo_conf_file(filename, stage_id):
             outf.write('\n')
 
 
-def set_output_in_byblo_conf_file(filename, new_output_prefix):
+def set_output_in_byblo_conf_file(filename, new_output_prefix, type='output'):
     with open(filename) as inf:
         lines = [x.strip() for x in inf.readlines()]
 
     try:
-        index = lines.index('--output')
+        index = lines.index('--%s' % type)
     except ValueError:
         # not there, try the short form
         try:
-            index = lines.index('-o')
+            index = lines.index('-%s' % type[0])
         except ValueError:
             raise ValueError('Cannot find the "output" parameter to Byblo in file %s' % filename)
     lines.pop(index)
     lines.pop(index)
 
     with open(filename, "w") as outf:
-        outf.write('--output\n')
+        outf.write('--%s\n' % type)
         outf.write('%s\n' % new_output_prefix)
 
         for line in lines:

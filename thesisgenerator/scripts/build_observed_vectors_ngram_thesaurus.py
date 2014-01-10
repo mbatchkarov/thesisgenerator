@@ -7,8 +7,9 @@ sys.path.append('..')
 sys.path.append('../..')
 import os
 from thesisgenerator.plugins.thesaurus_loader import Thesaurus
-from thesisgenerator.composers.utils import write_vectors_to_disk, julie_transform
-from thesisgenerator.scripts.build_phrasal_thesauri_offline import do_second_part2
+from thesisgenerator.composers.utils import write_vectors_to_disk, julie_transform, reformat_entries
+from thesisgenerator.scripts.build_phrasal_thesauri_offline import do_second_part_without_base_thesaurus, \
+    _find_conf_file
 
 __author__ = 'mmb28'
 '''
@@ -21,25 +22,53 @@ def do_work():
     logging.basicConfig(level=logging.INFO,
                         format="%(asctime)s\t%(module)s.%(funcName)s ""(line %(lineno)d)\t%(levelname)s : %(""message)s")
 
-    byblo_base_dir = '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/Byblo-2.2.0/' # trailing slash required
-    all_ngram_vectors_dir = os.path.join(byblo_base_dir, '..', 'exp10-12-ngrams')
-    unigram_thesaurus_dir = '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/Byblo-2.2.0/../exp10-12'
-    observed_ngram_vectors_dir = all_ngram_vectors_dir + '-observed'
-    # where are the observed vectors?
-    observed_vector_file = os.path.join(observed_ngram_vectors_dir, 'cleaned.exp10_AN_NNvectors')
+    # where are the observed n-gram vectors in tsv format
+    observed_ngram_vectors_file = '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/Byblo-2.2.0/../' \
+                                  'exp10-12-ngrams-observed/exp10_AN_NNvectors' #cleaned.exp10_AN_NNvectors
+    # where should the output go
+    outdir = '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/exp10-12bAN_NN_gigaw_Observed'
+    # where's the byblo conf file
+    unigram_thesaurus_dir = '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/Byblo-2.2.0/../exp10-12b'
+    # where's the byblo executable
+    byblo_base_dir = '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/Byblo-2.2.0/'
 
-    vectors_file = os.path.join(observed_ngram_vectors_dir, 'exp10.events.filtered.strings')
-    entries_file = os.path.join(observed_ngram_vectors_dir, 'exp10.entries.filtered.strings')
-    features_file = os.path.join(observed_ngram_vectors_dir, 'exp10.features.filtered.strings')
+    #  CONVERT THE FILE FROM JULIE'S FORMAT TO MINE
+    import re
 
-    th = Thesaurus.from_tsv([observed_vector_file], aggressive_lowercasing=False)
+    pattern = re.compile('(.*):(.*):(.*)')
+
+    def clean(entry):
+        a, relation, b = pattern.match(entry).groups()
+        if relation == 'amod-HEAD':
+            return '{}_{}'.format(a, b)
+        elif relation == 'amod-DEP':
+            return '{}_{}'.format(b, a)
+        elif relation == 'nn-HEAD':
+            return '{}_{}'.format(a, b)
+        elif relation == 'nn-DEP':
+            return '{}_{}'.format(b, a)
+        else:
+            raise ValueError('Can convert entry %s' % entry)
+
+    observed_ngram_vectors_file = reformat_entries(observed_ngram_vectors_file, '-cleaned', clean)
+
+    # CREATE BYBLO EVENTS/FEATURES/ENTRIES FILE FROM INPUT
+    #  where should these be written
+    observed_vector_dir = os.path.dirname(observed_ngram_vectors_file)
+    vectors_file = os.path.join(observed_vector_dir, 'exp10.events.filtered.strings')
+    entries_file = os.path.join(observed_vector_dir, 'exp10.entries.filtered.strings')
+    features_file = os.path.join(observed_vector_dir, 'exp10.features.filtered.strings')
+
+    # do the actual writing
+    th = Thesaurus.from_tsv([observed_ngram_vectors_file], aggressive_lowercasing=False)
     mat, cols, rows = th.to_sparse_matrix()
     rows = [DocumentFeature.from_string(x) for x in rows]
-
-    os.chdir(byblo_base_dir)
     write_vectors_to_disk(mat.tocoo(), rows, cols, features_file, entries_file, vectors_file)
-    outdir = '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/exp10-12AN_NN_gigaw_Observed'
-    do_second_part2(unigram_thesaurus_dir, vectors_file, entries_file, features_file, copy_to_dir=outdir)
+
+    # BUILD A THESAURUS FROM THESE FILES
+    os.chdir(byblo_base_dir)
+    do_second_part_without_base_thesaurus(_find_conf_file(unigram_thesaurus_dir), outdir,
+                                          vectors_file, entries_file, features_file)
 
 
 if __name__ == '__main__':
