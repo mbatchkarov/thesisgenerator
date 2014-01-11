@@ -123,7 +123,7 @@ class TestCompositeVectorSource(TestCase):
     def test_entry_index(self):
         unigrams_vectors = UnigramVectorSource(['thesisgenerator/resources/ones.vectors.txt'])
         subcomposers = [AdditiveComposer(unigrams_vectors), MultiplicativeComposer(unigrams_vectors),
-                        HeadWordComposer(unigrams_vectors), TailWordComposer(unigrams_vectors)]
+                        LeftmostWordComposer(unigrams_vectors), RightmostWordComposer(unigrams_vectors)]
         composer = CompositeVectorSource(subcomposers,
                                          sim_threshold=0, include_self=True)
         tokens_only = [x.tokens[0] for x in unigrams_vectors.entry_index.keys()]
@@ -323,7 +323,7 @@ class TestHeadAndTailWordComposers(object):
     def composers(self):
         unigram_vectors = UnigramVectorSource(['thesisgenerator/resources/exp0-0a.strings'])
 
-        return HeadWordComposer(unigram_vectors), TailWordComposer(unigram_vectors)
+        return LeftmostWordComposer(unigram_vectors), RightmostWordComposer(unigram_vectors)
 
     def test_contains(self, composers):
         head, tail = composers

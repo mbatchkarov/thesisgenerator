@@ -162,8 +162,8 @@ def build_only_AN_NN_thesauri_without_baroni(exp):
     ngram_vectors_dir = os.path.join(byblo_base_dir, '..', 'exp%d-12-composed-ngrams-MR-R2' % exp) # output 1
     # output 2 is a set of directories <output1>*
 
-    composer_algos = [AdditiveComposer, MultiplicativeComposer, HeadWordComposer,
-                      TailWordComposer, MinComposer, MaxComposer] # observed done through a separate script
+    composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
+                      RightmostWordComposer, MinComposer, MaxComposer] # observed done through a separate script
 
     # EXTRACT UNIGRAM VECTORS WITH BYBLO
     if not os.path.exists(ngram_vectors_dir):
@@ -206,8 +206,8 @@ def build_full_composed_thesauri_with_baroni_and_svd():
         os.path.abspath(os.path.join(byblo_base_dir, '..', 'exp10-12b'))
     ]
     ngram_vectors_dir = os.path.join(byblo_base_dir, '..', 'exp10-12-ngrams-MR')
-    composer_algos = [AdditiveComposer, MultiplicativeComposer, HeadWordComposer,
-                      TailWordComposer, MinComposer, MaxComposer] # todo add ['observed'] here
+    composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
+                      RightmostWordComposer, MinComposer, MaxComposer] # todo add ['observed'] here
     # EXTRACT UNIGRAM VECTORS WITH BYBLO
     if not os.path.exists(ngram_vectors_dir):
         os.mkdir(ngram_vectors_dir)

@@ -217,11 +217,11 @@ class MaxComposer(MinComposer):
         self.function = lambda m, n: np.maximum(m, n)
 
 
-class HeadWordComposer(AdditiveComposer):
-    name = 'Head'
+class LeftmostWordComposer(AdditiveComposer):
+    name = 'Left'
 
     def __init__(self, unigram_source=None):
-        super(HeadWordComposer, self).__init__(unigram_source)
+        super(LeftmostWordComposer, self).__init__(unigram_source)
         self.hardcoded_index = 0
         self.feature_pattern = {'2-GRAM', '3-GRAM', 'AN', 'NN', 'VO', 'SVO'}
 
@@ -237,11 +237,11 @@ class HeadWordComposer(AdditiveComposer):
         return feature[self.hardcoded_index] in self.unigram_source
 
 
-class TailWordComposer(HeadWordComposer):
-    name = 'Tail'
+class RightmostWordComposer(LeftmostWordComposer):
+    name = 'Right'
 
     def __init__(self, unigram_source=None):
-        super(TailWordComposer, self).__init__(unigram_source)
+        super(RightmostWordComposer, self).__init__(unigram_source)
         self.hardcoded_index = -1
 
 

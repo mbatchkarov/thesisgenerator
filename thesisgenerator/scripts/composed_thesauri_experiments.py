@@ -18,8 +18,8 @@ use this script to run them through the classification framework
 __author__ = 'mmb28'
 
 superbase_conf_file = 'conf/exp42-superbase.conf'
-composer_algos = [AdditiveComposer, MultiplicativeComposer, HeadWordComposer,
-                  TailWordComposer, MinComposer, MaxComposer]
+composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
+                  RightmostWordComposer, MinComposer, MaxComposer]
 
 # get the names of all GIGAW thesauri
 pattern = '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/exp10-12AN_NN_gigaw_{}' \
