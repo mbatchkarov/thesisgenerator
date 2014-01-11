@@ -56,30 +56,34 @@ def compose_and_write_vectors(unigram_vector_paths, short_vector_dataset_name, c
     :return:
     :rtype: list of strings
     """
-    train, test = classification_data_paths
-    raw_data, data_ids = load_text_data_into_memory(
-        training_path=train,
-        test_path=test,
-        shuffle_targets=False
-    )
+    tokenized_data = ([], [], [], [])
+    for train, test in classification_data_paths:
+        raw_data, data_ids = load_text_data_into_memory(
+            training_path=train,
+            test_path=test,
+            shuffle_targets=False
+        )
 
-    tokenizer = load_tokenizer(
-        joblib_caching=False,
-        normalise_entities=False,
-        use_pos=True,
-        coarse_pos=True,
-        lemmatize=True,
-        lowercase=True,
-        remove_stopwords=True,
-        remove_short_words=False)
-    tokenised_data = tokenize_data(raw_data, tokenizer, data_ids)
+        tokenizer = load_tokenizer(
+            joblib_caching=False,
+            normalise_entities=False,
+            use_pos=True,
+            coarse_pos=True,
+            lemmatize=True,
+            lowercase=True,
+            remove_stopwords=True,
+            remove_short_words=False)
+    data_in_this_dir = tokenize_data(raw_data, tokenizer, data_ids)
+    for x, y in zip(tokenized_data, data_in_this_dir):
+        x.extend(y)
 
     pipeline = Pipeline([
         ('vect', ThesaurusVectorizer(ngram_range=(0, 0), min_df=1, use_tfidf=False)),
         ('fs', VectorBackedSelectKBest(ensure_vectors_exist=True)),
         ('stripper', MetadataStripper(nn_algorithm='brute', build_tree=False))
     ])
-    x_tr, y_tr, x_ev, y_ev = tokenised_data
+
+    x_tr, y_tr, x_ev, y_ev = tokenized_data
     unigram_source = UnigramVectorSource(unigram_vector_paths, reduce_dimensionality=False)
     Parallel(n_jobs=7)(delayed(_loop_body)(composer_class,
                                            output_dir,

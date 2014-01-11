@@ -147,7 +147,7 @@ def do_second_part_without_base_thesaurus(byblo_conf_file, output_dir, vectors_f
     set_stage_in_byblo_conf_file(final_conf_file, 0)
 
 
-def build_only_AN_NN_thesauri_without_baroni():
+def build_only_AN_NN_thesauri_without_baroni(exp):
     # required files: a Byblo conf file, a labelled classification data set
     # created files:  composed vector files in a dir, thesauri of NPs
 
@@ -157,9 +157,9 @@ def build_only_AN_NN_thesauri_without_baroni():
 
     byblo_base_dir = '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/Byblo-2.2.0/'
 
-    unigram_thesaurus_dir = os.path.abspath(os.path.join(byblo_base_dir, '..', 'exp10-12b')) # todo input 1
+    unigram_thesaurus_dir = os.path.abspath(os.path.join(byblo_base_dir, '..', 'exp%d-12b' % exp)) # todo input 1
 
-    ngram_vectors_dir = os.path.join(byblo_base_dir, '..', 'exp10-12-composed-ngrams-MR') # output 1
+    ngram_vectors_dir = os.path.join(byblo_base_dir, '..', 'exp%d-12-composed-ngrams-MR-R2' % exp) # output 1
     # output 2 is a set of directories <output1>*
 
     composer_algos = [AdditiveComposer, MultiplicativeComposer, HeadWordComposer,
@@ -175,7 +175,7 @@ def build_only_AN_NN_thesauri_without_baroni():
     unigram_vectors_file = _find_events_file(unigram_thesaurus_dir)
     dump.compose_and_write_vectors([unigram_vectors_file],
                                    'gigaw', # todo short name of input 2
-                                   dump.classification_data_path_mr, # todo input 2
+                                   [dump.classification_data_path_mr, dump.classification_data_path], # todo input 2
                                    None,
                                    output_dir=ngram_vectors_dir,
                                    composer_classes=composer_algos)
@@ -319,5 +319,7 @@ def build_full_composed_thesauri_with_baroni_and_svd():
 
 
 if __name__ == '__main__':
-    build_only_AN_NN_thesauri_without_baroni()
+    import sys
+
+    build_only_AN_NN_thesauri_without_baroni(int(sys.argv[1]))
     # build_full_composed_thesauri_with_baroni_and_svd()
