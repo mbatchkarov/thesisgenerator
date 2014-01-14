@@ -114,7 +114,7 @@ def do_second_part(thesaurus_dir, vectors_files='', entries_files='', features_f
 def do_second_part_without_base_thesaurus(byblo_conf_file, output_dir, vectors_file='', entries_file='',
                                           features_file=''):
     '''
-    Takes a set of plain-text TSB files and builds a thesaurus out of them
+    Takes a set of plain-text TSV files and builds a thesaurus out of them
     :param byblo_conf_file: File that specifies filtering, similarity measure, etc
     :param output_dir: where should the output go
     :param vectors_file:
@@ -157,6 +157,7 @@ def build_only_AN_NN_thesauri_without_baroni(exp):
 
     byblo_base_dir = '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/Byblo-2.2.0/'
 
+    dataset_name = 'gigaw' if exp == 10 else 'wiki' # todo short name of input
     unigram_thesaurus_dir = os.path.abspath(os.path.join(byblo_base_dir, '..', 'exp%d-12b' % exp)) # todo input 1
 
     ngram_vectors_dir = os.path.join(byblo_base_dir, '..', 'exp%d-12-composed-ngrams-MR-R2' % exp) # output 1
@@ -169,12 +170,13 @@ def build_only_AN_NN_thesauri_without_baroni(exp):
     if not os.path.exists(ngram_vectors_dir):
         os.mkdir(ngram_vectors_dir)
     os.chdir(byblo_base_dir)
-    calculate_unigram_vectors(unigram_thesaurus_dir)
+    if exp != 11: # got these files from Julie, no need to run the myself
+        calculate_unigram_vectors(unigram_thesaurus_dir)
 
     # COMPOSE ALL AN/NN VECTORS IN LABELLED SET
     unigram_vectors_file = _find_events_file(unigram_thesaurus_dir)
     dump.compose_and_write_vectors([unigram_vectors_file],
-                                   'gigaw', # todo short name of input 2
+                                   dataset_name,
                                    [dump.classification_data_path_mr, dump.classification_data_path], # todo input 2
                                    None,
                                    output_dir=ngram_vectors_dir,
@@ -184,10 +186,13 @@ def build_only_AN_NN_thesauri_without_baroni(exp):
     byblo_conf_file = _find_conf_file(unigram_thesaurus_dir)
     for c in composer_algos:
         # one phrasal thesaurus per composer
-        name = c.name
-        vectors_file = os.path.join(ngram_vectors_dir, 'AN_NN_gigaw_{}.events.filtered.strings'.format(name))
-        entries_file = os.path.join(ngram_vectors_dir, 'AN_NN_gigaw_{}.entries.filtered.strings'.format(name))
-        features_file = os.path.join(ngram_vectors_dir, 'AN_NN_gigaw_{}.features.filtered.strings'.format(name))
+        comp_name = c.name
+        vectors_file = os.path.join(ngram_vectors_dir,
+                                    'AN_NN_{}_{}.events.filtered.strings'.format(dataset_name, comp_name))
+        entries_file = os.path.join(ngram_vectors_dir,
+                                    'AN_NN_{}_{}.entries.filtered.strings'.format(dataset_name, comp_name))
+        features_file = os.path.join(ngram_vectors_dir,
+                                     'AN_NN_{}_{}.features.filtered.strings'.format(dataset_name, comp_name))
         suffix = os.path.basename(vectors_file).split('.')[0]
         do_second_part_without_base_thesaurus(byblo_conf_file, unigram_thesaurus_dir + suffix,
                                               vectors_file, entries_file, features_file)
