@@ -143,7 +143,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
         res = super(ThesaurusVectorizer, self).transform(raw_documents), self.vocabulary_
         try:
             #  try and close the shelf
-            self.vector_source.th.d.close()
+            d.close()
         except Exception:
             #  may not be a shelf after all
             pass

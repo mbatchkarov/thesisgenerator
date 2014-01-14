@@ -9,6 +9,7 @@ Created on Oct 18, 2012
 # if one tries to run this script from the main project directory the
 # thesisgenerator package would not be on the path, add it and try again
 import sys
+from joblib import Parallel, delayed
 
 sys.path.append('.')
 sys.path.append('..')
@@ -210,8 +211,8 @@ def _build_dimensionality_reducer(call_args, dimensionality_reduction_conf,
         pipeline_list.append(('dr', dr_method()))
 
 
-def _build_pipeline(id, vector_source, classifier_name, feature_extr_conf, feature_sel_conf,
-                    dim_red_conf, classifier_conf, output_dir, debug,
+def _build_pipeline(id, vector_source, feature_extr_conf, feature_sel_conf,
+                    dim_red_conf, output_dir, debug,
                     exp_name=''):
     """
     Builds a pipeline consisting of
@@ -241,17 +242,56 @@ def _build_pipeline(id, vector_source, classifier_name, feature_extr_conf, featu
     if vector_source:
         fit_args['stripper__vector_source'] = vector_source
 
-    # include a classifier in the pipeline regardless of whether we are doing
-    # feature selection/dim. red. or not
-    if classifier_name:
-        clf = get_named_object(classifier_name)
-        init_args.update(get_intersection_of_parameters(clf, classifier_conf[classifier_name], 'clf'))
-        pipeline_list.append(('clf', clf()))
     pipeline = PicklingPipeline(pipeline_list, exp_name) if debug else Pipeline(pipeline_list)
     pipeline.set_params(**init_args)
 
     logging.debug('Pipeline is:\n %s', pipeline)
     return pipeline, fit_args
+
+
+def _build_classifiers(classifiers_conf):
+    for i, clf_name in enumerate(classifiers_conf):
+        if not classifiers_conf[clf_name]:
+            continue
+            #  ignore disabled classifiers
+        if not classifiers_conf[clf_name]['run']:
+            logging.warn('Ignoring classifier %s' % clf_name)
+            continue
+        clf = get_named_object(clf_name)
+        init_args = get_intersection_of_parameters(clf, classifiers_conf[clf_name])
+        yield clf(**init_args)
+
+
+def _cv_loop(configuration, i, score_func, test_idx, train_idx, vector_source, x_vals_seen, y_vals_seen):
+    scores_this_cv_run = []
+    pipeline, fit_params = _build_pipeline(i, vector_source,
+                                           configuration['feature_extraction'],
+                                           configuration['feature_selection'],
+                                           configuration['dimensionality_reduction'],
+                                           configuration['output_dir'],
+                                           configuration['debug'],
+                                           exp_name=configuration['name'])
+    # code below is a simplified version of _cross_val_score
+    X = x_vals_seen
+    y = y_vals_seen
+    X_train = [X[idx] for idx in train_idx]
+    X_test = [X[idx] for idx in test_idx]
+    # vectorize all data in advance, it's the same accross all classifiers
+    matrix = pipeline.fit_transform(X_train, y[train_idx], **fit_params)
+    test_matrix = pipeline.transform(X_test)
+
+    for clf in _build_classifiers(configuration['classifiers']):
+        clf = clf.fit(matrix, y[train_idx])
+        scores = score_func(y[test_idx], clf.predict(test_matrix))
+        #  score = dict(function -> value). Value is a float or np.array
+
+        for metric, score in scores.items():
+            scores_this_cv_run.append(
+                [type(clf).__name__,
+                 i,
+                 metric.split('.')[-1],
+                 score])
+    return scores_this_cv_run
 
 
 def _run_tasks(configuration, n_jobs, data, vector_source):
@@ -268,80 +308,72 @@ def _run_tasks(configuration, n_jobs, data, vector_source):
     # **********************************
     x_tr, y_tr, x_test, y_test = data
 
-    # CROSSVALIDATION
-    # **********************************
-    scores = []
-    for i, clf_name in enumerate(configuration['classifiers']):
-        if not configuration['classifiers'][clf_name]:
-            continue
+    # CREATE CROSSVALIDATION ITERATOR
+    cv_iterator, validate_indices, x_vals_seen, y_vals_seen = \
+        _build_crossvalidation_iterator(configuration['crossvalidation'],
+                                        x_tr, y_tr, x_test,
+                                        y_test)
+    all_scores = []
+    score_func = ChainCallable(configuration['evaluation'])
 
-        #  ignore disabled classifiers
-        if not configuration['classifiers'][clf_name]['run']:
-            logging.warn('Ignoring classifier %s' % clf_name)
-            continue
+    scores_over_cv = Parallel(n_jobs=n_jobs)(
+        delayed(_cv_loop)(configuration, i, score_func, test_idx, train_idx, vector_source, x_vals_seen, y_vals_seen)
+        for i, (train_idx, test_idx) in enumerate(cv_iterator)
+    )
+    all_scores.extend([score for one_set_of_scores in scores_over_cv for score in one_set_of_scores])
+    print 1
 
-        logging.info('--------------------------------------------------------')
-        logging.info('Building pipeline')
+    logging.info('Classifier scores are %s', all_scores)
+    return 0, _analyze(all_scores, configuration['output_dir'], configuration['name'])
 
-        # CREATE CROSSVALIDATION ITERATOR
-        cv_iterator, validate_indices, x_vals_seen, y_vals_seen = \
-            _build_crossvalidation_iterator(configuration['crossvalidation'],
-                                            x_tr, y_tr, x_test,
-                                            y_test)
-
-        logging.info('Assigning id %d to classifier %s', i, clf_name)
-        pipeline, fit_params = _build_pipeline(i, vector_source, clf_name,
-                                               configuration['feature_extraction'],
-                                               configuration['feature_selection'],
-                                               configuration['dimensionality_reduction'],
-                                               configuration['classifiers'],
-                                               configuration['output_dir'],
-                                               configuration['debug'],
-                                               exp_name=configuration['name'])
-
-        # pass the (feature selector + classifier) pipeline for evaluation
-        logging.info('***Fitting pipeline for %s' % clf_name)
-
-        # the pipeline is cloned for each fold of the CV iterator, but its fit arguments aren't
-        # I've added a clone call for the fit args to the CV function, so that the fit arguments are not
-        # going to be shared between pipeline folds, but are shared between all estimators inside
-        # a pipeline during a fold
-        logging.debug('Identity of vector source is %d', id(vector_source))
-        if vector_source:
-            try:
-                logging.debug('The BallTree is %s', vector_source.nbrs)
-            except AttributeError:
-                logging.debug('The vector source is %s', vector_source)
-                # pass the same vector source to the vectorizer, feature selector and metadata stripper
-                # that way the stripper can call vector_source.populate() after the feature selector has had its say,
-                # and that update source will then be available to the vectorizer at decode time
-                #fit_params = {
-                #    'vect__vector_source': vector_source,
-                #    'fs__vector_source': vector_source,
-            #    'stripper__vector_source': vector_source,
-        #}
-        scores_this_clf = naming_cross_val_score(
-            pipeline, x_vals_seen,
-            y_vals_seen,
-            ChainCallable(configuration['evaluation']),
-            cv=cv_iterator, n_jobs=n_jobs,
-            verbose=0, fit_params=fit_params) # pass resource here
-
-        for run_number, a in scores_this_clf:
-            # If there is just one metric specified in the conf file a is a
-            # 0-D numpy array and needs to be indexed as [()]. Otherwise it
-            # is a dict
-            mydict = a[()] if hasattr(a, 'shape') and len(a.shape) < 1 else a
-            for metric, score in mydict.items():
-                scores.append(
-                    [clf_name.split('.')[-1],
-                     run_number,
-                     metric.split('.')[-1],
-                     score])
-        del pipeline
-        del scores_this_clf
-    logging.info('Classifier scores are %s', scores)
-    return 0, _analyze(scores, configuration['output_dir'], configuration['name'])
+    # # CROSSVALIDATION
+    # # **********************************
+    # scores_over_cv = []
+    # for i, clf_name in enumerate(configuration['classifiers']):
+    #     logging.info('--------------------------------------------------------')
+    #     logging.info('Building pipeline')
+    #     # pass the (feature selector + classifier) pipeline for evaluation
+    #     logging.info('***Fitting pipeline for %s' % clf_name)
+    #     # the pipeline is cloned for each fold of the CV iterator, but its fit arguments aren't
+    #     # I've added a clone call for the fit args to the CV function, so that the fit arguments are not
+    #     # going to be shared between pipeline folds, but are shared between all estimators inside
+    #     # a pipeline during a fold
+    #     logging.debug('Identity of vector source is %d', id(vector_source))
+    #     if vector_source:
+    #         try:
+    #             logging.debug('The BallTree is %s', vector_source.nbrs)
+    #         except AttributeError:
+    #             logging.debug('The vector source is %s', vector_source)
+    #             # pass the same vector source to the vectorizer, feature selector and metadata stripper
+    #             # that way the stripper can call vector_source.populate() after the feature selector has had its say,
+    #             # and that update source will then be available to the vectorizer at decode time
+    #             #fit_params = {
+    #             #    'vect__vector_source': vector_source,
+    #             #    'fs__vector_source': vector_source,
+    #             #    'stripper__vector_source': vector_source,
+    #             #}
+    #     scores_this_clf = naming_cross_val_score(
+    #         pipeline, x_vals_seen,
+    #         y_vals_seen,
+    #         ChainCallable(configuration['evaluation']),
+    #         cv=cv_iterator, n_jobs=n_jobs,
+    #         verbose=0, fit_params=fit_params) # pass resource here
+    #
+    #     for run_number, a in scores_this_clf:
+    #         # If there is just one metric specified in the conf file a is a
+    #         # 0-D numpy array and needs to be indexed as [()]. Otherwise it
+    #         # is a dict
+    #         mydict = a[()] if hasattr(a, 'shape') and len(a.shape) < 1 else a
+    #         for metric, score in mydict.items():
+    #             scores_over_cv.append(
+    #                 [clf_name.split('.')[-1],
+    #                  run_number,
+    #                  metric.split('.')[-1],
+    #                  score])
+    #     del pipeline
+    #     del scores_this_clf
+    logging.info('Classifier scores are %s', scores_over_cv)
+    return 0, _analyze(scores_over_cv, configuration['output_dir'], configuration['name'])
 
 
 def _analyze(scores, output_dir, name):

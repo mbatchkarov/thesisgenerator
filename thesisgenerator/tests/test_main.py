@@ -115,11 +115,11 @@ class TestThesaurusVectorizer(TestCase):
         pipeline, fit_params = __main__._build_pipeline(
             12345, #id for naming debug files
             self.vector_source,
-            None, # classifier
+            # None, # classifier
             self.feature_extraction_conf,
             self.feature_selection_conf,
             {'run': False}, # dim re. conf
-            None, # classifier options
+            # None, # classifier options
             '.', # temp files dir
             True, # debug mode
             'test_main' # name of experiments
