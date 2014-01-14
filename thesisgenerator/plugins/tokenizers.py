@@ -145,17 +145,17 @@ class XmlTokenizer(object):
             if self.coarse_pos:
                 pos = self.pos_coarsification_map[pos.upper()]
 
-            iob_tag = 'MISSING'
-            if self.normalise_entities:
-                try:
-                    iob_tag = element.find('NER').text.upper()
-                except AttributeError:
-                    logging.error('You have requested named entity '
-                                  'normalisation, but the input data are '
-                                  'not annotated for entities')
-                    raise ValueError('Data not annotated for named '
-                                     'entities')
+            try:
+                iob_tag = element.find('NER').text.upper()
+            except AttributeError:
+                logging.error('You have requested named entity '
+                              'normalisation, but the input data are '
+                              'not annotated for entities')
+                iob_tag = 'MISSING'
+                # raise ValueError('Data not annotated for named '
+                #                  'entities')
 
+            if self.normalise_entities:
                 if iob_tag != 'O':
                     txt = '__NER-%s__' % iob_tag
                     pos = '' # normalised named entities don't need a PoS tag
@@ -175,7 +175,7 @@ class XmlTokenizer(object):
                 else:
                     # I put the underscore there, e.g. __NER-LOCATION__!
                     pass
-            tokens.append(Token(txt, pos, int(element.get('id'))))
+            tokens.append(Token(txt, pos, int(element.get('id')), ner=iob_tag))
 
         # build a graph from the dependency information available in the input
         tokens_ids = set(x.index for x in tokens)

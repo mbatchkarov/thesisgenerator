@@ -58,6 +58,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
 
         self.stats = None
         self.handler = None
+        self.non_entity_ner_tags = {'O', 'MISSING'}
 
         super(ThesaurusVectorizer, self).__init__(input=input,
                                                   encoding=encoding,
@@ -180,7 +181,10 @@ class ThesaurusVectorizer(TfidfVectorizer):
                                                              token_index[x[0]].pos == 'N' and
                                                              token_index[x[1]].pos == 'N']
         for head, dep in nns:
-            new_features.append(DocumentFeature('NN', (token_index[dep], token_index[head])))
+            if token_index[head].ner in self.non_entity_ner_tags and \
+                            token_index[dep].ner in self.non_entity_ner_tags:
+                #  don't want to compose NPs that contain named entities
+                new_features.append(DocumentFeature('NN', (token_index[dep], token_index[head])))
 
         return new_features
 

@@ -10,7 +10,7 @@ class DocumentFeature(object):
         self.type = type
         self.tokens = tokens
 
-    _TYPES = dict([ ('NVN', 'SVO'), ('JN', 'AN'), ('VN', 'VO'), ('NN', 'NN') ])
+    _TYPES = dict([('NVN', 'SVO'), ('JN', 'AN'), ('VN', 'VO'), ('NN', 'NN')])
     #  not an underscore + text + underscore or end of line
     #  see re.split documentation on capturing (the first two) and non-capturing groups (the last one)
     _TOKEN_RE = re.compile(r'([^/_]+)/([A-Z]+)(?:_|$)')
@@ -29,7 +29,7 @@ class DocumentFeature(object):
                     break
                 tokens.append(Token(word, pos))
             type = cls._TYPES.get(type,
-                ('EMPTY', '1-GRAM', '2-GRAM', '3-GRAM')[len(tokens)])
+                                  ('EMPTY', '1-GRAM', '2-GRAM', '3-GRAM')[len(tokens)])
             return DocumentFeature(type, tuple(tokens))
         except:
             logging.error('Cannot create token out of string %s', string)
@@ -64,7 +64,6 @@ class DocumentFeature(object):
             # a single token has no len
             return DocumentFeature.from_string(str(tokens))
 
-
     def __str__(self):
         return '{}:{}'.format(self.type, self.tokens)
 
@@ -84,10 +83,11 @@ class DocumentFeature(object):
 
 @total_ordering
 class Token(object):
-    def __init__(self, text, pos, index=0):
+    def __init__(self, text, pos, index=0, ner=None):
         self.text = text
         self.pos = pos
         self.index = index
+        self.ner = ner
 
     def __str__(self):
         return '{}/{}'.format(self.text, self.pos) if self.pos else self.text
