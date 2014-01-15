@@ -27,6 +27,7 @@ def thesaurus_c():
 def test_loading_bigram_thesaurus(thesaurus_c):
     assert len(thesaurus_c) == 5
     assert 'a/J_b/N' in thesaurus_c.keys()
+    assert 'messed_up' not in thesaurus_c.keys()
 
 # todo check this
 def _assert_matrix_of_thesaurus_c_is_as_expected(matrix, rows, cols):

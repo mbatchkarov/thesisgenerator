@@ -120,6 +120,10 @@ class Thesaurus(object):
                             # do not bother adding it
                         if len(to_insert) > 0:
                             key = _smart_lower(tokens[0], ngram_separator, aggressive_lowercasing)
+                            if DocumentFeature.from_string(key).type == 'EMPTY':
+                                # do not load things in the wrong format, they'll get in the way later
+                                logging.info('Skipping thesaurus entry %s', key)
+                                continue
 
                             if key in to_return:
                                 # todo this better not be a neighbours file, merging doesn't work there
