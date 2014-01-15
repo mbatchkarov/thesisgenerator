@@ -145,6 +145,10 @@ class XmlTokenizer(object):
             if self.coarse_pos:
                 pos = self.pos_coarsification_map[pos.upper()]
 
+            if pos == 'PUNCT' or am_i_a_number:
+                # logging.debug('Tokenizer ignoring stopword %s' % txt)
+                continue
+
             try:
                 iob_tag = element.find('NER').text.upper()
             except AttributeError:
@@ -152,29 +156,21 @@ class XmlTokenizer(object):
                               'normalisation, but the input data are '
                               'not annotated for entities')
                 iob_tag = 'MISSING'
-                # raise ValueError('Data not annotated for named '
-                #                  'entities')
+                # raise ValueError('Data not annotated for named entities')
+
+            if '/' in txt or '_' in txt:
+            # I use these chars as separators later, remove them now to avoid problems down the line
+                logging.info('Funny token found: %s, pos is %s', txt, pos)
+                continue
+
+            if self.lowercase:
+                txt = txt.lower()
 
             if self.normalise_entities:
                 if iob_tag != 'O':
                     txt = '__NER-%s__' % iob_tag
                     pos = '' # normalised named entities don't need a PoS tag
 
-            if pos == 'PUNCT' or am_i_a_number:
-                # logging.debug('Tokenizer ignoring stopword %s' % txt)
-                continue
-
-            if self.lowercase and '__NER' not in txt:
-                txt = txt.lower()
-
-            if '/' in txt or '_' in txt:
-            # I use these chars as separators later, remove them now to avoid problems down the line
-                if iob_tag in {'O', 'MISSING'}:
-                    #logging.info('Funny token found: %s, pos is %s', txt, pos)
-                    continue
-                else:
-                    # I put the underscore there, e.g. __NER-LOCATION__!
-                    pass
             tokens.append(Token(txt, pos, int(element.get('id')), ner=iob_tag))
 
         # build a graph from the dependency information available in the input

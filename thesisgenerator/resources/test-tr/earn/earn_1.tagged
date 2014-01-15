@@ -21,7 +21,7 @@
             <word>dogs</word>
             <lemma>dog</lemma>
             <POS>NNP</POS>
-            <NER>ORG</NER>
+            <NER>O</NER>
           </token>
         </tokens>
       </sentence>

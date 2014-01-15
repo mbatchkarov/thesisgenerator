@@ -83,7 +83,7 @@ class DocumentFeature(object):
 
 @total_ordering
 class Token(object):
-    def __init__(self, text, pos, index=0, ner=None):
+    def __init__(self, text, pos, index=0, ner='O'):
         self.text = text
         self.pos = pos
         self.index = index
@@ -99,7 +99,7 @@ class Token(object):
         return (not self < other) and (not other < self)
 
     def __lt__(self, other):
-        return (self.text, self.pos) < (other.text, other.pos)
+        return (self.text, self.pos, self.ner) < (other.text, other.pos, other.ner)
 
     def __hash__(self):
-        return hash((self.text, self.pos))
+        return hash((self.text, self.pos, self.ner))

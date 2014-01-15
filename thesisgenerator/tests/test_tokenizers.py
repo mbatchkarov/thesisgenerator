@@ -35,6 +35,10 @@ class Test_tokenizer(TestCase):
             as infile:
             self.other_doc = infile.read()
 
+        with open('thesisgenerator/resources/tokenizer/invalid_tokens.tagged') \
+            as infile:
+            self.invalid_doc = infile.read()
+
         self.doc_name = 'test_tokenizers_doc1'
         self.other_doc_name = 'test_tokenizers_doc2'
 
@@ -126,6 +130,24 @@ class Test_tokenizer(TestCase):
                                        Token('like', '', 2),
                                        Token('dogs', '', 3)]])
 
+    def test_xml_tokenizer_invalid_tokens(self):
+        """
+        tests xml_tokenizer's ability to remove tokens that do contain / or _ . These chars
+        are used as separators later and having them in the token messes up parsing
+        """
+
+        #  test that invalid tokens are removed
+        tokens = self._strip_dependency_tree(self.tokenizer.tokenize_doc(self.invalid_doc))
+        self.assertListEqual(tokens[0], [Token('like', '', 2),
+                                         Token('dogs', '', 3, ner='ORG')])
+
+        # test that valid named entity tokens get normalised
+        self.params['normalise_entities'] = True
+        self.tokenizer = XmlTokenizer(**self.params)
+        tokens = self._strip_dependency_tree(self.tokenizer.tokenize_doc(self.invalid_doc))
+        self.assertListEqual(tokens[0], [Token('like', '', 2),
+                                         Token('__NER-ORG__', '', 3, ner='ORG')])
+
     def test_dependencies(self):
         self.params['use_pos'] = True
         self.params['coarse_pos'] = True
@@ -142,7 +164,7 @@ class Test_tokenizer(TestCase):
         self.assertDictEqual(token_index, {
             1: Token('cats', 'N', 0),
             2: Token('like', 'V', 1),
-            3: Token('dogs', 'N', 2),
+            3: Token('dogs', 'N', 2, ner='ORG'),
         })
         self.assertEqual(len(dep_tree.edges()), 2)
         self.assertEqual(dep_tree.succ[2][1]['type'], 'nsubj') # 1 is the nsubj of 2
@@ -155,7 +177,7 @@ class Test_tokenizer(TestCase):
         self.assertDictEqual(token_index, {
             #1: Token('cats', 'N', 0), # remove
             2: Token('like', 'V', 1),
-            3: Token('dogs', 'N', 2),
+            3: Token('dogs', 'N', 2, ner='ORG'),
         })
         self.assertEqual(len(dep_tree.edges()), 1)
         self.assertEqual(dep_tree.succ[2][3]['type'], 'dobj') # 3 is the dobj of 2
@@ -257,7 +279,7 @@ class Test_tokenizer(TestCase):
         self.assertListEqual(tokens, [[
                                           Token('cat', 'N', 1),
                                           Token('like', 'V', 2),
-                                          Token('__NER-ORG__', '', 3)
+                                          Token('dog', 'N', 3)
                                       ]])
 
         self.tokenizer.lowercase = False
@@ -265,7 +287,7 @@ class Test_tokenizer(TestCase):
         self.assertListEqual(tokens, [[
                                           Token('Cat', 'N', 1),
                                           Token('like', 'V', 2),
-                                          Token('__NER-ORG__', '', 3)
+                                          Token('dog', 'N', 3)
                                       ]])
 
     def _strip_dependency_tree(self, tokens):
