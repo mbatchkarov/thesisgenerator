@@ -64,9 +64,10 @@ class UnigramVectorSource(VectorSource):
         # Token -> row number in self.feature_matrix that holds corresponding vector
         self.entry_index = {DocumentFeature.from_string(feature): i for (i, feature) in enumerate(thesaurus.keys())}
 
-        #  todo this needs to be fixed. Features that cannon be parsed will be included in the
-        # dissect space but not in self.entry_index
-        # assert len(self.entry_index) == len(self.dissect_core_space.id2row)
+        #  This may fail sometimes. Features that cannon be parsed will be included in the
+        # dissect space but not in self.entry_index. However, such features should have been filtered out
+        # by the tokenizer, so the problem is probably there
+        assert len(self.entry_index) == len(self.dissect_core_space.id2row)
 
         # the pos of all unigrams, the type of all n-grams
         self.available_pos = set(feature.tokens[0].pos if feature.type == '1-GRAM' else feature.type
