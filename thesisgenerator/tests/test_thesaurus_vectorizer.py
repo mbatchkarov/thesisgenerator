@@ -6,17 +6,17 @@ from thesisgenerator.plugins.tokenizers import XmlTokenizer
 from thesisgenerator.plugins.tokens import DocumentFeature, Token
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture
 def valid_AN_features():
     return [('big', 'cat'), ('black', 'cat'), ('small', 'bird'), ('red', 'bird')]
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture
 def vectorizer():
     return ThesaurusVectorizer()
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture
 def black_cat_parse_tree():
     with open('thesisgenerator/resources/tokenizer/black_cat.tagged') as infile:
         txt = infile.read()
@@ -26,7 +26,7 @@ def black_cat_parse_tree():
     return parse_tree, token_index
 
 
-@pytest.skip('Some dependency features manually disabled for performance reasons')
+# @pytest.skip('Some dependency features manually disabled for performance reasons')
 def test_extract_features_from_correct_dependency_tree(black_cat_parse_tree, vectorizer, valid_AN_features):
     features = vectorizer.extract_features_from_dependency_tree(*black_cat_parse_tree)
 
@@ -41,14 +41,44 @@ def test_extract_features_from_correct_dependency_tree(black_cat_parse_tree, vec
     assert DocumentFeature('NN', (Token('heart', 'N'), Token('surgery', 'N') )) in features
 
 
+def test_extract_features_with_disabled_features(black_cat_parse_tree, vectorizer, valid_AN_features):
+    vectorizer.extract_VO_features = False
+    vectorizer.extract_SVO_features = False
+
+    features = vectorizer.extract_features_from_dependency_tree(*black_cat_parse_tree)
+
+    for adj, noun in valid_AN_features:
+        f = DocumentFeature('AN', (Token(adj, 'J'), Token(noun, 'N')))
+        assert f in features
+
+    assert DocumentFeature('VO', (Token('eat', 'V'), Token('bird', 'N') )) not in features
+    assert DocumentFeature('SVO', (Token('cat', 'N'), Token('eat', 'V'), Token('bird', 'N') )) \
+        not in features
+
+    assert DocumentFeature('NN', (Token('heart', 'N'), Token('surgery', 'N') )) in features
+
+
 def test_extract_features_from_empty_dependency_tree(vectorizer):
     parse_tree, token_index = nx.DiGraph(), {}
     features = vectorizer.extract_features_from_dependency_tree(parse_tree, token_index)
-
     assert not features
 
 
-@pytest.skip('Some dependency features manually disabled for performance reasons')
+def test_remove_features_containing_named_entities(vectorizer, black_cat_parse_tree):
+    parse_tree, token_index = black_cat_parse_tree
+    features = vectorizer.extract_features_from_dependency_tree(parse_tree, token_index)
+
+    cleaned_features = vectorizer._remove_features_containing_named_entities(features)
+    assert cleaned_features == features
+
+
+    # make the token cat/N into a named entity
+    features[0].tokens[1].ner = 'PERSON'
+    cleaned_features = vectorizer._remove_features_containing_named_entities(features)
+    assert len(cleaned_features) == len(features) - 4 # 4 features contain the Token 'cat/N'
+    print 1
+
+# @pytest.skip('Some dependency features manually disabled for performance reasons')
 @pytest.mark.parametrize(
     ('change_to', 'expected_feature_count'),
     [

@@ -65,7 +65,7 @@ class TestVectorBackedSelectKBest(TestCase):
 
         pipeline_list = [
             ('vect',
-             ThesaurusVectorizer(min_df=1, vector_source=vector_source, use_tfidf=False,
+             ThesaurusVectorizer(min_df=1, use_tfidf=False,
                                  ngram_range=(1, max_feature_len),
                                  decode_token_handler=handler_pattern.format(handler))),
             ('fs', VectorBackedSelectKBest(ensure_vectors_exist=ensure_vectors_exist, k=k)),

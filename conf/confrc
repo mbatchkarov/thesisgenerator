@@ -28,6 +28,12 @@ test_data=string(default='')
     vocabulary=string
     binary=boolean
     use_tfidf=boolean
+    
+    extract_AN_features=boolean(default=True)
+    extract_NN_features=boolean(default=True)
+    extract_VO_features=boolean(default=True)
+    extract_SVO_features=boolean(default=True)
+    remove_features_with_NER=boolean(default=True)
 
     # extra options required by the Bag-of-Vectors project Vectorizer
     train_thesaurus_files=list(default=list()) # a list of files to be read to a dict-like object and passed to the vectorizer at train time

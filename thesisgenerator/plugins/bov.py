@@ -33,7 +33,13 @@ class ThesaurusVectorizer(TfidfVectorizer):
                  sim_compressor='thesisgenerator.utils.misc.noop',
                  train_token_handler='thesisgenerator.plugins.bov_feature_handlers.BaseFeatureHandler',
                  decode_token_handler='thesisgenerator.plugins.bov_feature_handlers.BaseFeatureHandler',
-                 vector_source=None):
+                 extract_AN_features=True,
+                 extract_NN_features=True,
+                 extract_VO_features=True,
+                 extract_SVO_features=True,
+                 remove_features_with_NER=False
+
+    ):
         """
         Builds a vectorizer the way a TfidfVectorizer is built, and takes one
         extra param specifying the path the the Byblo-generated thesaurus.
@@ -55,10 +61,15 @@ class ThesaurusVectorizer(TfidfVectorizer):
         self.sim_compressor = sim_compressor
         self.train_token_handler = train_token_handler
         self.decode_token_handler = decode_token_handler
+        self.extract_AN_features = extract_AN_features
+        self.extract_NN_features = extract_NN_features
+        self.extract_VO_features = extract_VO_features
+        self.extract_SVO_features = extract_SVO_features
+        self.remove_features_with_NER = remove_features_with_NER
 
         self.stats = None
         self.handler = None
-        self.non_entity_ner_tags = {'O', 'MISSING'}
+        self.entity_ner_tags = {'ORGANIZATION', 'PERSON', 'LOCATION'}
 
         super(ThesaurusVectorizer, self).__init__(input=input,
                                                   encoding=encoding,
@@ -149,43 +160,53 @@ class ThesaurusVectorizer(TfidfVectorizer):
             pass
         return res
 
+    def _remove_features_containing_named_entities(self, features):
+        return [f for f in features if not any(token.ner in self.entity_ner_tags for token in f.tokens)]
+
     def extract_features_from_dependency_tree(self, parse_tree, token_index):
         # extract sentence-internal adjective-noun compounds
         new_features = []
 
-        # get tuples of (head, dependent) for each amod relation in the tree
-        # also enforce that head is a noun, dependent is an adjective
-        amods = [x[:2] for x in parse_tree.edges(data=True) if x[2]['type'] == 'amod' and
-                                                               token_index[x[0]].pos == 'N' and
-                                                               token_index[x[1]].pos == 'J']
-        for head, dep in amods:
-            new_features.append(DocumentFeature('AN', (token_index[dep], token_index[head])))
+        if self.extract_AN_features:
+            # get tuples of (head, dependent) for each amod relation in the tree
+            # also enforce that head is a noun, dependent is an adjective
+            amods = [x[:2] for x in parse_tree.edges(data=True) if x[2]['type'] == 'amod' and
+                                                                   token_index[x[0]].pos == 'N' and
+                                                                   token_index[x[1]].pos == 'J']
+            for head, dep in amods:
+                new_features.append(DocumentFeature('AN', (token_index[dep], token_index[head])))
 
-        # extract sentence-internal subject-verb-direct object compounds
-        # todo how do we handle prepositional objects?
-        # verbs = [t.index for t in token_index.values() if t.pos == 'V']
-        # subjects = set([(head, dep) for head, dep, opts in parse_tree.edges(data=True)
-        #                 if opts['type'] == 'nsubj' and token_index[head].pos == 'V' and token_index[dep].pos == 'N'])
-        #
-        # objects = set([(head, dep) for head, dep, opts in parse_tree.edges(data=True)
-        #                if opts['type'] == 'dobj' and token_index[head].pos == 'V' and token_index[dep].pos == 'N'])
-        # subjverbobj = [(s[1], v, o[1]) for v in verbs for s in subjects for o in objects if s[0] == v and o[0] == v]
-        # for s, v, o in subjverbobj:
-        #     new_features.append(DocumentFeature('SVO', (token_index[s], token_index[v], token_index[o])))
-        #
-        # verbobj = [(v, o[1]) for v in verbs for o in objects if o[0] == v]
-        # for v, o in verbobj:
-        #     new_features.append(DocumentFeature('VO', (token_index[v], token_index[o])))
+        if self.extract_SVO_features or self.extract_VO_features:
+            # extract sentence-internal subject-verb-direct object compounds
+            # todo how do we handle prepositional objects?
+            verbs = [t.index for t in token_index.values() if t.pos == 'V']
 
-        nns = [x[:2] for x in parse_tree.edges(data=True) if x[2]['type'] == 'nn' and
-                                                             token_index[x[0]].pos == 'N' and
-                                                             token_index[x[1]].pos == 'N']
-        for head, dep in nns:
-            if token_index[head].ner in self.non_entity_ner_tags and \
-                            token_index[dep].ner in self.non_entity_ner_tags:
-                #  don't want to compose NPs that contain named entities
+            objects = set([(head, dep) for head, dep, opts in parse_tree.edges(data=True)
+                           if opts['type'] == 'dobj' and token_index[head].pos == 'V' and token_index[dep].pos == 'N'])
+
+        if self.extract_SVO_features:
+            subjects = set([(head, dep) for head, dep, opts in parse_tree.edges(data=True) if
+                            opts['type'] == 'nsubj' and token_index[head].pos == 'V' and token_index[dep].pos == 'N'])
+
+            subjverbobj = [(s[1], v, o[1]) for v in verbs for s in subjects for o in objects if s[0] == v and o[0] == v]
+
+            for s, v, o in subjverbobj:
+                new_features.append(DocumentFeature('SVO', (token_index[s], token_index[v], token_index[o])))
+
+        if self.extract_VO_features:
+            verbobj = [(v, o[1]) for v in verbs for o in objects if o[0] == v]
+            for v, o in verbobj:
+                new_features.append(DocumentFeature('VO', (token_index[v], token_index[o])))
+
+        if self.extract_NN_features:
+            nns = [x[:2] for x in parse_tree.edges(data=True) if x[2]['type'] == 'nn' and
+                                                                 token_index[x[0]].pos == 'N' and
+                                                                 token_index[x[1]].pos == 'N']
+            for (head, dep) in nns:
                 new_features.append(DocumentFeature('NN', (token_index[dep], token_index[head])))
 
+        if self.remove_features_with_NER:
+            return self._remove_features_containing_named_entities(new_features)
         return new_features
 
     def my_feature_extractor(self, sentences, ngram_range=(1, 1)):
