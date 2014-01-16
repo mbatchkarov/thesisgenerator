@@ -22,23 +22,29 @@ composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer
                   RightmostWordComposer, MinComposer, MaxComposer]
 
 # get the names of all GIGAW thesauri
-pattern = '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/exp10-12AN_NN_gigaw_{}' \
-          '/exp10.sims.neighbours.strings'
+pattern = '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/exp10-12bAN_NN_gigaw_{0}' \
+          '/AN_NN_gigaw_{0}.sims.neighbours.strings'
 gigaw_thesauri = [pattern.format(c.name) for c in composer_algos]
 gigaw_thesauri.append(pattern.format('Observed'))
 
 # get the names of all WIKI thesauri
-pattern = '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/exp11-12AN_NN_gigaw_{}' \
-          '/exp11.sims.neighbours.strings'
+pattern = '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/exp11-12bAN_NN_wiki_{0}' \
+          '/AN_NN_wiki_{0}.sims.neighbours.strings'
 wiki_thesauri = [pattern.format(c.name) for c in composer_algos]
 wiki_thesauri.append(pattern.format('Observed'))
 
 handler = 'thesisgenerator.plugins.bov_feature_handlers.SignifiedFeatureHandler'
 
-thesauri = {42: gigaw_thesauri, 56: gigaw_thesauri, 49: wiki_thesauri, 63: wiki_thesauri}
+thesauri = {42: gigaw_thesauri, 56: gigaw_thesauri, 49: wiki_thesauri, 63: wiki_thesauri,
+            70: gigaw_thesauri, 77: gigaw_thesauri}
 
-for first_exp in [42, 49, 56, 63]:
+for first_exp in [42, 49, 56, 63, 70, 77]:
     for offset, thes in enumerate(thesauri[first_exp]):
+
+        # skip Observed for now, thesauri aren't ready
+        if 'Observed' in thes:
+            continue
+
         experiment_dir = 'conf/exp%d' % (first_exp + offset)
         if not os.path.exists(experiment_dir):
             os.mkdir(experiment_dir)

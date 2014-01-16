@@ -29,11 +29,11 @@ test_data=string(default='')
     binary=boolean
     use_tfidf=boolean
     
-    extract_AN_features=boolean(default=True)
+    extract_AN_features=boolean(default=True) # whether to extract adjective-noun compounds when dependency trees are available
     extract_NN_features=boolean(default=True)
     extract_VO_features=boolean(default=True)
     extract_SVO_features=boolean(default=True)
-    remove_features_with_NER=boolean(default=True)
+    remove_features_with_NER=boolean(default=False) # whether to remove document features that contain a token with NER tag  ORG, PERS, LOC- these aren't composable
 
     # extra options required by the Bag-of-Vectors project Vectorizer
     train_thesaurus_files=list(default=list()) # a list of files to be read to a dict-like object and passed to the vectorizer at train time
