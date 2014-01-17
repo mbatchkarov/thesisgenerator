@@ -7,7 +7,6 @@ sys.path.append('..')
 sys.path.append('../..')
 from thesisgenerator.utils.cmd_utils import run_and_log_output
 from thesisgenerator.composers.vectorstore import *
-from thesisgenerator.plugins.experimental_utils import run_experiment
 from thesisgenerator.utils.conf_file_utils import set_in_conf_file, parse_config_file
 
 '''
@@ -17,7 +16,6 @@ use this script to run them through the classification framework
 
 __author__ = 'mmb28'
 
-superbase_conf_file = 'conf/exp42-superbase.conf'
 composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
                   RightmostWordComposer, MinComposer, MaxComposer]
 
@@ -39,6 +37,8 @@ thesauri = {42: gigaw_thesauri, 56: gigaw_thesauri, 49: wiki_thesauri, 63: wiki_
             70: gigaw_thesauri, 77: gigaw_thesauri}
 
 for first_exp in [42, 49, 56, 63, 70, 77]:
+    superbase_conf_file = 'conf/exp%d-superbase.conf' % first_exp
+
     for offset, thes in enumerate(thesauri[first_exp]):
 
         # skip Observed for now, thesauri aren't ready
@@ -63,3 +63,7 @@ for first_exp in [42, 49, 56, 63, 70, 77]:
 
         #run_experiment(first_exp + offset)
         run_and_log_output('qsub -N composed{0} go-single-experiment.sh {0}'.format(first_exp + offset))
+
+        # import re
+        # corpus, composer = re.match('AN_NN_(.*)_(.*).', thes.split('/')[-1]).groups()
+        # print "%s : 'AN_NN, %s, signified, %s',"%(first_exp+offset,composer,corpus)
