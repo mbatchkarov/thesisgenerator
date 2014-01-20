@@ -85,80 +85,57 @@ def _do_svd_single(mat, n_components):
     return method, reduced_mat
 
 
-def _write_to_disk(reduced_mat, method, output_prefixes, pos_per_output_dir, pos_tags, rows):
-    output_prefixes_with_dims = []
-    for path, desired_pos in zip(output_prefixes, pos_per_output_dir):
+def _write_to_disk(reduced_mat, method, prefix, rows):
+    features_file = prefix + '.features.filtered.strings'
+    events_file = prefix + '.events.filtered.strings'
+    entries_file = prefix + '.entries.filtered.strings'
+    model_file = prefix + '.model.pkl'
+    write_vectors_to_disk(reduced_mat, rows,
+                          ['SVD:feat{0:05d}'.format(i) for i in range(reduced_mat.shape[1])],
+                          events_file, features_file, entries_file)
 
-        features_file = path + '.features.filtered.strings'
-        events_file = path + '.events.filtered.strings'
-        entries_file = path + '.entries.filtered.strings'
-        model_file = path + '.model.pkl'
-        if desired_pos == 'ALL':
-            tmp_mat = scipy.sparse.coo_matrix(reduced_mat)
-            tmp_rows = rows
-        else:
-            logging.warn('Writing reduced vector files for PoS {}'.format(desired_pos))
-            rows_for_this_pos = pos_tags == desired_pos
-            tmp_mat = scipy.sparse.coo_matrix(reduced_mat[rows_for_this_pos, :])
-            tmp_rows = numpy.array(rows)[rows_for_this_pos]
-        write_vectors_to_disk(tmp_mat, tmp_rows,
-                              ['SVD:feat{0:05d}'.format(i) for i in range(reduced_mat.shape[1])],
-                              features_file, entries_file, events_file)
-
-        with open(model_file, 'w') as outfile:
-            pickle.dump(method, outfile)
-        output_prefixes_with_dims.append(path)
-    return output_prefixes_with_dims
+    with open(model_file, 'w') as outfile:
+        pickle.dump(method, outfile)
 
 
-def do_svd(input_paths, output_prefixes,
+def do_svd(input_paths, output_prefix,
            desired_counts_per_feature_type=[('N', 8), ('V', 4), ('J', 4), ('RB', 2), ('AN', 2)],
-           reduce_to=[3, 10, 15],
-           pos_per_output_dir=[]):
+           reduce_to=[3, 10, 15]):
     """
 
-    Performs truncated SVD. A copy of the trained sklearn SVD estimator will be saved to each directory in
-    vector_file_paths.
+    Performs truncated SVD. A copy of the trained sklearn SVD estimator will be also be saved
 
-    :param input_paths: list. If its length is one, all reduced vectors will be written to the same directory.
-    Otherwise each separate PoS (as contained in pos_to_split) will be written to its own directory, assuming
-    vector_file_paths[i] contains a thesaurus for entries of type pos_to_split[i]
+    :param input_paths: list of files containing vectors in TSV format. All vectors will be reduced together.
     :type input_paths: list
-    :param output_prefixes: Where to output the reduced files
-    :param desired_counts_per_feature_type: how many entries to keep of each DocumentFeature type, by frequency. This is the
-    PoS tag for unigram features and the feature type otherwise. For instance, pass in [('N', 2), ('AN', 0)] to
+    :param output_prefix: Where to output the reduced files. An extension will be added.
+    :param desired_counts_per_feature_type: how many entries to keep of each DocumentFeature type, by frequency. This
+     is the PoS tag for unigram features and the feature type otherwise. For instance, pass in [('N', 2), ('AN', 0)] to
     select 2 unigrams of PoS noun and 0 bigrams of type adjective-noun. Types that are not explicitly given a positive
     desired count are treated as if the desired count is 0.
     :param reduce_to: what dimensionalities to reduce to
-    :param pos_per_output_dir: What PoS entries to write in each output dir. The length of this must match
-    the length of input_paths. Permitted values are N, J, V, RB and ALL. If not specified, the same output (all Pos)
-    will go to all output_prefixes
-    :raise ValueError: If the loaded thesaurus is empty/ if
+    :raise ValueError: If the loaded thesaurus is empty
     """
 
-    if pos_per_output_dir:
-        if len(pos_per_output_dir) != len(output_prefixes):
-            raise ValueError('Length of pos_per_output_dir should match length of output_prefixes')
-        else:
-            logging.warn('Will write separate events file per PoS')
-    else:
-        pos_per_output_dir = ['ALL'] * len(output_prefixes)
+    # if pos_per_output_dir:
+    #     if len(pos_per_output_dir) != len(output_prefix):
+    #         raise ValueError('Length of pos_per_output_dir should match length of output_prefix')
+    #     else:
+    #         logging.warn('Will write separate events file per PoS')
+    # else:
+    #     pos_per_output_dir = ['ALL'] * len(output_prefix)
+
     thesaurus = Thesaurus.from_tsv(input_paths, aggressive_lowercasing=False)
     if not thesaurus:
         raise ValueError('Empty thesaurus %r', input_paths)
     mat, pos_tags, rows, cols = _filter_out_infrequent_entries(desired_counts_per_feature_type, thesaurus)
 
-    output_prefixes_with_dims = []
     for n_components in reduce_to:
         method, reduced_mat = _do_svd_single(mat, n_components)
         if not method:
             continue
 
-        write_to = ['{}-SVD{}'.format(path, n_components) for path in output_prefixes]
-        x = _write_to_disk(reduced_mat, method, write_to, pos_per_output_dir, pos_tags, rows)
-        output_prefixes_with_dims.extend((n_components, x))
-
-    return output_prefixes_with_dims
+        path = '{}-SVD{}'.format(output_prefix, n_components)
+        _write_to_disk(reduced_mat, method, path, rows)
 
 
 if __name__ == '__main__':

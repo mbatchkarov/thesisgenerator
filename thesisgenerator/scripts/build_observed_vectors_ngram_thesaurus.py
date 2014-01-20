@@ -63,7 +63,7 @@ def do_work():
     th = Thesaurus.from_tsv([observed_ngram_vectors_file], aggressive_lowercasing=False)
     mat, cols, rows = th.to_sparse_matrix()
     rows = [DocumentFeature.from_string(x) for x in rows]
-    write_vectors_to_disk(mat.tocoo(), rows, cols, features_file, entries_file, vectors_file)
+    write_vectors_to_disk(mat.tocoo(), rows, cols, vectors_file, features_file, entries_file)
 
     # BUILD A THESAURUS FROM THESE FILES
     os.chdir(byblo_base_dir)

@@ -225,12 +225,7 @@ class Thesaurus(object):
         """
         mat, cols, rows = self.to_sparse_matrix(row_transform=row_transform)
         rows = [DocumentFeature.from_string(x) for x in rows]
-        import tempfile
-
-        bla1 = tempfile.NamedTemporaryFile(delete=True)
-        bla2 = tempfile.NamedTemporaryFile(delete=True)
-        write_vectors_to_disk(mat.tocoo(), rows,
-                              cols, bla1.name, bla2.name, filename, entry_filter)
+        write_vectors_to_disk(mat.tocoo(), rows, cols, filename, entry_filter=entry_filter)
         return filename
 
 

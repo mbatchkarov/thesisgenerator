@@ -147,6 +147,22 @@ def do_second_part_without_base_thesaurus(byblo_conf_file, output_dir, vectors_f
     set_stage_in_byblo_conf_file(final_conf_file, 0)
 
 
+def build_thesauri_out_of_composed_vectors(composer_algos, dataset_name, ngram_vectors_dir, unigram_thesaurus_dir):
+    byblo_conf_file = _find_conf_file(unigram_thesaurus_dir)
+    for c in composer_algos:
+        # one phrasal thesaurus per composer
+        comp_name = c.name
+        vectors_file = os.path.join(ngram_vectors_dir,
+                                    'AN_NN_{}_{}.events.filtered.strings'.format(dataset_name, comp_name))
+        entries_file = os.path.join(ngram_vectors_dir,
+                                    'AN_NN_{}_{}.entries.filtered.strings'.format(dataset_name, comp_name))
+        features_file = os.path.join(ngram_vectors_dir,
+                                     'AN_NN_{}_{}.features.filtered.strings'.format(dataset_name, comp_name))
+        suffix = os.path.basename(vectors_file).split('.')[0]
+        do_second_part_without_base_thesaurus(byblo_conf_file, unigram_thesaurus_dir + suffix,
+                                              vectors_file, entries_file, features_file)
+
+
 def build_only_AN_NN_thesauri_without_baroni(exp):
     # required files: a Byblo conf file, a labelled classification data set
     # created files:  composed vector files in a dir, thesauri of NPs
@@ -183,129 +199,85 @@ def build_only_AN_NN_thesauri_without_baroni(exp):
                                    composer_classes=composer_algos)
 
     # BUILD THESAURI OUT OF COMPOSED VECTORS ONLY
-    byblo_conf_file = _find_conf_file(unigram_thesaurus_dir)
-    for c in composer_algos:
-        # one phrasal thesaurus per composer
-        comp_name = c.name
-        vectors_file = os.path.join(ngram_vectors_dir,
-                                    'AN_NN_{}_{}.events.filtered.strings'.format(dataset_name, comp_name))
-        entries_file = os.path.join(ngram_vectors_dir,
-                                    'AN_NN_{}_{}.entries.filtered.strings'.format(dataset_name, comp_name))
-        features_file = os.path.join(ngram_vectors_dir,
-                                     'AN_NN_{}_{}.features.filtered.strings'.format(dataset_name, comp_name))
-        suffix = os.path.basename(vectors_file).split('.')[0]
-        do_second_part_without_base_thesaurus(byblo_conf_file, unigram_thesaurus_dir + suffix,
-                                              vectors_file, entries_file, features_file)
+    build_thesauri_out_of_composed_vectors(composer_algos, dataset_name, ngram_vectors_dir, unigram_thesaurus_dir)
 
 
 def build_full_composed_thesauri_with_baroni_and_svd(exp):
     # SET UP A FEW REQUIRED PATHS
 
     byblo_base_dir = '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/Byblo-2.2.0/' # trailing slash required
-    thesaurus_dir = os.path.abspath(os.path.join(byblo_base_dir, '..', 'exp%d-12b' % exp))
+    #  INPUT 1:  DIRECTORY. Must contain a single conf file
+    unigram_thesaurus_dir = os.path.abspath(os.path.join(byblo_base_dir, '..', 'exp%d-12b' % exp))
+    #  INPUT 2: A FILE, TSV, underscore-separated observed vectors for ANs and NNs
     baroni_training_phrases = os.path.join(byblo_base_dir, '..', 'observed_vectors', 'exp10_AN_NNvectors')
+
     ngram_vectors_dir = os.path.join(byblo_base_dir, '..', 'exp%d-12-composed-ngrams-MR-R2' % exp) # output 1
     composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
-                      RightmostWordComposer, MinComposer, MaxComposer] # todo add ['observed'] here
+                      RightmostWordComposer, MinComposer, MaxComposer, BaroniComposer]
 
-    dataset_name = 'gigaw' if exp == 10 else 'wiki' # todo short name of input
-    baroni_training_phrase_types = ['AN', 'NN']
     target_dimensionality = [30, 60]
+    dataset_name = 'gigaw' if exp == 10 else 'wiki' # short name of input corpus
+    baroni_training_phrase_types = {'AN', 'NN'} # what kind of NPs to train Baroni composer for
 
     # EXTRACT UNIGRAM VECTORS WITH BYBLO
     if not os.path.exists(ngram_vectors_dir):
         os.mkdir(ngram_vectors_dir)
     os.chdir(byblo_base_dir)
-    # calculate_unigram_vectors(thesaurus_dir)
+    calculate_unigram_vectors(unigram_thesaurus_dir)
 
 
     # REDUCE DIMENSIONALITY
-
-    # add in observed AN/NN vectors for SVD processing
-    unreduced_events_files = [_find_events_file(thesaurus_dir)]
+    # add in observed AN/NN vectors for SVD processing. Reduce both unigram vectors and observed phrase vectors
+    # together and put the output into the same file
+    unreduced_events_file = _find_events_file(unigram_thesaurus_dir)
     # ...exp6-12/exp6.events.filtered.strings --> ...exp6-12/exp6
-    reduced_prefixes = ['.'.join(x.split('.')[:-3]) + '-with-obs-phrases' for x in unreduced_events_files]
-    reduced_prefixes.extend([baroni_training_phrases])
-
+    reduced_file_prefix = '.'.join(unreduced_events_file.split('.')[:-3]) + '-with-obs-phrases'
+    # only keep the most frequent types per PoS tag to speed things up
     counts = [('N', 8000), ('V', 4000), ('J', 4000), ('RB', 200), ('AN', 20000), ('NN', 20000)]
-    x = do_svd(unreduced_events_files, reduced_prefixes,
-               desired_counts_per_feature_type=counts, reduce_to=target_dimensionality)
-    sys.exit(0)
-    # reconstruct the name that would have been output by the call above
-    training_data = []
-    for dims in target_dimensionality:
-        files = ['%s-SVD%d.events.filtered.strings' % (prefix, dims) for prefix in reduced_prefixes]
-        files.insert(0, dims)
-        training_data.append(files)
+    do_svd([unreduced_events_file, baroni_training_phrases], reduced_file_prefix,
+           desired_counts_per_feature_type=counts, reduce_to=target_dimensionality)
+
+    # construct the names of files output by do_svd
+    baroni_training_data = ['%s-SVD%d.events.filtered.strings' % (reduced_file_prefix, dim)
+                            for dim in target_dimensionality]
 
     # TRAIN BARONI COMPOSER
-    # train on each SVD-reduced file, not the original one
-    for svd_dims, reduced_unigram_vectors, reduced_observed_vectors in training_data:
-        all_vectors = [reduced_unigram_vectors, reduced_observed_vectors]
-        thes = Thesaurus.from_tsv(all_vectors, aggressive_lowercasing=False)
+    # train on each SVD-reduced file, not the original one, one composer object for both AN and NN phrases
+    for svd_dims, all_reduced_vectors in zip(target_dimensionality, baroni_training_data):
+        # first set up paths
+        baroni_training_heads = '%s-onlyN-SVD%s.tmp' % (baroni_training_phrases, svd_dims)
+        baroni_training_only_phrases = '%s-onlyPhrases-SVD%s.tmp' % (baroni_training_phrases, svd_dims)
+        trained_composer_prefix = '%s-SVD%s' % (baroni_training_phrases, svd_dims)
+        trained_composer_file = trained_composer_prefix + '.composer.pkl'
 
-        trained_composers = []
-        for training_phrases, phrase_type in zip(baroni_training_phrases, baroni_training_phrase_types):
-            baroni_training_heads = training_phrases.replace(phrase_type, 'onlyN-%s' % svd_dims)
-            thes.to_file(baroni_training_heads,
-                         entry_filter=lambda x: x.type == '1-GRAM' and x.tokens[0].pos == 'N')
+        # do the actual training
+        thes = Thesaurus.from_tsv([all_reduced_vectors], aggressive_lowercasing=False)
+        thes.to_file(baroni_training_heads,
+                     entry_filter=lambda x: x.type == '1-GRAM' and x.tokens[0].pos == 'N')
 
-            baroni_training_only_phrases = training_phrases.replace(phrase_type,
-                                                                    'only%s-%s' % (phrase_type, svd_dims))
-            thes.to_file(baroni_training_only_phrases,
-                         entry_filter=lambda x: x.type == phrase_type,
-                         row_transform=lambda x: x.replace(' ', '_'))
+        thes.to_file(baroni_training_only_phrases,
+                     entry_filter=lambda x: x.type in baroni_training_phrase_types,
+                     row_transform=lambda x: x.replace(' ', '_'))
 
-            baroni_trained_model_output_prefix = training_phrases.replace('vectors',
-                                                                          '%s-model-%s' % ( phrase_type, svd_dims))
-            trained_composer_path = baroni_trained_model_output_prefix + '.model.pkl'
-            trained_composer_path = train_baroni_composer(baroni_training_heads,
-                                                          baroni_training_only_phrases,
-                                                          baroni_trained_model_output_prefix)
-            trained_composers.append(trained_composer_path)
+        train_baroni_composer(baroni_training_heads,
+                              baroni_training_only_phrases,
+                              trained_composer_prefix)
 
         # mess with vectors, add to/modify entries and events files
         # whether to modify the features file is less obvious- do composed entries have different features
         # to the non-composed ones?
-        event_files = [_find_events_file(dir) for dir in thesaurus_dir]
-        dump.compose_and_write_vectors([reduced_unigram_vectors],
+
+        dump.compose_and_write_vectors([all_reduced_vectors],
                                        '%s-%s' % (dataset_name, svd_dims) if svd_dims else dataset_name,
-                                       dump.classification_data_path_mr,
-                                       trained_composers,
+                                       [dump.classification_data_path_mr, dump.classification_data_path],
+                                       trained_composer_file,
                                        output_dir=ngram_vectors_dir,
                                        composer_classes=composer_algos)
-    sys.exit(0)
 
-    source = thesaurus_dir[0]
-    print source
-    # do_second_part2(source) #original unigram-only thesaurus
-    for c in composer_algos:
-        # one phrasal thesaurus per composer
-        name = c.name
-        vectors_file = os.path.join(ngram_vectors_dir, 'AN_NN_wiki_{}.vectors.tsv'.format(name))
-        entries_file = os.path.join(ngram_vectors_dir, 'AN_NN_wiki_{}.entries.txt'.format(name))
-        features_file = os.path.join(ngram_vectors_dir, 'AN_NN_wiki_{}.features.txt'.format(name))
-        suffix = os.path.basename(vectors_file).split('.')[0]
-        do_second_part(source, vectors_file, entries_file, features_file, copy_to_dir=source + suffix)
-    sys.exit(0) #ENOUGH FOR NOW
-    do_second_part(thesaurus_dir[0], add_feature_type=['AN', 'NN']) #'VO', 'SVO' # all vectors in same thesaurus
-    do_second_part(thesaurus_dir[0]) # plain old thesaurus without ngrams
-    ### add AN phrases to noun thesaurus, SVO to verb thesaurus, and rebuild
-    #do_second_part(thesaurus_dir[0], add_feature_type=['AN']) # nouns with ngrams
-    #do_second_part(thesaurus_dir[0]) # nouns
-    #do_second_part(thesaurus_dir[1]) # verbs
-    #do_second_part(thesaurus_dir[1], add_feature_type=['SVO']) # verbs with ngrams
-    ##do_second_part('VO', thesaurus_dir[1])
-    #do_second_part(thesaurus_dir[2]) # adjectives
-    #do_second_part(thesaurus_dir[3]) # adverbs
-    for thesaurus in [
-        Thesaurus([_find_allpairs_file(thesaurus_dir[0])]),
-        Thesaurus([_find_allpairs_file(thesaurus_dir[0] + '-with-ngrams')])]:
-
-        for entry in ['thursday/N', 'expand/V force/N', 'military/J force/N',
-                      'center/N sign/V agreement/N', 'think/V']:
-            print entry, '------->', thesaurus.get(entry)
-        print '--------------------'
+    # BUILD THESAURI OUT OF COMPOSED VECTORS ONLY
+    for dims in target_dimensionality:
+        build_thesauri_out_of_composed_vectors(composer_algos, '%s-%d' % (dataset_name, dims),
+                                               ngram_vectors_dir, unigram_thesaurus_dir)
 
 
 if __name__ == '__main__':

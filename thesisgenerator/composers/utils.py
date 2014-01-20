@@ -6,7 +6,7 @@ from scipy.sparse import isspmatrix_coo
 __author__ = 'mmb28'
 
 
-def write_vectors_to_disk(matrix, row_index, column_index, features_path, entries_path, vectors_path,
+def write_vectors_to_disk(matrix, row_index, column_index, vectors_path, features_path='', entries_path='',
                           entry_filter=lambda x: True):
     """
     Converts a matrix and its associated row/column indices to a Byblo compatible entries/features/event files,
@@ -33,6 +33,7 @@ def write_vectors_to_disk(matrix, row_index, column_index, features_path, entrie
     new_byblo_entries = {}
     things = zip(matrix.row, matrix.col, matrix.data)
     selected_rows = []
+
     logging.info('Writing to %s', vectors_path)
     with open(vectors_path, 'wb') as outfile:
         for row_num, group in groupby(things, lambda x: x[0]):
@@ -45,21 +46,23 @@ def write_vectors_to_disk(matrix, row_index, column_index, features_path, entrie
                     '\t'.join(map(str, chain.from_iterable(ngrams_and_counts)))
                 ))
                 new_byblo_entries[entry] = sum(x[1] for x in ngrams_and_counts)
-            if row_num % 100 == 0:
+            if row_num % 1000 == 0:
                 logging.info('Processed %d vectors', row_num)
 
-    logging.info('Writing to %s', entries_path)
-    with open(entries_path, 'w') as outfile:
-        for entry, count in new_byblo_entries.iteritems():
-            outfile.write('%s\t%f\n' % (entry.tokens_as_str(), count))
+    if entries_path:
+        logging.info('Writing to %s', entries_path)
+        with open(entries_path, 'w') as outfile:
+            for entry, count in new_byblo_entries.iteritems():
+                outfile.write('%s\t%f\n' % (entry.tokens_as_str(), count))
 
-    logging.info('Writing to %s', features_path)
-    with open(features_path, 'w') as outfile:
-        if selected_rows: # guard against empty files
-            feature_sums = np.array(matrix.tocsr()[selected_rows].sum(axis=0))[0, :]
-            for feature, count in zip(column_index, feature_sums):
-                if count > 0:
-                    outfile.write('%s\t%f\n' % (feature, count))
+    if features_path:
+        logging.info('Writing to %s', features_path)
+        with open(features_path, 'w') as outfile:
+            if selected_rows: # guard against empty files
+                feature_sums = np.array(matrix.tocsr()[selected_rows].sum(axis=0))[0, :]
+                for feature, count in zip(column_index, feature_sums):
+                    if count > 0:
+                        outfile.write('%s\t%f\n' % (feature, count))
 
 
 def reformat_entries(filename, suffix, function, separator='\t'):

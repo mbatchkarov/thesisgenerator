@@ -17,11 +17,11 @@ from thesisgenerator.plugins.bov import ThesaurusVectorizer
 from thesisgenerator.utils.data_utils import load_tokenizer, tokenize_data, load_text_data_into_memory
 
 
-def _loop_body(composer_class, output_dir, pipeline, pretrained_Baroni_composer_files, short_vector_dataset_name,
+def _loop_body(composer_class, output_dir, pipeline, pretrained_Baroni_composer_file, short_vector_dataset_name,
                unigram_source, x_ev, x_tr, y_ev, y_tr):
     # whatever files we need to (entries index, as composition creates new entries)
     if composer_class == BaroniComposer:
-        composers = [BaroniComposer(unigram_source, path) for path in pretrained_Baroni_composer_files]
+        composers = [BaroniComposer(unigram_source, pretrained_Baroni_composer_file)]
     else:
         composers = [composer_class(unigram_source)]
     vector_source = CompositeVectorSource(composers, sim_threshold=0, include_self=False)
@@ -41,18 +41,17 @@ def _loop_body(composer_class, output_dir, pipeline, pretrained_Baroni_composer_
 
 
 def compose_and_write_vectors(unigram_vector_paths, short_vector_dataset_name, classification_data_paths,
-                              pretrained_Baroni_composer_files,
+                              pretrained_Baroni_composer_file,
                               output_dir='.', composer_classes='bar'):
     """
-    Extracts all composable features from a labelled classification corpus and dumps a vector for each of them
+    Extracts all composable features from a labelled classification corpus and dumps a composed vector for each of them
     to disk
     :param unigram_vector_paths: a list of files in Byblo events format that contain vectors for all unigrams. This
     will be used in the composition process
-    :param classification_data_paths:
-    :param pretrained_Baroni_composer_files: path to pre-trained Baroni AN composer file
-    :type pretrained_Baroni_composer_files: list
+    :param classification_data_paths: Corpora to extract features from. Type: [ [train1, test1], [train2, test2] ]
+    :param pretrained_Baroni_composer_file: path to pre-trained Baroni AN/NN composer file
     :param output_dir:
-    :param composer_classes:
+    :param composer_classes: what composers to use
     :return:
     :rtype: list of strings
     """
@@ -85,19 +84,14 @@ def compose_and_write_vectors(unigram_vector_paths, short_vector_dataset_name, c
 
     x_tr, y_tr, x_ev, y_ev = tokenized_data
     unigram_source = UnigramVectorSource(unigram_vector_paths, reduce_dimensionality=False)
-    Parallel(n_jobs=7)(delayed(_loop_body)(composer_class,
+    Parallel(n_jobs=8)(delayed(_loop_body)(composer_class,
                                            output_dir,
                                            pipeline,
-                                           pretrained_Baroni_composer_files,
+                                           pretrained_Baroni_composer_file,
                                            short_vector_dataset_name,
                                            unigram_source,
                                            x_ev, x_tr,
                                            y_ev, y_tr) for composer_class in composer_classes)
-
-    #for composer_class in composer_classes:
-    #    _loop_body(composer_class, output_dir, p, pretrained_Baroni_composer_files,
-    #               short_vector_dataset_name, unigram_source, x_ev, x_tr, y_ev, y_tr)
-
 
 giga_paths = [
     '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/exp6-12a/exp6.events.filtered.strings',
@@ -126,31 +120,4 @@ classification_data_path_mr = (
     '/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data/movie-reviews-train-tagged',
     '/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data/movie-reviews-test-tagged')
 
-if __name__ == '__main__':
-    """
-    Call with any command-line parameters to enable debug mode
-    """
-
-
-    #composers = [AdditiveComposer, MultiplicativeComposer]
-    #vector_paths = [giga_paths, wiki_paths]
-    #vector_paths = [toy_paths]
-    vector_paths = [giga_paths]
-    trained_baroni_model = '/Volumes/LocalDataHD/mmb28/NetBeansProjects/FeatureExtractionToolkit/phrases/julie.ANs.clean.AN-model.model.pkl'
-
-    debug = len(sys.argv) > 1
-    if debug:
-        #giga_paths.pop(0)
-        #giga_paths.pop(0)
-        #wiki_paths.pop(-1)
-        #wiki_paths.pop(-1)
-        n_jobs = 1
-        #data_path = ['%s-small' % corpus_path for corpus_path in data_path]
-
-    output_files = Parallel(n_jobs=n_jobs)(
-        delayed(compose_and_write_vectors)(vectors_path, classification_data_path, trained_baroni_model,
-                                           log_to_console=debug)
-        for vectors_path in vector_paths)
-    for vectors, entries, features in output_files:
-        print vectors, entries, features
 

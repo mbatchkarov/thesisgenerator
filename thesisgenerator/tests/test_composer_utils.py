@@ -52,7 +52,7 @@ def test_write_vectors_to_disk(resources, tmpdir):
     matrix, cols, rows = th.to_sparse_matrix()
     rows = [DocumentFeature.from_string(x) for x in rows]
     write_vectors_to_disk(sp.coo_matrix(matrix), rows, cols,
-                          features_file, entries_file, events_file,
+                          events_file, features_file, entries_file,
                           entry_filter=filter_callable)
 
     entries = [x.split('\t')[0] for x in _read_and_strip_lines(entries_file)]

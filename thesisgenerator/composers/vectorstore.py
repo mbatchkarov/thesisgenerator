@@ -305,6 +305,13 @@ class BaroniComposer(Composer):
         # ignore ANs containing unknown adjectives
         return str(modifier) in self.available_modifiers
 
+    def __str__(self):
+        return '[BaroniComposer with %d modifiers and %d heads]' % \
+               (len(self.available_modifiers), len(self.unigram_source))
+
+    def __repr__(self):
+        return str(self)
+
     def _get_vector(self, feature):
         #todo test properly
         """
@@ -398,7 +405,7 @@ class CompositeVectorSource(VectorSource):
         m = self.feature_matrix
         entry_index = self.entry_index
 
-        utils.write_vectors_to_disk(m, entry_index, voc, features_path, new_entries_path, vectors_path,
+        utils.write_vectors_to_disk(m, entry_index, voc, vectors_path, features_path, new_entries_path,
                                     entry_filter=lambda x: x.type in feature_types)
         logging.info('Done writing to disk')
 
