@@ -5,7 +5,7 @@ import sys
 sys.path.append('.')
 sys.path.append('..')
 sys.path.append('../..')
-import re
+from dissect_scripts.load_translated_byblo_space import train_baroni_composer
 from glob import glob
 import shutil
 from thesisgenerator.plugins.thesaurus_loader import Thesaurus
@@ -198,100 +198,85 @@ def build_only_AN_NN_thesauri_without_baroni(exp):
                                               vectors_file, entries_file, features_file)
 
 
-def build_full_composed_thesauri_with_baroni_and_svd():
-    global byblo_base_dir, thesaurus_dirs, ngram_vectors_dir, composer_algos, dir, files_to_reduce, x, reduced_prefixes, baroni_training_phrase_types, reduce_to, counts, prefix, dims, pref, all_vectors, svd_settings, thes, trained_composers, event_files, source, c, name, vectors_file, entries_file, features_file, suffix, thesaurus, entry
+def build_full_composed_thesauri_with_baroni_and_svd(exp):
     # SET UP A FEW REQUIRED PATHS
-    logging.basicConfig(level=logging.INFO,
-                        format="%(asctime)s\t%(module)s.%(funcName)s ""(line %(lineno)d)\t%(levelname)s : %(""message)s")
+
     byblo_base_dir = '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/Byblo-2.2.0/' # trailing slash required
-    #thesaurus_dirs = [
-    #    os.path.abspath(os.path.join(byblo_base_dir, '..', 'exp6-12%s' % x)) for x in 'abcd'
-    #]
-    thesaurus_dirs = [
-        os.path.abspath(os.path.join(byblo_base_dir, '..', 'exp10-12b'))
-    ]
-    ngram_vectors_dir = os.path.join(byblo_base_dir, '..', 'exp10-12-ngrams-MR')
+    thesaurus_dir = os.path.abspath(os.path.join(byblo_base_dir, '..', 'exp%d-12b' % exp))
+    baroni_training_phrases = os.path.join(byblo_base_dir, '..', 'observed_vectors', 'exp10_AN_NNvectors')
+    ngram_vectors_dir = os.path.join(byblo_base_dir, '..', 'exp%d-12-composed-ngrams-MR-R2' % exp) # output 1
     composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
                       RightmostWordComposer, MinComposer, MaxComposer] # todo add ['observed'] here
+
+    dataset_name = 'gigaw' if exp == 10 else 'wiki' # todo short name of input
+    baroni_training_phrase_types = ['AN', 'NN']
+    target_dimensionality = [30, 60]
+
     # EXTRACT UNIGRAM VECTORS WITH BYBLO
     if not os.path.exists(ngram_vectors_dir):
         os.mkdir(ngram_vectors_dir)
     os.chdir(byblo_base_dir)
-    # for thesaurus_dir in thesaurus_dirs:
-    #     calculate_unigram_vectors(thesaurus_dir)
-    # REDUCE DIMENSIONALITY
-    files_to_reduce = [_find_events_file(dir) for dir in thesaurus_dirs]
-    # output write everything to the same directory
-    # ...exp6-12/exp6.events.filtered.strings --> ...exp6-12/exp6
-    reduced_prefixes = ['.'.join(x.split('.')[:-3]) + '-with-obs-phrases' for x in files_to_reduce]
-    # obtain training data for composer, that also needs to be reduced
-    baroni_training_phrase_types = ['AN', 'NN']
-    #baroni_training_phrases = [os.path.abspath(os.path.join(byblo_base_dir, '..', 'phrases',
-    #                                                        'julie.{}s.vectors'.format(x)))
-    #                           for x in baroni_training_phrase_types]
-    # convert from Julie's format to mine
-    # convert to dissect format (underscore-separated ANs) for composer training
-    #baroni_training_phrases.append(reformat_entries(baroni_training_phrases[0], 'clean',
-    #                                                function=lambda x: julie_transform(x, separator='_')))
-    #baroni_training_phrases.append(reformat_entries(baroni_training_phrases[1], 'clean',
-    #                                                function=lambda x: julie_transform2(x, separator='_', pos1='N')))
-    # add in observed AN/NN vectors for SVD processing
-    #files_to_reduce.extend(baroni_training_phrases)
-    if False:        # DO NOT DO ANY SVD FOR NOW
-        reduce_to = [300, 500]
-        counts = [('N', 8000), ('V', 4000), ('J', 4000), ('RB', 200), ('AN', 20000), ('NN', 20000)]
-        do_svd(files_to_reduce, reduced_prefixes, desired_counts_per_feature_type=counts, reduce_to=reduce_to)
+    # calculate_unigram_vectors(thesaurus_dir)
 
-        reduced_prefixes = ['%s-SVD%d' % (prefix, dims) for prefix in reduced_prefixes for dims in reduce_to]
-    else:
-        # look at the original file paths
-        reduced_prefixes = ['.'.join(x.split('.')[:-3]) for x in files_to_reduce]
+
+    # REDUCE DIMENSIONALITY
+
+    # add in observed AN/NN vectors for SVD processing
+    unreduced_events_files = [_find_events_file(thesaurus_dir)]
+    # ...exp6-12/exp6.events.filtered.strings --> ...exp6-12/exp6
+    reduced_prefixes = ['.'.join(x.split('.')[:-3]) + '-with-obs-phrases' for x in unreduced_events_files]
+    reduced_prefixes.extend([baroni_training_phrases])
+
+    counts = [('N', 8000), ('V', 4000), ('J', 4000), ('RB', 200), ('AN', 20000), ('NN', 20000)]
+    x = do_svd(unreduced_events_files, reduced_prefixes,
+               desired_counts_per_feature_type=counts, reduce_to=target_dimensionality)
+    sys.exit(0)
+    # reconstruct the name that would have been output by the call above
+    training_data = []
+    for dims in target_dimensionality:
+        files = ['%s-SVD%d.events.filtered.strings' % (prefix, dims) for prefix in reduced_prefixes]
+        files.insert(0, dims)
+        training_data.append(files)
 
     # TRAIN BARONI COMPOSER
     # train on each SVD-reduced file, not the original one
-    for pref in reduced_prefixes:
-        # find file and its svd dimensionality from prefix
-        all_vectors = pref + '.events.filtered.strings'
-        try:
-            svd_settings = re.search(r'.*(SVD[0-9]+).*', pref).group(1)
-        except AttributeError:
-            # 'NoneType' object has no attribute 'group'
-            svd_settings = ''
-            # load it and extract just the nouns/ ANs to train Baroni composer on
-        thes = Thesaurus.from_tsv([all_vectors], aggressive_lowercasing=False)
+    for svd_dims, reduced_unigram_vectors, reduced_observed_vectors in training_data:
+        all_vectors = [reduced_unigram_vectors, reduced_observed_vectors]
+        thes = Thesaurus.from_tsv(all_vectors, aggressive_lowercasing=False)
 
         trained_composers = []
-        #for training_phrases, phrase_type in zip(baroni_training_phrases, baroni_training_phrase_types):
-        #    baroni_training_heads = training_phrases.replace(phrase_type, 'onlyN-%s' % svd_settings)
-        #    thes.to_file(baroni_training_heads,
-        #                 entry_filter=lambda x: x.type == '1-GRAM' and x.tokens[0].pos == 'N')
-        #
-        #    baroni_training_only_phrases = training_phrases.replace(phrase_type,
-        #                                                            'only%s-%s' % (phrase_type, svd_settings))
-        #    thes.to_file(baroni_training_only_phrases,
-        #                 entry_filter=lambda x: x.type == phrase_type,
-        #                 row_transform=lambda x: x.replace(' ', '_'))
-        #
-        #    baroni_trained_model_output_prefix = training_phrases.replace('vectors',
-        #                                                                  '%s-model-%s' % ( phrase_type, svd_settings))
-        #    trained_composer_path = baroni_trained_model_output_prefix + '.model.pkl'
-        #    trained_composer_path = train_baroni_composer(baroni_training_heads,
-        #                                                  baroni_training_only_phrases,
-        #                                                  baroni_trained_model_output_prefix)
-        #    trained_composers.append(trained_composer_path)
+        for training_phrases, phrase_type in zip(baroni_training_phrases, baroni_training_phrase_types):
+            baroni_training_heads = training_phrases.replace(phrase_type, 'onlyN-%s' % svd_dims)
+            thes.to_file(baroni_training_heads,
+                         entry_filter=lambda x: x.type == '1-GRAM' and x.tokens[0].pos == 'N')
+
+            baroni_training_only_phrases = training_phrases.replace(phrase_type,
+                                                                    'only%s-%s' % (phrase_type, svd_dims))
+            thes.to_file(baroni_training_only_phrases,
+                         entry_filter=lambda x: x.type == phrase_type,
+                         row_transform=lambda x: x.replace(' ', '_'))
+
+            baroni_trained_model_output_prefix = training_phrases.replace('vectors',
+                                                                          '%s-model-%s' % ( phrase_type, svd_dims))
+            trained_composer_path = baroni_trained_model_output_prefix + '.model.pkl'
+            trained_composer_path = train_baroni_composer(baroni_training_heads,
+                                                          baroni_training_only_phrases,
+                                                          baroni_trained_model_output_prefix)
+            trained_composers.append(trained_composer_path)
 
         # mess with vectors, add to/modify entries and events files
         # whether to modify the features file is less obvious- do composed entries have different features
         # to the non-composed ones?
-        event_files = [_find_events_file(dir) for dir in thesaurus_dirs]
-
-        dump.compose_and_write_vectors([all_vectors],
-                                       'wiki-%s' % svd_settings if svd_settings else 'wiki',
+        event_files = [_find_events_file(dir) for dir in thesaurus_dir]
+        dump.compose_and_write_vectors([reduced_unigram_vectors],
+                                       '%s-%s' % (dataset_name, svd_dims) if svd_dims else dataset_name,
                                        dump.classification_data_path_mr,
                                        trained_composers,
                                        output_dir=ngram_vectors_dir,
                                        composer_classes=composer_algos)
-    source = thesaurus_dirs[0]
+    sys.exit(0)
+
+    source = thesaurus_dir[0]
     print source
     # do_second_part2(source) #original unigram-only thesaurus
     for c in composer_algos:
@@ -303,19 +288,19 @@ def build_full_composed_thesauri_with_baroni_and_svd():
         suffix = os.path.basename(vectors_file).split('.')[0]
         do_second_part(source, vectors_file, entries_file, features_file, copy_to_dir=source + suffix)
     sys.exit(0) #ENOUGH FOR NOW
-    do_second_part(thesaurus_dirs[0], add_feature_type=['AN', 'NN']) #'VO', 'SVO' # all vectors in same thesaurus
-    do_second_part(thesaurus_dirs[0]) # plain old thesaurus without ngrams
+    do_second_part(thesaurus_dir[0], add_feature_type=['AN', 'NN']) #'VO', 'SVO' # all vectors in same thesaurus
+    do_second_part(thesaurus_dir[0]) # plain old thesaurus without ngrams
     ### add AN phrases to noun thesaurus, SVO to verb thesaurus, and rebuild
-    #do_second_part(thesaurus_dirs[0], add_feature_type=['AN']) # nouns with ngrams
-    #do_second_part(thesaurus_dirs[0]) # nouns
-    #do_second_part(thesaurus_dirs[1]) # verbs
-    #do_second_part(thesaurus_dirs[1], add_feature_type=['SVO']) # verbs with ngrams
-    ##do_second_part('VO', thesaurus_dirs[1])
-    #do_second_part(thesaurus_dirs[2]) # adjectives
-    #do_second_part(thesaurus_dirs[3]) # adverbs
+    #do_second_part(thesaurus_dir[0], add_feature_type=['AN']) # nouns with ngrams
+    #do_second_part(thesaurus_dir[0]) # nouns
+    #do_second_part(thesaurus_dir[1]) # verbs
+    #do_second_part(thesaurus_dir[1], add_feature_type=['SVO']) # verbs with ngrams
+    ##do_second_part('VO', thesaurus_dir[1])
+    #do_second_part(thesaurus_dir[2]) # adjectives
+    #do_second_part(thesaurus_dir[3]) # adverbs
     for thesaurus in [
-        Thesaurus([_find_allpairs_file(thesaurus_dirs[0])]),
-        Thesaurus([_find_allpairs_file(thesaurus_dirs[0] + '-with-ngrams')])]:
+        Thesaurus([_find_allpairs_file(thesaurus_dir[0])]),
+        Thesaurus([_find_allpairs_file(thesaurus_dir[0] + '-with-ngrams')])]:
 
         for entry in ['thursday/N', 'expand/V force/N', 'military/J force/N',
                       'center/N sign/V agreement/N', 'think/V']:
@@ -326,5 +311,8 @@ def build_full_composed_thesauri_with_baroni_and_svd():
 if __name__ == '__main__':
     import sys
 
-    build_only_AN_NN_thesauri_without_baroni(int(sys.argv[1]))
-    # build_full_composed_thesauri_with_baroni_and_svd()
+    logging.basicConfig(level=logging.INFO,
+                        format="%(asctime)s\t%(module)s.%(funcName)s ""(line %(lineno)d)\t%(levelname)s : %(""message)s")
+
+    # build_only_AN_NN_thesauri_without_baroni(int(sys.argv[1]))
+    build_full_composed_thesauri_with_baroni_and_svd(int(sys.argv[1]))

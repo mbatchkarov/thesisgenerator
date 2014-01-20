@@ -61,7 +61,13 @@ class VectorBackedSelectKBest(SelectKBest):
 
     def transform(self, X):
         # Vectorizer also returns its vocabulary, remove it
-        return super(VectorBackedSelectKBest, self).transform(X[0]), self.vocabulary_
+        if self.vocabulary_:
+            return super(VectorBackedSelectKBest, self).transform(X[0]), self.vocabulary_
+        else:
+            # Sometimes the training set contain no features. We don't want this to break the experiment,
+            # so let is slide
+            logging.error('Empty vocabulary')
+            return X[0], self.vocabulary_
 
     def _zero_score_of_oot_features(self):
         logging.info('Zeroing scores of document features without a distributional vector')

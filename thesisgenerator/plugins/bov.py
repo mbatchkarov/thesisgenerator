@@ -2,6 +2,7 @@
 from collections import defaultdict
 import logging
 import array
+import numbers
 import shelve
 import scipy.sparse as sp
 import numpy as np
@@ -118,7 +119,40 @@ class ThesaurusVectorizer(TfidfVectorizer):
                                          self.vector_source)
         self.stats = get_stats_recorder(self.record_stats)
         # a different stats recorder will be used for the testing data
-        res = super(ThesaurusVectorizer, self).fit_transform(raw_documents, y)
+
+        # BEGIN super.fit_transform
+        # this is a modified version of super.fit_transform which works with an empty vocabulary
+        max_df = self.max_df
+        min_df = self.min_df
+        max_features = self.max_features
+
+        vocabulary, X = self._count_vocab(raw_documents, self.fixed_vocabulary)
+        X = X.tocsc()
+
+        if self.binary:
+            X.data.fill(1)
+
+        if not self.fixed_vocabulary:
+            if vocabulary:
+                X = self._sort_features(X, vocabulary)
+
+                n_doc = X.shape[0]
+                max_doc_count = (max_df
+                                 if isinstance(max_df, numbers.Integral)
+                                 else int(round(max_df * n_doc)))
+                min_doc_count = (min_df
+                                 if isinstance(min_df, numbers.Integral)
+                                 else int(round(min_df * n_doc)))
+                if max_doc_count < min_doc_count:
+                    raise ValueError(
+                        "max_df corresponds to < documents than min_df")
+                X, self.stop_words_ = self._limit_features(X, vocabulary,
+                                                           max_doc_count,
+                                                           min_doc_count,
+                                                           max_features)
+
+            self.vocabulary_ = vocabulary
+            # END super.fit_transform
 
         # once training is done, convert all document features (unigrams and composable ngrams)
         # to a ditributional feature vector
@@ -127,7 +161,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
         # restore the vector source for decoding
         if restore:
             self.vector_source = original_vector_source
-        return res, self.vocabulary_
+        return X, self.vocabulary_
 
     def transform(self, raw_documents):
         # record stats separately for the test set
@@ -151,14 +185,20 @@ class ThesaurusVectorizer(TfidfVectorizer):
         #if self.vector_source:
         #    logging.info('Populating vector source %s prior to transform', self.vector_source)
         #    self.vector_source.populate_vector_space(self.vocabulary_.keys())
-        res = super(ThesaurusVectorizer, self).transform(raw_documents), self.vocabulary_
+
+        #  BEGIN a modified version of super.transform that works when vocabulary is empty
+        _, X = self._count_vocab(raw_documents, fixed_vocab=True)
+        if self.binary:
+            X.data.fill(1)
+            # END super.transform
+
         try:
             #  try and close the shelf
             d.close()
         except Exception:
             #  may not be a shelf after all
             pass
-        return res
+        return X, self.vocabulary_
 
     def _remove_features_containing_named_entities(self, features):
         return [f for f in features if not any(token.ner in self.entity_ner_tags for token in f.tokens)]
@@ -340,8 +380,9 @@ class ThesaurusVectorizer(TfidfVectorizer):
             # disable defaultdict behaviour
             vocabulary = dict(vocabulary)
             if not vocabulary:
-                raise ValueError("empty vocabulary; perhaps the documents only"
-                                 " contain stop words")
+                logging.error('Empty vocabulary')
+                # raise ValueError("empty vocabulary; perhaps the documents only"
+                #                  " contain stop words")
 
         # some Python/Scipy versions won't accept an array.array:
         if j_indices:

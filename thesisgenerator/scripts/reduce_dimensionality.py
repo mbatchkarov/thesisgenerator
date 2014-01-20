@@ -1,12 +1,13 @@
-import logging
 import sys
-from sklearn.decomposition import TruncatedSVD
-from thesisgenerator.plugins.tokens import DocumentFeature
 
 sys.path.append('.')
 sys.path.append('..')
 sys.path.append('../..')
 
+import logging
+from operator import itemgetter
+from sklearn.decomposition import TruncatedSVD
+from thesisgenerator.plugins.tokens import DocumentFeature
 from thesisgenerator.plugins.thesaurus_loader import Thesaurus
 import numpy, scipy, time
 from thesisgenerator.scripts import dump_all_composed_vectors as dump
@@ -33,7 +34,7 @@ def _filter_out_infrequent_entries(desired_counts_per_feature_type, thesaurus):
     # find the rows of the matrix that correspond to the most frequent nouns, verbs, ...,
     # as measured by sum of feature counts. This is Byblo's definition of frequency (which is in fact a marginal),
     # but it is strongly correlated with one normally thinks of as entry frequency
-    pos_to_rows = {}
+    desired_rows = []
     for desired_pos, desired_count in desired_counts_per_feature_type:
         row_of_current_pos = pos_tags == desired_pos # what rows are the right PoS tags at, boolean mask array
         # indices of the array sorted by row sum, and where the pos == desired_pos
@@ -42,21 +43,21 @@ def _filter_out_infrequent_entries(desired_counts_per_feature_type, thesaurus):
             row_of_current_pos = row_of_current_pos[sorted_idx_by_sum]
             sorted_idx_and_pos_matching = sorted_idx_by_sum[row_of_current_pos]
             # slice off the top desired_count and store them
-            pos_to_rows[desired_pos] = sorted_idx_and_pos_matching[-desired_count:]
+            desired_rows.extend(list(sorted_idx_and_pos_matching[-desired_count:]))
         else:
             #do not include
             pass
 
         logging.info('Frequency filter keeping %d/%d %s entries ', desired_count,
                      sum(row_of_current_pos), desired_pos)
-    desired_rows = np.sort(np.hstack(x for x in pos_to_rows.values()))
+    desired_rows = sorted(desired_rows)
     # check that the pos tag of each selected entry is what we think it is
-    for k, v in pos_to_rows.iteritems():
-        assert all(k == x for x in pos_tags[v])
+    # for k, v in pos_to_rows.iteritems():
+    #     assert all(k == x for x in pos_tags[v])
 
     # remove the vectors for infrequent entries, update list of pos tags too
     mat = mat[desired_rows, :]
-    rows = np.array(document_features, dtype=object)[desired_rows]
+    rows = itemgetter(*desired_rows)(document_features)
     pos_tags = pos_tags[desired_rows]
     # removing rows may empty some columns, remove these as well. This is probably not very like to occur as we have
     # already filtered out infrequent features, so the column count will stay roughly the same
@@ -155,7 +156,7 @@ def do_svd(input_paths, output_prefixes,
 
         write_to = ['{}-SVD{}'.format(path, n_components) for path in output_prefixes]
         x = _write_to_disk(reduced_mat, method, write_to, pos_per_output_dir, pos_tags, rows)
-        output_prefixes_with_dims.extend(x)
+        output_prefixes_with_dims.extend((n_components, x))
 
     return output_prefixes_with_dims
 
