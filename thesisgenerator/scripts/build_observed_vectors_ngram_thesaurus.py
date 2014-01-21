@@ -42,11 +42,12 @@ def do_work(id):
     logging.basicConfig(level=logging.INFO,
                         format="%(asctime)s\t%(module)s.%(funcName)s ""(line %(lineno)d)\t%(levelname)s : %(""message)s")
 
-    # where are the observed n-gram vectors in tsv format
+    # where are the observed n-gram vectors in tsv format, must be underscore-separated already
     observed_ngram_vectors_file = '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/' \
                                   'observed_vectors/exp%d_AN_NNvectors-cleaned' % id
+    name = 'wiki' if id == 11 else 'gigaw'
     # where should the output go
-    outdir = '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/exp%d-12bAN_NN_gigaw_Observed' % id
+    outdir = '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/exp%d-12bAN_NN_%s_Observed' % (id, name)
     # where's the byblo conf file
     unigram_thesaurus_dir = '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/Byblo-2.2.0/../exp%d-12b' % id
     # where's the byblo executable
@@ -57,9 +58,9 @@ def do_work(id):
     # CREATE BYBLO EVENTS/FEATURES/ENTRIES FILE FROM INPUT
     #  where should these be written
     observed_vector_dir = os.path.dirname(observed_ngram_vectors_file)
-    vectors_file = os.path.join(observed_vector_dir, 'exp10.events.filtered.strings')
-    entries_file = os.path.join(observed_vector_dir, 'exp10.entries.filtered.strings')
-    features_file = os.path.join(observed_vector_dir, 'exp10.features.filtered.strings')
+    vectors_file = os.path.join(observed_vector_dir, 'exp%d.events.filtered.strings') % id
+    entries_file = os.path.join(observed_vector_dir, 'exp%d.entries.filtered.strings') % id
+    features_file = os.path.join(observed_vector_dir, 'exp%d.features.filtered.strings') % id
 
     # do the actual writing
     th = Thesaurus.from_tsv([observed_ngram_vectors_file], aggressive_lowercasing=False)
