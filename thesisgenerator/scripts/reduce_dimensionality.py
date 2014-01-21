@@ -135,7 +135,7 @@ def do_svd(input_paths, output_prefix,
             continue
 
         path = '{}-SVD{}'.format(output_prefix, n_components)
-        _write_to_disk(reduced_mat, method, path, rows)
+        _write_to_disk(scipy.sparse.coo_matrix(reduced_mat), method, path, rows)
 
 
 if __name__ == '__main__':

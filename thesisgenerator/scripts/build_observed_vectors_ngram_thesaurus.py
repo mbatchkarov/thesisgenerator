@@ -17,40 +17,42 @@ Build a thesaurus of ngrams using observed vectors for the engrams
 '''
 
 
-def do_work():
+def clean(entry):
+    #  CONVERT THE FILE FROM JULIE'S FORMAT TO MINE
+    import re
+
+    pattern = re.compile('(.*):(.*):(.*)')
+    a, relation, b = pattern.match(entry).groups()
+    if relation == 'amod-HEAD':
+        return '{}_{}'.format(a, b)
+    elif relation == 'amod-DEP':
+        return '{}_{}'.format(b, a)
+    elif relation == 'nn-HEAD':
+        return '{}_{}'.format(a, b)
+    elif relation == 'nn-DEP':
+        return '{}_{}'.format(b, a)
+    else:
+        raise ValueError('Can not convert entry %s' % entry)
+
+# observed_ngram_vectors_file = reformat_entries(observed_ngram_vectors_file, '-cleaned', clean)
+
+
+def do_work(id):
     # SET UP A FEW REQUIRED PATHS
     logging.basicConfig(level=logging.INFO,
                         format="%(asctime)s\t%(module)s.%(funcName)s ""(line %(lineno)d)\t%(levelname)s : %(""message)s")
 
     # where are the observed n-gram vectors in tsv format
-    observed_ngram_vectors_file = '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/Byblo-2.2.0/../' \
-                                  'exp10-12-ngrams-observed/exp10_AN_NNvectors' #cleaned.exp10_AN_NNvectors
+    observed_ngram_vectors_file = '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/' \
+                                  'observed_vectors/exp%d_AN_NNvectors-cleaned' % id
     # where should the output go
-    outdir = '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/exp10-12bAN_NN_gigaw_Observed'
+    outdir = '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/exp%d-12bAN_NN_gigaw_Observed' % id
     # where's the byblo conf file
-    unigram_thesaurus_dir = '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/Byblo-2.2.0/../exp10-12b'
+    unigram_thesaurus_dir = '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/Byblo-2.2.0/../exp%d-12b' % id
     # where's the byblo executable
     byblo_base_dir = '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/Byblo-2.2.0/'
 
-    #  CONVERT THE FILE FROM JULIE'S FORMAT TO MINE
-    import re
 
-    pattern = re.compile('(.*):(.*):(.*)')
-
-    def clean(entry):
-        a, relation, b = pattern.match(entry).groups()
-        if relation == 'amod-HEAD':
-            return '{}_{}'.format(a, b)
-        elif relation == 'amod-DEP':
-            return '{}_{}'.format(b, a)
-        elif relation == 'nn-HEAD':
-            return '{}_{}'.format(a, b)
-        elif relation == 'nn-DEP':
-            return '{}_{}'.format(b, a)
-        else:
-            raise ValueError('Can convert entry %s' % entry)
-
-    observed_ngram_vectors_file = reformat_entries(observed_ngram_vectors_file, '-cleaned', clean)
 
     # CREATE BYBLO EVENTS/FEATURES/ENTRIES FILE FROM INPUT
     #  where should these be written
@@ -72,4 +74,4 @@ def do_work():
 
 
 if __name__ == '__main__':
-    do_work()
+    do_work(int(sys.argv[1]))

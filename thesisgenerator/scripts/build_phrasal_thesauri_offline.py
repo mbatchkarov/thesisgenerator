@@ -233,7 +233,7 @@ def build_full_composed_thesauri_with_baroni_and_svd(exp):
     # ...exp6-12/exp6.events.filtered.strings --> ...exp6-12/exp6
     reduced_file_prefix = '.'.join(unreduced_events_file.split('.')[:-3]) + '-with-obs-phrases'
     # only keep the most frequent types per PoS tag to speed things up
-    counts = [('N', 8000), ('V', 4000), ('J', 4000), ('RB', 200), ('AN', 20000), ('NN', 20000)]
+    counts = [('N', 28000), ('V', 0), ('J', 0), ('RB', 00), ('AN', 200000), ('NN', 200000)]
     do_svd([unreduced_events_file, baroni_training_phrases], reduced_file_prefix,
            desired_counts_per_feature_type=counts, reduce_to=target_dimensionality)
 
@@ -261,7 +261,8 @@ def build_full_composed_thesauri_with_baroni_and_svd(exp):
 
         train_baroni_composer(baroni_training_heads,
                               baroni_training_only_phrases,
-                              trained_composer_prefix)
+                              trained_composer_prefix,
+                              threshold=50)
 
         # mess with vectors, add to/modify entries and events files
         # whether to modify the features file is less obvious- do composed entries have different features
