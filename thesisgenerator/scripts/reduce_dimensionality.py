@@ -94,8 +94,10 @@ def _write_to_disk(reduced_mat, method, prefix, rows):
                           ['SVD:feat{0:05d}'.format(i) for i in range(reduced_mat.shape[1])],
                           events_file, features_file, entries_file)
 
-    with open(model_file, 'w') as outfile:
-        pickle.dump(method, outfile)
+    # disabled because it causes a crash with large objects
+    # see http://bugs.python.org/issue11564
+    #with open(model_file, 'w') as outfile:
+    #    pickle.dump(method, outfile)
 
 
 def do_svd(input_paths, output_prefix,
@@ -147,4 +149,4 @@ if __name__ == '__main__':
     do_svd(in_paths, out_prefixes,
            desired_counts_per_feature_type=[('N', 8000), ('V', 4000), ('J', 4000), ('RB', 200), ('AN', 20000),
                                             ('NN', 20000)],
-           reduce_to=[300, 1000, 5000])
+           reduce_to=[30, 300, 1000])

@@ -131,7 +131,8 @@ def do_second_part_without_base_thesaurus(byblo_conf_file, output_dir, vectors_f
     final_conf_file = os.path.join(output_dir, os.path.basename(byblo_conf_file))
     shutil.copy(byblo_conf_file, output_dir)
     # restore indices from strings
-    thes_prefix = _find_output_prefix(output_dir)
+
+    thes_prefix = os.path.commonprefix(glob(os.path.join(output_dir, '*strings')))[:-1]
     reindex_all_byblo_vectors(thes_prefix)
 
     # re-run all-pairs similarity
@@ -209,13 +210,13 @@ def build_full_composed_thesauri_with_baroni_and_svd(exp):
     #  INPUT 1:  DIRECTORY. Must contain a single conf file
     unigram_thesaurus_dir = os.path.abspath(os.path.join(byblo_base_dir, '..', 'exp%d-12b' % exp))
     #  INPUT 2: A FILE, TSV, underscore-separated observed vectors for ANs and NNs
-    baroni_training_phrases = os.path.join(byblo_base_dir, '..', 'observed_vectors', 'exp10_AN_NNvectors')
+    baroni_training_phrases = os.path.join(byblo_base_dir, '..', 'observed_vectors', 'exp10_AN_NNvectors-cleaned')
 
     ngram_vectors_dir = os.path.join(byblo_base_dir, '..', 'exp%d-12-composed-ngrams-MR-R2' % exp) # output 1
     composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
                       RightmostWordComposer, MinComposer, MaxComposer, BaroniComposer]
 
-    target_dimensionality = [30, 60]
+    target_dimensionality = [30, 300, 1000]
     dataset_name = 'gigaw' if exp == 10 else 'wiki' # short name of input corpus
     baroni_training_phrase_types = {'AN', 'NN'} # what kind of NPs to train Baroni composer for
 
