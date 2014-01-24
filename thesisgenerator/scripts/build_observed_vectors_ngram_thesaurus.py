@@ -81,7 +81,7 @@ def do_work(id, svd_dims):
 
     logging.info(vectors_file)
     logging.info(entries_file)
-    sys.exit(0)
+
     # BUILD A THESAURUS FROM THESE FILES
     os.chdir(byblo_base_dir)
     do_second_part_without_base_thesaurus(_find_conf_file(unigram_thesaurus_dir), outdir,
@@ -91,4 +91,3 @@ def do_work(id, svd_dims):
 if __name__ == '__main__':
     for dims in [30, 300, 1000]: # add -1 to do thesauri without SVD preprocessing of vectors
         do_work(int(sys.argv[1]), dims)
-        break
