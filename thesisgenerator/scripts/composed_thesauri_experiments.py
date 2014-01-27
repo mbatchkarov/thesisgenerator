@@ -24,12 +24,13 @@ composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer
 # get the names of all GIGAW unreduced thesauri
 pattern = '{1}/exp10-12bAN_NN_gigaw_{0}/AN_NN_gigaw_{0}.sims.neighbours.strings'
 gigaw_unreduced_thesauri = [pattern.format(c.name, prefix) for c in composer_algos]
-gigaw_unreduced_thesauri.append(pattern.format('Observed', prefix))
+# the names of the unreduced observed thesauri aren't consistent with all other names, handle separately
+gigaw_unreduced_thesauri.append('{1}/exp10-12bAN_NN_gigaw_{0}/exp10.sims.neighbours.strings'.format('Observed', prefix))
 
 # get the names of all WIKI unreduced thesauri
 pattern = '{1}/exp11-12bAN_NN_wiki_{0}/AN_NN_wiki_{0}.sims.neighbours.strings'
 wiki_unreduced_thesauri = [pattern.format(c.name, prefix) for c in composer_algos]
-wiki_unreduced_thesauri.append(pattern.format('Observed', prefix))
+wiki_unreduced_thesauri.append('{1}/exp11-12bAN_NN_wiki_{0}/exp11.sims.neighbours.strings'.format('Observed', prefix))
 
 thesauri = {(0, 42): gigaw_unreduced_thesauri, (0, 56): gigaw_unreduced_thesauri,
             (0, 49): wiki_unreduced_thesauri, (0, 63): wiki_unreduced_thesauri,
@@ -64,7 +65,7 @@ for k in thesauri.keys():
             shutil.rmtree(experiment_dir)
             os.mkdir(experiment_dir)
         base_conf_file = os.path.join(experiment_dir, 'exp%d_base.conf' % (first_exp + offset))
-        print base_conf_file, '\t\t', thes
+        # print base_conf_file, '\t\t', thes
         shutil.copy(superbase_conf_file, base_conf_file)
 
         set_in_conf_file(base_conf_file, ['vector_sources', 'unigram_paths'], [thes])
@@ -72,9 +73,9 @@ for k in thesauri.keys():
         set_in_conf_file(base_conf_file, ['name'], 'exp%d' % (first_exp + offset))
         config_obj, configspec_file = parse_config_file(base_conf_file)
 
-        #run_experiment(first_exp + offset)
-        # run_and_log_output('qsub -N composed{0} go-single-experiment.sh {0}'.format(first_exp + offset))
-
-        # import re
-        # corpus, composer = re.match('AN_NN_(.*)_(.*).', thes.split('/')[-1]).groups()
-        # print "%s : 'AN_NN, %s, signified, %s',"%(first_exp+offset,composer,corpus)
+        # print a brief description of the experiment setting for use in plotting
+        composer = thes.split('/')[-2].split('_')[-1]
+        corpus = 'wiki' if 'wiki' in thes else 'gigaw'
+        labelled_corpus = 'MR' if 'movie' in config_obj['training_data'] else 'R2'
+        print "{}: 'AN_NN, {}, signified, {}-{}, {}'".format(first_exp + offset, composer,
+                                                             corpus, svd_dims, labelled_corpus)
