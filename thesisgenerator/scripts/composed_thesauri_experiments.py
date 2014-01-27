@@ -5,7 +5,6 @@ import sys
 sys.path.append('.')
 sys.path.append('..')
 sys.path.append('../..')
-from thesisgenerator.utils.cmd_utils import run_and_log_output
 from thesisgenerator.composers.vectorstore import *
 from thesisgenerator.utils.conf_file_utils import set_in_conf_file, parse_config_file
 
@@ -56,14 +55,13 @@ for k in thesauri.keys():
     superbase_conf_file = 'conf/exp%d-superbase.conf' % first_exp
 
     for offset, thes in enumerate(thesauri[k]):
+        # sanity check
+        assert os.path.exists(thes)
 
         experiment_dir = 'conf/exp%d' % (first_exp + offset)
         if not os.path.exists(experiment_dir):
             os.mkdir(experiment_dir)
-        else:
-            # todo do not remove this dir, may contain useful results
-            shutil.rmtree(experiment_dir)
-            os.mkdir(experiment_dir)
+
         base_conf_file = os.path.join(experiment_dir, 'exp%d_base.conf' % (first_exp + offset))
         # print base_conf_file, '\t\t', thes
         shutil.copy(superbase_conf_file, base_conf_file)
