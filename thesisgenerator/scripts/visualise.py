@@ -102,7 +102,8 @@ def _do_chart(data_frames, width, x_columns, y_columns,
     return ax
 
 
-def performance_bar_chart(tables, classifiers, width=0.1, cv=25, wheres=[]):
+def performance_bar_chart(prefix_tables, classifiers, width=0.1, cv=25, wheres=[]):
+    prefix, tables = prefix_tables
     x_columns = ['sample_size']
     y_columns = ['score_mean']
     yerr_columns = ['score_std']
@@ -146,8 +147,9 @@ def performance_bar_chart(tables, classifiers, width=0.1, cv=25, wheres=[]):
     directory = os.path.join(directory, exp_range)
     if not os.path.exists(directory):
         os.mkdir(directory)
-    plt.savefig('%s/%s-%s-perf.png' % (
+    plt.savefig('%s/%s%s-%s-perf.png' % (
         directory,
+        prefix,
         classifiers,
         '_'.join(wheres)),
                 format='png',
@@ -471,40 +473,64 @@ experiment_sets = [
     # [23, 32], # must be the same
     # range(35, 42), # all composed NP+unigram thesauri at once
 
-    myrange(42, 48), # all composed NP thesauri, giga, R2
-    myrange(49, 55), # all composed NP thesauri, wiki, R2
-    myrange(56, 62), # all composed NP thesauri, giga, MR
-    myrange(63, 69), # all composed NP thesauri, wiki, MR
-    myrange(70, 76), # composed AN thesauri, giga, R2
-    myrange(77, 83), # composed NN thesauri, giga, R2
+    ('no_svd_', myrange(42, 48)), # all composed AN+NN thesauri, giga, R2, no SVD
+    ('no_svd_', myrange(49, 55)), # all composed AN+NN thesauri, wiki, R2, no SVD
+    ('no_svd_', myrange(56, 62)), # all composed AN+NN thesauri, giga, MR, no SVD
+    ('no_svd_', myrange(63, 69)), # all composed AN+NN thesauri, wiki, MR, no SVD
+    ('no_svd_', myrange(70, 76)), # composed AN thesauri, giga, R2
+    ('no_svd_', myrange(77, 83)), # composed NN thesauri, giga, R2
 
     # AN+NN vs AN vs NN on gigaw, R2
-    [42, 70, 77],
-    [43, 71, 78],
-    [44, 72, 79],
-    [45, 73, 80],
-    [46, 74, 81],
-    [47, 75, 82],
-    [48, 76, 83],
+    ('AN_vs_NN_', [42, 70, 77]),
+    ('AN_vs_NN_', [43, 71, 78]),
+    ('AN_vs_NN_', [44, 72, 79]),
+    ('AN_vs_NN_', [45, 73, 80]),
+    ('AN_vs_NN_', [46, 74, 81]),
+    ('AN_vs_NN_', [47, 75, 82]),
+    ('AN_vs_NN_', [48, 76, 83]),
 
-    # all composed thesauri with different SVD setting and labelled corpora
-    myrange(84, 91),
-    myrange(92, 99),
-    myrange(100, 107),
-    myrange(108, 115),
-    myrange(116, 123),
-    myrange(124, 131),
-    myrange(132, 139),
-    myrange(140, 147),
-    myrange(148, 155),
-    myrange(156, 163),
-    myrange(164, 171),
+    # all composed AN+NN thesauri with different SVD setting and labelled corpora
+    # all thesauri from a given unlabelled corpus, one classifier, one labelled corpus
+    ('svd30', myrange(84, 91)),
+    ('svd30', myrange(92, 99)),
+    ('svd30', myrange(132, 139)),
+    ('svd30', myrange(140, 147)),
+    ('svd300', myrange(100, 107)),
+    ('svd300', myrange(108, 115)),
+    ('svd300', myrange(148, 155)),
+    ('svd300', myrange(156, 163)),
 
-    # a different view of the above
+    ('svd1000', myrange(116, 123)),
+    ('svd1000', myrange(124, 131)),
+    ('svd1000', myrange(164, 171)),
+    ('svd1000', myrange(172, 179)),
 
+    # a different view of the above- effect of SVD
+    # one thesaurus, all SVD settings, both labelled corpora
+
+    # wiki thesauri
+    ('all_svd_settings_wiki', [49, 92, 108, 124, 63, 140, 156, 172]),
+    ('all_svd_settings_wiki', [50, 93, 109, 125, 64, 141, 157, 173]),
+    ('all_svd_settings_wiki', [51, 94, 110, 126, 65, 142, 158, 174]),
+    ('all_svd_settings_wiki', [52, 95, 111, 127, 66, 143, 159, 175]),
+    ('all_svd_settings_wiki', [53, 96, 112, 128, 67, 144, 160, 176]),
+    ('all_svd_settings_wiki', [54, 97, 113, 129, 68, 145, 161, 177]),
+    ('all_svd_settings_wiki', [55, 99, 115, 131, 69, 147, 163, 179]), #observed
+    ('all_svd_settings_wiki', [98, 114, 130, 146, 162, 178]), #baroni
+
+
+    # gigaw thesauri
+    ('all_svd_settings_giga', [42, 84, 100, 116, 56, 132, 148, 164]), # add, mult, left, right, min, max
+    ('all_svd_settings_giga', [43, 85, 101, 117, 57, 133, 149, 165]),
+    ('all_svd_settings_giga', [44, 86, 102, 118, 58, 134, 150, 166]),
+    ('all_svd_settings_giga', [45, 87, 103, 119, 59, 135, 151, 167]),
+    ('all_svd_settings_giga', [46, 88, 104, 120, 60, 136, 152, 168]),
+    ('all_svd_settings_giga', [47, 89, 105, 121, 61, 137, 153, 169]),
+    ('all_svd_settings_giga', [48, 91, 107, 123, 62, 139, 155, 171]), #observed
+    ('all_svd_settings_giga', [90, 106, 122, 138, 154, 170]), #baroni
 ]
 
-Parallel(n_jobs=1)(delayed(performance_bar_chart)(experiments, [clf])
+Parallel(n_jobs=4)(delayed(performance_bar_chart)(experiments, [clf])
                    for clf in classifiers for experiments in experiment_sets)
 # for clf in classifiers:
 #     for experiments in experiments:
