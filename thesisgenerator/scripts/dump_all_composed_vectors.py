@@ -93,23 +93,6 @@ def compose_and_write_vectors(unigram_vector_paths, short_vector_dataset_name, c
                                            x_ev, x_tr,
                                            y_ev, y_tr) for composer_class in composer_classes)
 
-giga_paths = [
-    '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/exp6-12a/exp6.events.filtered.strings',
-    '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/exp6-12b/exp6.events.filtered.strings',
-    '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/exp6-12c/exp6.events.filtered.strings',
-    '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/exp6-12d/exp6.events.filtered.strings'
-]
-
-wiki_paths = [
-    '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/wikipedia_t100/wiki_t100f100_adjs_deps/wikipedia_adjsdeps_t100.pbfiltered.events.strings',
-    '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/wikipedia_t100/wiki_t100f100_advs_deps/wikipedia_advsdeps_t100.pbfiltered.events.strings',
-    '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/wikipedia_t100/wiki_t100f100_verbs_deps/wikipedia_verbsdeps_t100.pbfiltered.events.strings',
-    '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/wikipedia_t100/wiki_t100f100_nouns_deps/wikipedia_nounsdeps_t100.pbfiltered.events.strings',
-]
-
-toy_paths = [
-    '/Volumes/LocalDataHD/mmb28/NetBeansProjects/Byblo-2.2.0/sample-data/7head.txt.events.filtered.strings'
-]
 
 n_jobs = 4
 classification_data_path = (

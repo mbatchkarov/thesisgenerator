@@ -175,9 +175,9 @@ def build_only_AN_NN_thesauri_without_baroni(exp):
     byblo_base_dir = '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/Byblo-2.2.0/'
 
     dataset_name = 'gigaw' if exp == 10 else 'wiki' # todo short name of input
-    unigram_thesaurus_dir = os.path.abspath(os.path.join(byblo_base_dir, '..', 'exp%d-12b' % exp)) # todo input 1
+    unigram_thesaurus_dir = os.path.abspath(os.path.join(byblo_base_dir, '..', 'exp%d-13b' % exp)) # todo input 1
 
-    ngram_vectors_dir = os.path.join(byblo_base_dir, '..', 'exp%d-12-composed-ngrams-MR-R2' % exp) # output 1
+    ngram_vectors_dir = os.path.join(byblo_base_dir, '..', 'exp%d-13-composed-ngrams-MR-R2' % exp) # output 1
     # output 2 is a set of directories <output1>*
 
     composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
@@ -208,11 +208,11 @@ def build_full_composed_thesauri_with_baroni_and_svd(exp):
 
     byblo_base_dir = '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/Byblo-2.2.0/' # trailing slash required
     #  INPUT 1:  DIRECTORY. Must contain a single conf file
-    unigram_thesaurus_dir = os.path.abspath(os.path.join(byblo_base_dir, '..', 'exp%d-12b' % exp))
+    unigram_thesaurus_dir = os.path.abspath(os.path.join(byblo_base_dir, '..', 'exp%d-13b' % exp))
     #  INPUT 2: A FILE, TSV, underscore-separated observed vectors for ANs and NNs
-    baroni_training_phrases = os.path.join(byblo_base_dir, '..', 'observed_vectors', 'exp10_AN_NNvectors-cleaned')
+    baroni_training_phrases = os.path.join(byblo_base_dir, '..', 'observed_vectors', 'exp%d_AN_NNvectors-cleaned' % exp)
 
-    ngram_vectors_dir = os.path.join(byblo_base_dir, '..', 'exp%d-12-composed-ngrams-MR-R2' % exp) # output 1
+    ngram_vectors_dir = os.path.join(byblo_base_dir, '..', 'exp%d-13-composed-ngrams-MR-R2' % exp) # output 1
     composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
                       RightmostWordComposer, MinComposer, MaxComposer, BaroniComposer]
 
@@ -225,7 +225,7 @@ def build_full_composed_thesauri_with_baroni_and_svd(exp):
         os.mkdir(ngram_vectors_dir)
     os.chdir(byblo_base_dir)
     calculate_unigram_vectors(unigram_thesaurus_dir)
-
+    sys.exit(0)
 
     # REDUCE DIMENSIONALITY
     # add in observed AN/NN vectors for SVD processing. Reduce both unigram vectors and observed phrase vectors

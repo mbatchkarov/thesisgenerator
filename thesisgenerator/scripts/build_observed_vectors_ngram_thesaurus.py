@@ -54,12 +54,12 @@ def do_work(id, svd_dims):
 
     # where should the output go
     if svd_dims < 0:
-        outdir = '%s/exp%d-12bAN_NN_%s_Observed' % (prefix, id, name)
+        outdir = '%s/exp%d-13bAN_NN_%s_Observed' % (prefix, id, name)
     else:
-        outdir = '%s/exp%d-12bAN_NN_%s-%d_Observed' % (prefix, id, name, svd_dims)
+        outdir = '%s/exp%d-13bAN_NN_%s-%d_Observed' % (prefix, id, name, svd_dims)
 
     # where's the byblo conf file
-    unigram_thesaurus_dir = '%s/exp%d-12b' % (prefix, id)
+    unigram_thesaurus_dir = '%s/exp%d-13b' % (prefix, id)
     # where's the byblo executable
     byblo_base_dir = '%s/Byblo-2.2.0/' % prefix
 

@@ -144,9 +144,9 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO,
                         format="%(asctime)s\t%(module)s.%(funcName)s ""(line %(lineno)d)\t%(levelname)s : %(""message)s")
 
-    in_paths = dump.giga_paths
-    out_prefixes = [path.split('.')[0] for path in in_paths]
-    do_svd(in_paths, out_prefixes,
-           desired_counts_per_feature_type=[('N', 8000), ('V', 4000), ('J', 4000), ('RB', 200), ('AN', 20000),
-                                            ('NN', 20000)],
-           reduce_to=[30, 300, 1000])
+    # in_paths = dump.giga_paths
+    # out_prefixes = [path.split('.')[0] for path in in_paths]
+    # do_svd(in_paths, out_prefixes,
+    #        desired_counts_per_feature_type=[('N', 8000), ('V', 4000), ('J', 4000), ('RB', 200), ('AN', 20000),
+    #                                         ('NN', 20000)],
+    #        reduce_to=[30, 300, 1000])
