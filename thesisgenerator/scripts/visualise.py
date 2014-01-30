@@ -84,8 +84,7 @@ def _do_chart(data_frames, width, x_columns, y_columns,
                                                             y_columns,
                                                             yerr_columns)
 
-    assert len(data_frames) == len(x_columns) == len(y_columns) == \
-           len(yerr_columns)
+    assert len(data_frames) == len(x_columns) == len(y_columns) == len(yerr_columns)
     fig = plt.figure()
     ax = fig.add_subplot(111)
     cm = plt.get_cmap('flag')
@@ -144,14 +143,11 @@ def performance_bar_chart(prefix_tables, classifiers, width=0.1, cv=25, wheres=[
     exp_range = '-'.join(map(str, tables))
     classifiers = '-'.join(classifiers)
     directory = get_hash_and_date(tables[0])
-    directory = os.path.join(directory, exp_range)
+    directory = os.path.join(directory, '{}-{}'.format(prefix, exp_range))
     if not os.path.exists(directory):
         os.mkdir(directory)
-    plt.savefig('%s/%s%s-%s-perf.png' % (
-        directory,
-        prefix,
-        classifiers,
-        '_'.join(wheres)),
+
+    plt.savefig('%s/%s-%s-perf.png' % (directory, classifiers, '_'.join(wheres)),
                 format='png',
                 dpi=300)
 
@@ -180,10 +176,8 @@ def coverage_bar_chart(experiments, width=0.13, cv=25,
             print sql
             df = query_to_data_frame(sql)
             # normalise coverage stats by total types/tokens
-            df[stat[0]] = df[stat[0]] / \
-                          map(float, df['total_%s' % stat[0][-8:-5]])
-            df[stat[1]] = df[stat[1]] / \
-                          map(float, df['total_%s' % stat[1][-7:-4]])
+            df[stat[0]] /= map(float, df['total_%s' % stat[0][-8:-5]])
+            df[stat[1]] /= map(float, df['total_%s' % stat[1][-7:-4]])
             name = '%.2d-%s' % (experiment, stat[0])
             data_frames.append((name, df))
     y_columns = [x[0] for x in stats]
@@ -236,7 +230,7 @@ def get_hash_and_date(exp_no):
 
 
 def myrange(start, stop_inclusive, step=1):
-    return range(start, stop_inclusive + 1, step=step)
+    return range(start, stop_inclusive + 1, step)
 
 # performance_bar_chart([7, 8], ['LinearSVC'], cv=5)
 # performance_bar_chart([9, 10, 11], ['MultinomialNB', 'BernoulliNB', 'LogisticRegression'], width=0.13)
@@ -307,21 +301,21 @@ table_descr = {
     68: 'AN_NN, Max, signified, wiki-0, MR',
     69: 'AN_NN, Observed, signified, wiki-0, MR',
 
-    70: 'AN_NN, Add, signified, gigaw-0, R2',
-    71: 'AN_NN, Mult, signified, gigaw-0, R2',
-    72: 'AN_NN, Left, signified, gigaw-0, R2',
-    73: 'AN_NN, Right, signified, gigaw-0, R2',
-    74: 'AN_NN, Min, signified, gigaw-0, R2',
-    75: 'AN_NN, Max, signified, gigaw-0, R2',
-    76: 'AN_NN, Observed, signified, gigaw-0, R2',
+    70: 'AN, Add, signified, gigaw-0, R2',
+    71: 'AN, Mult, signified, gigaw-0, R2',
+    72: 'AN, Left, signified, gigaw-0, R2',
+    73: 'AN, Right, signified, gigaw-0, R2',
+    74: 'AN, Min, signified, gigaw-0, R2',
+    75: 'AN, Max, signified, gigaw-0, R2',
+    76: 'AN, Observed, signified, gigaw-0, R2',
 
-    77: 'AN_NN, Add, signified, gigaw-0, R2',
-    78: 'AN_NN, Mult, signified, gigaw-0, R2',
-    79: 'AN_NN, Left, signified, gigaw-0, R2',
-    80: 'AN_NN, Right, signified, gigaw-0, R2',
-    81: 'AN_NN, Min, signified, gigaw-0, R2',
-    82: 'AN_NN, Max, signified, gigaw-0, R2',
-    83: 'AN_NN, Observed, signified, gigaw-0, R2',
+    77: 'NN, Add, signified, gigaw-0, R2',
+    78: 'NN, Mult, signified, gigaw-0, R2',
+    79: 'NN, Left, signified, gigaw-0, R2',
+    80: 'NN, Right, signified, gigaw-0, R2',
+    81: 'NN, Min, signified, gigaw-0, R2',
+    82: 'NN, Max, signified, gigaw-0, R2',
+    83: 'NN, Observed, signified, gigaw-0, R2',
 
     84: 'AN_NN, Add, signified, gigaw-30, R2',
     85: 'AN_NN, Mult, signified, gigaw-30, R2',
@@ -473,21 +467,21 @@ experiment_sets = [
     # [23, 32], # must be the same
     # range(35, 42), # all composed NP+unigram thesauri at once
 
-    ('no_svd_', myrange(42, 48)), # all composed AN+NN thesauri, giga, R2, no SVD
-    ('no_svd_', myrange(49, 55)), # all composed AN+NN thesauri, wiki, R2, no SVD
-    ('no_svd_', myrange(56, 62)), # all composed AN+NN thesauri, giga, MR, no SVD
-    ('no_svd_', myrange(63, 69)), # all composed AN+NN thesauri, wiki, MR, no SVD
-    ('no_svd_', myrange(70, 76)), # composed AN thesauri, giga, R2
-    ('no_svd_', myrange(77, 83)), # composed NN thesauri, giga, R2
+    ('no_svd', myrange(42, 48)), # all composed AN+NN thesauri, giga, R2, no SVD
+    ('no_svd', myrange(49, 55)), # all composed AN+NN thesauri, wiki, R2, no SVD
+    ('no_svd', myrange(56, 62)), # all composed AN+NN thesauri, giga, MR, no SVD
+    ('no_svd', myrange(63, 69)), # all composed AN+NN thesauri, wiki, MR, no SVD
+    ('no_svd', myrange(70, 76)), # composed AN thesauri, giga, R2
+    ('no_svd', myrange(77, 83)), # composed NN thesauri, giga, R2
 
     # AN+NN vs AN vs NN on gigaw, R2
-    ('AN_vs_NN_', [42, 70, 77]),
-    ('AN_vs_NN_', [43, 71, 78]),
-    ('AN_vs_NN_', [44, 72, 79]),
-    ('AN_vs_NN_', [45, 73, 80]),
-    ('AN_vs_NN_', [46, 74, 81]),
-    ('AN_vs_NN_', [47, 75, 82]),
-    ('AN_vs_NN_', [48, 76, 83]),
+    ('AN_vs_NN', [42, 70, 77]),
+    ('AN_vs_NN', [43, 71, 78]),
+    ('AN_vs_NN', [44, 72, 79]),
+    ('AN_vs_NN', [45, 73, 80]),
+    ('AN_vs_NN', [46, 74, 81]),
+    ('AN_vs_NN', [47, 75, 82]),
+    ('AN_vs_NN', [48, 76, 83]),
 
     # all composed AN+NN thesauri with different SVD setting and labelled corpora
     # all thesauri from a given unlabelled corpus, one classifier, one labelled corpus
@@ -509,7 +503,7 @@ experiment_sets = [
     # one thesaurus, all SVD settings, both labelled corpora
 
     # wiki thesauri
-    ('all_svd_settings_wiki', [49, 92, 108, 124, 63, 140, 156, 172]),
+    ('all_svd_settings_wiki', [49, 92, 108, 124, 63, 140, 156, 172]), #todo break up per labelled corpus?
     ('all_svd_settings_wiki', [50, 93, 109, 125, 64, 141, 157, 173]),
     ('all_svd_settings_wiki', [51, 94, 110, 126, 65, 142, 158, 174]),
     ('all_svd_settings_wiki', [52, 95, 111, 127, 66, 143, 159, 175]),
@@ -530,10 +524,8 @@ experiment_sets = [
     ('all_svd_settings_giga', [90, 106, 122, 138, 154, 170]), #baroni
 ]
 
-Parallel(n_jobs=4)(delayed(performance_bar_chart)(experiments, [clf])
-                   for clf in classifiers for experiments in experiment_sets)
-# for clf in classifiers:
-#     for experiments in experiments:
-#         performance_bar_chart(experiments, [clf])
+for clf in classifiers: # joblib doesn't work here, forked processes can't query the database
+    for experiments in experiment_sets:
+        performance_bar_chart(experiments, [clf])
 
 print 'done'
