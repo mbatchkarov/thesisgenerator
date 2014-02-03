@@ -109,6 +109,7 @@ def consolidate_results(writer, conf_dir, log_dir, output_dir,
                 classifier, metric, score_my_mean, score_my_std = row
 
                 writer.writerow([
+                    None, # primary key, should be updated automatically
                     exp_name,
                     git_hash,
                     datetime.datetime.now().isoformat(),

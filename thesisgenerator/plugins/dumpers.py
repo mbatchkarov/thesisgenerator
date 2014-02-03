@@ -84,7 +84,8 @@ class FeatureVectorsCsvDumper(TransformerMixin):
                 'exp_name': self.exp_name}
 
 
-columns = [('name', 'TEXT'),
+columns = [('id', 'INTEGER NOT NULL AUTO_INCREMENT'),
+           ('name', 'TEXT'),
            ('git_hash', 'TEXT'),
            ('consolidation_date', 'TIMESTAMP'),
 
@@ -156,7 +157,7 @@ class ConsolidatedResultsSqlWriter(object):
         params = [item for col in columns for item in col]
         template = 'CREATE TABLE %s(' + \
                    ', '.join(['%s %s'] * (len(params) / 2)) + \
-                   ')'
+                   ', PRIMARY KEY(id))'
         q = template % tuple(itertools.chain([self.table_name], params))
         c.execute(q)
         self.conn.commit()
