@@ -4,10 +4,10 @@ import sys
 sys.path.append('.')
 sys.path.append('..')
 sys.path.append('../..')
-from thesisgenerator.plugins.tokens import DocumentFeature
+from discoutils.tokens import DocumentFeature
 import os
 from thesisgenerator.plugins.thesaurus_loader import Thesaurus
-from thesisgenerator.composers.utils import write_vectors_to_disk
+from discoutils.io_utils import write_vectors_to_disk
 from thesisgenerator.scripts.build_phrasal_thesauri_offline import do_second_part_without_base_thesaurus, \
     _find_conf_file
 

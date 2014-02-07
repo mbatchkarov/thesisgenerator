@@ -3,7 +3,7 @@ import networkx as nx
 
 from thesisgenerator.plugins.bov import ThesaurusVectorizer
 from thesisgenerator.plugins.tokenizers import XmlTokenizer
-from thesisgenerator.plugins.tokens import DocumentFeature, Token
+from discoutils.tokens import DocumentFeature, Token
 
 
 @pytest.fixture

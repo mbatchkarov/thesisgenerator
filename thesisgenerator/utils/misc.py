@@ -1,26 +1,9 @@
 import inspect
-from itertools import tee, izip
 from configobj import ConfigObj
 from thesisgenerator.utils.reflection_utils import get_named_object
 
 __author__ = 'mmb28'
 
-
-def walk_overlapping_pairs(iterable):
-    """
-    s -> (s0,s1), (s1,s2), (s2, s3), ...
-
-    From http://docs.python.org/2/library/itertools.html
-    """
-
-    a, b = tee(iterable)
-    next(b, None)
-    return izip(a, b)
-
-
-def walk_nonoverlapping_pairs(iterable, beg):
-    for i in xrange(beg, min(len(iterable) - 1, len(iterable)), 2):  # step size 2
-        yield (iterable[i], iterable[i + 1])
 
 
 def get_susx_mysql_conn():

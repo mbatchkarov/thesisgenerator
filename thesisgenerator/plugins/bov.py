@@ -11,8 +11,8 @@ from thesisgenerator.classifiers import NoopTransformer
 from thesisgenerator.composers.vectorstore import PrecomputedSimilaritiesVectorSource
 from thesisgenerator.plugins import tokenizers
 from thesisgenerator.plugins.bov_feature_handlers import get_token_handler, get_stats_recorder
-from thesisgenerator.plugins.tokens import DocumentFeature
-from thesisgenerator.plugins.thesaurus_loader import Thesaurus
+from discoutils.tokens import DocumentFeature
+from discoutils.thesaurus_loader import Thesaurus
 
 
 class ThesaurusVectorizer(TfidfVectorizer):

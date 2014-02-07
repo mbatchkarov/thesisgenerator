@@ -11,11 +11,11 @@ import scipy.sparse as sp
 from scipy.sparse import vstack
 from sklearn.random_projection import SparseRandomProjection
 
-from thesisgenerator.composers import utils
-from thesisgenerator.plugins.thesaurus_loader import Thesaurus
+import discoutils.io_utils as utils
+from discoutils.thesaurus_loader import Thesaurus
 
 import numpy as np
-from thesisgenerator.plugins.tokens import DocumentFeature, Token
+from discoutils.tokens import DocumentFeature, Token
 
 
 class VectorSource(object):
