@@ -17,26 +17,6 @@ Build a thesaurus of ngrams using observed vectors for the engrams
 '''
 
 
-def clean(entry):
-    #  CONVERT THE FILE FROM JULIE'S FORMAT TO MINE
-    import re
-
-    pattern = re.compile('(.*):(.*):(.*)')
-    a, relation, b = pattern.match(entry).groups()
-    if relation == 'amod-HEAD':
-        return '{}_{}'.format(a, b)
-    elif relation == 'amod-DEP':
-        return '{}_{}'.format(b, a)
-    elif relation == 'nn-HEAD':
-        return '{}_{}'.format(a, b)
-    elif relation == 'nn-DEP':
-        return '{}_{}'.format(b, a)
-    else:
-        raise ValueError('Can not convert entry %s' % entry)
-
-# observed_ngram_vectors_file = reformat_entries(observed_ngram_vectors_file, '-cleaned', clean)
-
-
 def do_work(id, svd_dims):
     # SET UP A FEW REQUIRED PATHS
     logging.basicConfig(level=logging.INFO,

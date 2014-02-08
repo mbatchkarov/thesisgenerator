@@ -13,7 +13,6 @@ from thesisgenerator.utils.cmd_utils import set_stage_in_byblo_conf_file, run_by
     reindex_all_byblo_vectors, run_and_log_output, unindex_all_byblo_vectors, set_output_in_byblo_conf_file
 from thesisgenerator.scripts import dump_all_composed_vectors as dump
 from thesisgenerator.scripts.reduce_dimensionality import do_svd
-from thesisgenerator.composers.utils import reformat_entries, julie_transform, julie_transform2
 from thesisgenerator.composers.vectorstore import *
 
 
