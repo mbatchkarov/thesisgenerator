@@ -4,9 +4,9 @@ import sys
 sys.path.append('.')
 sys.path.append('..')
 sys.path.append('../..')
-from discoutils.tokens import DocumentFeature
 import os
-from thesisgenerator.plugins.thesaurus_loader import Thesaurus
+from discoutils.tokens import DocumentFeature
+from discoutils.thesaurus_loader import Thesaurus
 from discoutils.io_utils import write_vectors_to_disk
 from thesisgenerator.scripts.build_phrasal_thesauri_offline import do_second_part_without_base_thesaurus, \
     _find_conf_file
@@ -20,7 +20,7 @@ Build a thesaurus of ngrams using observed vectors for the engrams
 def do_work(id, svd_dims):
     # SET UP A FEW REQUIRED PATHS
     logging.basicConfig(level=logging.INFO,
-                        format="%(asctime)s\t%(module)s.%(funcName)s ""(line %(lineno)d)\t%(levelname)s : %(""message)s")
+                        format="%(asctime)s\t%(module)s.%(funcName)s (line %(lineno)d)\t%(levelname)s : %(message)s")
 
     prefix = '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit'
     # where are the observed n-gram vectors in tsv format, must be underscore-separated already
@@ -69,5 +69,5 @@ def do_work(id, svd_dims):
 
 
 if __name__ == '__main__':
-    for dims in [30, 300, 1000]: # add -1 to do thesauri without SVD preprocessing of vectors
+    for dims in [30, 300, 1000]:  # add -1 to do thesauri without SVD preprocessing of vectors
         do_work(int(sys.argv[1]), dims)
