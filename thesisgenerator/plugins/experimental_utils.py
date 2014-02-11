@@ -87,7 +87,7 @@ def run_experiment(expid, subexpid=None, num_workers=4,
         return
 
     # requested a whole experiment, with a bunch of training data set sizes
-    sizes = chain([2, 5, 10], range(20, 101, 10))
+    sizes = chain(range(10, 101, 15), range(200, 501, 100))
     if expid == 0:
         # exp0 is for debugging only, we don't have to do much
         sizes = [10, 20]#range(10, 31, 10)

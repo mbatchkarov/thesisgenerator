@@ -8,12 +8,11 @@ sys.path.append('../..')
 from dissect_scripts.load_translated_byblo_space import train_baroni_composer
 from glob import glob
 import shutil
-from thesisgenerator.plugins.thesaurus_loader import Thesaurus
-from thesisgenerator.utils.cmd_utils import set_stage_in_byblo_conf_file, run_byblo, parse_byblo_conf_file, \
+from discoutils.thesaurus_loader import Thesaurus
+from discoutils.cmd_utils import set_stage_in_byblo_conf_file, run_byblo, parse_byblo_conf_file, \
     reindex_all_byblo_vectors, run_and_log_output, unindex_all_byblo_vectors, set_output_in_byblo_conf_file
 from thesisgenerator.scripts import dump_all_composed_vectors as dump
-from thesisgenerator.scripts.reduce_dimensionality import do_svd
-from thesisgenerator.composers.utils import reformat_entries, julie_transform, julie_transform2
+from discoutils.reduce_dimensionality import do_svd
 from thesisgenerator.composers.vectorstore import *
 
 
@@ -230,13 +229,14 @@ def build_full_composed_thesauri_with_baroni_and_svd(exp):
     # REDUCE DIMENSIONALITY
     # add in observed AN/NN vectors for SVD processing. Reduce both unigram vectors and observed phrase vectors
     # together and put the output into the same file
-    unreduced_events_file = _find_events_file(unigram_thesaurus_dir)
+    unreduced_unigram_events_file = _find_events_file(unigram_thesaurus_dir)
     # ...exp6-12/exp6.events.filtered.strings --> ...exp6-12/exp6
-    reduced_file_prefix = '.'.join(unreduced_events_file.split('.')[:-3]) + '-with-obs-phrases'
+    reduced_file_prefix = '.'.join(unreduced_unigram_events_file.split('.')[:-3]) + '-with-obs-phrases'
     # only keep the most frequent types per PoS tag to speed things up
-    counts = [('N', 28000), ('V', 0), ('J', 0), ('RB', 00), ('AN', 200000), ('NN', 200000)]
-    do_svd([unreduced_events_file, baroni_training_phrases], reduced_file_prefix,
-           desired_counts_per_feature_type=counts, reduce_to=target_dimensionality)
+    counts = [('N', 20000), ('V', 0), ('J', 10000), ('RB', 00), ('AN', 0), ('NN', 0)]
+    do_svd([unreduced_unigram_events_file], reduced_file_prefix,
+           desired_counts_per_feature_type=counts, reduce_to=target_dimensionality,
+           apply_to=baroni_training_phrases)
 
     # construct the names of files output by do_svd
     baroni_training_data = ['%s-SVD%d.events.filtered.strings' % (reduced_file_prefix, dim)

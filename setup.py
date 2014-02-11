@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 from setuptools import setup
-from Cython.Build import cythonize
 
 setup(
     name='thesisgenerator',
@@ -12,7 +11,5 @@ setup(
     install_requires=['iterpipes', 'pandas', 'matplotlib', 'numpy', 'scipy',
                       'scikit-learn', 'joblib', 'configobj', 'validate',
                       'jinja2', 'networkx', 'gitpython', 'Cython'],
-    ext_modules=cythonize(["thesisgenerator/plugins/tokens.pyx"]),
-
 )
 

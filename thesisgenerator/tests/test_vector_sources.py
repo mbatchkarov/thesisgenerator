@@ -7,7 +7,7 @@ from scipy.sparse import csr_matrix, issparse
 import pytest
 
 from thesisgenerator.composers.vectorstore import *
-from thesisgenerator.plugins.tokens import DocumentFeature, Token
+from discoutils.tokens import DocumentFeature, Token
 
 
 DIM = 10
