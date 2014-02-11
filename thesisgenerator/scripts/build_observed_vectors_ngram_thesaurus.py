@@ -19,8 +19,6 @@ Build a thesaurus of ngrams using observed vectors for the engrams
 
 def do_work(corpus, features, svd_dims):
     # SET UP A FEW REQUIRED PATHS
-    logging.basicConfig(level=logging.INFO,
-                        format="%(asctime)s\t%(module)s.%(funcName)s (line %(lineno)d)\t%(levelname)s : %(message)s")
 
     prefix = '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit'
     # where are the observed n-gram vectors in tsv format, must be underscore-separated already
@@ -32,6 +30,7 @@ def do_work(corpus, features, svd_dims):
         observed_ngram_vectors_file = '%s/exp%d-%db/exp%d-with-obs-phrases-SVD%d.events.filtered.strings' % \
                                       (prefix, corpus, features, corpus, svd_dims)
 
+    logging.info('Using observed events file %s', observed_ngram_vectors_file)
     # where should the output go
     if svd_dims < 0:
         outdir = '%s/exp%d-%dbAN_NN_%s_Observed' % (prefix, corpus, features, name)
@@ -69,12 +68,14 @@ def do_work(corpus, features, svd_dims):
 
 
 if __name__ == '__main__':
+    logging.basicConfig(level=logging.INFO,
+                        format="%(asctime)s\t%(module)s.%(funcName)s (line %(lineno)d)\t%(levelname)s : %(message)s")
+
     parameters = read_configuration()
     logging.info(parameters)
 
     corpus = 10 if parameters.corpus == 'gigaword' else 11
     features = 12 if parameters.features == 'dependencies' else 13
-    print corpus, features
 
-    for dims in [30, 300, 1000]:  # add -1 to do thesauri without SVD preprocessing of vectors
+    for dims in [30, 300, 1000]:  # todo add -1 to do thesauri without SVD preprocessing of vectors
         do_work(corpus, features, dims)

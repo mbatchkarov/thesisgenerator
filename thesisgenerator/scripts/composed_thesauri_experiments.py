@@ -13,7 +13,7 @@ Once all thesauri with ngram entries (obtained using different composition metho
 use this script to run them through the classification framework
 '''
 
-features = 13 # 12 for dependency thesauri, 13 for windows
+features = 13  # 12 for dependency thesauri, 13 for windows
 handler = 'thesisgenerator.plugins.bov_feature_handlers.SignifiedFeatureHandler'
 prefix = '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit'
 composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
@@ -33,7 +33,7 @@ wiki_unreduced_thesauri = [pattern.format(c.name, prefix, features) for c in com
 wiki_unreduced_thesauri.append('{1}/exp11-{2}bAN_NN_wiki_{0}/exp11.sims.neighbours.strings'.format('Observed',
                                                                                                    prefix,
                                                                                                    features))
-
+print 'Preparing lists of experimental settings'
 thesauri = {(0, 42): gigaw_unreduced_thesauri, (0, 56): gigaw_unreduced_thesauri,
             (0, 49): wiki_unreduced_thesauri, (0, 63): wiki_unreduced_thesauri,
             (0, 70): gigaw_unreduced_thesauri, (0, 77): gigaw_unreduced_thesauri}
@@ -53,13 +53,14 @@ for labelled_corpus in ['R2', 'MR']:
             thesauri[(svd_dims, superbase)] = files
             superbase += len(files)
 
+print 'Writing conf files'
 for k in thesauri.keys():
     svd_dims, first_exp = k
     superbase_conf_file = 'conf/exp%d-superbase.conf' % first_exp
 
     for offset, thes in enumerate(thesauri[k]):
         # sanity check
-        assert os.path.exists(thes)
+        assert os.path.exists(thes) # todo re-enable this
 
         experiment_dir = 'conf/exp%d' % (first_exp + offset)
         if not os.path.exists(experiment_dir):
@@ -78,5 +79,6 @@ for k in thesauri.keys():
         composer = thes.split('/')[-2].split('_')[-1]
         corpus = 'wiki' if 'wiki' in thes else 'gigaw'
         labelled_corpus = 'MR' if 'movie' in config_obj['training_data'] else 'R2'
-        print "{}: 'AN_NN, {}, signified, {}-{}, {}'".format(first_exp + offset, composer,
-                                                             corpus, svd_dims, labelled_corpus)
+        print "{}: 'AN_NN, {}, signified, {}-{}, {}, {}'".format(first_exp + offset, composer,
+                                                                 corpus, svd_dims, labelled_corpus,
+                                                                 c) # todo add windows/dependencies here

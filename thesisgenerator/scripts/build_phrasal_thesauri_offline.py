@@ -174,7 +174,7 @@ def build_only_AN_NN_thesauri_without_baroni(corpus, features):
 
     byblo_base_dir = '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/Byblo-2.2.0/'
 
-    dataset_name = 'gigaw' if corpus == 10 else 'wiki' # todo short name of input
+    dataset_name = 'gigaw' if corpus == 10 else 'wiki' # short name of input
     unigram_thesaurus_dir = os.path.abspath(os.path.join(byblo_base_dir, '..',
                                                          'exp%d-%db' % (corpus, features))) # todo input 1
 
@@ -229,8 +229,7 @@ def build_full_composed_thesauri_with_baroni_and_svd(corpus, features):
     if not os.path.exists(ngram_vectors_dir):
         os.mkdir(ngram_vectors_dir)
     os.chdir(byblo_base_dir)
-    calculate_unigram_vectors(unigram_thesaurus_dir)
-    sys.exit(0)
+    # calculate_unigram_vectors(unigram_thesaurus_dir)
 
     # REDUCE DIMENSIONALITY
     # add in observed AN/NN vectors for SVD processing. Reduce both unigram vectors and observed phrase vectors
@@ -240,9 +239,9 @@ def build_full_composed_thesauri_with_baroni_and_svd(corpus, features):
     reduced_file_prefix = '.'.join(unreduced_unigram_events_file.split('.')[:-3]) + '-with-obs-phrases'
     # only keep the most frequent types per PoS tag to speed things up
     counts = [('N', 20000), ('V', 0), ('J', 10000), ('RB', 00), ('AN', 0), ('NN', 0)]
-    do_svd([unreduced_unigram_events_file], reduced_file_prefix,
-           desired_counts_per_feature_type=counts, reduce_to=target_dimensionality,
-           apply_to=baroni_training_phrases)
+    # do_svd([unreduced_unigram_events_file], reduced_file_prefix,
+    #        desired_counts_per_feature_type=counts, reduce_to=target_dimensionality,
+    #        apply_to=[baroni_training_phrases])
 
     # construct the names of files output by do_svd
     baroni_training_data = ['%s-SVD%d.events.filtered.strings' % (reduced_file_prefix, dim)
