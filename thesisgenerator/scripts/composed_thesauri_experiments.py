@@ -13,23 +13,26 @@ Once all thesauri with ngram entries (obtained using different composition metho
 use this script to run them through the classification framework
 '''
 
-__author__ = 'mmb28'
-
+features = 13 # 12 for dependency thesauri, 13 for windows
 handler = 'thesisgenerator.plugins.bov_feature_handlers.SignifiedFeatureHandler'
 prefix = '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit'
 composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
                   RightmostWordComposer, MinComposer, MaxComposer]
 
 # get the names of all GIGAW unreduced thesauri
-pattern = '{1}/exp10-13bAN_NN_gigaw_{0}/AN_NN_gigaw_{0}.sims.neighbours.strings'
-gigaw_unreduced_thesauri = [pattern.format(c.name, prefix) for c in composer_algos]
+pattern = '{1}/exp10-{2}bAN_NN_gigaw_{0}/AN_NN_gigaw_{0}.sims.neighbours.strings'
+gigaw_unreduced_thesauri = [pattern.format(c.name, prefix, features) for c in composer_algos]
 # the names of the unreduced observed thesauri aren't consistent with all other names, handle separately
-gigaw_unreduced_thesauri.append('{1}/exp10-13bAN_NN_gigaw_{0}/exp10.sims.neighbours.strings'.format('Observed', prefix))
+gigaw_unreduced_thesauri.append('{1}/exp10-{2}bAN_NN_gigaw_{0}/exp10.sims.neighbours.strings'.format('Observed',
+                                                                                                     prefix,
+                                                                                                     features))
 
 # get the names of all WIKI unreduced thesauri
-pattern = '{1}/exp11-13bAN_NN_wiki_{0}/AN_NN_wiki_{0}.sims.neighbours.strings'
-wiki_unreduced_thesauri = [pattern.format(c.name, prefix) for c in composer_algos]
-wiki_unreduced_thesauri.append('{1}/exp11-13bAN_NN_wiki_{0}/exp11.sims.neighbours.strings'.format('Observed', prefix))
+pattern = '{1}/exp11-{2}bAN_NN_wiki_{0}/AN_NN_wiki_{0}.sims.neighbours.strings'
+wiki_unreduced_thesauri = [pattern.format(c.name, prefix, features) for c in composer_algos]
+wiki_unreduced_thesauri.append('{1}/exp11-{2}bAN_NN_wiki_{0}/exp11.sims.neighbours.strings'.format('Observed',
+                                                                                                   prefix,
+                                                                                                   features))
 
 thesauri = {(0, 42): gigaw_unreduced_thesauri, (0, 56): gigaw_unreduced_thesauri,
             (0, 49): wiki_unreduced_thesauri, (0, 63): wiki_unreduced_thesauri,
@@ -42,11 +45,11 @@ for labelled_corpus in ['R2', 'MR']:
     for svd_dims in [30, 300, 1000]:
         for number, name in zip([10, 11], ['gigaw', 'wiki']):
             print '{}\t== {}- {}, {}'.format(superbase, labelled_corpus, svd_dims, name)
-            pattern = '{0}/exp{3}-13bAN_NN_{4}-{2}_{1}/AN_NN_{4}-{2}_{1}.sims.neighbours.strings'
-            obs_pattern = '{0}/exp{3}-13bAN_NN_{4}-{2}_{1}/exp{3}-SVD{2}.sims.neighbours.strings'
+            pattern = '{0}/exp{3}-{5}bAN_NN_{4}-{2}_{1}/AN_NN_{4}-{2}_{1}.sims.neighbours.strings'
+            obs_pattern = '{0}/exp{3}-{5}bAN_NN_{4}-{2}_{1}/exp{3}-SVD{2}.sims.neighbours.strings'
             files = []
-            files = [pattern.format(prefix, c.name, svd_dims, number, name) for c in composer_algos]
-            files.append(obs_pattern.format(prefix, 'Observed', svd_dims, number, name))
+            files = [pattern.format(prefix, c.name, svd_dims, number, name, features) for c in composer_algos]
+            files.append(obs_pattern.format(prefix, 'Observed', svd_dims, number, name, features))
             thesauri[(svd_dims, superbase)] = files
             superbase += len(files)
 

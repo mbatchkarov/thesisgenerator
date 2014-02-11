@@ -8,6 +8,7 @@ sys.path.append('../..')
 from dissect_scripts.load_translated_byblo_space import train_baroni_composer
 from glob import glob
 import shutil
+import argparse
 from discoutils.thesaurus_loader import Thesaurus
 from discoutils.cmd_utils import set_stage_in_byblo_conf_file, run_byblo, parse_byblo_conf_file, \
     reindex_all_byblo_vectors, run_and_log_output, unindex_all_byblo_vectors, set_output_in_byblo_conf_file
@@ -163,7 +164,7 @@ def build_thesauri_out_of_composed_vectors(composer_algos, dataset_name, ngram_v
                                               vectors_file, entries_file, features_file)
 
 
-def build_only_AN_NN_thesauri_without_baroni(exp):
+def build_only_AN_NN_thesauri_without_baroni(corpus, features):
     # required files: a Byblo conf file, a labelled classification data set
     # created files:  composed vector files in a dir, thesauri of NPs
 
@@ -173,10 +174,12 @@ def build_only_AN_NN_thesauri_without_baroni(exp):
 
     byblo_base_dir = '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/Byblo-2.2.0/'
 
-    dataset_name = 'gigaw' if exp == 10 else 'wiki' # todo short name of input
-    unigram_thesaurus_dir = os.path.abspath(os.path.join(byblo_base_dir, '..', 'exp%d-13b' % exp)) # todo input 1
+    dataset_name = 'gigaw' if corpus == 10 else 'wiki' # todo short name of input
+    unigram_thesaurus_dir = os.path.abspath(os.path.join(byblo_base_dir, '..',
+                                                         'exp%d-%db' % (corpus, features))) # todo input 1
 
-    ngram_vectors_dir = os.path.join(byblo_base_dir, '..', 'exp%d-13-composed-ngrams-MR-R2' % exp) # output 1
+    ngram_vectors_dir = os.path.join(byblo_base_dir, '..',
+                                     'exp%d-%d-composed-ngrams-MR-R2' % (corpus, features)) # output 1
     # output 2 is a set of directories <output1>*
 
     composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
@@ -186,7 +189,7 @@ def build_only_AN_NN_thesauri_without_baroni(exp):
     if not os.path.exists(ngram_vectors_dir):
         os.mkdir(ngram_vectors_dir)
     os.chdir(byblo_base_dir)
-    if exp != 11: # got these files from Julie, no need to run the myself
+    if corpus != 11: # got these files from Julie, no need to run the myself
         calculate_unigram_vectors(unigram_thesaurus_dir)
 
     # COMPOSE ALL AN/NN VECTORS IN LABELLED SET
@@ -202,21 +205,24 @@ def build_only_AN_NN_thesauri_without_baroni(exp):
     build_thesauri_out_of_composed_vectors(composer_algos, dataset_name, ngram_vectors_dir, unigram_thesaurus_dir)
 
 
-def build_full_composed_thesauri_with_baroni_and_svd(exp):
+def build_full_composed_thesauri_with_baroni_and_svd(corpus, features):
     # SET UP A FEW REQUIRED PATHS
 
     byblo_base_dir = '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/Byblo-2.2.0/' # trailing slash required
     #  INPUT 1:  DIRECTORY. Must contain a single conf file
-    unigram_thesaurus_dir = os.path.abspath(os.path.join(byblo_base_dir, '..', 'exp%d-13b' % exp))
-    #  INPUT 2: A FILE, TSV, underscore-separated observed vectors for ANs and NNs
-    baroni_training_phrases = os.path.join(byblo_base_dir, '..', 'observed_vectors', 'exp%d_AN_NNvectors-cleaned' % exp)
+    unigram_thesaurus_dir = os.path.abspath(os.path.join(byblo_base_dir, '..', 'exp%d-%db' % (corpus, features)))
 
-    ngram_vectors_dir = os.path.join(byblo_base_dir, '..', 'exp%d-13-composed-ngrams-MR-R2' % exp) # output 1
+    #  INPUT 2: A FILE, TSV, underscore-separated observed vectors for ANs and NNs
+    baroni_training_phrases = os.path.join(byblo_base_dir, '..', 'observed_vectors',
+                                           'exp%d-%d_AN_NNvectors-cleaned' % (corpus, features))
+
+    ngram_vectors_dir = os.path.join(byblo_base_dir, '..',
+                                     'exp%d-%d-composed-ngrams-MR-R2' % (corpus, features)) # output 1
     composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
                       RightmostWordComposer, MinComposer, MaxComposer, BaroniComposer]
 
     target_dimensionality = [30, 300, 1000]
-    dataset_name = 'gigaw' if exp == 10 else 'wiki' # short name of input corpus
+    dataset_name = 'gigaw' if corpus == 10 else 'wiki' # short name of input corpus
     baroni_training_phrase_types = {'AN', 'NN'} # what kind of NPs to train Baroni composer for
 
     # EXTRACT UNIGRAM VECTORS WITH BYBLO
@@ -282,11 +288,25 @@ def build_full_composed_thesauri_with_baroni_and_svd(exp):
                                                ngram_vectors_dir, unigram_thesaurus_dir)
 
 
+def read_configuration():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--corpus', choices=('wikipedia', 'gigaword'), required=True)
+    parser.add_argument('--features', choices=('dependencies', 'windows'), required=True)
+    return parser.parse_args()
+
+
 if __name__ == '__main__':
     import sys
 
     logging.basicConfig(level=logging.INFO,
                         format="%(asctime)s\t%(module)s.%(funcName)s ""(line %(lineno)d)\t%(levelname)s : %(""message)s")
 
-    # build_only_AN_NN_thesauri_without_baroni(int(sys.argv[1]))
-    build_full_composed_thesauri_with_baroni_and_svd(int(sys.argv[1]))
+    parameters = read_configuration()
+    logging.info(parameters)
+
+    corpus = 10 if parameters.corpus == 'gigaword' else 11
+    features = 12 if parameters.features == 'dependencies' else 13
+    print corpus, features
+
+    # build_only_AN_NN_thesauri_without_baroni(corpus, features)
+    build_full_composed_thesauri_with_baroni_and_svd(corpus, features)
