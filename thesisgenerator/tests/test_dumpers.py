@@ -53,11 +53,12 @@ class TestConsolidatedResultsSqlWriter(TestCase):
         rows = cur.fetchall()
         self.assertEqual(1, len(rows))
         self.assertEqual(len(header_list), len(rows[0]))
-        for i, val in enumerate(rows[0]):
+        self.assertEqual(rows[0][0], 1)  # auto-increment field
+        for i, val in enumerate(rows[0][1:]):
             if i == 2:
                 # the third column is a timestamp, cannot convert to float
                 continue
-            self.assertEqual(float(i), float(val))
+            self.assertEqual(float(i) + 1, float(val))
 
     def test_mysql(self):
         con = get_susx_mysql_conn()
