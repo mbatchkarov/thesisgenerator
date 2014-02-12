@@ -10,75 +10,120 @@ from thesisgenerator.utils.conf_file_utils import set_in_conf_file, parse_config
 
 '''
 Once all thesauri with ngram entries (obtained using different composition methods) have been built offline,
-use this script to run them through the classification framework
+use this script to generate the conf files required to run them through the classification framework
 '''
 
-features = 13  # 12 for dependency thesauri, 13 for windows
-handler = 'thesisgenerator.plugins.bov_feature_handlers.SignifiedFeatureHandler'
 prefix = '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit'
 composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
-                  RightmostWordComposer, MinComposer, MaxComposer]
+                  RightmostWordComposer, MinComposer, MaxComposer, BaroniComposer, None]
 
-# get the names of all GIGAW unreduced thesauri
-pattern = '{1}/exp10-{2}bAN_NN_gigaw_{0}/AN_NN_gigaw_{0}.sims.neighbours.strings'
-gigaw_unreduced_thesauri = [pattern.format(c.name, prefix, features) for c in composer_algos]
-# the names of the unreduced observed thesauri aren't consistent with all other names, handle separately
-gigaw_unreduced_thesauri.append('{1}/exp10-{2}bAN_NN_gigaw_{0}/exp10.sims.neighbours.strings'.format('Observed',
-                                                                                                     prefix,
-                                                                                                     features))
 
-# get the names of all WIKI unreduced thesauri
-pattern = '{1}/exp11-{2}bAN_NN_wiki_{0}/AN_NN_wiki_{0}.sims.neighbours.strings'
-wiki_unreduced_thesauri = [pattern.format(c.name, prefix, features) for c in composer_algos]
-wiki_unreduced_thesauri.append('{1}/exp11-{2}bAN_NN_wiki_{0}/exp11.sims.neighbours.strings'.format('Observed',
-                                                                                                   prefix,
-                                                                                                   features))
-print 'Preparing lists of experimental settings'
-thesauri = {(0, 42): gigaw_unreduced_thesauri, (0, 56): gigaw_unreduced_thesauri,
-            (0, 49): wiki_unreduced_thesauri, (0, 63): wiki_unreduced_thesauri,
-            (0, 70): gigaw_unreduced_thesauri, (0, 77): gigaw_unreduced_thesauri}
+class Experiment():
+    def __init__(self, number,
+                 composer_name, thesaurus_file,
+                 labelled_name,
+                 unlabelled_name, unlabelled_num,
+                 thesaurus_features_name, thesaurus_features_num,
+                 document_features, svd):
+        self.number = number
+        self.composer_name = composer_name
+        self.thesaurus_file = thesaurus_file
+        self.labelled_name = labelled_name
+        self.unlabelled_name = unlabelled_name
+        self.unlabelled_num = unlabelled_num
+        self.thesaurus_features_name = thesaurus_features_name
+        self.thesaurus_features_num = thesaurus_features_num
+        self.svd = svd
+        self.document_features = document_features
 
-# INSERT SVD-REDUCED THESAURI
-composer_algos.append(BaroniComposer)
-superbase = 84
-for labelled_corpus in ['R2', 'MR']:
-    for svd_dims in [30, 300, 1000]:
-        for number, name in zip([10, 11], ['gigaw', 'wiki']):
-            print '{}\t== {}- {}, {}'.format(superbase, labelled_corpus, svd_dims, name)
-            pattern = '{0}/exp{3}-{5}bAN_NN_{4}-{2}_{1}/AN_NN_{4}-{2}_{1}.sims.neighbours.strings'
-            obs_pattern = '{0}/exp{3}-{5}bAN_NN_{4}-{2}_{1}/exp{3}-SVD{2}.sims.neighbours.strings'
-            files = []
-            files = [pattern.format(prefix, c.name, svd_dims, number, name, features) for c in composer_algos]
-            files.append(obs_pattern.format(prefix, 'Observed', svd_dims, number, name, features))
-            thesauri[(svd_dims, superbase)] = files
-            superbase += len(files)
+    def __str__(self):
+        # num: doc_feats, comp, handler, unlab, svd, lab, thes_feats
+        return "'%s'" % ','.join([str(self.number),
+                                  self.unlabelled_name,
+                                  self.labelled_name,
+                                  str(self.svd),
+                                  self.composer_name,
+                                  self.document_features,
+                                  self.thesaurus_features_name])
+
+    def __repr__(self):
+        return str(self)
+
+
+# e.g. exp10-13bAN_NN_gigaw_Left/AN_NN_gigaw_Left.sims.neighbours.strings
+unred_pattern = '{prefix}/exp{unlab_num}-{thesf_num}bAN_NN_{unlab_name}_{composer_name}/' \
+                'AN_NN_{unlab_name}_{composer_name}.sims.neighbours.strings'
+# e.g. exp10-13bAN_NN_gigaw_Observed/exp10.sims.neighbours.strings
+unred_obs_pattern = '{prefix}/exp{unlab_num}-{thesf_num}bAN_NN_{unlab_name}_{composer_name}/' \
+                    'exp{unlab_num}.sims.neighbours.strings'
+
+# e.g. exp10-12bAN_NN_gigaw-30_Mult/AN_NN_gigaw-30_Mult.sims.neighbours.strings
+reduced_pattern = '{prefix}/exp{unlab_num}-{thesf_num}bAN_NN_{unlab_name}-{svd_dims}_{composer_name}/' \
+                  'AN_NN_{unlab_name}-{svd_dims}_{composer_name}.sims.neighbours.strings'
+# e.g. exp10-12bAN_NN_gigaw-30_Observed/exp10-SVD30.sims.neighbours.strings
+reduced_obs_pattern = '{prefix}/exp{unlab_num}-{thesf_num}bAN_NN_{unlab_name}-{svd_dims}_{composer_name}/' \
+                      'exp{unlab_num}-SVD{svd_dims}.sims.neighbours.strings'
+
+experiments = []
+exp_number = 42
+for thesf_num, thesf_name in zip([12, 13], ['dependencies', 'windows']):
+    for unlab_num, unlab_name in zip([10, 11], ['gigaw', 'wiki']):
+        for labelled_corpus in ['R2', 'MR']:
+            for svd_dims in [0, 30, 300, 1000]:
+                for composer_class in composer_algos:
+                    if composer_class == BaroniComposer and svd_dims == 0:
+                        continue  # not training Baroni without SVD
+                    if composer_class:
+                        pattern = unred_pattern if svd_dims < 1 else reduced_pattern
+                        composer_name = composer_class.name
+                    else:
+                        pattern = unred_obs_pattern if svd_dims < 1 else reduced_obs_pattern
+                        composer_name = 'Observed'
+
+                    thesaurus_file = pattern.format(**locals())
+                    e = Experiment(exp_number, composer_name, thesaurus_file, labelled_corpus, unlab_name, unlab_num,
+                                   thesf_name, thesf_num, 'AN_NN', svd_dims)
+                    experiments.append(e)
+                    exp_number += 1
+                    print e, ','
+
+# do a few experiment with AN/ NN features only for comparison
+for doc_feature_type in ['AN', 'NN']:
+    for composer_class in composer_algos:
+        pattern = reduced_pattern
+        composer_name = composer_class.name if composer_class else 'Observed'
+        thesaurus_file = pattern.format(**locals())
+        e = Experiment(exp_number, composer_name, thesaurus_file, 'R2', 'gigaw', 10,
+                       'dependencies', 12, doc_feature_type, 300)
+        experiments.append(e)
+        print e, ','
+        exp_number += 1
 
 print 'Writing conf files'
-for k in thesauri.keys():
-    svd_dims, first_exp = k
-    superbase_conf_file = 'conf/exp%d-superbase.conf' % first_exp
+megasuperbase_conf_file = 'conf/exp42-superbase.conf'
+for exp in experiments:
+    # sanity check
+    assert os.path.exists(exp.thesaurus_file)
 
-    for offset, thes in enumerate(thesauri[k]):
-        # sanity check
-        assert os.path.exists(thes) # todo re-enable this
+    experiment_dir = 'conf/exp%d' % exp.number
+    if not os.path.exists(experiment_dir):
+        os.mkdir(experiment_dir)
 
-        experiment_dir = 'conf/exp%d' % (first_exp + offset)
-        if not os.path.exists(experiment_dir):
-            os.mkdir(experiment_dir)
+    base_conf_file = os.path.join(experiment_dir, 'exp%d_base.conf' % exp.number)
+    # print base_conf_file, '\t\t', thes
+    shutil.copy(megasuperbase_conf_file, base_conf_file)
+    if exp.labelled_name == 'R2':
+        train_data = 'sample-data/reuters21578/r8train-tagged-grouped'
+        test_data = 'sample-data/reuters21578/r8test-tagged-grouped'
+    else:
+        train_data = 'sample-data/movie-reviews-train-tagged'
+        test_data = 'sample-data/movie-reviews-test-tagged'
 
-        base_conf_file = os.path.join(experiment_dir, 'exp%d_base.conf' % (first_exp + offset))
-        # print base_conf_file, '\t\t', thes
-        shutil.copy(superbase_conf_file, base_conf_file)
-
-        set_in_conf_file(base_conf_file, ['vector_sources', 'unigram_paths'], [thes])
-        set_in_conf_file(base_conf_file, ['output_dir'], './conf/exp%d/output' % (first_exp + offset))
-        set_in_conf_file(base_conf_file, ['name'], 'exp%d' % (first_exp + offset))
-        config_obj, configspec_file = parse_config_file(base_conf_file)
-
-        # print a brief description of the experiment setting for use in plotting
-        composer = thes.split('/')[-2].split('_')[-1]
-        corpus = 'wiki' if 'wiki' in thes else 'gigaw'
-        labelled_corpus = 'MR' if 'movie' in config_obj['training_data'] else 'R2'
-        print "{}: 'AN_NN, {}, signified, {}-{}, {}, {}'".format(first_exp + offset, composer,
-                                                                 corpus, svd_dims, labelled_corpus,
-                                                                 c) # todo add windows/dependencies here
+    set_in_conf_file(base_conf_file, ['vector_sources', 'unigram_paths'], [exp.thesaurus_file])
+    set_in_conf_file(base_conf_file, ['output_dir'], './conf/exp%d/output' % exp.number)
+    set_in_conf_file(base_conf_file, ['name'], 'exp%d' % exp.number)
+    set_in_conf_file(base_conf_file, ['training_data'], train_data)
+    set_in_conf_file(base_conf_file, ['test_data'], test_data)
+    for doc_feature_type in exp.document_features.split('_'):
+        set_in_conf_file(base_conf_file, ['feature_extraction', 'extract_%s_features' % doc_feature_type], True)
+    config_obj, configspec_file = parse_config_file(base_conf_file)
