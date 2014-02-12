@@ -49,7 +49,7 @@ def add_new_vectors(thesaurus_dir, composed_vectors, composed_entries, composed_
     with open(composed_features) as infile:
         new_features = [x.strip().split('\t') for x in infile.readlines()]
 
-    with open(features_file, 'a+b') as outfile: # append mode
+    with open(features_file, 'a+b') as outfile:  # append mode
         for feature, count in new_features:
             if feature not in old_features:
                 outfile.write('%s\t%s\n' % (feature, count))
@@ -91,7 +91,7 @@ def do_second_part(thesaurus_dir, vectors_files='', entries_files='', features_f
         assert features_files
 
         if os.path.exists(copy_to_dir):
-            shutil.rmtree(copy_to_dir) # copytree will fail if target exists
+            shutil.rmtree(copy_to_dir)  # copytree will fail if target exists
         shutil.copytree(thesaurus_dir, copy_to_dir)
 
         add_new_vectors(copy_to_dir, vectors_files, entries_files, features_files)
@@ -139,7 +139,7 @@ def do_second_part_without_base_thesaurus(byblo_conf_file, output_dir, vectors_f
     # tell byblo to only do the later stages
     set_output_in_byblo_conf_file(final_conf_file, output_dir)
 
-    open(thes_prefix, 'a').close() # touch this file. Byblo uses the name of the input to find the intermediate files,
+    open(thes_prefix, 'a').close()  # touch this file. Byblo uses the name of the input to find the intermediate files,
     # and complains if the input file does not exist, even if it is not read.
 
     set_output_in_byblo_conf_file(final_conf_file, thes_prefix, type='input')
@@ -164,51 +164,60 @@ def build_thesauri_out_of_composed_vectors(composer_algos, dataset_name, ngram_v
                                               vectors_file, entries_file, features_file)
 
 
-def build_only_AN_NN_thesauri_without_baroni(corpus, features):
+def build_only_AN_NN_thesauri_without_baroni(corpus, features, stages):
     # required files: a Byblo conf file, a labelled classification data set
     # created files:  composed vector files in a dir, thesauri of NPs
 
     # SET UP A FEW REQUIRED PATHS
-    logging.basicConfig(level=logging.INFO,
-                        format="%(asctime)s\t%(module)s.%(funcName)s ""(line %(lineno)d)\t%(levelname)s : %(""message)s")
-
     byblo_base_dir = '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/Byblo-2.2.0/'
+    thesisgenerator_base_dir = '/mnt/lustre/scratch/inf/mmb28/thesisgenerator'
 
-    dataset_name = 'gigaw' if corpus == 10 else 'wiki' # short name of input
+    dataset_name = 'gigaw' if corpus == 10 else 'wiki'  # short name of input
     unigram_thesaurus_dir = os.path.abspath(os.path.join(byblo_base_dir, '..',
-                                                         'exp%d-%db' % (corpus, features))) # todo input 1
+                                                         'exp%d-%db' % (corpus, features)))  # input 1
 
     ngram_vectors_dir = os.path.join(byblo_base_dir, '..',
-                                     'exp%d-%d-composed-ngrams-MR-R2' % (corpus, features)) # output 1
+                                     'exp%d-%d-composed-ngrams-MR-R2' % (corpus, features))  # output 1
     # output 2 is a set of directories <output1>*
 
     composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
-                      RightmostWordComposer, MinComposer, MaxComposer] # observed done through a separate script
+                      RightmostWordComposer, MinComposer, MaxComposer]  # observed done through a separate script
 
-    # EXTRACT UNIGRAM VECTORS WITH BYBLO
     if not os.path.exists(ngram_vectors_dir):
         os.mkdir(ngram_vectors_dir)
-    os.chdir(byblo_base_dir)
-    if corpus != 11: # got these files from Julie, no need to run the myself
+
+    # EXTRACT UNIGRAM VECTORS WITH BYBLO
+    if 'unigrams' in stages:
+        os.chdir(byblo_base_dir)
         calculate_unigram_vectors(unigram_thesaurus_dir)
+    else:
+        logging.warn('Skipping unigrams stage. Assuming output is at %s', _find_events_file(unigram_thesaurus_dir))
 
     # COMPOSE ALL AN/NN VECTORS IN LABELLED SET
-    unigram_vectors_file = _find_events_file(unigram_thesaurus_dir)
-    dump.compose_and_write_vectors([unigram_vectors_file],
-                                   dataset_name,
-                                   [dump.classification_data_path_mr, dump.classification_data_path], # todo input 2
-                                   None,
-                                   output_dir=ngram_vectors_dir,
-                                   composer_classes=composer_algos)
+    if 'compose' in stages:
+        os.chdir(thesisgenerator_base_dir)
+        unigram_vectors_file = _find_events_file(unigram_thesaurus_dir)
+        dump.compose_and_write_vectors([unigram_vectors_file],
+                                       dataset_name,
+                                       [dump.classification_data_path_mr, dump.classification_data_path],  #input 2
+                                       None,
+                                       output_dir=ngram_vectors_dir,
+                                       composer_classes=composer_algos)
+    else:
+        logging.warn('Skipping composition stage. Assuming output is at %s', ngram_vectors_dir)
 
     # BUILD THESAURI OUT OF COMPOSED VECTORS ONLY
-    build_thesauri_out_of_composed_vectors(composer_algos, dataset_name, ngram_vectors_dir, unigram_thesaurus_dir)
+    if 'thesauri' in stages:
+        os.chdir(byblo_base_dir)
+        build_thesauri_out_of_composed_vectors(composer_algos, dataset_name, ngram_vectors_dir, unigram_thesaurus_dir)
+    else:
+        logging.warn('Skipping thesaurus construction stage.')
 
 
-def build_full_composed_thesauri_with_baroni_and_svd(corpus, features):
+def build_full_composed_thesauri_with_baroni_and_svd(corpus, features, stages):
     # SET UP A FEW REQUIRED PATHS
 
-    byblo_base_dir = '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/Byblo-2.2.0/' # trailing slash required
+    byblo_base_dir = '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/Byblo-2.2.0/'  # trailing slash required
     #  INPUT 1:  DIRECTORY. Must contain a single conf file
     unigram_thesaurus_dir = os.path.abspath(os.path.join(byblo_base_dir, '..', 'exp%d-%db' % (corpus, features)))
 
@@ -217,19 +226,23 @@ def build_full_composed_thesauri_with_baroni_and_svd(corpus, features):
                                            'exp%d-%d_AN_NNvectors-cleaned' % (corpus, features))
 
     ngram_vectors_dir = os.path.join(byblo_base_dir, '..',
-                                     'exp%d-%d-composed-ngrams-MR-R2' % (corpus, features)) # output 1
+                                     'exp%d-%d-composed-ngrams-MR-R2' % (corpus, features))  # output 1
     composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
                       RightmostWordComposer, MinComposer, MaxComposer, BaroniComposer]
 
     target_dimensionality = [30, 300, 1000]
-    dataset_name = 'gigaw' if corpus == 10 else 'wiki' # short name of input corpus
-    baroni_training_phrase_types = {'AN', 'NN'} # what kind of NPs to train Baroni composer for
+    dataset_name = 'gigaw' if corpus == 10 else 'wiki'  # short name of input corpus
+    baroni_training_phrase_types = {'AN', 'NN'}  # what kind of NPs to train Baroni composer for
 
-    # EXTRACT UNIGRAM VECTORS WITH BYBLO
     if not os.path.exists(ngram_vectors_dir):
         os.mkdir(ngram_vectors_dir)
     os.chdir(byblo_base_dir)
-    # calculate_unigram_vectors(unigram_thesaurus_dir)
+
+    # EXTRACT UNIGRAM VECTORS WITH BYBLO
+    if 'unigrams' in stages:
+        calculate_unigram_vectors(unigram_thesaurus_dir)
+    else:
+        logging.warn('Skipping unigrams stage. Assuming output is at %s', _find_events_file(unigram_thesaurus_dir))
 
     # REDUCE DIMENSIONALITY
     # add in observed AN/NN vectors for SVD processing. Reduce both unigram vectors and observed phrase vectors
@@ -239,9 +252,12 @@ def build_full_composed_thesauri_with_baroni_and_svd(corpus, features):
     reduced_file_prefix = '.'.join(unreduced_unigram_events_file.split('.')[:-3]) + '-with-obs-phrases'
     # only keep the most frequent types per PoS tag to speed things up
     counts = [('N', 20000), ('V', 0), ('J', 10000), ('RB', 00), ('AN', 0), ('NN', 0)]
-    # do_svd([unreduced_unigram_events_file], reduced_file_prefix,
-    #        desired_counts_per_feature_type=counts, reduce_to=target_dimensionality,
-    #        apply_to=[baroni_training_phrases])
+    if 'svd' in stages:
+        do_svd([unreduced_unigram_events_file], reduced_file_prefix,
+               desired_counts_per_feature_type=counts, reduce_to=target_dimensionality,
+               apply_to=[baroni_training_phrases])
+    else:
+        logging.warn('Skipping SVD stage. Assuming output is at %s-SVD*', reduced_file_prefix)
 
     # construct the names of files output by do_svd
     baroni_training_data = ['%s-SVD%d.events.filtered.strings' % (reduced_file_prefix, dim)
@@ -256,56 +272,84 @@ def build_full_composed_thesauri_with_baroni_and_svd(corpus, features):
         trained_composer_prefix = '%s-SVD%s' % (baroni_training_phrases, svd_dims)
         trained_composer_file = trained_composer_prefix + '.composer.pkl'
 
-        # do the actual training
-        thes = Thesaurus.from_tsv([all_reduced_vectors], aggressive_lowercasing=False)
-        thes.to_file(baroni_training_heads,
-                     entry_filter=lambda x: x.type == '1-GRAM' and x.tokens[0].pos == 'N')
+        if 'compose' in stages:
+            # do the actual training
+            thes = Thesaurus.from_tsv([all_reduced_vectors], aggressive_lowercasing=False)
+            thes.to_file(baroni_training_heads,
+                         entry_filter=lambda x: x.type == '1-GRAM' and x.tokens[0].pos == 'N')
 
-        thes.to_file(baroni_training_only_phrases,
-                     entry_filter=lambda x: x.type in baroni_training_phrase_types,
-                     row_transform=lambda x: x.replace(' ', '_'))
+            thes.to_file(baroni_training_only_phrases,
+                         entry_filter=lambda x: x.type in baroni_training_phrase_types,
+                         row_transform=lambda x: x.replace(' ', '_'))
 
-        train_baroni_composer(baroni_training_heads,
-                              baroni_training_only_phrases,
-                              trained_composer_prefix,
-                              threshold=50)
+            train_baroni_composer(baroni_training_heads,
+                                  baroni_training_only_phrases,
+                                  trained_composer_prefix,
+                                  threshold=50)
 
-        # mess with vectors, add to/modify entries and events files
-        # whether to modify the features file is less obvious- do composed entries have different features
-        # to the non-composed ones?
+            # mess with vectors, add to/modify entries and events files
+            # whether to modify the features file is less obvious- do composed entries have different features
+            # to the non-composed ones?
 
-        dump.compose_and_write_vectors([all_reduced_vectors],
-                                       '%s-%s' % (dataset_name, svd_dims) if svd_dims else dataset_name,
-                                       [dump.classification_data_path_mr, dump.classification_data_path],
-                                       trained_composer_file,
-                                       output_dir=ngram_vectors_dir,
-                                       composer_classes=composer_algos)
+            dump.compose_and_write_vectors([all_reduced_vectors],
+                                           '%s-%s' % (dataset_name, svd_dims) if svd_dims else dataset_name,
+                                           [dump.classification_data_path_mr, dump.classification_data_path],
+                                           trained_composer_file,
+                                           output_dir=ngram_vectors_dir,
+                                           composer_classes=composer_algos)
 
+        else:
+            logging.warn('Skipping Baroni training stage. Assuming trained model is at %s', trained_composer_file)
+            logging.warn('Skipping composition stage. Assuming output is at %s', ngram_vectors_dir)
     # BUILD THESAURI OUT OF COMPOSED VECTORS ONLY
     for dims in target_dimensionality:
-        build_thesauri_out_of_composed_vectors(composer_algos, '%s-%d' % (dataset_name, dims),
-                                               ngram_vectors_dir, unigram_thesaurus_dir)
+        if 'thesauri' in stages:
+            build_thesauri_out_of_composed_vectors(composer_algos, '%s-%d' % (dataset_name, dims),
+                                                   ngram_vectors_dir, unigram_thesaurus_dir)
+        else:
+            logging.warn('Skipping thesaurus construction stage. Assuming output is at %s', ngram_vectors_dir)
 
 
-def read_configuration():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--corpus', choices=('wikipedia', 'gigaword'), required=True)
-    parser.add_argument('--features', choices=('dependencies', 'windows'), required=True)
-    return parser.parse_args()
+def get_corpus_features_cmd_parser():
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument('--corpus', choices=('wikipedia', 'gigaword'), required=True,
+                        help='Unlabelled corpus to source unigram vectors from')
+    parser.add_argument('--features', choices=('dependencies', 'windows'), required=True,
+                        help='Feature type of unigram vectors')
+    return parser
+
+
+def get_cmd_parser():
+    parser = argparse.ArgumentParser(parents=[get_corpus_features_cmd_parser()])
+    # add options specific to this script here
+    parser.add_argument('--stages', choices=('unigrams', 'svd', 'compose', 'thesauri'), required=True, nargs='+',
+                        help='What parts of the pipeline to run. Each part is independent, the pipeline can be '
+                             'run incrementally. The stages are: '
+                             '1) unigrams: extract unigram vectors from unlabelled corpus '
+                             '2) svd: reduce noun and adj matrix, apply to NP matrix '
+                             '3) compose: train Baroni composer and compose all possible NP vectors with all composers'
+                             '4) thesauri: build thesauri from available composed vectors')
+    parser.add_argument('--use-svd', action='store_true',
+                        help='If set, SVD will be performed and a Baroni composer will be trained. Otherwise the'
+                             'svd part of the pipeline is skipped.')
+    return parser
 
 
 if __name__ == '__main__':
     import sys
 
     logging.basicConfig(level=logging.INFO,
-                        format="%(asctime)s\t%(module)s.%(funcName)s ""(line %(lineno)d)\t%(levelname)s : %(""message)s")
+                        format="%(asctime)s\t%(module)s.%(funcName)s (line %(lineno)d)\t%(levelname)s : %(message)s")
 
-    parameters = read_configuration()
+    parameters = get_cmd_parser().parse_args()
     logging.info(parameters)
 
     corpus = 10 if parameters.corpus == 'gigaword' else 11
     features = 12 if parameters.features == 'dependencies' else 13
-    print corpus, features
 
-    # build_only_AN_NN_thesauri_without_baroni(corpus, features)
-    build_full_composed_thesauri_with_baroni_and_svd(corpus, features)
+    if parameters.use_svd:
+        logging.info('Starting pipeline with SVD and Baroni composer')
+        build_full_composed_thesauri_with_baroni_and_svd(corpus, features, parameters.stages)
+    else:
+        logging.info('Starting non-reduced pipeline')
+        build_only_AN_NN_thesauri_without_baroni(corpus, features, parameters.stages)

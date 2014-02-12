@@ -9,7 +9,7 @@ setup(
     author=['Matti Lyra', 'Miroslav Batchkarov'],
     author_email=['M.Lyra@sussex.ac.uk', 'M.Batchkarov@sussex.ac.uk'],
     install_requires=['iterpipes', 'pandas', 'matplotlib', 'numpy', 'scipy',
-                      'scikit-learn', 'joblib', 'configobj', 'validate',
+                      'scikit-learn', 'joblib', 'configobj',
                       'jinja2', 'networkx', 'gitpython', 'Cython'],
 )
 

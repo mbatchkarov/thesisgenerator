@@ -1,3 +1,4 @@
+import argparse
 import logging
 import sys
 
@@ -9,7 +10,7 @@ from discoutils.tokens import DocumentFeature
 from discoutils.thesaurus_loader import Thesaurus
 from discoutils.io_utils import write_vectors_to_disk
 from thesisgenerator.scripts.build_phrasal_thesauri_offline import do_second_part_without_base_thesaurus, \
-    _find_conf_file, read_configuration
+    _find_conf_file
 
 __author__ = 'mmb28'
 '''
@@ -24,7 +25,7 @@ def do_work(corpus, features, svd_dims):
     # where are the observed n-gram vectors in tsv format, must be underscore-separated already
     name = 'wiki' if corpus == 11 else 'gigaw'
 
-    if svd_dims < 0:
+    if svd_dims == 0:
         observed_ngram_vectors_file = '%s/observed_vectors/exp%d-%d_AN_NNvectors-cleaned' % (prefix, corpus, features)
     else:
         observed_ngram_vectors_file = '%s/exp%d-%db/exp%d-with-obs-phrases-SVD%d.events.filtered.strings' % \
@@ -32,7 +33,7 @@ def do_work(corpus, features, svd_dims):
 
     logging.info('Using observed events file %s', observed_ngram_vectors_file)
     # where should the output go
-    if svd_dims < 0:
+    if svd_dims == 0:
         outdir = '%s/exp%d-%dbAN_NN_%s_Observed' % (prefix, corpus, features, name)
     else:
         outdir = '%s/exp%d-%dbAN_NN_%s-%d_Observed' % (prefix, corpus, features, name, svd_dims)
@@ -45,7 +46,7 @@ def do_work(corpus, features, svd_dims):
 
     # CREATE BYBLO EVENTS/FEATURES/ENTRIES FILE FROM INPUT
     #  where should these be written
-    svd_appendage = '' if svd_dims < 0 else '-SVD%d' % svd_dims
+    svd_appendage = '' if svd_dims == 0 else '-SVD%d' % svd_dims
     observed_vector_dir = os.path.dirname(observed_ngram_vectors_file)
     vectors_file = os.path.join(observed_vector_dir, 'exp%d%s.events.filtered.strings' % (corpus, svd_appendage))
     entries_file = os.path.join(observed_vector_dir, 'exp%d%s.entries.filtered.strings' % (corpus, svd_appendage))
@@ -67,15 +68,26 @@ def do_work(corpus, features, svd_dims):
                                           vectors_file, entries_file, features_file)
 
 
+def get_cmd_parser():
+    from thesisgenerator.scripts.build_phrasal_thesauri_offline import get_corpus_features_cmd_parser
+
+    parser = argparse.ArgumentParser(parents=[get_corpus_features_cmd_parser()])
+    # add options specific to this script here
+    parser.add_argument('--svd', choices=(0, 30, 300, 1000), required=True, nargs='+', type=int,
+                        help='What SVD dimensionalities to build observed-vector thesauri from. '
+                             'Vectors must have been produced and reduced already. 0 stand for unreduced.')
+    return parser
+
+
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO,
                         format="%(asctime)s\t%(module)s.%(funcName)s (line %(lineno)d)\t%(levelname)s : %(message)s")
 
-    parameters = read_configuration()
+    parameters = get_cmd_parser().parse_args()
     logging.info(parameters)
 
     corpus = 10 if parameters.corpus == 'gigaword' else 11
     features = 12 if parameters.features == 'dependencies' else 13
 
-    for dims in [30, 300, 1000]:  # todo add -1 to do thesauri without SVD preprocessing of vectors
+    for dims in parameters.svd:
         do_work(corpus, features, dims)
