@@ -199,7 +199,7 @@ def build_only_AN_NN_thesauri_without_baroni(corpus, features, stages):
         unigram_vectors_file = _find_events_file(unigram_thesaurus_dir)
         dump.compose_and_write_vectors([unigram_vectors_file],
                                        dataset_name,
-                                       [dump.classification_data_path_mr, dump.classification_data_path],  #input 2
+                                       [dump.classification_data_path_mr, dump.classification_data_path], #input 2
                                        None,
                                        output_dir=ngram_vectors_dir,
                                        composer_classes=composer_algos)
@@ -264,6 +264,7 @@ def build_full_composed_thesauri_with_baroni_and_svd(corpus, features, stages):
     baroni_training_data = ['%s-SVD%d.events.filtered.strings' % (reduced_file_prefix, dim)
                             for dim in target_dimensionality]
 
+    trained_composer_files = []
     # TRAIN BARONI COMPOSER
     # train on each SVD-reduced file, not the original one, one composer object for both AN and NN phrases
     for svd_dims, all_reduced_vectors in zip(target_dimensionality, baroni_training_data):
@@ -272,9 +273,9 @@ def build_full_composed_thesauri_with_baroni_and_svd(corpus, features, stages):
         baroni_training_only_phrases = '%s-onlyPhrases-SVD%s.tmp' % (baroni_training_phrases, svd_dims)
         trained_composer_prefix = '%s-SVD%s' % (baroni_training_phrases, svd_dims)
         trained_composer_file = trained_composer_prefix + '.composer.pkl'
+        trained_composer_files.append(trained_composer_file)
 
-        if 'compose' in stages:
-            os.chdir(thesisgenerator_base_dir)
+        if 'baroni' in stages:
             # do the actual training
             thes = Thesaurus.from_tsv([all_reduced_vectors], aggressive_lowercasing=False)
             thes.to_file(baroni_training_heads,
@@ -289,20 +290,23 @@ def build_full_composed_thesauri_with_baroni_and_svd(corpus, features, stages):
                                   trained_composer_prefix,
                                   threshold=50)
 
-            # mess with vectors, add to/modify entries and events files
-            # whether to modify the features file is less obvious- do composed entries have different features
-            # to the non-composed ones?
 
+        else:
+            logging.warn('Skipping Baroni training stage. Assuming trained models are at %s', trained_composer_files)
+
+    if 'compose' in stages:
+        os.chdir(thesisgenerator_base_dir)
+        for svd_dims, all_reduced_vectors, trained_composer_file \
+            in zip(target_dimensionality, baroni_training_data, trained_composer_files):
             dump.compose_and_write_vectors([all_reduced_vectors],
                                            '%s-%s' % (dataset_name, svd_dims) if svd_dims else dataset_name,
                                            [dump.classification_data_path_mr, dump.classification_data_path],
                                            trained_composer_file,
                                            output_dir=ngram_vectors_dir,
                                            composer_classes=composer_algos)
+    else:
+        logging.warn('Skipping composition stage. Assuming output is at %s', ngram_vectors_dir)
 
-        else:
-            logging.warn('Skipping Baroni training stage. Assuming trained model is at %s', trained_composer_file)
-            logging.warn('Skipping composition stage. Assuming output is at %s', ngram_vectors_dir)
     # BUILD THESAURI OUT OF COMPOSED VECTORS ONLY
     for dims in target_dimensionality:
         if 'thesauri' in stages:
@@ -325,13 +329,15 @@ def get_corpus_features_cmd_parser():
 def get_cmd_parser():
     parser = argparse.ArgumentParser(parents=[get_corpus_features_cmd_parser()])
     # add options specific to this script here
-    parser.add_argument('--stages', choices=('unigrams', 'svd', 'compose', 'thesauri'), required=True, nargs='+',
+    parser.add_argument('--stages', choices=('unigrams', 'svd', 'baroni', 'compose', 'thesauri'), required=True,
+                        nargs='+',
                         help='What parts of the pipeline to run. Each part is independent, the pipeline can be '
                              'run incrementally. The stages are: '
                              '1) unigrams: extract unigram vectors from unlabelled corpus '
                              '2) svd: reduce noun and adj matrix, apply to NP matrix '
-                             '3) compose: train Baroni composer and compose all possible NP vectors with all composers'
-                             '4) thesauri: build thesauri from available composed vectors')
+                             '3) baroni: train Baroni composer '
+                             '4) compose: compose all possible NP vectors with all composers '
+                             '5) thesauri: build thesauri from available composed vectors')
     parser.add_argument('--use-svd', action='store_true',
                         help='If set, SVD will be performed and a Baroni composer will be trained. Otherwise the'
                              'svd part of the pipeline is skipped.')
