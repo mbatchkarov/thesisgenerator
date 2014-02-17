@@ -218,6 +218,7 @@ def build_full_composed_thesauri_with_baroni_and_svd(corpus, features, stages):
     # SET UP A FEW REQUIRED PATHS
 
     byblo_base_dir = '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/Byblo-2.2.0/'  # trailing slash required
+    thesisgenerator_base_dir = '/mnt/lustre/scratch/inf/mmb28/thesisgenerator'
     #  INPUT 1:  DIRECTORY. Must contain a single conf file
     unigram_thesaurus_dir = os.path.abspath(os.path.join(byblo_base_dir, '..', 'exp%d-%db' % (corpus, features)))
 
@@ -236,10 +237,10 @@ def build_full_composed_thesauri_with_baroni_and_svd(corpus, features, stages):
 
     if not os.path.exists(ngram_vectors_dir):
         os.mkdir(ngram_vectors_dir)
-    os.chdir(byblo_base_dir)
 
     # EXTRACT UNIGRAM VECTORS WITH BYBLO
     if 'unigrams' in stages:
+        os.chdir(byblo_base_dir)
         calculate_unigram_vectors(unigram_thesaurus_dir)
     else:
         logging.warn('Skipping unigrams stage. Assuming output is at %s', _find_events_file(unigram_thesaurus_dir))
@@ -273,6 +274,7 @@ def build_full_composed_thesauri_with_baroni_and_svd(corpus, features, stages):
         trained_composer_file = trained_composer_prefix + '.composer.pkl'
 
         if 'compose' in stages:
+            os.chdir(thesisgenerator_base_dir)
             # do the actual training
             thes = Thesaurus.from_tsv([all_reduced_vectors], aggressive_lowercasing=False)
             thes.to_file(baroni_training_heads,
@@ -304,6 +306,7 @@ def build_full_composed_thesauri_with_baroni_and_svd(corpus, features, stages):
     # BUILD THESAURI OUT OF COMPOSED VECTORS ONLY
     for dims in target_dimensionality:
         if 'thesauri' in stages:
+            os.chdir(byblo_base_dir)
             build_thesauri_out_of_composed_vectors(composer_algos, '%s-%d' % (dataset_name, dims),
                                                    ngram_vectors_dir, unigram_thesaurus_dir)
         else:
