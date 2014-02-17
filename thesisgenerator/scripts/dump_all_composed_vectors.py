@@ -72,9 +72,9 @@ def compose_and_write_vectors(unigram_vector_paths, short_vector_dataset_name, c
             lowercase=True,
             remove_stopwords=True,
             remove_short_words=False)
-    data_in_this_dir = tokenize_data(raw_data, tokenizer, data_ids)
-    for x, y in zip(tokenized_data, data_in_this_dir):
-        x.extend(y)
+        data_in_this_dir = tokenize_data(raw_data, tokenizer, data_ids)
+        for x, y in zip(tokenized_data, data_in_this_dir):
+            x.extend(y)
 
     pipeline = Pipeline([
         ('vect', ThesaurusVectorizer(ngram_range=(0, 0), min_df=1, use_tfidf=False)),
