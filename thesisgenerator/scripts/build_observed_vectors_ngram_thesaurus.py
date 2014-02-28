@@ -82,11 +82,10 @@ def do_work_socher():
     # where should the output go
     outdir = os.path.join(prefix, 'exp10-12bAN_NN_gigaw_Socher')
 
-    socher_base_dir = '/Volumes/Storage/Downloads/codeRAEVectorsNIPS2011'
+    socher_base_dir = os.path.join(prefix, 'socher_vectors') # copy downloaded content here
     socher_phrases_file = os.path.join(socher_base_dir, 'phrases.txt')
     socher_parsed_file = os.path.join(socher_base_dir, 'parsed.txt')
     socher_vectors_file = os.path.join(socher_base_dir, 'outVectors.txt')
-    formatted_vectors_dir = os.path.join(prefix, 'socher_vectors')
 
     logging.info('Using phrases events file %s', socher_vectors_file)
 
@@ -128,9 +127,9 @@ def do_work_socher():
 
     # CREATE BYBLO EVENTS/FEATURES/ENTRIES FILE FROM INPUT
     # Pretend the file name is 10-12, i.e. these vectors came from giga deps (for consistency with other exps)
-    vectors_file = os.path.join(formatted_vectors_dir, 'exp10-12.events.filtered.strings')
-    entries_file = os.path.join(formatted_vectors_dir, 'exp10-12.entries.filtered.strings')
-    features_file = os.path.join(formatted_vectors_dir, 'exp10-12.features.filtered.strings')
+    vectors_file = os.path.join(socher_base_dir, 'exp10-12.events.filtered.strings')
+    entries_file = os.path.join(socher_base_dir, 'exp10-12.entries.filtered.strings')
+    features_file =os.path.join(socher_base_dir, 'exp10-12.features.filtered.strings')
 
     logging.info(vectors_file)
     logging.info(entries_file)
