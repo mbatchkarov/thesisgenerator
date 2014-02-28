@@ -32,9 +32,9 @@ def _loop_body(composer_class, output_dir, pipeline, pretrained_Baroni_composer_
     }
     _ = pipeline.fit_transform(x_tr + x_ev, y=hstack([y_tr, y_ev]), **fit_args)
 
-    output_files = ('AN_NN_%s_%s.events.filtered.strings' % ( short_vector_dataset_name, composers[0].name),
-                    'AN_NN_%s_%s.entries.filtered.strings' % ( short_vector_dataset_name, composers[0].name),
-                    'AN_NN_%s_%s.features.filtered.strings' % ( short_vector_dataset_name, composers[0].name))
+    output_files = ('AN_NN_%s_%s.events.filtered.strings' % (short_vector_dataset_name, composers[0].name),
+                    'AN_NN_%s_%s.entries.filtered.strings' % (short_vector_dataset_name, composers[0].name),
+                    'AN_NN_%s_%s.features.filtered.strings' % (short_vector_dataset_name, composers[0].name))
     output_files = [os.path.join(output_dir, x) for x in output_files]
 
     pipeline.steps[2][1].vector_source.write_vectors_to_disk({'AN', 'NN'}, *output_files)
@@ -77,7 +77,7 @@ def compose_and_write_vectors(unigram_vector_paths, short_vector_dataset_name, c
             x.extend(y)
 
     pipeline = Pipeline([
-        ('vect', ThesaurusVectorizer(ngram_range=(0, 0), min_df=1, use_tfidf=False)),
+        ('vect', ThesaurusVectorizer(ngram_range=(0, 0), min_df=1, use_tfidf=False)), # ,extract_VO_features=False, extract_SVO_features=False
         ('fs', VectorBackedSelectKBest(ensure_vectors_exist=True)),
         ('stripper', MetadataStripper(nn_algorithm='brute', build_tree=False))
     ])
