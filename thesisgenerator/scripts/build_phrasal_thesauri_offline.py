@@ -425,6 +425,8 @@ if __name__ == '__main__':
 
     parameters = get_cmd_parser().parse_args()
     logging.info(parameters)
+    if parameters.features != 'dependencies' and parameters.use_apdt:
+        raise ValueError('APDT only works with dependency features!')
 
     corpus = 10 if parameters.corpus == 'gigaword' else 11
     features = 12 if parameters.features == 'dependencies' else 13
