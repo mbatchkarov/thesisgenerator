@@ -78,20 +78,16 @@ def do_work_socher():
     # before running this function, put all phrases to be composed in parsed.txt, wrapping them
     # up to make them look like fragment of a syntactic parser. Do NOT let the Stanford parser that ships with
     # that code run.
+    # must also contain 'socher.bybloconf.txt' and a 'thesaurus' subdirectory
     prefix = '/mnt/lustre/scratch/inf/mmb28/FeatureExtractionToolkit'
-    # where should the output go
-    outdir = os.path.join(prefix, 'exp10-12bAN_NN_gigaw_Socher')
 
     socher_base_dir = os.path.join(prefix, 'socher_vectors') # copy downloaded content here
     socher_phrases_file = os.path.join(socher_base_dir, 'phrases.txt')
     socher_parsed_file = os.path.join(socher_base_dir, 'parsed.txt')
     socher_vectors_file = os.path.join(socher_base_dir, 'outVectors.txt')
-
+    byblo_conf_file = os.path.join(socher_base_dir, 'socher.bybloconf.txt')
     logging.info('Using phrases events file %s', socher_vectors_file)
 
-
-    # where's the byblo conf file
-    unigram_thesaurus_dir = '%s/exp%d-%db' % (prefix, corpus, features)
     # where's the byblo executable
     byblo_base_dir = '%s/Byblo-2.2.0/' % prefix
 
@@ -126,10 +122,9 @@ def do_work_socher():
     assert len(composed_phrases) == mat.shape[0]  # same number of rows
 
     # CREATE BYBLO EVENTS/FEATURES/ENTRIES FILE FROM INPUT
-    # Pretend the file name is 10-12, i.e. these vectors came from giga deps (for consistency with other exps)
-    vectors_file = os.path.join(socher_base_dir, 'exp10-12.events.filtered.strings')
-    entries_file = os.path.join(socher_base_dir, 'exp10-12.entries.filtered.strings')
-    features_file =os.path.join(socher_base_dir, 'exp10-12.features.filtered.strings')
+    vectors_file = os.path.join(socher_base_dir, 'socher.events.filtered.strings')
+    entries_file = os.path.join(socher_base_dir, 'socher.entries.filtered.strings')
+    features_file =os.path.join(socher_base_dir, 'socher.features.filtered.strings')
 
     logging.info(vectors_file)
     logging.info(entries_file)
@@ -143,10 +138,9 @@ def do_work_socher():
         entries_file
     )
 
-
     # BUILD A THESAURUS FROM THESE FILES
     os.chdir(byblo_base_dir)
-    do_second_part_without_base_thesaurus(_find_conf_file(unigram_thesaurus_dir), outdir,
+    do_second_part_without_base_thesaurus(byblo_conf_file, os.path.join(socher_base_dir, 'thesaurus'),
                                           vectors_file, entries_file, features_file)
 
 

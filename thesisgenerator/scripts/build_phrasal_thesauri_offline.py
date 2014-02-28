@@ -135,9 +135,8 @@ def do_second_part_without_base_thesaurus(byblo_conf_file, output_dir, vectors_f
     if not os.path.exists(output_dir):
         os.mkdir(output_dir)
 
-    all_files = [vectors_file, entries_file, features_file]
-    for f in all_files:
-        shutil.copy(f, output_dir)
+    for f in [vectors_file, entries_file, features_file]:
+        shutil.copy(f, output_dir) # todo this should be a symlink
 
     final_conf_file = os.path.join(output_dir, os.path.basename(byblo_conf_file))
     shutil.copy(byblo_conf_file, output_dir)
