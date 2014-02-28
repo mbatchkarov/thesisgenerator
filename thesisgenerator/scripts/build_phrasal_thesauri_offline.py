@@ -1,7 +1,6 @@
 import logging
 import os
 import sys
-from discoutils.io_utils import write_vectors_to_disk
 
 sys.path.append('.')
 sys.path.append('..')
@@ -10,22 +9,14 @@ from dissect_scripts.load_translated_byblo_space import train_baroni_composer
 from glob import glob
 import shutil
 import argparse
+from discoutils.io_utils import write_vectors_to_disk
+from discoutils.misc import Bunch
 from discoutils.thesaurus_loader import Thesaurus
 from discoutils.cmd_utils import set_stage_in_byblo_conf_file, run_byblo, parse_byblo_conf_file, \
     reindex_all_byblo_vectors, run_and_log_output, unindex_all_byblo_vectors, set_output_in_byblo_conf_file
-from thesisgenerator.scripts import dump_all_composed_vectors as dump
 from discoutils.reduce_dimensionality import do_svd
+from thesisgenerator.scripts import dump_all_composed_vectors as dump
 from thesisgenerator.composers.vectorstore import *
-
-
-class Bunch:
-    """
-    "collector of a bunch of named stuff" class
-    http://code.activestate.com/recipes/52308-the-simple-but-handy-collector-of-a-bunch-of-named/?in=user-97991
-    """
-
-    def __init__(self, **kwds):
-        self.__dict__.update(kwds)
 
 
 def calculate_unigram_vectors(thesaurus_dir):
@@ -136,7 +127,7 @@ def do_second_part_without_base_thesaurus(byblo_conf_file, output_dir, vectors_f
         os.mkdir(output_dir)
 
     for f in [vectors_file, entries_file, features_file]:
-        shutil.copy(f, output_dir) # todo this should be a symlink
+        shutil.copy(f, output_dir)  # todo this should be a symlink
 
     final_conf_file = os.path.join(output_dir, os.path.basename(byblo_conf_file))
     shutil.copy(byblo_conf_file, output_dir)
@@ -191,7 +182,7 @@ def build_unreduced_AN_NN_thesauri(corpus, features, stages, use_apdt):
     # output 2 is a set of directories <output1>*
 
     apdt_composed_vectors = os.path.join(byblo_base_dir, '..', 'apdt_vectors',
-                                         'exp%d-%d_AN_NNvectors' % (corpus, features)) # input 3
+                                         'exp%d-%d_AN_NNvectors' % (corpus, features))  # input 3
 
     composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
                       RightmostWordComposer, MinComposer, MaxComposer]  # observed done through a separate script
@@ -212,7 +203,7 @@ def build_unreduced_AN_NN_thesauri(corpus, features, stages, use_apdt):
         unigram_vectors_file = _find_events_file(unigram_thesaurus_dir)
         dump.compose_and_write_vectors([unigram_vectors_file],
                                        dataset_name,
-                                       [dump.classification_data_path_mr, dump.classification_data_path], #input 2
+                                       [dump.classification_data_path_mr, dump.classification_data_path],  #input 2
                                        None,
                                        output_dir=ngram_vectors_dir,
                                        composer_classes=composer_algos)
@@ -229,14 +220,14 @@ def build_unreduced_AN_NN_thesauri(corpus, features, stages, use_apdt):
                     pass
 
                 def __nonzero__(self):
-                    return False # so that we don't get any progress messages from write_vectors_to_disk
+                    return False  # so that we don't get any progress messages from write_vectors_to_disk
 
                 def close(self):
                     pass
 
             logging.info('Using pre-composed SVD-reduced APDT vectors from %s', apdt_composed_vectors)
             ngram_vectors_dir = os.path.dirname(apdt_composed_vectors)
-            composer_algos = [Bunch(name='APDT')] # only build this thesaurus
+            composer_algos = [Bunch(name='APDT')]  # only build this thesaurus
 
             # make a byblo-compatible events, entries and features files
             thesaurus = Thesaurus.from_tsv([apdt_composed_vectors])
@@ -246,7 +237,7 @@ def build_unreduced_AN_NN_thesauri(corpus, features, stages, use_apdt):
             write_vectors_to_disk(mat.tocoo(),
                                   [DocumentFeature.from_string(x) for x in rows],
                                   cols,
-                                  noop_file(), # no need to write the events file again
+                                  noop_file(),  # no need to write the events file again
                                   pattern.format(dataset_name, 'features'),
                                   pattern.format(dataset_name, 'entries'))
 
@@ -306,11 +297,11 @@ def build_full_composed_thesauri_with_baroni_and_svd(corpus, features, stages, u
             reduced_file_prefix = apdt_composed_vectors
             do_svd([unreduced_unigram_events_file], reduced_file_prefix,
                    desired_counts_per_feature_type=counts, reduce_to=target_dimensionality,
-                       apply_to=[apdt_composed_vectors], write=2) # only include the reduce NP vectors in output
+                   apply_to=[apdt_composed_vectors], write=2)  # only include the reduce NP vectors in output
         else:
             do_svd([unreduced_unigram_events_file], reduced_file_prefix,
                    desired_counts_per_feature_type=counts, reduce_to=target_dimensionality,
-               apply_to=[baroni_training_phrases])
+                   apply_to=[baroni_training_phrases])
     else:
         logging.warn('Skipping SVD stage. Assuming output is at %s-SVD*', reduced_file_prefix)
 
@@ -352,7 +343,7 @@ def build_full_composed_thesauri_with_baroni_and_svd(corpus, features, stages, u
         # not point in composing with APTD, composed vectors are already there for me
         os.chdir(thesisgenerator_base_dir)
         for svd_dims, all_reduced_vectors, trained_composer_file \
-            in zip(target_dimensionality, baroni_training_data, trained_composer_files):
+                in zip(target_dimensionality, baroni_training_data, trained_composer_files):
             dump.compose_and_write_vectors([all_reduced_vectors],
                                            '%s-%s'.format(dataset_name, svd_dims),
                                            [dump.classification_data_path_mr, dump.classification_data_path],
@@ -372,7 +363,7 @@ def build_full_composed_thesauri_with_baroni_and_svd(corpus, features, stages, u
                 # throw in a few symlinks to fix that
                 logging.info('Using pre-composed SVD-reduced APDT vectors from %s', apdt_composed_vectors)
                 ngram_vectors_dir = os.path.dirname(apdt_composed_vectors)
-                composer_algos = [Bunch(name='APDT')] # only build this thesaurus
+                composer_algos = [Bunch(name='APDT')]  # only build this thesaurus
                 for x in ['events', 'entries', 'features']:
                     # AN_NN_gigaw-30_APDT.events.filtered.strings, what Byblo expects
                     expected_vectors_file = os.path.join(ngram_vectors_dir,
