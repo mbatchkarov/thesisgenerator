@@ -182,7 +182,7 @@ def build_unreduced_AN_NN_thesauri(corpus, features, stages, use_apdt):
     # output 2 is a set of directories <output1>*
 
     apdt_composed_vectors = os.path.join(byblo_base_dir, '..', 'apdt_vectors',
-                                         'exp%d-%d_AN_NNvectors' % (corpus, features))  # input 3
+                                         'exp%d-%d_AN_NNvectors-cleaned' % (corpus, features))  # input 3
 
     composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
                       RightmostWordComposer, MinComposer, MaxComposer]  # observed done through a separate script
@@ -263,7 +263,7 @@ def build_full_composed_thesauri_with_baroni_and_svd(corpus, features, stages, u
     baroni_training_phrases = os.path.join(byblo_base_dir, '..', 'observed_vectors',
                                            'exp%d-%d_AN_NNvectors-cleaned' % (corpus, features))
     apdt_composed_vectors = os.path.join(byblo_base_dir, '..', 'apdt_vectors',
-                                         'exp%d-%d_AN_NNvectors' % (corpus, features))
+                                         'exp%d-%d_AN_NNvectors-cleaned' % (corpus, features))
 
     ngram_vectors_dir = os.path.join(byblo_base_dir, '..',
                                      'exp%d-%d-composed-ngrams-MR-R2' % (corpus, features))  # output 1
