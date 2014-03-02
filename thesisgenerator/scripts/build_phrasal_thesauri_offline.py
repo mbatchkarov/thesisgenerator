@@ -371,7 +371,7 @@ def build_full_composed_thesauri_with_baroni_and_svd(corpus, features, stages, u
                                                                                                     x))
                     # exp10-12_AN_NNvectors-SVD30.events.filtered.strings, what the SVD stage produced
                     actual_file = os.path.join(ngram_vectors_dir,
-                                               'exp{}-{}_AN_NNvectors-SVD{}.{}.filtered.strings'.format(corpus,
+                                               'exp{}-{}_AN_NNvectors-cleaned-SVD{}.{}.filtered.strings'.format(corpus,
                                                                                                         features,
                                                                                                         dims,
                                                                                                         x))
