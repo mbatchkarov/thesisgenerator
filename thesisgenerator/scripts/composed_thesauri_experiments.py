@@ -100,18 +100,18 @@ for doc_feature_type in ['AN', 'NN']:
         exp_number += 1
 
 #  do APDT experiments
-for thesf_num, thesf_name in zip([12, 13], ['dependencies', 'windows']):
-    for unlab_num, unlab_name in zip([10], ['gigaw']):  # 11, , 'wiki'
-        for labelled_corpus in ['R2', 'MR']:
-            for svd_dims in [0, 30, 300, 1000]:
-                pattern = unred_pattern if svd_dims < 1 else reduced_pattern
-                composer_name = 'APDT'
-                thesaurus_file = pattern.format(**locals())
-                e = Experiment(exp_number, composer_name, thesaurus_file, labelled_corpus, unlab_name, unlab_num,
-                               thesf_name, thesf_num, 'AN_NN', svd_dims)
-                experiments.append(e)
-                exp_number += 1
-                print e, ','
+thesf_num, thesf_name = 12, 'dependencies' # only dependencies
+for unlab_num, unlab_name in zip([10], ['gigaw']):  # 11, , 'wiki'
+    for labelled_corpus in ['R2', 'MR']:
+        for svd_dims in [0, 30, 300, 1000]:
+            pattern = unred_pattern if svd_dims < 1 else reduced_pattern
+            composer_name = 'APDT'
+            thesaurus_file = pattern.format(**locals())
+            e = Experiment(exp_number, composer_name, thesaurus_file, labelled_corpus, unlab_name, unlab_num,
+                           thesf_name, thesf_num, 'AN_NN', svd_dims)
+            experiments.append(e)
+            exp_number += 1
+            print e, ','
 
 #  do Socher RAE experiments
 for labelled_corpus in ['R2', 'MR']:
