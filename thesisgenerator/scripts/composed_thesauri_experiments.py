@@ -124,7 +124,6 @@ for labelled_corpus in ['R2', 'MR']:
     exp_number += 1
     print e, ','
 
-sys.exit(0)
 print 'Writing conf files'
 megasuperbase_conf_file = 'conf/exp1-superbase.conf'
 for exp in experiments:

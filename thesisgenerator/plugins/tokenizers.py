@@ -159,7 +159,7 @@ class XmlTokenizer(object):
                 # raise ValueError('Data not annotated for named entities')
 
             if '/' in txt or '_' in txt:
-            # I use these chars as separators later, remove them now to avoid problems down the line
+                # I use these chars as separators later, remove them now to avoid problems down the line
                 logging.debug('Funny token found: %s, pos is %s', txt, pos)
                 continue
 
@@ -169,7 +169,7 @@ class XmlTokenizer(object):
             if self.normalise_entities:
                 if iob_tag != 'O':
                     txt = '__NER-%s__' % iob_tag
-                    pos = '' # normalised named entities don't need a PoS tag
+                    pos = ''  # normalised named entities don't need a PoS tag
 
             tokens.append(Token(txt, pos, int(element.get('id')), ner=iob_tag))
 
@@ -196,15 +196,6 @@ class XmlTokenizer(object):
                 #dependent_txt = dependent.text
                 if dependent_idx in tokens_ids and head_idx in tokens_ids:
                     dep_tree.add_edge(head_idx, dependent_idx, type=type)
-                    #a=nx.draw(dep_tree, nx.graphviz_layout(dep_tree,prog='dot'), font_size=8, node_size=500,
-                    #          edge_labels = [x[2]['type'] for x in dep_tree.edges(data=True)])
-                    #import matplotlib.pyplot as plt
-                    #plt.savefig("atlas.png",dpi=275)
-                    #else:
-                    #t = ET.ElementTree(tree)
-                    #s = StringIO()
-                    #t.write(s)
-                    #logging.info('Cant find dependency info in sentence: \n %s', s.getvalue())
 
         return tokens, (dep_tree, {t.index: t for t in tokens})
 
@@ -264,4 +255,4 @@ class XmlTokenizer(object):
                 is_only_digits_or_punct = False
                 break
 
-        return is_float or is_only_digits_or_punct #or is_int
+        return is_float or is_only_digits_or_punct  #or is_int
