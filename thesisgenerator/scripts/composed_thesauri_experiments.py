@@ -129,7 +129,7 @@ megasuperbase_conf_file = 'conf/exp1-superbase.conf'
 for exp in experiments:
     # sanity check
     if not os.path.exists(exp.thesaurus_file):
-        print 'MISSING THESAURUS:', thesaurus_file
+        print 'MISSING THESAURUS:', exp.thesaurus_file
 
     experiment_dir = 'conf/exp%d' % exp.number
     if not os.path.exists(experiment_dir):
