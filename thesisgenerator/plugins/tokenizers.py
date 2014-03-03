@@ -160,7 +160,7 @@ class XmlTokenizer(object):
 
             if '/' in txt or '_' in txt:
             # I use these chars as separators later, remove them now to avoid problems down the line
-                logging.info('Funny token found: %s, pos is %s', txt, pos)
+                logging.debug('Funny token found: %s, pos is %s', txt, pos)
                 continue
 
             if self.lowercase:

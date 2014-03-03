@@ -255,7 +255,7 @@ def _build_classifiers(classifiers_conf):
             continue
             #  ignore disabled classifiers
         if not classifiers_conf[clf_name]['run']:
-            logging.warn('Ignoring classifier %s' % clf_name)
+            logging.debug('Ignoring classifier %s' % clf_name)
             continue
         clf = get_named_object(clf_name)
         init_args = get_intersection_of_parameters(clf, classifiers_conf[clf_name])
@@ -281,6 +281,7 @@ def _cv_loop(configuration, i, score_func, test_idx, train_idx, vector_source, x
     test_matrix = pipeline.transform(X_test)
 
     for clf in _build_classifiers(configuration['classifiers']):
+        logging.info('Starting training of %s', clf)
         clf = clf.fit(matrix, y[train_idx])
         scores = score_func(y[test_idx], clf.predict(test_matrix))
         #  score = dict(function -> value). Value is a float or np.array
@@ -291,6 +292,7 @@ def _cv_loop(configuration, i, score_func, test_idx, train_idx, vector_source, x
                  i,
                  metric.split('.')[-1],
                  score])
+        logging.info('Done with %s', clf)
     return scores_this_cv_run
 
 
@@ -325,55 +327,6 @@ def _run_tasks(configuration, n_jobs, data, vector_source):
 
     logging.info('Classifier scores are %s', all_scores)
     return 0, _analyze(all_scores, configuration['output_dir'], configuration['name'])
-
-    # # CROSSVALIDATION
-    # # **********************************
-    # scores_over_cv = []
-    # for i, clf_name in enumerate(configuration['classifiers']):
-    #     logging.info('--------------------------------------------------------')
-    #     logging.info('Building pipeline')
-    #     # pass the (feature selector + classifier) pipeline for evaluation
-    #     logging.info('***Fitting pipeline for %s' % clf_name)
-    #     # the pipeline is cloned for each fold of the CV iterator, but its fit arguments aren't
-    #     # I've added a clone call for the fit args to the CV function, so that the fit arguments are not
-    #     # going to be shared between pipeline folds, but are shared between all estimators inside
-    #     # a pipeline during a fold
-    #     logging.debug('Identity of vector source is %d', id(vector_source))
-    #     if vector_source:
-    #         try:
-    #             logging.debug('The BallTree is %s', vector_source.nbrs)
-    #         except AttributeError:
-    #             logging.debug('The vector source is %s', vector_source)
-    #             # pass the same vector source to the vectorizer, feature selector and metadata stripper
-    #             # that way the stripper can call vector_source.populate() after the feature selector has had its say,
-    #             # and that update source will then be available to the vectorizer at decode time
-    #             #fit_params = {
-    #             #    'vect__vector_source': vector_source,
-    #             #    'fs__vector_source': vector_source,
-    #             #    'stripper__vector_source': vector_source,
-    #             #}
-    #     scores_this_clf = naming_cross_val_score(
-    #         pipeline, x_vals_seen,
-    #         y_vals_seen,
-    #         ChainCallable(configuration['evaluation']),
-    #         cv=cv_iterator, n_jobs=n_jobs,
-    #         verbose=0, fit_params=fit_params) # pass resource here
-    #
-    #     for run_number, a in scores_this_clf:
-    #         # If there is just one metric specified in the conf file a is a
-    #         # 0-D numpy array and needs to be indexed as [()]. Otherwise it
-    #         # is a dict
-    #         mydict = a[()] if hasattr(a, 'shape') and len(a.shape) < 1 else a
-    #         for metric, score in mydict.items():
-    #             scores_over_cv.append(
-    #                 [clf_name.split('.')[-1],
-    #                  run_number,
-    #                  metric.split('.')[-1],
-    #                  score])
-    #     del pipeline
-    #     del scores_this_clf
-    logging.info('Classifier scores are %s', scores_over_cv)
-    return 0, _analyze(scores_over_cv, configuration['output_dir'], configuration['name'])
 
 
 def _analyze(scores, output_dir, name):

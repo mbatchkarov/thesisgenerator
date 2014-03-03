@@ -9,46 +9,15 @@ sys.path.append('.')
 sys.path.append('..')
 sys.path.append('../..')
 
+import platform
 import glob
 from itertools import chain
-
-from joblib import Parallel, delayed
-from numpy import nonzero
-
 from thesisgenerator.utils.data_utils import tokenize_data, load_text_data_into_memory, \
     load_tokenizer, get_vector_source
 from thesisgenerator.utils.conf_file_utils import parse_config_file
-from thesisgenerator.plugins.file_generators import _exp16_file_iterator, _exp1_file_iterator, \
-    _vary_training_size_file_iterator, get_specific_subexperiment_files
+from thesisgenerator.plugins.file_generators import _vary_training_size_file_iterator
 from thesisgenerator.__main__ import go
 from thesisgenerator.plugins.dumpers import *
-
-
-def inspect_thesaurus_effect(outdir, clf_name, thesaurus_file, pipeline,
-                             predicted, x_test):
-    """
-    Evaluates the performance of a classifier with and without the thesaurus
-    that backs its vectorizer
-    """
-
-    # remove the thesaurus
-    pipeline.named_steps['vect'].thesaurus = {}
-    predicted2 = pipeline.predict(x_test)
-
-    with open('%s/before_after_%s.csv' %
-                      (outdir, thesaurus_file), 'a') as outfile:
-        outfile.write('DocID,')
-        outfile.write(','.join([str(x) for x in range(len(predicted))]))
-        outfile.write('\n')
-        outfile.write('%s+Thesaurus,' % clf_name)
-        outfile.write(','.join([str(x) for x in predicted.tolist()]))
-        outfile.write('\n')
-        outfile.write('%s-Thesaurus,' % clf_name)
-        outfile.write(','.join([str(x) for x in predicted2.tolist()]))
-        outfile.write('\n')
-        outfile.write('Decisions changed: %d' % (
-            nonzero(predicted - predicted2)[0].shape[0]))
-        outfile.write('\n')
 
 
 def _clear_old_files(i, prefix):
@@ -65,48 +34,24 @@ def _clear_old_files(i, prefix):
 
 def run_experiment(expid, subexpid=None, num_workers=4,
                    predefined_sized=[],
-                   prefix='/Volumes/LocalDataHD/mmb28/NetBeansProjects/thesisgenerator',
+                   prefix='/mnt/lustre/scratch/inf/mmb28/thesisgenerator',
                    vector_source=None):
-    print 'RUNNING EXPERIMENT %d' % expid
-    # on local machine
-
-    exp1_thes_pattern = '%s/../Byblo-2.1.0/exp6-1*/*sims.neighbours.strings' % prefix
-    # on cluster
-    import platform
-
+    print('RUNNING EXPERIMENT %d' % expid)
     hostname = platform.node()
     if 'apollo' in hostname or 'node' in hostname:
-        # set the paths automatically when on the cluster
-        prefix = '/mnt/lustre/scratch/inf/mmb28/thesisgenerator'
-        exp1_thes_pattern = '%s/../FeatureExtrationToolkit/exp6-1*/*sims.neighbours.strings' % prefix
         num_workers = 30
 
-    if subexpid:
-        # requested a sub-experiment
-        new_conf_file, log_file = get_specific_subexperiment_files(expid, subexpid)
-        return
-
-    # requested a whole experiment, with a bunch of training data set sizes
     sizes = chain(range(10, 101, 15), range(200, 501, 100))
     if expid == 0:
         # exp0 is for debugging only, we don't have to do much
-        sizes = [10, 20]#range(10, 31, 10)
+        sizes = [200]  #range(10, 31, 10)
         num_workers = 1
+
     if predefined_sized:
         sizes = predefined_sized
 
-    # ----------- EXPERIMENT 1 -----------
     base_conf_file = '%s/conf/exp%d/exp%d_base.conf' % (prefix, expid, expid)
-    if expid == 1:
-        conf_file_iterator = _exp1_file_iterator(exp1_thes_pattern, '%s/conf/exp1/exp1_base.conf' % prefix)
-
-    # ----------- EXPERIMENTS 2-14 -----------
-    elif expid == 0 or 1 < expid <= 14 or 17 <= expid:
-        conf_file_iterator = _vary_training_size_file_iterator(sizes, expid, base_conf_file)
-    elif expid == 16:
-        conf_file_iterator = _exp16_file_iterator(base_conf_file)
-    else:
-        raise ValueError('No such experiment number: %d' % expid)
+    conf_file_iterator = _vary_training_size_file_iterator(sizes, expid, base_conf_file)
 
     _clear_old_files(expid, prefix)
     conf, configspec_file = parse_config_file(base_conf_file)
@@ -130,16 +75,16 @@ def run_experiment(expid, subexpid=None, num_workers=4,
     tokenised_data = tokenize_data(raw_data, tokenizer, data_ids)
 
     # run data through the pipeline
-    Parallel(n_jobs=1)(delayed(go)(new_conf_file, log_dir, tokenised_data, vector_source, n_jobs=num_workers) for
-                       new_conf_file, log_dir in conf_file_iterator)
+    for new_conf_file, log_dir in conf_file_iterator:
+        go(new_conf_file, log_dir, tokenised_data, vector_source, n_jobs=num_workers)
 
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO,
-                        format="%(asctime)s\t%(module)s.%(funcName)s ""(line %(lineno)d)\t%(levelname)s : %(""message)s")
+                        format="%(asctime)s\t%(module)s.%(funcName)s (line %(lineno)d)\t%(levelname)s : %(message)s")
 
     if len(sys.argv) == 2:
-        i = int(sys.argv[1]) # full experiment id
+        i = int(sys.argv[1])  # full experiment id
         run_experiment(i)
     elif len(sys.argv) == 3:
         i, j = map(int(sys.argv))

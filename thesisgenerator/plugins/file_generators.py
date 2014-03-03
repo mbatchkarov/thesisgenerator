@@ -55,10 +55,6 @@ def _vary_training_size_file_iterator(sizes, exp_id, base_conf_file):
     raise StopIteration
 
 
-def get_specific_subexperiment_files(id, subid):
-    pass
-
-
 def _write_exp15_conf_file(base_conf_file, exp_id, run_id, shuffle):
     log_file, new_conf_file = _prepare_conf_files(base_conf_file, exp_id,
                                                   run_id)
