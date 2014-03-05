@@ -77,7 +77,8 @@ def compose_and_write_vectors(unigram_vector_paths, short_vector_dataset_name, c
             x.extend(y)
 
     pipeline = Pipeline([
-        ('vect', ThesaurusVectorizer(ngram_range=(0, 0), min_df=1, use_tfidf=False)), # ,extract_VO_features=False, extract_SVO_features=False
+        ('vect', ThesaurusVectorizer(ngram_range=(0, 0), min_df=1, use_tfidf=False,
+                                     extract_VO_features=False, extract_SVO_features=False)),
         ('fs', VectorBackedSelectKBest(ensure_vectors_exist=True)),
         ('stripper', MetadataStripper(nn_algorithm='brute', build_tree=False))
     ])
