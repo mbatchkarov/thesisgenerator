@@ -150,7 +150,7 @@ def get_cmd_parser():
     parser = argparse.ArgumentParser(parents=[get_corpus_features_cmd_parser()])
     # add options specific to this script here
     group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument('--svd', choices=(0, 30, 300, 1000), nargs='+', type=int,
+    group.add_argument('--svd', choices=(0, 30, 100, 300, 1000), nargs='+', type=int,
                        help='What SVD dimensionalities to build observed-vector thesauri from. '
                             'Vectors must have been produced and reduced already. 0 stand for unreduced.')
     group.add_argument('--socher', action='store_true',

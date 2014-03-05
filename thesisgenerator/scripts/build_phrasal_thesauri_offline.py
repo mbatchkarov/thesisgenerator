@@ -270,7 +270,7 @@ def build_full_composed_thesauri_with_baroni_and_svd(corpus, features, stages, u
     composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
                       RightmostWordComposer, MinComposer, MaxComposer, BaroniComposer]
 
-    target_dimensionality = [30, 300, 1000]
+    target_dimensionality = [100]
     dataset_name = 'gigaw' if corpus == 10 else 'wiki'  # short name of input corpus
     baroni_training_phrase_types = {'AN', 'NN'}  # what kind of NPs to train Baroni composer for
 
