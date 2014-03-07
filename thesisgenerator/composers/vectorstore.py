@@ -21,7 +21,7 @@ from discoutils.tokens import DocumentFeature, Token
 class VectorSource(object):
     __metaclass__ = ABCMeta
 
-    feature_pattern = {}    # each VectorSource can work with a set of feature types
+    feature_pattern = {}  # each VectorSource can work with a set of feature types
 
     @abstractmethod
     def __contains__(self, feature):
@@ -172,7 +172,7 @@ class UnigramDummyComposer(Composer):
 class AdditiveComposer(Composer):
     name = 'Add'
     # composers in general work with n-grams (for simplicity n<4)
-    feature_pattern = {'2-GRAM', '3-GRAM', 'AN', 'NN', 'VO', 'SVO'}
+    feature_pattern = {'AN', 'NN'}  # '2-GRAM', '3-GRAM',, 'VO', 'SVO'
 
     def __init__(self, unigram_source=None):
         super(AdditiveComposer, self).__init__(unigram_source)
@@ -226,7 +226,7 @@ class LeftmostWordComposer(AdditiveComposer):
     def __init__(self, unigram_source=None):
         super(LeftmostWordComposer, self).__init__(unigram_source)
         self.hardcoded_index = 0
-        self.feature_pattern = {'2-GRAM', '3-GRAM', 'AN', 'NN', 'VO', 'SVO'}
+        self.feature_pattern = {'AN', 'NN'}  #'2-GRAM', '3-GRAM',, 'VO', 'SVO'
 
 
     def _get_vector(self, feature):
@@ -341,9 +341,9 @@ class CompositeVectorSource(VectorSource):
         self.sim_threshold = sim_threshold
         self.include_self = include_self
 
-        self.nbrs, self.feature_matrix, entry_index = [None] * 3     # computed by self.build_peripheral_space()
+        self.nbrs, self.feature_matrix, entry_index = [None] * 3  # computed by self.build_peripheral_space()
         self.composers = composers
-        self.composer_mapping = defaultdict(set) # feature type -> {composer object}
+        self.composer_mapping = defaultdict(set)  # feature type -> {composer object}
         #tmp = OrderedDict() # see below
         for c in self.composers:
             for p in c.feature_pattern:
@@ -378,7 +378,7 @@ class CompositeVectorSource(VectorSource):
                             if f.type in self.composer_mapping and f in c]
 
         a, b = self.feature_matrix.shape
-        if a < 50 and b < 50: # this may well be a test run, save some more debug info
+        if a < 50 and b < 50:  # this may well be a test run, save some more debug info
             self.debug_entry_index = [(f, c) for f in vocabulary for c in self.composer_mapping[f.type]
                                       if f.type in self.composer_mapping and f in c]
 
@@ -477,18 +477,18 @@ class PrecomputedSimilaritiesVectorSource(CompositeVectorSource):
         return PrecomputedSimilaritiesVectorSource(th)
 
     def _get_nearest_neighbours(self, feature):
-    # Accepts structured features and strips the meta information from the feature and use as a string
-    # Returns (composer, sim, neighbour) tuples
-    # Feature structure is DocumentFeature('1-GRAM', ('Seattle/N',))
+        # Accepts structured features and strips the meta information from the feature and use as a string
+        # Returns (composer, sim, neighbour) tuples
+        # Feature structure is DocumentFeature('1-GRAM', ('Seattle/N',))
 
         # strip the structural info from feature for thes lookup
         res = self.th.get(feature.tokens_as_str())
         # put structural info back in
         return [(
                     'Byblo',
-                    (# create a DocumentFeature object based on the string provided by thesaurus
-                     DocumentFeature.from_string(x[0]),
-                     x[1]
+                    (  # create a DocumentFeature object based on the string provided by thesaurus
+                       DocumentFeature.from_string(x[0]),
+                       x[1]
                     )
                 )
                 for x in res] if res else []
