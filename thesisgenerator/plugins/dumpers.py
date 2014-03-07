@@ -151,7 +151,7 @@ class ConsolidatedResultsSqlWriter(object):
         self.conn = output_db_conn
         c = self.conn.cursor()
 
-        self.table_name = 'data%.2d' % table_number
+        self.table_name = 'data%d' % table_number
 
         c.execute('DROP TABLE IF EXISTS %s' % self.table_name)
         params = [item for col in columns for item in col]

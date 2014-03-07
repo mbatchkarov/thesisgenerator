@@ -185,7 +185,7 @@ def build_unreduced_AN_NN_thesauri(corpus, features, stages, use_apdt):
                                          'exp%d-%d_AN_NNvectors-cleaned' % (corpus, features))  # input 3
 
     composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
-                      RightmostWordComposer, MinComposer, MaxComposer]  # observed done through a separate script
+                      RightmostWordComposer]  # observed done through a separate script
 
     if not os.path.exists(ngram_vectors_dir):
         os.mkdir(ngram_vectors_dir)
@@ -268,7 +268,7 @@ def build_full_composed_thesauri_with_baroni_and_svd(corpus, features, stages, u
     ngram_vectors_dir = os.path.join(byblo_base_dir, '..',
                                      'exp%d-%d-composed-ngrams-MR-R2' % (corpus, features))  # output 1
     composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
-                      RightmostWordComposer, MinComposer, MaxComposer, BaroniComposer]
+                      RightmostWordComposer, BaroniComposer]
 
     target_dimensionality = [100]
     dataset_name = 'gigaw' if corpus == 10 else 'wiki'  # short name of input corpus
