@@ -345,7 +345,7 @@ def build_full_composed_thesauri_with_baroni_and_svd(corpus, features, stages, u
         for svd_dims, all_reduced_vectors, trained_composer_file \
                 in zip(target_dimensionality, baroni_training_data, trained_composer_files):
             dump.compose_and_write_vectors([all_reduced_vectors],
-                                           '%s-%s'.format(dataset_name, svd_dims),
+                                           '%s-%s' % (dataset_name, svd_dims),
                                            [dump.classification_data_path_mr, dump.classification_data_path],
                                            trained_composer_file,
                                            output_dir=ngram_vectors_dir,
@@ -372,9 +372,9 @@ def build_full_composed_thesauri_with_baroni_and_svd(corpus, features, stages, u
                     # exp10-12_AN_NNvectors-SVD30.events.filtered.strings, what the SVD stage produced
                     actual_file = os.path.join(ngram_vectors_dir,
                                                'exp{}-{}_AN_NNvectors-cleaned-SVD{}.{}.filtered.strings'.format(corpus,
-                                                                                                        features,
-                                                                                                        dims,
-                                                                                                        x))
+                                                                                                                features,
+                                                                                                                dims,
+                                                                                                                x))
                     if not os.path.exists(actual_file):
                         raise ValueError('File %s not found' % actual_file)
                     if not os.path.exists(expected_vectors_file):
