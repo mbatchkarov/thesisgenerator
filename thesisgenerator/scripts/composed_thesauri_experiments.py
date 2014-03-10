@@ -1,6 +1,7 @@
 import os
 import shutil
 import sys
+import time
 
 sys.path.append('.')
 sys.path.append('..')
@@ -91,7 +92,13 @@ for thesf_num, thesf_name in zip([12, 13], ['dependencies', 'windows']):
 for doc_feature_type in ['AN', 'NN']:
     for composer_class in composer_algos:
         pattern = reduced_pattern
-        composer_name = composer_class.name if composer_class else 'Observed'
+        svd_dims = 100
+        if composer_class:
+            pattern = reduced_pattern
+            composer_name = composer_class.name
+        else:
+            pattern = reduced_obs_pattern
+            composer_name = 'Observed'
         thesaurus_file = pattern.format(**locals())
         e = Experiment(exp_number, composer_name, thesaurus_file, 'R2', 'gigaw', 10,
                        'dependencies', 12, doc_feature_type, 100)
@@ -134,6 +141,8 @@ for exp in experiments:
     experiment_dir = 'conf/exp%d' % exp.number
     if not os.path.exists(experiment_dir):
         os.mkdir(experiment_dir)
+    else:
+        print "last modified: %s" % time.ctime(os.path.getmtime(exp.thesaurus_file)), exp.thesaurus_file
 
     base_conf_file = os.path.join(experiment_dir, 'exp%d_base.conf' % exp.number)
     # print base_conf_file, '\t\t', thes
