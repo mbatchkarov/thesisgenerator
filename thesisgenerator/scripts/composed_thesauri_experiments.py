@@ -135,14 +135,14 @@ print 'Writing conf files'
 megasuperbase_conf_file = 'conf/exp1-superbase.conf'
 for exp in experiments:
     # sanity check
-    if not os.path.exists(exp.thesaurus_file):
+    if os.path.exists(exp.thesaurus_file):
+        print "last modified: %s" % time.ctime(os.path.getmtime(exp.thesaurus_file)), exp.thesaurus_file
+    else:
         print 'MISSING THESAURUS:', exp.thesaurus_file
 
     experiment_dir = 'conf/exp%d' % exp.number
     if not os.path.exists(experiment_dir):
         os.mkdir(experiment_dir)
-    else:
-        print "last modified: %s" % time.ctime(os.path.getmtime(exp.thesaurus_file)), exp.thesaurus_file
 
     base_conf_file = os.path.join(experiment_dir, 'exp%d_base.conf' % exp.number)
     # print base_conf_file, '\t\t', thes
