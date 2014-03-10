@@ -70,7 +70,7 @@ exp_number = 1
 for thesf_num, thesf_name in zip([12, 13], ['dependencies', 'windows']):
     for unlab_num, unlab_name in zip([10], ['gigaw']):  # 11, 'wiki'
         for labelled_corpus in ['R2', 'MR']:
-            for svd_dims in [100]:
+            for svd_dims in [0, 100]:
                 for composer_class in composer_algos:
                     if composer_class == BaroniComposer and svd_dims == 0:
                         continue  # not training Baroni without SVD
@@ -110,7 +110,7 @@ for doc_feature_type in ['AN', 'NN']:
 thesf_num, thesf_name = 12, 'dependencies' # only dependencies
 for unlab_num, unlab_name in zip([10], ['gigaw']):  # 11, , 'wiki'
     for labelled_corpus in ['R2', 'MR']:
-        for svd_dims in [100]:
+        for svd_dims in [0, 100]:
             pattern = unred_pattern if svd_dims < 1 else reduced_pattern
             composer_name = 'APDT'
             thesaurus_file = pattern.format(**locals())
