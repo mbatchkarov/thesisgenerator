@@ -159,6 +159,9 @@ for exp in experiments:
     set_in_conf_file(base_conf_file, ['name'], 'exp%d' % exp.number)
     set_in_conf_file(base_conf_file, ['training_data'], train_data)
     set_in_conf_file(base_conf_file, ['test_data'], test_data)
-    for doc_feature_type in exp.document_features.split('_'):
-        set_in_conf_file(base_conf_file, ['feature_extraction', 'extract_%s_features' % doc_feature_type], True)
+
+    requested_features = exp.document_features.split('_')
+    for doc_feature_type in ['AN', 'NN', 'VO', 'SVO']:
+        set_in_conf_file(base_conf_file, ['feature_extraction', 'extract_%s_features' % doc_feature_type],
+                         doc_feature_type in requested_features)
     config_obj, configspec_file = parse_config_file(base_conf_file)
