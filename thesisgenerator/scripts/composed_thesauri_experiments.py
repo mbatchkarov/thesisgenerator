@@ -18,7 +18,7 @@ use this script to generate the conf files required to run them through the clas
 
 prefix = '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit'
 composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
-                  RightmostWordComposer, BaroniComposer, None]  # None stands for observed
+                  RightmostWordComposer, BaroniComposer, Bunch(name='Observed')]
 
 
 class Experiment():
@@ -78,14 +78,13 @@ for thesf_num, thesf_name in zip([12, 13], ['dependencies', 'windows']):
         for labelled_corpus in ['R2', 'MR']:
             for svd_dims in [0, 100]:
                 for composer_class in composer_algos:
-                    if composer_class == BaroniComposer and svd_dims == 0:
+                    composer_name = composer_class.name
+                    if composer_name == 'Baroni' and svd_dims == 0:
                         continue  # not training Baroni without SVD
-                    if composer_class:
-                        pattern = unred_pattern if svd_dims < 1 else reduced_pattern
-                        composer_name = composer_class.name
-                    else:
+                    elif composer_name == 'Observed':
                         pattern = unred_obs_pattern if svd_dims < 1 else reduced_obs_pattern
-                        composer_name = 'Observed'
+                    else:
+                        pattern = unred_pattern if svd_dims < 1 else reduced_pattern
 
                     thesaurus_file = pattern.format(**locals())
                     e = Experiment(exp_number, composer_name, thesaurus_file, labelled_corpus, unlab_name, unlab_num,
@@ -102,12 +101,12 @@ labelled_corpus = 'R2'
 for doc_feature_type in ['AN', 'NN']:
     for composer_class in composer_algos:
         pattern = reduced_pattern
-        if composer_class:
-            pattern = reduced_pattern
-            composer_name = composer_class.name
-        else:
+        composer_name = composer_class.name
+        if composer_name == 'Observed':
             pattern = reduced_obs_pattern
-            composer_name = 'Observed'
+        else:
+            pattern = reduced_pattern
+
         thesaurus_file = pattern.format(**locals())
         e = Experiment(exp_number, composer_name, thesaurus_file, labelled_corpus, unlab_name, unlab_num,
                        thesf_name, thesf_num, doc_feature_type, svd_dims)
@@ -117,11 +116,11 @@ for doc_feature_type in ['AN', 'NN']:
 
 #  do APDT experiments
 thesf_num, thesf_name = 12, 'dependencies'  # only dependencies
+composer_name = 'APDT'
 for unlab_num, unlab_name in zip([10], ['gigaw']):  # 11, , 'wiki'
     for labelled_corpus in ['R2', 'MR']:
         for svd_dims in [0, 100]:
             pattern = unred_pattern if svd_dims < 1 else reduced_pattern
-            composer_name = 'APDT'
             thesaurus_file = pattern.format(**locals())
             e = Experiment(exp_number, composer_name, thesaurus_file, labelled_corpus, unlab_name, unlab_num,
                            thesf_name, thesf_num, 'AN_NN', svd_dims)
@@ -130,17 +129,15 @@ for unlab_num, unlab_name in zip([10], ['gigaw']):  # 11, , 'wiki'
             print e, ','
 
 #  do Socher RAE experiments
+socher_thesaurus_file = os.path.join(prefix, 'socher_vectors/thesaurus/socher.sims.neighbours.strings')
 for labelled_corpus in ['R2', 'MR']:
-    pattern = unred_pattern if svd_dims < 1 else reduced_pattern
     composer_name = 'Socher'
-    thesaurus_file = os.path.join(prefix, 'socher_vectors/thesaurus/socher.sims.neighbours.strings')
-    e = Experiment(exp_number, composer_name, thesaurus_file, labelled_corpus,
+    e = Experiment(exp_number, composer_name, socher_thesaurus_file, labelled_corpus,
                    'Neuro', 'Neuro', 'Neuro', 'Neuro', 'AN_NN', 0)
     experiments.append(e)
     exp_number += 1
     print e, ','
 
-print '----------------'
 # do RAE/APDT with AN-only or NN-only; AN-only or NN-only on MR corpus
 # these experiments were omitted above to save time
 composer_algos.append(Bunch(name='APDT'))
@@ -149,13 +146,17 @@ svd_dims = 100
 for doc_feature_type in ['AN', 'NN']:
     for labelled_corpus in ['R2', 'MR']:
         for composer_class in composer_algos:
-            if composer_class:
-                pattern = reduced_pattern
-                composer_name = composer_class.name
+            composer_name = composer_class.name
+
+            if composer_name == 'Socher':
+                thesaurus_file = socher_thesaurus_file
             else:
-                pattern = reduced_obs_pattern
-                composer_name = 'Observed'
-            thesaurus_file = pattern.format(**locals())
+                if composer_name == 'Observed':
+                    pattern = reduced_obs_pattern
+                else:
+                    pattern = reduced_pattern
+                thesaurus_file = pattern.format(**locals())
+
             e = Experiment(exp_number, composer_name, thesaurus_file, labelled_corpus, unlab_name, unlab_num,
                            thesf_name, thesf_num, doc_feature_type, svd_dims)
             if e not in experiments:  # this may generate experiments that have been done before, ignore them
