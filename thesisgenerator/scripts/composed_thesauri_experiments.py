@@ -1,7 +1,9 @@
+from copy import deepcopy
 import os
 import shutil
 import sys
 import time
+from discoutils.misc import Bunch
 
 sys.path.append('.')
 sys.path.append('..')
@@ -50,6 +52,10 @@ class Experiment():
     def __repr__(self):
         return str(self)
 
+    def __eq__(self, other):
+        d1 = deepcopy(self.__dict__)
+        d2 = deepcopy(other.__dict__)
+        return set(d1.keys()) == set(d2.keys()) and all(d1[x] == d2[x] for x in d1.keys() if x != 'number')
 
 # e.g. exp10-13bAN_NN_gigaw_Left/AN_NN_gigaw_Left.sims.neighbours.strings
 unred_pattern = '{prefix}/exp{unlab_num}-{thesf_num}bAN_NN_{unlab_name}_{composer_name}/' \
@@ -89,10 +95,13 @@ for thesf_num, thesf_name in zip([12, 13], ['dependencies', 'windows']):
                     print e, ','
 
 # do a few experiment with AN/ NN features only for comparison
+thesf_num, thesf_name = 12, 'dependencies'  # only dependencies
+unlab_num, unlab_name = 10, 'gigaw'
+svd_dims = 100
+labelled_corpus = 'R2'
 for doc_feature_type in ['AN', 'NN']:
     for composer_class in composer_algos:
         pattern = reduced_pattern
-        svd_dims = 100
         if composer_class:
             pattern = reduced_pattern
             composer_name = composer_class.name
@@ -100,14 +109,14 @@ for doc_feature_type in ['AN', 'NN']:
             pattern = reduced_obs_pattern
             composer_name = 'Observed'
         thesaurus_file = pattern.format(**locals())
-        e = Experiment(exp_number, composer_name, thesaurus_file, 'R2', 'gigaw', 10,
-                       'dependencies', 12, doc_feature_type, 100)
+        e = Experiment(exp_number, composer_name, thesaurus_file, labelled_corpus, unlab_name, unlab_num,
+                       thesf_name, thesf_num, doc_feature_type, svd_dims)
         experiments.append(e)
         print e, ','
         exp_number += 1
 
 #  do APDT experiments
-thesf_num, thesf_name = 12, 'dependencies' # only dependencies
+thesf_num, thesf_name = 12, 'dependencies'  # only dependencies
 for unlab_num, unlab_name in zip([10], ['gigaw']):  # 11, , 'wiki'
     for labelled_corpus in ['R2', 'MR']:
         for svd_dims in [0, 100]:
@@ -130,6 +139,29 @@ for labelled_corpus in ['R2', 'MR']:
     experiments.append(e)
     exp_number += 1
     print e, ','
+
+print '----------------'
+# do RAE/APDT with AN-only or NN-only; AN-only or NN-only on MR corpus
+# these experiments were omitted above to save time
+composer_algos.append(Bunch(name='APDT'))
+composer_algos.append(Bunch(name='Socher'))
+svd_dims = 100
+for doc_feature_type in ['AN', 'NN']:
+    for labelled_corpus in ['R2', 'MR']:
+        for composer_class in composer_algos:
+            if composer_class:
+                pattern = reduced_pattern
+                composer_name = composer_class.name
+            else:
+                pattern = reduced_obs_pattern
+                composer_name = 'Observed'
+            thesaurus_file = pattern.format(**locals())
+            e = Experiment(exp_number, composer_name, thesaurus_file, labelled_corpus, unlab_name, unlab_num,
+                           thesf_name, thesf_num, doc_feature_type, svd_dims)
+            if e not in experiments:  # this may generate experiments that have been done before, ignore them
+                experiments.append(e)
+                print e, ','
+                exp_number += 1
 
 print 'Writing conf files'
 megasuperbase_conf_file = 'conf/exp1-superbase.conf'
