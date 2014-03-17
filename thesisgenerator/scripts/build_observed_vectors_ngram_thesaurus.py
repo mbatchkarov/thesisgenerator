@@ -11,7 +11,7 @@ from discoutils.tokens import DocumentFeature
 from discoutils.thesaurus_loader import Thesaurus
 from discoutils.io_utils import write_vectors_to_disk
 from thesisgenerator.scripts.build_phrasal_thesauri_offline import do_second_part_without_base_thesaurus, \
-    _find_conf_file
+    _find_conf_file, baronify_files
 import numpy as np
 import scipy.sparse as sp
 from operator import itemgetter
@@ -72,7 +72,7 @@ def do_work(corpus, features, svd_dims):
                                           vectors_file, entries_file, features_file)
 
 
-def do_work_socher():
+def do_work_socher(baronify):
     # SET UP A FEW REQUIRED PATHS
     # where are the composed n-gram vectors, must contain parsed.txt, phrases.txt and outVectors.txt
     # before running this function, put all phrases to be composed in parsed.txt, wrapping them
@@ -86,6 +86,9 @@ def do_work_socher():
     socher_parsed_file = os.path.join(socher_base_dir, 'parsed.txt')
     socher_vectors_file = os.path.join(socher_base_dir, 'outVectors.txt')
     byblo_conf_file = os.path.join(socher_base_dir, 'socher.bybloconf.txt')
+    output_dir = os.path.join(socher_base_dir, 'thesaurus')
+    if baronify:
+        output_dir = os.path.join(socher_base_dir, 'thesaurus_baronified')
     logging.info('Using phrases events file %s', socher_vectors_file)
 
     # where's the byblo executable
@@ -138,9 +141,12 @@ def do_work_socher():
         entries_file
     )
 
+    if baronify:
+        entries_file, features_file, vectors_file = baronify_files(entries_file, features_file, vectors_file)
+
     # BUILD A THESAURUS FROM THESE FILES
     os.chdir(byblo_base_dir)
-    do_second_part_without_base_thesaurus(byblo_conf_file, os.path.join(socher_base_dir, 'thesaurus'),
+    do_second_part_without_base_thesaurus(byblo_conf_file, output_dir,
                                           vectors_file, entries_file, features_file)
 
 
@@ -166,7 +172,7 @@ if __name__ == '__main__':
     logging.info(parameters)
 
     if parameters.socher:
-        do_work_socher()
+        do_work_socher(parameters.baronify)
     else:
         corpus = 10 if parameters.corpus == 'gigaword' else 11
         features = 12 if parameters.features == 'dependencies' else 13

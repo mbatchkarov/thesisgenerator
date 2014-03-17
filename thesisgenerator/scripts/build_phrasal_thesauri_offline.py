@@ -149,7 +149,42 @@ def do_second_part_without_base_thesaurus(byblo_conf_file, output_dir, vectors_f
     set_stage_in_byblo_conf_file(final_conf_file, 0)
 
 
-def build_thesauri_out_of_composed_vectors(composer_algos, dataset_name, ngram_vectors_dir, unigram_thesaurus_dir):
+def baronify_files(entries_file, features_file, vectors_file):
+    """
+    Removes all entries & vectors that are not contained in a hard-code Baroni thesaurus
+    """
+    # read the entries
+    # todo hardcoded file
+    baroni_entries_file = '/mnt/lustre/scratch/inf/mmb28/FeatureExtractionToolkit/exp10-12-composed-ngrams-MR-R2/AN_NN_gigaw-100_Baroni.entries.filtered.strings'
+    logging.info('Filtering out entries not in %s', baroni_entries_file)
+    with open(baroni_entries_file) as infile:
+        baroni_entries = set(line.strip().split()[0] for line in infile)
+    logging.info('Accepting %d entries', len(baroni_entries))
+
+    # remove all entries & vectors not included in Baroni whitelist
+    new_vectors_file = vectors_file.replace('.events', '.baronified.events')
+    with open(vectors_file) as inf, open(new_vectors_file, 'w') as outf:
+        for i, line in enumerate(inf):
+            if line.split()[0] in baroni_entries:
+                outf.write(line)
+
+    new_entries_file = entries_file.replace('.entries', '.baronified.entries')
+    with open(entries_file) as inf, open(new_entries_file, 'w') as outf:
+        for i, line in enumerate(inf):
+            if line.split()[0] in baroni_entries:
+                outf.write(line)
+
+    # make features file name consistent with all other file names
+    new_features_file = features_file.replace('.features', '.baronified.features')
+    if os.path.exists(new_features_file):
+        os.unlink(new_features_file)
+    os.symlink(features_file, new_features_file)
+
+    return new_entries_file, new_features_file, new_vectors_file
+
+
+def build_thesauri_out_of_composed_vectors(composer_algos, dataset_name, ngram_vectors_dir,
+                                           unigram_thesaurus_dir, baronify):
     byblo_conf_file = _find_conf_file(unigram_thesaurus_dir)
     for c in composer_algos:
         # one phrasal thesaurus per composer
@@ -161,6 +196,11 @@ def build_thesauri_out_of_composed_vectors(composer_algos, dataset_name, ngram_v
         features_file = os.path.join(ngram_vectors_dir,
                                      'AN_NN_{}_{}.features.filtered.strings'.format(dataset_name, comp_name))
         suffix = os.path.basename(vectors_file).split('.')[0]
+
+        if baronify:
+            # make a new output dir for this thesaurus
+            suffix += '_baronified'
+            entries_file, features_file, vectors_file = baronify_files(entries_file, features_file, vectors_file)
         do_second_part_without_base_thesaurus(byblo_conf_file, unigram_thesaurus_dir + suffix,
                                               vectors_file, entries_file, features_file)
 
@@ -203,7 +243,7 @@ def build_unreduced_AN_NN_thesauri(corpus, features, stages, use_apdt):
         unigram_vectors_file = _find_events_file(unigram_thesaurus_dir)
         dump.compose_and_write_vectors([unigram_vectors_file],
                                        dataset_name,
-                                       [dump.classification_data_path_mr, dump.classification_data_path],  #input 2
+                                       [dump.classification_data_path_mr, dump.classification_data_path], #input 2
                                        None,
                                        output_dir=ngram_vectors_dir,
                                        composer_classes=composer_algos)
@@ -237,7 +277,7 @@ def build_unreduced_AN_NN_thesauri(corpus, features, stages, use_apdt):
             write_vectors_to_disk(mat.tocoo(),
                                   [DocumentFeature.from_string(x) for x in rows],
                                   cols,
-                                  noop_file(),  # no need to write the events file again
+                                  noop_file(), # no need to write the events file again
                                   pattern.format(dataset_name, 'features'),
                                   pattern.format(dataset_name, 'entries'))
 
@@ -251,7 +291,7 @@ def build_unreduced_AN_NN_thesauri(corpus, features, stages, use_apdt):
         logging.warn('Skipping thesaurus construction stage.')
 
 
-def build_full_composed_thesauri_with_baroni_and_svd(corpus, features, stages, use_apdt):
+def build_full_composed_thesauri_with_baroni_and_svd(corpus, features, stages, use_apdt, baronify):
     # SET UP A FEW REQUIRED PATHS
 
     byblo_base_dir = '/mnt/lustre/scratch/inf/mmb28/FeatureExtractionToolkit/Byblo-2.2.0/'  # trailing slash required
@@ -343,7 +383,7 @@ def build_full_composed_thesauri_with_baroni_and_svd(corpus, features, stages, u
         # not point in composing with APTD, composed vectors are already there for me
         os.chdir(thesisgenerator_base_dir)
         for svd_dims, all_reduced_vectors, trained_composer_file \
-                in zip(target_dimensionality, baroni_training_data, trained_composer_files):
+            in zip(target_dimensionality, baroni_training_data, trained_composer_files):
             dump.compose_and_write_vectors([all_reduced_vectors],
                                            '%s-%s' % (dataset_name, svd_dims),
                                            [dump.classification_data_path_mr, dump.classification_data_path],
@@ -381,7 +421,7 @@ def build_full_composed_thesauri_with_baroni_and_svd(corpus, features, stages, u
                         os.symlink(actual_file, expected_vectors_file)
 
             build_thesauri_out_of_composed_vectors(composer_algos, tmp_dataset_name,
-                                                   ngram_vectors_dir, unigram_thesaurus_dir)
+                                                   ngram_vectors_dir, unigram_thesaurus_dir, baronify)
         else:
             logging.warn('Skipping thesaurus construction stage. Assuming output is at %s', ngram_vectors_dir)
 
@@ -392,6 +432,8 @@ def get_corpus_features_cmd_parser():
                         help='Unlabelled corpus to source unigram vectors from')
     parser.add_argument('--features', choices=('dependencies', 'windows'), required=True,
                         help='Feature type of unigram vectors')
+    parser.add_argument('--baronify', action='store_true', required=False,
+                        help='If true, only entries that Baroni can compose will be included in thesauri')
     return parser
 
 
@@ -433,7 +475,8 @@ if __name__ == '__main__':
 
     if parameters.use_svd:
         logging.info('Starting pipeline with SVD and Baroni composer')
-        build_full_composed_thesauri_with_baroni_and_svd(corpus, features, parameters.stages, parameters.use_apdt)
+        build_full_composed_thesauri_with_baroni_and_svd(corpus, features, parameters.stages, parameters.use_apdt,
+                                                         parameters.baronify)
     else:
         logging.info('Starting non-reduced pipeline')
         build_unreduced_AN_NN_thesauri(corpus, features, parameters.stages, parameters.use_apdt)
