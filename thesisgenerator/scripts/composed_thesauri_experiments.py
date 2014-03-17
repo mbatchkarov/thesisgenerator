@@ -142,6 +142,7 @@ for labelled_corpus in ['R2', 'MR']:
 # these experiments were omitted above to save time
 composer_algos.append(Bunch(name='APDT'))
 composer_algos.append(Bunch(name='Socher'))
+unlab_num, unlab_name = 10, 'gigaw'
 svd_dims = 100
 for doc_feature_type in ['AN', 'NN']:
     for labelled_corpus in ['R2', 'MR']:
@@ -163,6 +164,29 @@ for doc_feature_type in ['AN', 'NN']:
                 experiments.append(e)
                 print e, ','
                 exp_number += 1
+
+print '-----------'
+# do experiments with a reduced thesaurus entry sets, aka "Baronified"
+composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
+                  RightmostWordComposer, BaroniComposer, Bunch(name='APDT'), Bunch(name='Socher')]
+svd_dims = 100
+thesf_num, thesf_name = 12, 'dependencies'  # only dependencies
+unlab_num, unlab_name = 10, 'gigaw'
+labelled_corpus = 'R2'
+for composer_class in composer_algos:
+    composer_name = composer_class.name
+    if composer_name == 'Socher':
+        thesaurus_file = os.path.join(prefix,
+                                      'socher_vectors/thesaurus_baronified/socher.baronified.sims.neighbours.strings')
+    else:
+        pattern = '{prefix}/exp{unlab_num}-{thesf_num}bAN_NN_{unlab_name}-{svd_dims}_{composer_name}_baronified/' \
+                  'AN_NN_{unlab_name}-{svd_dims}_{composer_name}.baronified.sims.neighbours.strings'
+        thesaurus_file = pattern.format(**locals())
+    e = Experiment(exp_number, composer_name, thesaurus_file, labelled_corpus, unlab_name, unlab_num,
+                   thesf_name, thesf_num, 'AN_NN', svd_dims)
+    experiments.append(e)
+    exp_number += 1
+    print e, ','
 
 print 'Writing conf files'
 megasuperbase_conf_file = 'conf/exp1-superbase.conf'
