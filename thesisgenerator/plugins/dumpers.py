@@ -216,7 +216,7 @@ if __name__ == '__main__':
     prefix = '/mnt/lustre/scratch/inf/mmb28/thesisgenerator'
     hostname = platform.node()
 
-    for expid in range(123):
+    for expid in range(80, 97):
         output_dir = '%s/conf/exp%d/output/' % (prefix, expid)
         csv_out_fh = open(os.path.join(output_dir, "summary%d.csv" % expid), "w")
 
