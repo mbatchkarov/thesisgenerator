@@ -8,7 +8,7 @@ import scipy.sparse as sp
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 from thesisgenerator.classifiers import NoopTransformer
-from thesisgenerator.composers.vectorstore import PrecomputedSimilaritiesVectorSource
+from thesisgenerator.composers.vectorstore import PrecomputedSimilaritiesVectorSource, ConstantNeighbourVectorSource
 from thesisgenerator.plugins import tokenizers
 from thesisgenerator.plugins.bov_feature_handlers import get_token_handler, get_stats_recorder
 from discoutils.tokens import DocumentFeature
@@ -38,7 +38,8 @@ class ThesaurusVectorizer(TfidfVectorizer):
                  extract_NN_features=True,
                  extract_VO_features=True,
                  extract_SVO_features=True,
-                 remove_features_with_NER=False
+                 remove_features_with_NER=False,
+                 random_neighbour_thesaurus=False
 
     ):
         """
@@ -67,6 +68,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
         self.extract_VO_features = extract_VO_features
         self.extract_SVO_features = extract_SVO_features
         self.remove_features_with_NER = remove_features_with_NER
+        self.random_neighbour_thesaurus = random_neighbour_thesaurus
 
         self.stats = None
         self.handler = None
@@ -166,6 +168,11 @@ class ThesaurusVectorizer(TfidfVectorizer):
     def transform(self, raw_documents):
         # record stats separately for the test set
         self.stats = get_stats_recorder(self.record_stats)
+
+        if self.random_neighbour_thesaurus:
+            # this is a bit of hack and a waste of effort, since a thesaurus will have been loaded first
+            logging.info('Building random neighbour vector source with vocabulary of size %d', len(self.vocabulary_))
+            self.vector_source = ConstantNeighbourVectorSource(self.vocabulary_, self.k)
 
         if isinstance(self.vector_source, str):
             # it's a path to a shelved vector source

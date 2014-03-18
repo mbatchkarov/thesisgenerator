@@ -517,14 +517,14 @@ class ConstantNeighbourVectorSource(VectorSource):
     """
     name = 'Constant'
 
-    def __init__(self, vocab=None):
+    def __init__(self, vocab=None, k=1):
         self.vocab = vocab
+        self.k = k
 
 
     def get_nearest_neighbours(self, feature):
         if self.vocab:
-            v = choice(self.vocab.keys())
-            return [(v, 1.0)]
+            return [(choice(self.vocab.keys()), 1.0) for _ in range(self.k)]
         else:
             return [
                 (

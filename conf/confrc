@@ -36,8 +36,10 @@ test_data=string(default='')
     remove_features_with_NER=boolean(default=False) # whether to remove document features that contain a token with NER tag  ORG, PERS, LOC- these aren't composable
 
     # extra options required by the Bag-of-Vectors project Vectorizer
-    train_thesaurus_files=list(default=list()) # a list of files to be read to a dict-like object and passed to the vectorizer at train time
-    decode_thesaurus=string(default='') # a callable to be used instead of the real thesaurus at decode time; used to build a "random or constant" thesaurus as a sanity-check
+    #train_thesaurus_files=list(default=list()) # a list of files to be read to a dict-like object and passed to the vectorizer at train time
+    #decode_thesaurus=string(default='') # a callable to be used instead of the real thesaurus at decode time; used to build a "random or constant" thesaurus as a sanity-check
+
+    random_neighbour_thesaurus=boolean(default=False) # if true, k random in-vocabulary neighbours will be returned at decode time
     k=integer(min=0) # how many neighbours per entry to read
     lemmatize=boolean(default=True) 
     use_pos=boolean(default=True) # big cat -> big/JJ cat/NNS
