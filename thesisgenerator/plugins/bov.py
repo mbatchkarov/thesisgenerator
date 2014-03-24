@@ -185,6 +185,8 @@ class ThesaurusVectorizer(TfidfVectorizer):
             d = shelve.open(self.vector_source, flag='r') # read only
             self.vector_source = PrecomputedSimilaritiesVectorSource(Thesaurus(d))
 
+        self.ngram_range = [0, 0] # not interested in unigrams at decode time
+
         self.handler = get_token_handler(self.decode_token_handler,
                                          self.k,
                                          self.sim_compressor,
