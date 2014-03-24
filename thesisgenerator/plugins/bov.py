@@ -7,6 +7,7 @@ import shelve
 import scipy.sparse as sp
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
+from misc import ContainsEverything
 from thesisgenerator.classifiers import NoopTransformer
 from thesisgenerator.composers.vectorstore import PrecomputedSimilaritiesVectorSource, ConstantNeighbourVectorSource
 from thesisgenerator.plugins import tokenizers
@@ -38,6 +39,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
                  extract_NN_features=True,
                  extract_VO_features=True,
                  extract_SVO_features=True,
+                 unigram_feature_pos_tags = ContainsEverything(),
                  remove_features_with_NER=False,
                  random_neighbour_thesaurus=False
 
@@ -54,6 +56,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
 
         :param ngram_range: tuple(int,int), what n-grams to extract. If the range is (x,0), no n-ngrams of
         consecutive words will be extracted.
+        :param unigram_feature_pos_tags: for each extracted unigram, check that its PoS is contained here
         """
         self.use_tfidf = use_tfidf
         self.pipe_id = pipe_id
@@ -67,6 +70,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
         self.extract_NN_features = extract_NN_features
         self.extract_VO_features = extract_VO_features
         self.extract_SVO_features = extract_SVO_features
+        self.unigram_feature_pos_tags = unigram_feature_pos_tags
         self.remove_features_with_NER = remove_features_with_NER
         self.random_neighbour_thesaurus = random_neighbour_thesaurus
 
@@ -283,7 +287,11 @@ class ThesaurusVectorizer(TfidfVectorizer):
                 n_tokens = len(sentence)
                 for n in xrange(min_n, min(max_n + 1, n_tokens + 1)):
                     for i in xrange(n_tokens - n + 1):
-                        features.append(DocumentFeature('%d-GRAM' % n, tuple(sentence[i: i + n])))
+                        feature = DocumentFeature('%d-GRAM' % n, tuple(sentence[i: i + n]))
+                        if n == 1 and feature.tokens[0].pos not in self.unigram_feature_pos_tags:
+                            continue
+
+                        features.append(feature)
 
 
         #for sentence in sentences:

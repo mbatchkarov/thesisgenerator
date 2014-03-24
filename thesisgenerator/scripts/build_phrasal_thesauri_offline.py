@@ -337,7 +337,7 @@ def build_full_composed_thesauri_with_baroni_and_svd(corpus, features, stages, u
             reduced_file_prefix = apdt_composed_vectors
             do_svd([unreduced_unigram_events_file], reduced_file_prefix,
                    desired_counts_per_feature_type=counts, reduce_to=target_dimensionality,
-                   apply_to=[apdt_composed_vectors], write=2)  # only include the reduce NP vectors in output
+                   apply_to=[apdt_composed_vectors]) # include both uni- and n-grams vectors in output
         else:
             do_svd([unreduced_unigram_events_file], reduced_file_prefix,
                    desired_counts_per_feature_type=counts, reduce_to=target_dimensionality,

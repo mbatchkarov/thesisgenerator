@@ -33,6 +33,7 @@ test_data=string(default='')
     extract_NN_features=boolean(default=True)
     extract_VO_features=boolean(default=True)
     extract_SVO_features=boolean(default=True)
+    unigram_feature_pos_tags=list # for each extracted unigram feature, check that its PoS is contained here
     remove_features_with_NER=boolean(default=False) # whether to remove document features that contain a token with NER tag  ORG, PERS, LOC- these aren't composable
 
     # extra options required by the Bag-of-Vectors project Vectorizer

@@ -24,6 +24,11 @@ def _loop_body(composer_class, output_dir, pipeline, pretrained_Baroni_composer_
         composers = [BaroniComposer(unigram_source, pretrained_Baroni_composer_file)]
     else:
         composers = [composer_class(unigram_source)]
+
+    # the next 2 lines ensure 1-GRAMs are contained in the composer and returned as neighbours of phrases
+    s1 = UnigramDummyComposer(unigram_source)
+    composers.append(s1)
+
     vector_source = CompositeVectorSource(composers, sim_threshold=0, include_self=False)
     fit_args = {
         'stripper__vector_source': vector_source,
@@ -37,7 +42,7 @@ def _loop_body(composer_class, output_dir, pipeline, pretrained_Baroni_composer_
                     'AN_NN_%s_%s.features.filtered.strings' % (short_vector_dataset_name, composers[0].name))
     output_files = [os.path.join(output_dir, x) for x in output_files]
 
-    pipeline.steps[2][1].vector_source.write_vectors_to_disk({'AN', 'NN'}, *output_files)
+    pipeline.steps[2][1].vector_source.write_vectors_to_disk({'AN', 'NN', '1-GRAM'}, *output_files)
 
 
 def compose_and_write_vectors(unigram_vector_paths, short_vector_dataset_name, classification_data_paths,
@@ -77,15 +82,16 @@ def compose_and_write_vectors(unigram_vector_paths, short_vector_dataset_name, c
             x.extend(y)
 
     pipeline = Pipeline([
-        ('vect', ThesaurusVectorizer(ngram_range=(0, 0), min_df=1, use_tfidf=False,
-                                     extract_VO_features=False, extract_SVO_features=False)),
+        ('vect', ThesaurusVectorizer(ngram_range=(1, 1), min_df=1, use_tfidf=False,
+                                     extract_VO_features=False, extract_SVO_features=False,
+                                     unigram_feature_pos_tags=['N', 'J'])),
         ('fs', VectorBackedSelectKBest(ensure_vectors_exist=True)),
         ('stripper', MetadataStripper(nn_algorithm='brute', build_tree=False))
     ])
 
     x_tr, y_tr, x_ev, y_ev = tokenized_data
     unigram_source = UnigramVectorSource(unigram_vector_paths, reduce_dimensionality=False)
-    Parallel(n_jobs=8)(delayed(_loop_body)(composer_class,
+    Parallel(n_jobs=1)(delayed(_loop_body)(composer_class,
                                            output_dir,
                                            pipeline,
                                            pretrained_Baroni_composer_file,
