@@ -143,7 +143,7 @@ class TestThesaurusVectorizer(TestCase):
 
 
     def tearDown(self):
-        files = glob.glob('PostVectDump_tests*')
+        files = glob.glob('PostVectDump_test_main*')
         for f in files:
             if os.path.exists(f):
                 os.remove(f)

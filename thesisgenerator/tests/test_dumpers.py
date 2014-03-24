@@ -36,9 +36,9 @@ class TestConsolidatedResultsSqlWriter(TestCase):
         Test if the results table for an experiment is emptied by the
         creation of a new SQL writer
         """
-        q = 'SELECT * FROM data00;'
+        q = 'SELECT * FROM data0;'
         cur = self.db_conn.cursor()
-        cur.execute('SELECT * FROM data00;')
+        cur.execute('SELECT * FROM data0;')
         res = cur.fetchall()
         self.assertEqual(0, len(res))
 
@@ -49,7 +49,7 @@ class TestConsolidatedResultsSqlWriter(TestCase):
         self.writer.writerow(range(len(header_list)))
 
         cur = self.db_conn.cursor()
-        cur.execute('SELECT * FROM data00;')
+        cur.execute('SELECT * FROM data0;')
         rows = cur.fetchall()
         self.assertEqual(1, len(rows))
         self.assertEqual(len(header_list), len(rows[0]))
@@ -65,7 +65,7 @@ class TestConsolidatedResultsSqlWriter(TestCase):
 
         with con:
             cur = con.cursor()
-            cur.execute("SELECT * FROM data00")
+            cur.execute("SELECT * FROM data0")
             rows = cur.fetchall()
             for row in rows:
                 print row
