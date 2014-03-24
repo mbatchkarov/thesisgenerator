@@ -286,7 +286,8 @@ def build_unreduced_AN_NN_thesauri(corpus, features, stages, use_apdt):
             if os.path.exists(target_events_file):
                 os.remove(target_events_file)
             os.symlink(apdt_composed_vectors, target_events_file)
-        build_thesauri_out_of_composed_vectors(composer_algos, dataset_name, ngram_vectors_dir, unigram_thesaurus_dir)
+        build_thesauri_out_of_composed_vectors(composer_algos, dataset_name, ngram_vectors_dir,
+                                               unigram_thesaurus_dir, False) # can't baronify non-reduced thesauri
     else:
         logging.warn('Skipping thesaurus construction stage.')
 
