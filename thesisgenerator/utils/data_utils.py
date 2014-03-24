@@ -170,8 +170,7 @@ def get_vector_source(conf, vector_source=None):
             if paths:
                 logging.info('Loading unigram vector sources')
                 unigram_source = UnigramVectorSource(paths,
-                                                     reduce_dimensionality=conf['vector_sources'][
-                                                         'reduce_dimensionality'],
+                                                     reduce_dimensionality=conf['vector_sources']['reduce_dimensionality'],
                                                      dimensions=conf['vector_sources']['dimensions'])
 
             composers = []
@@ -190,13 +189,14 @@ def get_vector_source(conf, vector_source=None):
                     conf['vector_sources']['include_self'],
                 )
         else:
-            filename = 'shelf_%d' % hash(tuple(paths))
+            filename = 'shelf%d' % hash(tuple(paths))
             if not os.path.exists(filename):
                 logging.info('Loading precomputed neighbour sources')
                 vector_source = PrecomputedSimilaritiesVectorSource.from_file(
-                    paths,
-                    conf['vector_sources']['sim_threshold'],
-                    conf['vector_sources']['include_self'],
+                    thesaurus_files=paths,
+                    sim_threshold=conf['vector_sources']['sim_threshold'],
+                    include_self=conf['vector_sources']['include_self'],
+                    allow_lexical_overlap=conf['vector_sources']['allow_lexical_overlap']
                 )
                 vector_source.th.to_shelf(filename)
             vector_source = filename

@@ -66,6 +66,7 @@ test_data=string(default='')
 	sim_threshold=float(default=0.0) # exclude neighbours from thesaurus if sim is less than threshold
 	reduce_dimensionality=boolean(default=False) # whether the dimensionality of the lexical unigram vectors should be reduced. This greatly speeds up later operations on these vectors.
 	dimensions = integer(default=1000) # if reduce_dimensionality, how many dimensions should the resultant vectors have
+	allow_lexical_overlap = boolean(default=True) # when a thesaurus is loaded from disk and this is set to true, neighbours that overlap lexically with the base entry will be removed. See unit test for spec.
 	
 	[[thesisgenerator.composers.vectorstore.AdditiveComposer]]
 		run=boolean(default=False)

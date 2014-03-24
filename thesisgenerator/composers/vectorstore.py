@@ -462,18 +462,11 @@ class PrecomputedSimilaritiesVectorSource(CompositeVectorSource):
         self.th = thesaurus
 
     @classmethod
-    def from_file(cls, thesaurus_files='', sim_threshold=0, include_self=False):
+    def from_file(cls, **kwargs):
         '''
-        :param thesaurus_files: List of **all-pairs similarities** files.
-        :type thesaurus_files: list
-        :param sim_threshold:
-        :type sim_threshold: float
-        :param include_self:
-        :type include_self: bool
+        Takes the same parameters as Thesaurus.from_tsv
         '''
-        th = Thesaurus.from_tsv(thesaurus_files=thesaurus_files,
-                                sim_threshold=sim_threshold,
-                                include_self=include_self)
+        th = Thesaurus.from_tsv(**kwargs)
         return PrecomputedSimilaritiesVectorSource(th)
 
     def _get_nearest_neighbours(self, feature):
