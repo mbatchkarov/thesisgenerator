@@ -225,4 +225,6 @@ for exp in experiments:
     for doc_feature_type in ['AN', 'NN', 'VO', 'SVO']:
         set_in_conf_file(base_conf_file, ['feature_extraction', 'extract_%s_features' % doc_feature_type],
                          doc_feature_type in requested_features)
-    config_obj, configspec_file = parse_config_file(base_conf_file)
+
+    # do not allow lexical overlap to prevent Left and Right from relying on word identity
+    set_in_conf_file(base_conf_file, ['vector_sources', 'allow_lexical_overlap'], False)
