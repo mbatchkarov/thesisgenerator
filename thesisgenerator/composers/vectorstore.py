@@ -172,7 +172,7 @@ class UnigramDummyComposer(Composer):
 class AdditiveComposer(Composer):
     name = 'Add'
     # composers in general work with n-grams (for simplicity n<4)
-    feature_pattern = {'AN', 'NN'}  # '2-GRAM', '3-GRAM',, 'VO', 'SVO'
+    feature_pattern = {'2-GRAM', '3-GRAM', 'AN', 'NN', 'VO', 'SVO'}
 
     def __init__(self, unigram_source=None):
         super(AdditiveComposer, self).__init__(unigram_source)
@@ -226,7 +226,7 @@ class LeftmostWordComposer(AdditiveComposer):
     def __init__(self, unigram_source=None):
         super(LeftmostWordComposer, self).__init__(unigram_source)
         self.hardcoded_index = 0
-        self.feature_pattern = {'AN', 'NN'}  #'2-GRAM', '3-GRAM',, 'VO', 'SVO'
+        self.feature_pattern = {'2-GRAM', '3-GRAM', 'AN', 'NN', 'VO', 'SVO'}
 
 
     def _get_vector(self, feature):
