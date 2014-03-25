@@ -7,7 +7,7 @@ import shelve
 import scipy.sparse as sp
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
-from misc import ContainsEverything
+from discoutils.misc import ContainsEverything
 from thesisgenerator.classifiers import NoopTransformer
 from thesisgenerator.composers.vectorstore import PrecomputedSimilaritiesVectorSource, ConstantNeighbourVectorSource
 from thesisgenerator.plugins import tokenizers

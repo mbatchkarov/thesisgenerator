@@ -2,6 +2,7 @@ import argparse
 import logging
 import re
 import sys
+from discoutils.reduce_dimensionality import filter_out_infrequent_entries
 
 sys.path.append('.')
 sys.path.append('..')
@@ -11,7 +12,7 @@ from discoutils.tokens import DocumentFeature
 from discoutils.thesaurus_loader import Thesaurus
 from discoutils.io_utils import write_vectors_to_disk
 from thesisgenerator.scripts.build_phrasal_thesauri_offline import do_second_part_without_base_thesaurus, \
-    _find_conf_file, baronify_files
+    _find_conf_file, baronify_files, _find_events_file
 import numpy as np
 import scipy.sparse as sp
 from operator import itemgetter
@@ -29,9 +30,19 @@ def do_work(corpus, features, svd_dims):
     # where are the observed n-gram vectors in tsv format, must be underscore-separated already
     name = 'wiki' if corpus == 11 else 'gigaw'
 
+
+    # where's the byblo conf file
+    unigram_thesaurus_dir = '%s/exp%d-%db' % (prefix, corpus, features)
+    # where's the byblo executable
+    byblo_base_dir = '%s/Byblo-2.2.0/' % prefix
+
     if svd_dims == 0:
         observed_ngram_vectors_file = '%s/observed_vectors/exp%d-%d_AN_NNvectors-cleaned' % (prefix, corpus, features)
+        unigram_thesaurus_dir = os.path.abspath(os.path.join(byblo_base_dir, '..',
+                                                             'exp%d-%db' % (corpus, features)))
+        observed_unigram_vectors_file = _find_events_file(unigram_thesaurus_dir)
     else:
+        # contain SVD-reduced N,J and NP observed vectors
         observed_ngram_vectors_file = '%s/exp%d-%db/exp%d-with-obs-phrases-SVD%d.events.filtered.strings' % \
                                       (prefix, corpus, features, corpus, svd_dims)
 
@@ -42,10 +53,6 @@ def do_work(corpus, features, svd_dims):
     else:
         outdir = '%s/exp%d-%dbAN_NN_%s-%d_Observed' % (prefix, corpus, features, name, svd_dims)
 
-    # where's the byblo conf file
-    unigram_thesaurus_dir = '%s/exp%d-%db' % (prefix, corpus, features)
-    # where's the byblo executable
-    byblo_base_dir = '%s/Byblo-2.2.0/' % prefix
 
 
     # CREATE BYBLO EVENTS/FEATURES/ENTRIES FILE FROM INPUT
@@ -57,11 +64,20 @@ def do_work(corpus, features, svd_dims):
     features_file = os.path.join(observed_vector_dir, 'exp%d%s.features.filtered.strings' % (corpus, svd_appendage))
 
     # do the actual writing
-    th = Thesaurus.from_tsv([observed_ngram_vectors_file], aggressive_lowercasing=False)
-    mat, cols, rows = th.to_sparse_matrix()
-    rows = [DocumentFeature.from_string(x) for x in rows]
+    if svd_dims:
+        th = Thesaurus.from_tsv([observed_ngram_vectors_file], aggressive_lowercasing=False)
+    else:
+        # th0 = Thesaurus.from_tsv([observed_unigram_vectors_file], aggressive_lowercasing=False)
+        # th1 = Thesaurus.from_tsv([observed_ngram_vectors_file], aggressive_lowercasing=False)
+        th = Thesaurus.from_tsv([observed_ngram_vectors_file, observed_unigram_vectors_file],
+                                aggressive_lowercasing=False)
+
+    desired_counts_per_feature_type = [('N', 20000), ('V', 0), ('J', 10000), ('RB', 0), ('AN', 1e10), ('NN', 1e10)]
+    mat, pos_tags, rows, cols = filter_out_infrequent_entries(desired_counts_per_feature_type, th)
+    # mat, cols, rows = th.to_sparse_matrix() # if there are only NPs do this
+    # rows = [DocumentFeature.from_string(x) for x in rows]
     write_vectors_to_disk(mat.tocoo(), rows, cols, vectors_file, features_file, entries_file,
-                          entry_filter=lambda feature: feature.type in {'AN', 'NN'})
+                          entry_filter=lambda feature: feature.type in {'AN', 'NN', '1-GRAM'})
 
     logging.info(vectors_file)
     logging.info(entries_file)
@@ -116,7 +132,7 @@ def do_work_socher(baronify):
     # get a list of all phrases where composition worked (no unknown words)
     with open(socher_phrases_file) as infile:
         success = [i for i, line in enumerate(infile) if '*UNKNOWN*' not in line]
-    # pick out just the phrases that composes successfully
+        # pick out just the phrases that composes successfully
     composed_phrases = itemgetter(*success)(composed_phrases)
 
     # load all vectors, remove these containing unknown words
@@ -127,7 +143,7 @@ def do_work_socher(baronify):
     # CREATE BYBLO EVENTS/FEATURES/ENTRIES FILE FROM INPUT
     vectors_file = os.path.join(socher_base_dir, 'socher.events.filtered.strings')
     entries_file = os.path.join(socher_base_dir, 'socher.entries.filtered.strings')
-    features_file =os.path.join(socher_base_dir, 'socher.features.filtered.strings')
+    features_file = os.path.join(socher_base_dir, 'socher.features.filtered.strings')
 
     logging.info(vectors_file)
     logging.info(entries_file)
@@ -135,7 +151,7 @@ def do_work_socher(baronify):
     write_vectors_to_disk(
         sp.coo_matrix(mat),
         composed_phrases,
-        ['RAE-feat%d' % i for i in range(100)],  # Socher provides 100-dimensional vectors
+        ['RAE-feat%d' % i for i in range(100)], # Socher provides 100-dimensional vectors
         vectors_file,
         features_file,
         entries_file
