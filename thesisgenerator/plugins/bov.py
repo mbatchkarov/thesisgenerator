@@ -27,7 +27,9 @@ class ThesaurusVectorizer(TfidfVectorizer):
                  strip_accents=None,
                  preprocessor=None, tokenizer=None, analyzer='ngram',
                  stop_words=None, token_pattern=ur"(?u)\b\w\w+\b", min_n=None,
-                 max_n=None, ngram_range=(1, 1), max_df=1.0, min_df=2,
+                 max_n=None, ngram_range=(1, 1),
+                 ngram_range_decode=None,
+                 max_df=1.0, min_df=2,
                  max_features=None, vocabulary=None, binary=False, dtype=float,
                  norm='l2', use_idf=True, smooth_idf=True,
                  sublinear_tf=False, use_tfidf=True,
@@ -73,6 +75,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
         self.unigram_feature_pos_tags = unigram_feature_pos_tags
         self.remove_features_with_NER = remove_features_with_NER
         self.random_neighbour_thesaurus = random_neighbour_thesaurus
+        self.ngram_range_decode = ngram_range_decode if ngram_range_decode else ngram_range
 
         self.stats = None
         self.handler = None
@@ -185,7 +188,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
             d = shelve.open(self.vector_source, flag='r') # read only
             self.vector_source = PrecomputedSimilaritiesVectorSource(Thesaurus(d))
 
-        self.ngram_range = [0, 0] # not interested in unigrams at decode time
+        self.ngram_range = self.ngram_range_decode
 
         self.handler = get_token_handler(self.decode_token_handler,
                                          self.k,
