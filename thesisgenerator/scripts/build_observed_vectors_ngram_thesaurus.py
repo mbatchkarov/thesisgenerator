@@ -112,6 +112,7 @@ def do_work_socher(baronify):
 
     an_regex = re.compile("\(NP \(JJ (\S+)\) \(NN (\S+)\)\)\)")
     nn_regex = re.compile("\(NP \(NN (\S+)\) \(NN (\S+)\)\)\)")
+    unigram_regex = re.compile("\(NP \((NN|JJ) (\S+)\)\)\)")
 
     # get a list of all phrases that we attempted to compose
     composed_phrases = []
@@ -122,12 +123,21 @@ def do_work_socher(baronify):
             if matches:
                 d = DocumentFeature.from_string('{}/J_{}/N'.format(*matches[0]))
                 composed_phrases.append(d)
-            else:
-                # check if this is an NN
-                matches = nn_regex.findall(line)
-                if matches:
-                    d = DocumentFeature.from_string('{}/N_{}/N'.format(*matches[0]))
-                    composed_phrases.append(d)
+                continue
+
+            # check if this is an NN
+            matches = nn_regex.findall(line)
+            if matches:
+                d = DocumentFeature.from_string('{}/N_{}/N'.format(*matches[0]))
+                composed_phrases.append(d)
+                continue
+
+            # check if this is a unigram
+            matches = unigram_regex.findall(line)
+            if matches:
+                d = DocumentFeature.from_string('{1}/{0}'.format(*matches[0])[:-1])
+                composed_phrases.append(d)
+                continue
 
     # get a list of all phrases where composition worked (no unknown words)
     with open(socher_phrases_file) as infile:
@@ -145,8 +155,6 @@ def do_work_socher(baronify):
     entries_file = os.path.join(socher_base_dir, 'socher.entries.filtered.strings')
     features_file = os.path.join(socher_base_dir, 'socher.features.filtered.strings')
 
-    logging.info(vectors_file)
-    logging.info(entries_file)
     # do the actual writing
     write_vectors_to_disk(
         sp.coo_matrix(mat),

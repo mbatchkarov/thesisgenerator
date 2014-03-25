@@ -6,10 +6,10 @@ import numpy as np
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s\t%(module)s.%(funcName)s ""(line %(lineno)d)\t%(levelname)s : %(""message)s")
 
-r8_train = 'sample-data/reuters21578/r8train-tagged-grouped-full'
-r8_test = 'sample-data/reuters21578/r8test-tagged-grouped-full'
-mr_train = 'sample-data/movie-reviews-train-tagged-full'
-mr_test = 'sample-data/movie-reviews-test-tagged-full'
+r8_train = 'sample-data/reuters21578/r8train-tagged-grouped'
+r8_test = 'sample-data/reuters21578/r8test-tagged-grouped'
+mr_train = 'sample-data/movie-reviews-train-tagged'
+mr_test = 'sample-data/movie-reviews-test-tagged'
 
 all_text = []
 for train, test in [[r8_train, r8_test], [mr_train, mr_test]]:
@@ -33,7 +33,8 @@ for train, test in [[r8_train, r8_test], [mr_train, mr_test]]:
     all_text.extend(x_ev)
     print 'Documents so far', len(all_text)
 
-vect = ThesaurusVectorizer(min_df=1, ngram_range=(0, 0), extract_SVO_features=False, extract_VO_features=False)
+vect = ThesaurusVectorizer(min_df=1, ngram_range=(1, 1), extract_SVO_features=False, extract_VO_features=False,
+                           unigram_feature_pos_tags=set('NJ'))
 data_matrix, voc = vect.fit_transform(all_text, np.ones(len(all_text)))
 
 # (ROOT
@@ -41,14 +42,19 @@ data_matrix, voc = vect.fit_transform(all_text, np.ones(len(all_text)))
 #
 # (ROOT
 #   (NP (JJ pacific) (NN stock)))
-stanford_pattern = '(ROOT\n (NP ({} {}) ({} {})))\n\n'
+stanford_NP_pattern = '(ROOT\n (NP ({} {}) ({} {})))\n\n'
+
+# (ROOT
+#   (NP (NN roads)))
+# I checked that this extracts the neural word embedding for the word
+stanford_unigram_pattern = '(ROOT\n (NP ({} {})))\n\n'
 
 seen_modifiers = set()
 with open('r2-mr-ANs-NNs-julie.txt', 'wb') as outf_julie, \
-    open('r2-mr-ANs-NNs-socher.txt', 'wb') as outf_socher, \
-    open('r2-mr-modifiers.txt', 'wb') as outf_mods:
+        open('r2-mr-ANs-NNs-socher.txt', 'wb') as outf_socher, \
+        open('r2-mr-modifiers.txt', 'wb') as outf_mods:
     for item in voc.keys():
-        if item.type in {'AN', 'NN'}: # there shouldn't be any other features
+        if item.type in {'AN', 'NN'}:
             first = str(item.tokens[0])
             second = str(item.tokens[1])
 
@@ -65,11 +71,14 @@ with open('r2-mr-ANs-NNs-julie.txt', 'wb') as outf_julie, \
             outf_julie.write(string)
 
             # write the phrase in Socher's format
-            string = stanford_pattern.format(item.tokens[0].pos * 2, item.tokens[0].text,
-                                             item.tokens[1].pos * 2, item.tokens[1].text)
+            string = stanford_NP_pattern.format(item.tokens[0].pos * 2, item.tokens[0].text,
+                                                item.tokens[1].pos * 2, item.tokens[1].text)
             outf_socher.write(string)
-        else:
-            raise ValueError('Item %r has the wrong feature type' % item)
+        elif item.type == '1-GRAM':
+            string = stanford_unigram_pattern.format(item.tokens[0].pos * 2, item.tokens[0].text)
+            outf_socher.write(string)
+        else:  # there shouldn't be any other features
+            raise ValueError('Item %r has the wrong feature type: %s' % (item, item.type))
 
 
 
