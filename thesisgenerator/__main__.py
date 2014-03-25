@@ -31,13 +31,13 @@ from sklearn.pipeline import Pipeline
 from thesisgenerator.composers.feature_selectors import MetadataStripper
 from thesisgenerator.utils.reflection_utils import get_named_object, get_intersection_of_parameters
 from thesisgenerator.utils.misc import ChainCallable
-from thesisgenerator.classifiers import LeaveNothingOut, PredefinedIndicesIterator, SubsamplingPredefinedIndicesIterator, PicklingPipeline
+from thesisgenerator.classifiers import LeaveNothingOut, PredefinedIndicesIterator, \
+    SubsamplingPredefinedIndicesIterator, PicklingPipeline
 from thesisgenerator.utils.conf_file_utils import set_in_conf_file, parse_config_file
 from thesisgenerator.utils.data_utils import tokenize_data, load_text_data_into_memory, \
     load_tokenizer, get_vector_source
 from thesisgenerator import config
 from thesisgenerator.plugins.dumpers import FeatureVectorsCsvDumper
-from thesisgenerator.plugins.crossvalidation import naming_cross_val_score
 
 
 def _build_crossvalidation_iterator(config, x_vals, y_vals, x_test=None,
@@ -60,11 +60,6 @@ def _build_crossvalidation_iterator(config, x_vals, y_vals, x_test=None,
     cv_type = config['type']
     k = config['k']
 
-    validation_data = [(0, 0)]
-
-    validation_indices = reduce(lambda l, (head, tail): l + range(head, tail),
-                                validation_data, [])
-
     if x_test is not None and y_test is not None:
         logging.warn('You have requested test set to be used for evaluation.')
         if cv_type != 'test_set' and cv_type != 'subsampled_test_set':
@@ -78,32 +73,22 @@ def _build_crossvalidation_iterator(config, x_vals, y_vals, x_test=None,
         x_vals.extend(x_test)
         y_vals = hstack([y_vals, y_test])
 
-    mask = np.zeros(y_vals.shape[0])  # we only mask the rows
-    mask[validation_indices] = 1 # mask has 1 where the data point should be
-    # used for validation and not for training/testing
-
-    seen_data_mask = mask == 0
-    dataset_size = np.sum(seen_data_mask)
-    targets_seen = y_vals[seen_data_mask]
+    dataset_size = len(x_vals)
     if k < 0:
-        logging.warn(
-            'crossvalidation.k not specified, defaulting to 1')
+        logging.warn('crossvalidation.k not specified, defaulting to 1')
         k = 1
     if cv_type == 'kfold':
         iterator = cross_validation.KFold(dataset_size, int(k))
     elif cv_type == 'skfold':
-        iterator = cross_validation.StratifiedKFold(targets_seen, int(k))
+        iterator = cross_validation.StratifiedKFold(y_vals, int(k))
     elif cv_type == 'loo':
         iterator = cross_validation.LeaveOneOut(dataset_size, int(k))
     elif cv_type == 'bootstrap':
         ratio = config['ratio']
         if k < 0:
-            logging.warn(
-                'crossvalidation.ratio not specified,defaulting to 0.8')
+            logging.warn('crossvalidation.ratio not specified,defaulting to 0.8')
             ratio = 0.8
-        iterator = cross_validation.Bootstrap(dataset_size,
-                                              n_iter=int(k),
-                                              train_size=ratio)
+        iterator = cross_validation.Bootstrap(dataset_size, n_iter=int(k), train_size=ratio)
     elif cv_type == 'oracle':
         iterator = LeaveNothingOut(dataset_size)
     elif cv_type == 'test_set' and x_test is not None and y_test is not None:
@@ -121,18 +106,7 @@ def _build_crossvalidation_iterator(config, x_vals, y_vals, x_test=None,
             'types are \'kfold\', \'skfold\', \'loo\', \'bootstrap\', '
             '\'test_set\', \'subsampled_test_set\' and \'oracle\'')
 
-
-    # Pick out the non-validation data from x_vals. This requires x_vals
-    # to be cast to a format that supports slicing, such as the compressed
-    # sparse row format (converting to that is also fast).
-    seen_indices = range(targets_seen.shape[0])
-    seen_indices = sorted(set(seen_indices) - set(validation_indices))
-    x_vals = [x_vals[index] for index in seen_indices]
-    # y_vals is a row vector, need to transpose it to get the same shape as
-    # x_vals
-    y_vals = y_vals[seen_indices].transpose()
-
-    return iterator, validation_indices, x_vals, y_vals
+    return iterator, x_vals, y_vals
 
 
 def _build_vectorizer(id, vector_source, init_args, fit_args, feature_extraction_conf, pipeline_list,
@@ -155,15 +129,8 @@ def _build_vectorizer(id, vector_source, init_args, fit_args, feature_extraction
     """
     vectorizer = get_named_object(feature_extraction_conf['vectorizer'])
 
-    # todo preprocessor needs to be expanded into a callable name
-    # todo analyzer needs to be expanded into a callable name
-    # todo tokenizer needs to be expanded into a callable name
-    # todo vocabulary needs to be a complex data type - this should be
-    # allowed to be a file reference
-    # todo dtype should be expanded into a numpy type
-
     # get the names of the arguments that the vectorizer class takes
-    # todo the object must only take keyword arguments
+    # the object must only take keyword arguments
     init_args.update(get_intersection_of_parameters(vectorizer, feature_extraction_conf, 'vect'))
     init_args['vect__exp_name'] = exp_name
     if vector_source:
@@ -200,10 +167,11 @@ def _build_feature_selector(vector_source, init_args, fit_args, feature_selectio
 def _build_dimensionality_reducer(call_args, dimensionality_reduction_conf,
                                   pipeline_list):
     """
-      If dimensionality reduciton is required, this function appends a reducer
+      If dimensionality reduction is required, this function appends a reducer
       object to pipeline_list and its configuration to configuration. Note this
        function modifies (appends to) its input arguments
       """
+      #  todo this isn't really needed and should probably be removed
 
     if dimensionality_reduction_conf['run']:
         dr_method = get_named_object(dimensionality_reduction_conf['method'])
@@ -311,7 +279,7 @@ def _run_tasks(configuration, n_jobs, data, vector_source):
     x_tr, y_tr, x_test, y_test = data
 
     # CREATE CROSSVALIDATION ITERATOR
-    cv_iterator, validate_indices, x_vals_seen, y_vals_seen = \
+    cv_iterator, x_vals_seen, y_vals_seen = \
         _build_crossvalidation_iterator(configuration['crossvalidation'],
                                         x_tr, y_tr, x_test,
                                         y_test)
@@ -394,18 +362,6 @@ def _config_logger(output_path=None, name='log', debug=False):
     sh.setFormatter(fmt)
     newly_created_logger.addHandler(sh)
 
-    class MyFilter(object):
-        """
-        A logging filter which accepts messages with a level *LOWER* than the
-         one specified at construction time
-        """
-
-        def __init__(self, level):
-            self.__level = level
-
-        def filter(self, logRecord):
-            return logRecord.levelno <= self.__level
-
     if output_path is not None:
         log_file = os.path.join(output_path, '%s.log' % name)
         fh = logging.FileHandler(log_file, mode='w')
@@ -414,17 +370,10 @@ def _config_logger(output_path=None, name='log', debug=False):
         else:
             fh.setLevel(logging.INFO)
         fh.setFormatter(fmt)
-        #        fh.addFilter(MyFilter(logging.DEBUG))
-        #   fh1 = logging.FileHandler(os.path.join(output_path, 'log-info.txt'),
-        #                                  mode='w')
-        #        fh1.setLevel(logging.INFO)
-        #        fh1.setFormatter(fmt)
         newly_created_logger.addHandler(fh)
 
     newly_created_logger.setLevel(logging.DEBUG)
     return newly_created_logger
-    # else:
-    #     return log
 
 
 def _prepare_output_directory(clean, output):
@@ -457,12 +406,6 @@ def go(conf_file, log_dir, data, vector_source, classpath='', clean=False, n_job
         os.makedirs(log_dir)
 
     config, configspec_file = parse_config_file(conf_file)
-
-    #if config['debug'] and config['crossvalidation']['run'] and \
-    #                config['crossvalidation']['k'] > 1:
-    #    raise ValueError('Cannot crossvalidate and debug at the same time')
-    # because all folds run at the same time and write to the same debug
-    # file
 
     log = _config_logger(log_dir, name=config['name'], debug=config['debug'])
     log.info('Reading configuration file from \'%s\', conf spec from \'%s\''

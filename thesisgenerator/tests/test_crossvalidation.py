@@ -45,7 +45,7 @@ class TestUtils(TestCase):
         # with a test set the random seed should make no difference
         for seed in range(10):
             self.conf['random_state'] = seed
-            it, _, all_x, all_y = \
+            it, all_x, all_y = \
                 _build_crossvalidation_iterator(self.conf, self.x_train,
                                                 self.y_train,
                                                 x_test=self.x_test,
@@ -71,12 +71,12 @@ class TestUtils(TestCase):
             for seed in [1, 2, 3, 1, 2, 3, 1, 2, 3]:
                 self.conf['random_state'] = seed
                 if not subsampling:
-                    it, _, all_x, all_y = \
+                    it, all_x, all_y = \
                         _build_crossvalidation_iterator(self.conf,
                                                         self.x_train,
                                                         self.y_train)
                 else:
-                    it, _, all_x, all_y = \
+                    it, all_x, all_y = \
                         _build_crossvalidation_iterator(self.conf,
                                                         self.x_train,
                                                         self.y_train,
