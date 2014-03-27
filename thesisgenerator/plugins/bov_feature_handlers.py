@@ -92,10 +92,10 @@ class StatsRecorder(object):
         self.paraphrases.append(event)
 
     def get_paraphrase_statistics(self):
-        replacement_count = Counter([x.available_replacements for x in self.paraphrases])
-        replacement_rank = Counter([r for x in self.paraphrases for r in x.ranks])
-        replacement_sims = Counter([s for x in self.paraphrases for s in x.similarities])
-        replacement_types = Counter([feat.type for x in self.paraphrases for feat in x.replacements])
+        replacement_count = [x.available_replacements for x in self.paraphrases]
+        replacement_rank = [r for x in self.paraphrases for r in x.ranks]
+        replacement_sims = [s for x in self.paraphrases for s in x.similarities]
+        replacement_types = [feat.type for x in self.paraphrases for feat in x.replacements]
 
         return replacement_count, replacement_rank, replacement_sims, replacement_types
 

@@ -8,8 +8,10 @@ Created on Oct 18, 2012
 
 # if one tries to run this script from the main project directory the
 # thesisgenerator package would not be on the path, add it and try again
+import pickle
 import sys
 from joblib import Parallel, delayed
+from thesisgenerator.utils.visualisation_utils import histogram_from_list
 
 sys.path.append('.')
 sys.path.append('..')
@@ -171,7 +173,7 @@ def _build_dimensionality_reducer(call_args, dimensionality_reduction_conf,
       object to pipeline_list and its configuration to configuration. Note this
        function modifies (appends to) its input arguments
       """
-      #  todo this isn't really needed and should probably be removed
+    #  todo this isn't really needed and should probably be removed
 
     if dimensionality_reduction_conf['run']:
         dr_method = get_named_object(dimensionality_reduction_conf['method'])
@@ -295,9 +297,18 @@ def _run_tasks(configuration, n_jobs, data, vector_source):
     all_scores.extend([score for one_set_of_scores in scores_over_cv for score in one_set_of_scores])
 
     logging.info('Classifier scores are %s', all_scores)
-    logging.info('Stats over CV for this data size are:')
-    for s in stats_over_cv:
-        logging.info(s.get_paraphrase_statistics())
+    logging.info('Dumping and plotting stats over CV for this data size')
+    with open('stats%s' % configuration['name'], 'w') as outf:
+        pickle.dump(stats_over_cv, outf)
+
+    for i, stats in enumerate(stats_over_cv):
+        data = stats.get_paraphrase_statistics()
+        if not data:
+            continue # stats may be disabled for performance reasons
+        for c, datatype in zip(data, ['count', 'rank', 'sim', 'feattype']):
+            histogram_from_list(c,
+                                   'figures/%s_cv%d_%s_hist.png' % (configuration['name'], i, datatype))
+
     return 0, _analyze(all_scores, configuration['output_dir'], configuration['name']), stats_over_cv
 
 
