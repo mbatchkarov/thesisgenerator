@@ -261,7 +261,7 @@ def _cv_loop(configuration, i, score_func, test_idx, train_idx, vector_source, x
                  metric.split('.')[-1],
                  score])
         logging.info('Done with %s', clf)
-    return scores_this_cv_run
+    return scores_this_cv_run, pipeline.named_steps['vect'].stats
 
 
 def _run_tasks(configuration, n_jobs, data, vector_source):
@@ -286,15 +286,19 @@ def _run_tasks(configuration, n_jobs, data, vector_source):
     all_scores = []
     score_func = ChainCallable(configuration['evaluation'])
 
-    scores_over_cv = Parallel(n_jobs=n_jobs)(
+    scores_and_stats = Parallel(n_jobs=n_jobs)(
         delayed(_cv_loop)(configuration, i, score_func, test_idx, train_idx, vector_source, x_vals_seen, y_vals_seen)
         for i, (train_idx, test_idx) in enumerate(cv_iterator)
     )
+    scores_over_cv = [x[0] for x in scores_and_stats]
+    stats_over_cv = [x[1] for x in scores_and_stats]
     all_scores.extend([score for one_set_of_scores in scores_over_cv for score in one_set_of_scores])
-    print 1
 
     logging.info('Classifier scores are %s', all_scores)
-    return 0, _analyze(all_scores, configuration['output_dir'], configuration['name'])
+    logging.info('Stats over CV for this data size are:')
+    for s in stats_over_cv:
+        logging.info(s.get_paraphrase_statistics())
+    return 0, _analyze(all_scores, configuration['output_dir'], configuration['name']), stats_over_cv
 
 
 def _analyze(scores, output_dir, name):
@@ -413,9 +417,9 @@ def go(conf_file, log_dir, data, vector_source, classpath='', clean=False, n_job
     output = config['output_dir']
     _prepare_output_directory(clean, output)
     _prepare_classpath(classpath)
-    status, msg = _run_tasks(config, n_jobs, data, vector_source)
+    status, msg, stats = _run_tasks(config, n_jobs, data, vector_source)
     shutil.copy(conf_file, output)
-    return status, msg
+    return status, msg, stats
 
 
 postvect_dumper_added_already = False

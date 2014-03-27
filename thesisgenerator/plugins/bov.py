@@ -34,7 +34,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
                  norm='l2', use_idf=True, smooth_idf=True,
                  sublinear_tf=False, use_tfidf=True,
                  record_stats=True, k=1,
-                 sim_compressor='thesisgenerator.utils.misc.noop',
+                 sim_compressor='thesisgenerator.utils.misc.unit',
                  train_token_handler='thesisgenerator.plugins.bov_feature_handlers.BaseFeatureHandler',
                  decode_token_handler='thesisgenerator.plugins.bov_feature_handlers.BaseFeatureHandler',
                  extract_AN_features=True,

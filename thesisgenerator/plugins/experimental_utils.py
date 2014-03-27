@@ -44,7 +44,7 @@ def run_experiment(expid, subexpid=None, num_workers=4,
     sizes = chain(range(10, 101, 15), range(200, 501, 100))
     if expid == 0:
         # exp0 is for debugging only, we don't have to do much
-        sizes = [200]  #range(10, 31, 10)
+        sizes = [5]  #range(10, 31, 10)
         num_workers = 1
 
     if predefined_sized:
@@ -75,8 +75,8 @@ def run_experiment(expid, subexpid=None, num_workers=4,
     tokenised_data = tokenize_data(raw_data, tokenizer, data_ids)
 
     # run data through the pipeline
-    for new_conf_file, log_dir in conf_file_iterator:
-        go(new_conf_file, log_dir, tokenised_data, vector_source, n_jobs=num_workers)
+    return [go(new_conf_file, log_dir, tokenised_data, vector_source, n_jobs=num_workers)
+            for new_conf_file, log_dir in conf_file_iterator]
 
 
 if __name__ == '__main__':

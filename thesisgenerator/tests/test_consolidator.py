@@ -19,7 +19,7 @@ class TestConsolidator(TestCase):
         # load a mock unigram thesaurus, bypassing the similarity calculation provided by CompositeVectorSource
         vector_source = PrecomputedSimilaritiesVectorSource.from_file(
             thesaurus_files=['thesisgenerator/resources/exp0-0a.strings'])
-        run_experiment(0, num_workers=1, predefined_sized=[3, 3, 3], prefix=prefix, vector_source=vector_source)
+        print 'RES:', run_experiment(0, num_workers=1, predefined_sized=[3, 3, 3], prefix=prefix, vector_source=vector_source)
         consolidate_single_experiment(prefix, 0)
 
     def tearDown(self):
@@ -115,13 +115,7 @@ class TestConsolidator(TestCase):
         sql = 'select distinct name from data0 ORDER BY name;'
         cursor.execute(sql)
         res = cursor.fetchall()
+        # three data sizes, three output files
         for i in range(3):
             self.assertEqual(res[i][0], 'tests-exp0-{}'.format(i))
-
-    def test_nothing(self):
-        """
-        Leave an empty test in so that self.setUp() runs. Even without assertions, this might catch some errors.
-        """
-        pass
-
 

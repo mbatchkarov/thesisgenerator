@@ -1,5 +1,7 @@
-from collections import deque
+from collections import deque, Counter
 import logging
+from numpy import mean
+from thesisgenerator.utils.misc import noop
 from thesisgenerator.utils.reflection_utils import get_named_object
 
 
@@ -21,6 +23,21 @@ def get_token_handler(handler_name, k, transformer_name, vector_source):
     return handler(k, transformer, vector_source)
 
 
+class LexicalReplacementEvent(object):
+    def __init__(self, original, max_replacements, available_replacements, replacements, ranks, similarities):
+        self.original = original
+        self.max_replacements = max_replacements
+        self.available_replacements = available_replacements
+        self.replacements = replacements
+        self.ranks = ranks
+        self.similarities = similarities
+
+    def __str__(self):
+        return '%s (%d/%d available) --> %s, %s, %s' % (self.original, self.available_replacements,
+                                                        self.max_replacements, self.replacements,
+                                                        self.ranks, self.similarities)
+
+
 class StatsRecorder(object):
     """
     Provides facilities for counting seen, unseen,
@@ -32,6 +49,7 @@ class StatsRecorder(object):
         self.iv_oot = deque()
         self.oov_it = deque()
         self.oov_oot = deque()
+        self.paraphrases = []
 
     def register_token(self, token, iv, it):
         if iv and it:
@@ -70,13 +88,20 @@ class StatsRecorder(object):
         # logging.debug('OOV IT %s' % self.oov_it)
         # logging.debug('OOV OOT %s' % self.oov_oot)
 
+    def register_paraphrase(self, event):
+        self.paraphrases.append(event)
+
+    def get_paraphrase_statistics(self):
+        replacement_count = Counter([x.available_replacements for x in self.paraphrases])
+        replacement_rank = Counter([r for x in self.paraphrases for r in x.ranks])
+        replacement_sims = Counter([s for x in self.paraphrases for s in x.similarities])
+        replacement_types = Counter([feat.type for x in self.paraphrases for feat in x.replacements])
+
+        return replacement_count, replacement_rank, replacement_sims, replacement_types
+
 
 class NoopStatsRecorder(StatsRecorder):
-    def register_token(self, token, iv, it):
-        pass
-
-    def print_coverage_stats(self):
-        pass
+    register_token = print_coverage_stats = register_paraphrase = get_paraphrase_statistics = noop
 
 
 class BaseFeatureHandler():
@@ -104,7 +129,7 @@ class BaseFeatureHandler():
         self._ignore_feature(**kwargs)
 
 
-    def _insert_feature_only(self, doc_id, feature, feature_index_in_vocab, j_indices, values, **kwargs):
+    def _insert_feature_only(self, feature_index_in_vocab, j_indices, values, **kwargs):
         #logging.debug('Inserting feature in doc %d: %s', doc_id, feature)
         j_indices.append(feature_index_in_vocab)
         values.append(1)
@@ -113,7 +138,7 @@ class BaseFeatureHandler():
         #logging.debug('Ignoring feature in doc %d: %s', doc_id, feature)
         pass
 
-    def _paraphrase(self, doc_id, feature, vocabulary, j_indices, values, **kwargs):
+    def _paraphrase(self, feature, vocabulary, j_indices, values, stats, **kwargs):
         """
         Replaces term with its k nearest neighbours from the thesaurus
 
@@ -134,11 +159,12 @@ class BaseFeatureHandler():
         # if there are any neighbours filter the list of
         # neighbours so that it contains only pairs where
         # the neighbour has been seen
-        neighbours = [(neighbour, sim) for neighbour, sim in neighbours
+        neighbours = [(neighbour, rank, sim) for rank, (neighbour, sim) in enumerate(neighbours)
                       if neighbour in vocabulary]
+        k, available_neighbours = self.k, len(neighbours)
 
         #logging.debug('Using %d/%d IV neighbours', self.k, len(neighbours))
-        for neighbour, sim in neighbours[:self.k]:
+        for neighbour, _, sim in neighbours[:self.k]:
             #logging.debug('Replacement. Doc %d: %s --> %s, sim = %f', doc_id, feature, neighbour, sim)
 
             # todo the document may already contain the feature we
@@ -150,6 +176,13 @@ class BaseFeatureHandler():
             #doc_id_indices.append(doc_id)
             j_indices.append(vocabulary.get(neighbour))
             values.append(self.sim_transformer(sim))
+        e = LexicalReplacementEvent(feature, self.k,
+                                    available_neighbours,
+                                    [x[0] for x in neighbours[:self.k]],
+                                    [x[1] for x in neighbours[:self.k]],
+                                    [x[2] for x in neighbours[:self.k]],
+        )
+        stats.register_paraphrase(e)
 
 
 class SignifierSignifiedFeatureHandler(BaseFeatureHandler):

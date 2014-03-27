@@ -5,7 +5,6 @@ from thesisgenerator.utils.reflection_utils import get_named_object
 __author__ = 'mmb28'
 
 
-
 def get_susx_mysql_conn():
     import MySQLdb as mdb
 
@@ -30,8 +29,12 @@ def linear_compress(x):
         return 5 * x - 0.5 # f(0.1) = 0 and f(0.3) = 1
 
 
-def noop(x):
+def unit(x):
     return x
+
+
+def noop(*args, **kwargs):
+    pass
 
 
 class ChainCallable(object):

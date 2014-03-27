@@ -48,7 +48,7 @@ test_data=string(default='')
 	normalise_entities=boolean(default=False) # all named entities -> PERSON/LOCATION/MISC
 
 	record_stats=boolean(default=False)
-	sim_compressor=string(default='thesisgenerator.utils.misc.noop') # how to scale the sim between two features in a thesaurus when replacing
+	sim_compressor=string(default='thesisgenerator.utils.misc.unit') # how to scale the sim between two features in a thesaurus when replacing
 
 	train_token_handler=string(default='thesisgenerator.plugins.bov_feature_handlers.BaseFeatureHandler') # specified which class to handle the convertion of tokens/ngrams to features, signifier/signified
 	decode_token_handler=string(default='thesisgenerator.plugins.bov_feature_handlers.BaseFeatureHandler')
