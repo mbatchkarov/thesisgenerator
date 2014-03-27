@@ -210,25 +210,27 @@ class ConsolidatedResultsSqlAndCsvWriter(object):
             self.csv, self.sql_conn)
 
 
+def consolidate_single_experiment(prefix, expid):
+    hostname = platform.node()
+    global output_dir, csv_out_fh, output_db_conn, writer
+    output_dir = '%s/conf/exp%d/output/' % (prefix, expid)
+    csv_out_fh = open(os.path.join(output_dir, "summary%d.csv" % expid), "w")
+    if not ('apollo' in hostname or 'node' in hostname):
+        output_db_conn = get_susx_mysql_conn()
+        writer = ConsolidatedResultsSqlAndCsvWriter(expid, csv_out_fh, output_db_conn)
+    else:
+        writer = ConsolidatedResultsCsvWriter(csv_out_fh)
+    consolidate_results(
+        writer,
+        '%s/conf/exp%d/exp%d_base-variants' % (prefix, expid, expid),
+        '%s/conf/exp%d/logs/' % (prefix, expid),
+        output_dir
+    )
+
+
 if __name__ == '__main__':
     # ----------- CONSOLIDATION -----------
 
     prefix = '/mnt/lustre/scratch/inf/mmb28/thesisgenerator'
-    hostname = platform.node()
-
     for expid in range(80, 97):
-        output_dir = '%s/conf/exp%d/output/' % (prefix, expid)
-        csv_out_fh = open(os.path.join(output_dir, "summary%d.csv" % expid), "w")
-
-        if not ('apollo' in hostname or 'node' in hostname):
-            output_db_conn = get_susx_mysql_conn()
-            writer = ConsolidatedResultsSqlAndCsvWriter(expid, csv_out_fh, output_db_conn)
-        else:
-            writer = ConsolidatedResultsCsvWriter(csv_out_fh)
-
-        consolidate_results(
-            writer,
-            '%s/conf/exp%d/exp%d_base-variants' % (prefix, expid, expid),
-            '%s/conf/exp%d/logs/' % (prefix, expid),
-            output_dir
-        )
+        consolidate_single_experiment(prefix, expid)

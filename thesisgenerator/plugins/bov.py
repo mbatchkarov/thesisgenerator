@@ -33,7 +33,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
                  max_features=None, vocabulary=None, binary=False, dtype=float,
                  norm='l2', use_idf=True, smooth_idf=True,
                  sublinear_tf=False, use_tfidf=True,
-                 record_stats=False, k=1,
+                 record_stats=True, k=1,
                  sim_compressor='thesisgenerator.utils.misc.noop',
                  train_token_handler='thesisgenerator.plugins.bov_feature_handlers.BaseFeatureHandler',
                  decode_token_handler='thesisgenerator.plugins.bov_feature_handlers.BaseFeatureHandler',
@@ -382,7 +382,8 @@ class ThesaurusVectorizer(TfidfVectorizer):
 
                 params = {'doc_id': doc_id, 'feature': feature,
                           'feature_index_in_vocab': feature_index_in_vocab,
-                          'vocabulary': vocabulary, 'j_indices': j_indices, 'values': values}
+                          'vocabulary': vocabulary, 'j_indices': j_indices,
+                          'values': values, 'stats':self.stats}
                 if is_in_vocabulary and is_in_th:
                     self.handler.handle_IV_IT_feature(**params)
                 if is_in_vocabulary and not is_in_th:

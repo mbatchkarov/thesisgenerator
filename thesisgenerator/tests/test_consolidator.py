@@ -5,6 +5,7 @@ import os
 from unittest import TestCase, skip
 from glob import glob
 from thesisgenerator.composers.vectorstore import PrecomputedSimilaritiesVectorSource
+from thesisgenerator.plugins.dumpers import consolidate_single_experiment
 
 from thesisgenerator.plugins.experimental_utils import run_experiment
 from thesisgenerator.utils.misc import get_susx_mysql_conn
@@ -19,6 +20,7 @@ class TestConsolidator(TestCase):
         vector_source = PrecomputedSimilaritiesVectorSource.from_file(
             thesaurus_files=['thesisgenerator/resources/exp0-0a.strings'])
         run_experiment(0, num_workers=1, predefined_sized=[3, 3, 3], prefix=prefix, vector_source=vector_source)
+        consolidate_single_experiment(prefix, 0)
 
     def tearDown(self):
         """
@@ -28,26 +30,26 @@ class TestConsolidator(TestCase):
         for f in files:
             os.remove(f)
 
-    @skip("""
-    The current concurrency model is:
-
-    for each training data size (now run serially, previously in parallel):
-         ___________________________________________
-        |                                           |
-        |for each classifier:                       |
-        |    for each CV fold (run in parallel):    |
-        |       train                               |
-        |       evaluate                            |
-        |_________________shared log file___________|
-
-    Information about the IV/IT token/type counts of each fold is intertwined in the log files and cannot be extracted
-    reliably. Previously, that used to be possible because all log-producing stages that share a log file were run
-    serially.
-    """)
+    # @skip("""
+    # The current concurrency model is:
+    #
+    # for each training data size (now run serially, previously in parallel):
+    #      ___________________________________________
+    #     |                                           |
+    #     |for each classifier:                       |
+    #     |    for each CV fold (run in parallel):    |
+    #     |       train                               |
+    #     |       evaluate                            |
+    #     |_________________shared log file___________|
+    #
+    # Information about the IV/IT token/type counts of each fold is intertwined in the log files and cannot be extracted
+    # reliably. Previously, that used to be possible because all log-producing stages that share a log file were run
+    # serially.
+    # """)
     def test_extract_thesausus_coverage_info(self):
         cursor = get_susx_mysql_conn().cursor()
 
-        cursor.execute('SELECT DISTINCT classifier from data00;')
+        cursor.execute('SELECT DISTINCT classifier from data0;')
         res = cursor.fetchall()
         self.assertEqual(len(res), 2)
         #self.assertEqual(res[0][0], 'MultinomialNB')
@@ -76,7 +78,7 @@ class TestConsolidator(TestCase):
             'decode_token_handler': 'SignifierSignifiedFeatureHandler'
         }
         for variable, expected_value in expected.items():
-            cursor.execute('SELECT DISTINCT %s from data00;' % variable)
+            cursor.execute('SELECT DISTINCT %s from data0;' % variable)
             res = cursor.fetchall()
             logging.info('Testing that {} == {}'.format(variable, expected_value))
             self.assertEqual(res[0][0], expected_value)
@@ -100,7 +102,7 @@ class TestConsolidator(TestCase):
         # all std set to -1 to indicate only a single experiment was run
         # 0 may have suggested multiple experiments with identical results
         for variable, (expected_value, exp_std) in expected:
-            sql = 'select score_mean, score_std from data00 WHERE ' \
+            sql = 'select score_mean, score_std from data0 WHERE ' \
                   'metric = "{}";'.format(variable)
             cursor.execute(sql)
             res = cursor.fetchall()
@@ -110,7 +112,7 @@ class TestConsolidator(TestCase):
             self.assertAlmostEqual(res[0][0], expected_value, 5)
             self.assertAlmostEqual(res[0][1], exp_std, 5)
 
-        sql = 'select distinct name from data00 ORDER BY name;'
+        sql = 'select distinct name from data0 ORDER BY name;'
         cursor.execute(sql)
         res = cursor.fetchall()
         for i in range(3):
