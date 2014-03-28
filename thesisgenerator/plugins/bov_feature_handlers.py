@@ -1,6 +1,5 @@
-from collections import deque, Counter
+from collections import deque
 import logging
-from numpy import mean
 from thesisgenerator.utils.misc import noop
 from thesisgenerator.utils.reflection_utils import get_named_object
 
@@ -90,14 +89,6 @@ class StatsRecorder(object):
 
     def register_paraphrase(self, event):
         self.paraphrases.append(event)
-
-    def get_paraphrase_statistics(self):
-        replacement_count = [x.available_replacements for x in self.paraphrases]
-        replacement_rank = [r for x in self.paraphrases for r in x.ranks]
-        replacement_sims = [s for x in self.paraphrases for s in x.similarities]
-        replacement_types = [feat.type for x in self.paraphrases for feat in x.replacements]
-
-        return replacement_count, replacement_rank, replacement_sims, replacement_types
 
 
 class NoopStatsRecorder(StatsRecorder):

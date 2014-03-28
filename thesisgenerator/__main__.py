@@ -10,8 +10,8 @@ Created on Oct 18, 2012
 # thesisgenerator package would not be on the path, add it and try again
 import pickle
 import sys
+
 from joblib import Parallel, delayed
-from thesisgenerator.utils.visualisation_utils import histogram_from_list
 
 sys.path.append('.')
 sys.path.append('..')
@@ -249,12 +249,19 @@ def _cv_loop(configuration, i, score_func, test_idx, train_idx, vector_source, x
     # vectorize all data in advance, it's the same accross all classifiers
     matrix = pipeline.fit_transform(X_train, y[train_idx], **fit_params)
     test_matrix = pipeline.transform(X_test)
+    stats = pipeline.named_steps['vect'].stats
 
     for clf in _build_classifiers(configuration['classifiers']):
         logging.info('Starting training of %s', clf)
         clf = clf.fit(matrix, y[train_idx])
         scores = score_func(y[test_idx], clf.predict(test_matrix))
         #  score = dict(function -> value). Value is a float or np.array
+
+        if hasattr(clf, 'feature_log_prob_'):
+            # this is most likely a naive bayes classifier, store its parameters for analysis
+            inv_voc = {index:feature for (feature, index) in pipeline.named_steps['vect'].vocabulary_.items()}
+            stats.nb_feature_log_prob = clf.feature_log_prob_
+            stats.nb_inv_voc = inv_voc
 
         for metric, score in scores.items():
             scores_this_cv_run.append(
@@ -263,7 +270,7 @@ def _cv_loop(configuration, i, score_func, test_idx, train_idx, vector_source, x
                  metric.split('.')[-1],
                  score])
         logging.info('Done with %s', clf)
-    return scores_this_cv_run, pipeline.named_steps['vect'].stats
+    return scores_this_cv_run, stats
 
 
 def _run_tasks(configuration, n_jobs, data, vector_source):
@@ -297,17 +304,10 @@ def _run_tasks(configuration, n_jobs, data, vector_source):
     all_scores.extend([score for one_set_of_scores in scores_over_cv for score in one_set_of_scores])
 
     logging.info('Classifier scores are %s', all_scores)
-    logging.info('Dumping and plotting stats over CV for this data size')
-    with open('stats%s' % configuration['name'], 'w') as outf:
-        pickle.dump(stats_over_cv, outf)
-
-    for i, stats in enumerate(stats_over_cv):
-        data = stats.get_paraphrase_statistics()
-        if not data:
-            continue # stats may be disabled for performance reasons
-        for c, datatype in zip(data, ['count', 'rank', 'sim', 'feattype']):
-            histogram_from_list(c,
-                                   'figures/%s_cv%d_%s_hist.png' % (configuration['name'], i, datatype))
+    if configuration['feature_extraction']['record_stats']:
+        with open('stats%s' % configuration['name'], 'w') as outf:
+            logging.info('Dumping and stats over CV for this data size to %s', outf.name)
+            pickle.dump(stats_over_cv, outf)
 
     return 0, _analyze(all_scores, configuration['output_dir'], configuration['name']), stats_over_cv
 
