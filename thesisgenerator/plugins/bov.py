@@ -105,7 +105,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
                                                   norm=norm,
                                                   dtype=dtype)
 
-    def fit_transform(self, raw_documents, y=None, vector_source=None):
+    def fit_transform(self, raw_documents, y=None, vector_source=None, stats_hdf_file=None):
         self.vector_source = vector_source
         restore = False
         if isinstance(vector_source, str):
@@ -126,7 +126,10 @@ class ThesaurusVectorizer(TfidfVectorizer):
                                          self.k,
                                          self.sim_compressor,
                                          self.vector_source)
-        self.stats = get_stats_recorder(self.record_stats)
+        if stats_hdf_file:
+            # requested stats that to go HDF, store the name so we can record stats to that name at decode time too
+            self.stats_hdf_file_ = stats_hdf_file
+        self.stats = get_stats_recorder(self.record_stats, stats_hdf_file, '-tr')
         # a different stats recorder will be used for the testing data
 
         # BEGIN super.fit_transform
@@ -174,7 +177,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
 
     def transform(self, raw_documents):
         # record stats separately for the test set
-        self.stats = get_stats_recorder(self.record_stats)
+        self.stats = get_stats_recorder(self.record_stats, self.stats_hdf_file_, '-ev')
 
         if self.random_neighbour_thesaurus:
             # this is a bit of hack and a waste of effort, since a thesaurus will have been loaded first
@@ -417,6 +420,6 @@ class ThesaurusVectorizer(TfidfVectorizer):
                           shape=(len(indptr) - 1, len(vocabulary)),
                           dtype=self.dtype)
         X.sum_duplicates()  # nice that the summation is explicit
-        self.stats.print_coverage_stats()
+        self.stats.consolidate_stats()
         return vocabulary, X
 

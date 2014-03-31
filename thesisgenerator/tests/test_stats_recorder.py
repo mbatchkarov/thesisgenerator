@@ -41,6 +41,10 @@ def stats(request):
     return stats_objects[0]
 
 
+def test_coverage_statistics(stats):
+    assert False
+
+
 def test_get_paraphrase_statistics(stats):
     """
 
@@ -51,8 +55,8 @@ def test_get_paraphrase_statistics(stats):
     # this test uses a signifier-signified encoding, i.e. only OOV-IT items are looked up
     assert len(stats.paraphrases) == 5
     assert [Counter(x) for x in get_basic_paraphrase_statistics(stats)] == [
-        Counter({1: 2, 2: 3}), # 2 items have had 1 replacement, etc
-        Counter({0: 5, 1: 3}), # 5 inserted items were the top neighbour, etc
-        Counter({.05: 2, .06: 2, .11: 2, .7: 1, .3: 1}), # 2 inserted items had a sim of .05, etc
-        Counter({'1-GRAM':8}) # 8 total replacements, all of them unigrams
+        Counter({1: 2, 2: 3}),  # 2 items have had 1 replacement, etc
+        Counter({0: 5, 1: 3}),  # 5 inserted items were the top neighbour, etc
+        Counter({.05: 2, .06: 2, .11: 2, .7: 1, .3: 1}),  # 2 inserted items had a sim of .05, etc
+        Counter({'1-GRAM': 8})  # 8 total replacements, all of them unigrams
     ]

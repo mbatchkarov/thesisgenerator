@@ -181,7 +181,7 @@ def _build_dimensionality_reducer(call_args, dimensionality_reduction_conf,
         pipeline_list.append(('dr', dr_method()))
 
 
-def _build_pipeline(id, vector_source, feature_extr_conf, feature_sel_conf,
+def _build_pipeline(cv_i, vector_source, feature_extr_conf, feature_sel_conf,
                     dim_red_conf, output_dir, debug,
                     exp_name=''):
     """
@@ -194,7 +194,7 @@ def _build_pipeline(id, vector_source, feature_extr_conf, feature_sel_conf,
     init_args, fit_args = {}, {}
     pipeline_list = []
 
-    _build_vectorizer(id, vector_source, init_args, fit_args, feature_extr_conf,
+    _build_vectorizer(cv_i, vector_source, init_args, fit_args, feature_extr_conf,
                       pipeline_list, output_dir, exp_name=exp_name)
 
     _build_feature_selector(vector_source, init_args, fit_args, feature_sel_conf, pipeline_list)
@@ -203,14 +203,17 @@ def _build_pipeline(id, vector_source, feature_extr_conf, feature_sel_conf,
     # put the optional dumper after feature selection/dim. reduction
     if debug:
         logging.info('Will perform post-vectorizer data dump')
-        pipeline_list.append(('dumper', FeatureVectorsCsvDumper(exp_name, id, output_dir)))
-        init_args['vect__pipe_id'] = id
+        pipeline_list.append(('dumper', FeatureVectorsCsvDumper(exp_name, cv_i, output_dir)))
+        init_args['vect__pipe_id'] = cv_i
 
     # vectorizer will return a matrix (as usual) and some metadata for use with feature dumper/selector,
     # strip them before we proceed to the classifier
     pipeline_list.append(('stripper', MetadataStripper()))
     if vector_source:
         fit_args['stripper__vector_source'] = vector_source
+
+    if feature_extr_conf['record_stats']:
+        fit_args['vect__stats_hdf_file'] = 'stats-%s-cv%d'%(exp_name, cv_i)
 
     pipeline = PicklingPipeline(pipeline_list, exp_name) if debug else Pipeline(pipeline_list)
     pipeline.set_params(**init_args)
@@ -232,9 +235,9 @@ def _build_classifiers(classifiers_conf):
         yield clf(**init_args)
 
 
-def _cv_loop(configuration, i, score_func, test_idx, train_idx, vector_source, x_vals_seen, y_vals_seen):
+def _cv_loop(configuration, cv_i, score_func, test_idx, train_idx, vector_source, x_vals_seen, y_vals_seen):
     scores_this_cv_run = []
-    pipeline, fit_params = _build_pipeline(i, vector_source,
+    pipeline, fit_params = _build_pipeline(cv_i, vector_source,
                                            configuration['feature_extraction'],
                                            configuration['feature_selection'],
                                            configuration['dimensionality_reduction'],
@@ -266,7 +269,7 @@ def _cv_loop(configuration, i, score_func, test_idx, train_idx, vector_source, x
         for metric, score in scores.items():
             scores_this_cv_run.append(
                 [type(clf).__name__,
-                 i,
+                 cv_i,
                  metric.split('.')[-1],
                  score])
         logging.info('Done with %s', clf)
@@ -413,11 +416,11 @@ def go(conf_file, log_dir, data, vector_source, classpath='', clean=False, n_job
     stats_over_cv = [x[1] for x in scores_and_stats]
     all_scores.extend([score for one_set_of_scores in scores_over_cv for score in one_set_of_scores])
 
-    logging.info('Classifier scores are %s', all_scores)
-    if config['feature_extraction']['record_stats']:
-        with open('stats%s' % config['name'], 'w') as outf:
-            logging.info('Dumping and stats over CV for this data size to %s', outf.name)
-            pickle.dump(stats_over_cv, outf)
+    # logging.info('Classifier scores are %s', all_scores)
+    # if config['feature_extraction']['record_stats']:
+    #     with open('stats%s' % config['name'], 'w') as outf:
+    #         logging.info('Dumping and stats over CV for this data size to %s', outf.name)
+    #         pickle.dump(stats_over_cv, outf)
 
     output_file = _analyze(all_scores, config['output_dir'], config['name'])
     return output_file, stats_over_cv

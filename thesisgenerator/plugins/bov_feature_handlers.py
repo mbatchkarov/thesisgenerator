@@ -1,11 +1,14 @@
 from collections import deque
 import logging
+import os
 from thesisgenerator.utils.misc import noop
 from thesisgenerator.utils.reflection_utils import get_named_object
+import pandas as pd
 
 
-def get_stats_recorder(enabled=False):
-    return StatsRecorder() if enabled else NoopStatsRecorder()
+def get_stats_recorder(enabled, stats_hdf_file, suffix):
+    f = '%s%s' % (stats_hdf_file, suffix)
+    return StatsRecorder(hdf_file=f) if enabled and stats_hdf_file else NoopStatsRecorder()
 
 
 def get_token_handler(handler_name, k, transformer_name, vector_source):
@@ -43,56 +46,79 @@ class StatsRecorder(object):
     in-thesaurus and out-of-thesaurus tokens and types
     """
 
-    def __init__(self):
-        self.iv_it = deque()
-        self.iv_oot = deque()
-        self.oov_it = deque()
-        self.oov_oot = deque()
-        self.paraphrases = []
+    def __init__(self, hdf_file=None):
+        self.token_counts = pd.DataFrame(columns=('feature', 'count', 'IV', 'IT'))
+        self.token_counts.set_index('feature', inplace=True)
+        self.paraphrases = pd.DataFrame(columns=('feature', 'available_replacements', 'max_replacements',
+                                                 'replacement1', 'replacement1_rank', 'replacement1_sim',
+                                                 'replacement2', 'replacement2_rank', 'replacement2_sim',
+                                                 'replacement3', 'replacement3_rank', 'replacement3_sim'))
+        self.max_rows_in_memory = 1e20  # hold all data in memory
 
-    def register_token(self, token, iv, it):
-        if iv and it:
-            self.iv_it.append(token)
-            #logging.debug('IV IT token {}'.format(token))
-        elif iv and not it:
-            self.iv_oot.append(token)
-            #logging.debug('IV OOT token {}'.format(token))
-        elif not iv and it:
-            self.oov_it.append(token)
-            #logging.debug('OOV IT token {}'.format(token))
-        else:
-            self.oov_oot.append(token)
-            #logging.debug('OOV OOT token {}'.format(token))
+        if hdf_file:
+            self.hdf_file = hdf_file  # store data here instead of in memory
+            self.max_rows_in_memory = 2  # how many items to store before flushing to HDF
 
-    def print_coverage_stats(self):
-        logging.info('Vectorizer: '
-                     'IV IT tokens: %d, '
-                     'IV OOT tokens: %d, '
-                     'OOV IT tokens: %d, '
-                     'OOV OOT tokens: %d, '
-                     'IV IT types: %d, '
-                     'IV OOT types: %d, '
-                     'OOV IT types: %d, '
-                     'OOV OOT types: %d ' % (
-                         len(self.iv_it),
-                         len(self.iv_oot),
-                         len(self.oov_it),
-                         len(self.oov_oot),
-                         len(set(self.iv_it)),
-                         len(set(self.iv_oot)),
-                         len(set(self.oov_it)),
-                         len(set(self.oov_oot))))
-        # logging.debug('IV IT %s'% self.iv_it)
-        # logging.debug('IV 00T %s' % self.iv_oot)
-        # logging.debug('OOV IT %s' % self.oov_it)
-        # logging.debug('OOV OOT %s' % self.oov_oot)
+            if os.path.exists(self.hdf_file):
+                os.unlink(self.hdf_file)
+
+    def _flush_df_to_hdf(self, table_name, table):
+        with pd.get_store(self.hdf_file) as store:
+            table.fillna(-1)
+            store.append(table_name, table.convert_objects(),
+                         min_itemsize={'values': 50, 'index': 50})
+
+    def register_token(self, feature, iv, it):
+        s = feature.tokens_as_str()
+        try:
+            # if feature has been seen before increment count
+            row = self.token_counts.loc[s]
+            if map(bool, row.tolist()[1:]) == [iv, it]:
+                # this increment affects all columns in the given row, but that's OK
+                self.token_counts.loc[s, 'count'] += 1
+            else:
+                raise ValueError('The same feature seen with different IV/IT values, this is odd.')
+        except KeyError:
+            # token not known yet
+            new_df = pd.DataFrame([[1, iv, it]], columns=self.token_counts.columns, index=[s])
+            self.token_counts = pd.concat([self.token_counts, new_df])
+
+        if self.token_counts.shape[0] > self.max_rows_in_memory and self.hdf_file:
+            self._flush_df_to_hdf('token_counts', self.token_counts)
+            self.token_counts = self.token_counts[0:0]  # clear the chunk of data held in memory
+
+    def consolidate_stats(self):
+        self._flush_df_to_hdf('token_counts', self.token_counts)
+        reader = pd.read_hdf(self.hdf_file, 'token_counts', chunksize=1e5)
+        for chunk in reader:  # read the table bit by bit to save memory
+            tmp = pd.concat([self.token_counts, chunk])
+            self.token_counts = tmp.groupby(tmp.index).sum()  # add up the occurrences of each feature
+        with pd.get_store(self.hdf_file) as store:
+            store['token_counts'] = self.token_counts
+
+        self._flush_df_to_hdf('paraphrases', self.paraphrases)
 
     def register_paraphrase(self, event):
-        self.paraphrases.append(event)
+        # pad to size, making sure the right dtypes are inserted
+        # introducing NaN into the table causes pandas to promote column type, which
+        # results in incompatibility between the table on disk and the one in memory
+        # http://pandas.pydata.org/pandas-docs/stable/gotchas.html
+        while True:
+            current = len(event)
+            expected = len(self.paraphrases.columns)
+            if current >= expected:
+                break
+            event.extend(['NONE', -1, -1.0])
+        new_df = pd.DataFrame([event],
+                              columns=self.paraphrases.columns)
+        self.paraphrases = pd.concat([self.paraphrases, new_df])
+        if self.paraphrases.shape[0] > self.max_rows_in_memory and self.hdf_file:
+            self._flush_df_to_hdf('paraphrases', self.paraphrases)
+            self.paraphrases = self.paraphrases[0:0]
 
 
 class NoopStatsRecorder(StatsRecorder):
-    register_token = print_coverage_stats = register_paraphrase = get_paraphrase_statistics = noop
+    register_token = consolidate_stats = register_paraphrase = get_paraphrase_statistics = noop
 
 
 class BaseFeatureHandler():
@@ -153,11 +179,9 @@ class BaseFeatureHandler():
         neighbours = [(neighbour, rank, sim) for rank, (neighbour, sim) in enumerate(neighbours)
                       if neighbour in vocabulary]
         k, available_neighbours = self.k, len(neighbours)
+        event = [feature.tokens_as_str(), available_neighbours, self.k]
 
-        #logging.debug('Using %d/%d IV neighbours', self.k, len(neighbours))
-        for neighbour, _, sim in neighbours[:self.k]:
-            #logging.debug('Replacement. Doc %d: %s --> %s, sim = %f', doc_id, feature, neighbour, sim)
-
+        for neighbour, rank, sim in neighbours[:self.k]:
             # todo the document may already contain the feature we
             # are about to insert into it,
             # a merging strategy is required,
@@ -167,13 +191,10 @@ class BaseFeatureHandler():
             #doc_id_indices.append(doc_id)
             j_indices.append(vocabulary.get(neighbour))
             values.append(self.sim_transformer(sim))
-        e = LexicalReplacementEvent(feature, self.k,
-                                    available_neighbours,
-                                    [x[0] for x in neighbours[:self.k]],
-                                    [x[1] for x in neighbours[:self.k]],
-                                    [x[2] for x in neighbours[:self.k]],
-        )
-        stats.register_paraphrase(e)
+
+            # track the event
+            event.extend([neighbour.tokens_as_str(), rank, sim])
+        stats.register_paraphrase(event)
 
 
 class SignifierSignifiedFeatureHandler(BaseFeatureHandler):
