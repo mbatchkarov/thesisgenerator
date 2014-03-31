@@ -17,14 +17,15 @@ def stats(request):
     results = run_experiment(1, num_workers=1, predefined_sized=[3],
                              prefix=prefix, vector_source=vector_source)
     # results is a list of result triples, one per training data size
-    _, outfile, stats_objects = results[0]
+    outfile, stats_objects = results[0]
 
     # setup goes like this:
-    #   for each K (here set to [3]
-    #       pick a sample of K training documents.
-    #       vectorize training and testing set
-    #       for each classifier (here using MNB and BNB)
-    #             do magic
+    #   for each sample size K (here set to [3])
+    #       repeat N times in parallel (crossvalidation)
+    #           pick a sample of K training documents
+    #           vectorize training and testing set
+    #           for each classifier (here using MNB and BNB)
+    #               do magic
 
     # This test is about the vectorization step, and that's the same across all K
     # iteration, because the same training data is used. We might as well just use the first result

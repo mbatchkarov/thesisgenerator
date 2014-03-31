@@ -241,7 +241,7 @@ def _cv_loop(configuration, i, score_func, test_idx, train_idx, vector_source, x
                                            configuration['output_dir'],
                                            configuration['debug'],
                                            exp_name=configuration['name'])
-    # code below is a simplified version of _cross_val_score
+    # code below is a simplified version of sklearn's _cross_val_score
     X = x_vals_seen
     y = y_vals_seen
     X_train = [X[idx] for idx in train_idx]
@@ -259,7 +259,7 @@ def _cv_loop(configuration, i, score_func, test_idx, train_idx, vector_source, x
 
         if hasattr(clf, 'feature_log_prob_'):
             # this is most likely a naive bayes classifier, store its parameters for analysis
-            inv_voc = {index:feature for (feature, index) in pipeline.named_steps['vect'].vocabulary_.items()}
+            inv_voc = {index: feature for (feature, index) in pipeline.named_steps['vect'].vocabulary_.items()}
             stats.nb_feature_log_prob = clf.feature_log_prob_
             stats.nb_inv_voc = inv_voc
 
@@ -273,48 +273,9 @@ def _cv_loop(configuration, i, score_func, test_idx, train_idx, vector_source, x
     return scores_this_cv_run, stats
 
 
-def _run_tasks(configuration, n_jobs, data, vector_source):
-    """
-    Runs all commands specified in the configuration file
-    """
-    logging.info('running tasks')
-
-    # retrieve the actions that should be run by the framework
-    #actions = configuration.keys()
-
-    # **********************************
-    # LOADING RAW TEXT
-    # **********************************
-    x_tr, y_tr, x_test, y_test = data
-
-    # CREATE CROSSVALIDATION ITERATOR
-    cv_iterator, x_vals_seen, y_vals_seen = \
-        _build_crossvalidation_iterator(configuration['crossvalidation'],
-                                        x_tr, y_tr, x_test,
-                                        y_test)
-    all_scores = []
-    score_func = ChainCallable(configuration['evaluation'])
-
-    scores_and_stats = Parallel(n_jobs=n_jobs)(
-        delayed(_cv_loop)(configuration, i, score_func, test_idx, train_idx, vector_source, x_vals_seen, y_vals_seen)
-        for i, (train_idx, test_idx) in enumerate(cv_iterator)
-    )
-    scores_over_cv = [x[0] for x in scores_and_stats]
-    stats_over_cv = [x[1] for x in scores_and_stats]
-    all_scores.extend([score for one_set_of_scores in scores_over_cv for score in one_set_of_scores])
-
-    logging.info('Classifier scores are %s', all_scores)
-    if configuration['feature_extraction']['record_stats']:
-        with open('stats%s' % configuration['name'], 'w') as outf:
-            logging.info('Dumping and stats over CV for this data size to %s', outf.name)
-            pickle.dump(stats_over_cv, outf)
-
-    return 0, _analyze(all_scores, configuration['output_dir'], configuration['name']), stats_over_cv
-
-
 def _analyze(scores, output_dir, name):
     """
-    Stores a csv and xls representation of the data set. Requires pandas
+    Stores a csv representation of the data set. Requires pandas
     """
 
     logging.info("Analysing results and saving to %s", output_dir)
@@ -428,12 +389,39 @@ def go(conf_file, log_dir, data, vector_source, classpath='', clean=False, n_job
     output = config['output_dir']
     _prepare_output_directory(clean, output)
     _prepare_classpath(classpath)
-    status, msg, stats = _run_tasks(config, n_jobs, data, vector_source)
     shutil.copy(conf_file, output)
-    return status, msg, stats
 
+    # Runs all commands specified in the configuration file
+    logging.info('Running tasks')
 
-postvect_dumper_added_already = False
+    # **********************************
+    # LOADING RAW TEXT
+    # **********************************
+    x_tr, y_tr, x_test, y_test = data
+
+    # CREATE CROSSVALIDATION ITERATOR
+    cv_iterator, x_vals_seen, y_vals_seen = \
+        _build_crossvalidation_iterator(config['crossvalidation'], x_tr, y_tr, x_test, y_test)
+    all_scores = []
+    score_func = ChainCallable(config['evaluation'])
+
+    scores_and_stats = Parallel(n_jobs=n_jobs)(
+        delayed(_cv_loop)(config, i, score_func, test_idx, train_idx, vector_source, x_vals_seen, y_vals_seen)
+        for i, (train_idx, test_idx) in enumerate(cv_iterator)
+    )
+    scores_over_cv = [x[0] for x in scores_and_stats]
+    stats_over_cv = [x[1] for x in scores_and_stats]
+    all_scores.extend([score for one_set_of_scores in scores_over_cv for score in one_set_of_scores])
+
+    logging.info('Classifier scores are %s', all_scores)
+    if config['feature_extraction']['record_stats']:
+        with open('stats%s' % config['name'], 'w') as outf:
+            logging.info('Dumping and stats over CV for this data size to %s', outf.name)
+            pickle.dump(stats_over_cv, outf)
+
+    output_file = _analyze(all_scores, config['output_dir'], config['name'])
+    return output_file, stats_over_cv
+
 
 if __name__ == '__main__':
     # for debugging single sub-experiments only
