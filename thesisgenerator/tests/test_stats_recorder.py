@@ -4,11 +4,18 @@ from thesisgenerator.composers.vectorstore import PrecomputedSimilaritiesVectorS
 from thesisgenerator.plugins.experimental_utils import run_experiment
 import os
 from glob import glob
-from thesisgenerator.scripts.signified_internals_analysis import get_basic_paraphrase_statistics
+from discoutils.tokens import DocumentFeature
+import pandas as pd
+import numpy as np
+
+
+def _get_counter_ignoring_negatives(df, column_list):
+    c = Counter(np.ravel(df.ix[:, column_list].values))
+    return Counter({k: v for k, v in c.items() if k >= 0})
 
 
 @pytest.fixture(scope="module")
-def stats(request):
+def stats_file(request):
     prefix = 'thesisgenerator/resources'
     # load a mock unigram thesaurus, bypassing the similarity calculation provided by CompositeVectorSource
     vector_source = PrecomputedSimilaritiesVectorSource.from_file(
@@ -33,30 +40,75 @@ def stats(request):
     def fin():
         # remove the temp files produced by this test
         print 'finalizing test'
-        for f in glob('statstests-exp1-*'):
+        for f in glob('stats-tests-exp1-*'):
             print f
             os.unlink(f)
 
     request.addfinalizer(fin)
-    return stats_objects[0]
+    return stats_objects[0].hdf_file
 
 
-def test_coverage_statistics(stats):
-    assert False
+def test_coverage_statistics(stats_file):
+    # 'iv_oot_tok': 0
+    # 'iv_oot_typ': 0
+
+    # 'oov_it_typ': 1
+    # 'oov_oot_typ': 2
+
+    # decode time
+    df = pd.read_hdf(stats_file, 'token_counts')
+    assert df.shape == (5, 3)  # 5 types in the dataset
+    assert df['count'].sum() == 9.  # tokens
+
+    assert df.query('IV == 0 and IT == 0').shape == (2, 3)  # 2 types both OOV and OOT
+    assert df.query('IV == 0 and IT == 0')['count'].sum() == 4.0  # 4 tokens
+
+    assert df.query('IV == 0 and IT > 0').shape == (1, 3)
+    assert df.query('IV == 0 and IT > 0')['count'].sum() == 2.0
+
+    assert df.query('IV > 0 and IT == 0').shape == (0, 3)
+    assert df.query('IV > 0 and IT == 0')['count'].sum() == 0.0
+
+    assert df.query('IV > 0 and IT > 0').shape == (2, 3)
+    assert df.query('IV > 0 and IT > 0')['count'].sum() == 3.0
 
 
-def test_get_paraphrase_statistics(stats):
+    # train time
+    df = pd.read_hdf(stats_file.replace('-ev', '-tr'), 'token_counts')
+
+    assert df.query('IV == 0 and IT == 0').shape == (0, 3)  # 2 types both OOV and OOT
+    assert df.query('IV == 0 and IT == 0')['count'].sum() == 0.0  # 4 tokens
+
+    assert df.query('IV == 0 and IT > 0').shape == (0, 3)
+    assert df.query('IV == 0 and IT > 0')['count'].sum() == 0.0
+
+    assert df.query('IV > 0 and IT == 0').shape == (6, 3)
+    assert df.query('IV > 0 and IT == 0')['count'].sum() == 9.0
+
+    assert df.query('IV > 0 and IT > 0').shape == (0, 3)
+    assert df.query('IV > 0 and IT > 0')['count'].sum() == 0.0
+
+def test_get_decode_time_paraphrase_statistics(stats_file):
     """
-
     :param stats:
     :type stats: StatsRecorder
     """
 
     # this test uses a signifier-signified encoding, i.e. only OOV-IT items are looked up
-    assert len(stats.paraphrases) == 5
-    assert [Counter(x) for x in get_basic_paraphrase_statistics(stats)] == [
-        Counter({1: 2, 2: 3}),  # 2 items have had 1 replacement, etc
-        Counter({0: 5, 1: 3}),  # 5 inserted items were the top neighbour, etc
-        Counter({.05: 2, .06: 2, .11: 2, .7: 1, .3: 1}),  # 2 inserted items had a sim of .05, etc
-        Counter({'1-GRAM': 8})  # 8 total replacements, all of them unigrams
-    ]
+    df = pd.read_hdf(stats_file, 'paraphrases')
+
+    print 1
+    assert df.shape == (5, 12)
+
+    assert _get_counter_ignoring_negatives(df, ['replacement%d_sim' % (i + 1) for i in range(3)]) == \
+           Counter({.05: 2, .06: 2, .11: 2, .7: 1, .3: 1})  # 2 inserted items had a sim of .05, etc
+
+    assert _get_counter_ignoring_negatives(df, ['replacement%d_rank' % (i + 1) for i in range(3)]) == \
+           Counter({0: 5, 1: 3})  # 5 inserted items were the top neighbour, etc
+
+    assert _get_counter_ignoring_negatives(df, ['available_replacements']) == \
+           Counter({1: 2, 2: 3})  # 2 items have had 1 replacement, etc
+
+    column_list = ['replacement%d' % (i + 1) for i in range(3)]
+    types = [DocumentFeature.from_string(x).type for x in np.ravel(df.ix[:, column_list].values) if x != 'NONE']
+    assert Counter(types) == Counter({'1-GRAM': 8})  # 8 total replacements, all of them unigrams

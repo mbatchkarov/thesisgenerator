@@ -74,7 +74,7 @@ class StatsRecorder(object):
             # if feature has been seen before increment count
             row = self.token_counts.loc[s]
             if map(bool, row.tolist()[1:]) == [iv, it]:
-                # this increment affects all columns in the given row, but that's OK
+                # todo this increment affects all columns in the given row, making booleans into ints
                 self.token_counts.loc[s, 'count'] += 1
             else:
                 raise ValueError('The same feature seen with different IV/IT values, this is odd.')

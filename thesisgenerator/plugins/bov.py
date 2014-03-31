@@ -129,6 +129,8 @@ class ThesaurusVectorizer(TfidfVectorizer):
         if stats_hdf_file:
             # requested stats that to go HDF, store the name so we can record stats to that name at decode time too
             self.stats_hdf_file_ = stats_hdf_file
+        else:
+            self.stats_hdf_file_ = None
         self.stats = get_stats_recorder(self.record_stats, stats_hdf_file, '-tr')
         # a different stats recorder will be used for the testing data
 
