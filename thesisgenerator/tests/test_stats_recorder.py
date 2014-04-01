@@ -67,7 +67,8 @@ def test_coverage_statistics(stats_file):
     assert df.query('IV > 0 and IT > 0')['count'].sum() == 3.0
 
 
-    # train time
+    # at train time everything must be in vocabulary (that's how it works)
+    # and in thesaurus (the test thesaurus is set up this way)
     df = pd.read_hdf(stats_file.replace('-ev', '-tr'), 'token_counts')
 
     assert df.query('IV == 0 and IT == 0').shape == (0, 3)  # 2 types both OOV and OOT
@@ -76,11 +77,11 @@ def test_coverage_statistics(stats_file):
     assert df.query('IV == 0 and IT > 0').shape == (0, 3)
     assert df.query('IV == 0 and IT > 0')['count'].sum() == 0.0
 
-    assert df.query('IV > 0 and IT == 0').shape == (6, 3)
-    assert df.query('IV > 0 and IT == 0')['count'].sum() == 9.0
+    assert df.query('IV > 0 and IT > 0').shape == (6, 3)
+    assert df.query('IV > 0 and IT > 0')['count'].sum() == 9.0
 
-    assert df.query('IV > 0 and IT > 0').shape == (0, 3)
-    assert df.query('IV > 0 and IT > 0')['count'].sum() == 0.0
+    assert df.query('IV > 0 and IT == 0').shape == (0, 3)
+    assert df.query('IV > 0 and IT == 0')['count'].sum() == 0.0
 
 def test_get_decode_time_paraphrase_statistics(stats_file):
     """

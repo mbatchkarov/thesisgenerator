@@ -107,13 +107,12 @@ class ThesaurusVectorizer(TfidfVectorizer):
 
     def fit_transform(self, raw_documents, y=None, vector_source=None, stats_hdf_file=None):
         self.vector_source = vector_source
-        restore = False
-        if isinstance(vector_source, str):
-            # it's a path to a shelved precomputed vector source, we don't need it at training time
-            # todo this assumes we're doing BaseFeatureHandler at train time, something else later
-            self.vector_source = None
-            original_vector_source = vector_source
-            restore = True
+        if isinstance(self.vector_source, str):
+            # it's probably a path to a shelved vector source
+            # this is an ugly hack- I can't be sure it's really a Precomputed....
+            logging.info('Deshelving %s', self.vector_source)
+            self.d = shelve.open(self.vector_source, flag='r') # read only
+            self.vector_source = PrecomputedSimilaritiesVectorSource(Thesaurus(self.d))
 
         logging.debug('Identity of vector source is %d', id(vector_source))
         if self.vector_source:
@@ -172,9 +171,6 @@ class ThesaurusVectorizer(TfidfVectorizer):
         # to a ditributional feature vector
         logging.info('Done vectorizing')
 
-        # restore the vector source for decoding
-        if restore:
-            self.vector_source = original_vector_source
         return X, self.vocabulary_
 
     def transform(self, raw_documents):
@@ -185,13 +181,6 @@ class ThesaurusVectorizer(TfidfVectorizer):
             # this is a bit of hack and a waste of effort, since a thesaurus will have been loaded first
             logging.info('Building random neighbour vector source with vocabulary of size %d', len(self.vocabulary_))
             self.vector_source = ConstantNeighbourVectorSource(self.vocabulary_, self.k)
-
-        if isinstance(self.vector_source, str):
-            # it's a path to a shelved vector source
-            # todo this is an ugly hack- I can't be sure it's really a Precomputed....
-            logging.info('Deshelving %s', self.vector_source)
-            d = shelve.open(self.vector_source, flag='r') # read only
-            self.vector_source = PrecomputedSimilaritiesVectorSource(Thesaurus(d))
 
         self.ngram_range = self.ngram_range_decode
 
@@ -215,7 +204,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
 
         try:
             #  try and close the shelf
-            d.close()
+            self.d.close()
         except Exception:
             #  may not be a shelf after all
             pass
