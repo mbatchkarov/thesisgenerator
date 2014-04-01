@@ -89,9 +89,6 @@ columns = [('id', 'INTEGER NOT NULL AUTO_INCREMENT'),
            ('git_hash', 'TEXT'),
            ('consolidation_date', 'TIMESTAMP'),
 
-           ('train_voc_mean', 'INTEGER'),
-           ('train_voc_std', 'INTEGER'),
-
            #  thesaurus information, if using exp0-0a.strings naming format
            ('corpus', 'TEXT'),
            ('features', 'TEXT'),
@@ -105,28 +102,6 @@ columns = [('id', 'INTEGER NOT NULL AUTO_INCREMENT'),
            ('train_token_handler', 'TEXT'),
            ('decode_token_handler', 'TEXT'),
            ('use_tfidf', 'BOOLEAN'),
-
-           # token  statistics
-           ('total_tok', 'INTEGER'),
-           ('iv_it_tok_mean', 'INTEGER'),
-           ('iv_it_tok_std', 'INTEGER'),
-           ('iv_oot_tok_mean', 'INTEGER'),
-           ('iv_oot_tok_std', 'INTEGER'),
-           ('oov_it_tok_mean', 'INTEGER'),
-           ('oov_it_tok_std', 'INTEGER'),
-           ('oov_oot_tok_mean', 'INTEGER'),
-           ('oov_oot_tok_std', 'INTEGER'),
-
-           #  type statistics
-           ('total_typ', 'INTEGER'),
-           ('iv_it_typ_mean', 'INTEGER'),
-           ('iv_it_typ_std', 'INTEGER'),
-           ('iv_oot_typ_mean', 'INTEGER'),
-           ('iv_oot_typ_std', 'INTEGER'),
-           ('oov_it_typ_mean', 'INTEGER'),
-           ('oov_it_typ_std', 'INTEGER'),
-           ('oov_oot_typ_mean', 'INTEGER'),
-           ('oov_oot_typ_std', 'INTEGER'),
 
            #  performance
            ('metric', 'TEXT'),

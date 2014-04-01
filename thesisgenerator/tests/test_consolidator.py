@@ -19,7 +19,8 @@ class TestConsolidator(TestCase):
         # load a mock unigram thesaurus, bypassing the similarity calculation provided by CompositeVectorSource
         vector_source = PrecomputedSimilaritiesVectorSource.from_file(
             thesaurus_files=['thesisgenerator/resources/exp0-0a.strings'])
-        print 'RES:', run_experiment(0, num_workers=1, predefined_sized=[3, 3, 3], prefix=prefix, vector_source=vector_source)
+        print 'RES:', run_experiment(0, num_workers=1, predefined_sized=[3, 3, 3],
+                                     prefix=prefix, vector_source=vector_source)
         consolidate_single_experiment(prefix, 0)
 
     def tearDown(self):
@@ -55,16 +56,6 @@ class TestConsolidator(TestCase):
         #self.assertEqual(res[0][0], 'MultinomialNB')
 
         expected = {
-            'total_tok': 9, 'total_typ': 5,
-            'iv_it_tok_mean': 3, 'iv_it_tok_std': 0,
-            'iv_oot_tok_mean': 0, 'iv_oot_tok_std': 0,
-            'oov_it_tok_mean': 2, 'oov_it_tok_std': 0,
-            'oov_oot_tok_mean': 4, 'oov_oot_tok_std': 0,
-            'iv_it_typ_mean': 2, 'iv_it_typ_std': 0,
-            'iv_oot_typ_mean': 0, 'iv_oot_typ_std': 0,
-            'oov_it_typ_mean': 1, 'oov_it_typ_std': 0,
-            'oov_oot_typ_mean': 2, 'oov_oot_typ_std': 0,
-            #'classifier': 'MultinomialNB',
             'corpus': '0',
             'features': '0',
             'pos': 'a',
@@ -80,7 +71,7 @@ class TestConsolidator(TestCase):
         for variable, expected_value in expected.items():
             cursor.execute('SELECT DISTINCT %s from data0;' % variable)
             res = cursor.fetchall()
-            logging.info('Testing that {} == {}'.format(variable, expected_value))
+            print('Testing that {} == {}'.format(variable, expected_value))
             self.assertEqual(res[0][0], expected_value)
 
         # values below copied from output file before consolidation, Naive Bayes

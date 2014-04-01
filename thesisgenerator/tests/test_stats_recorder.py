@@ -49,12 +49,6 @@ def stats_file(request):
 
 
 def test_coverage_statistics(stats_file):
-    # 'iv_oot_tok': 0
-    # 'iv_oot_typ': 0
-
-    # 'oov_it_typ': 1
-    # 'oov_oot_typ': 2
-
     # decode time
     df = pd.read_hdf(stats_file, 'token_counts')
     assert df.shape == (5, 3)  # 5 types in the dataset
