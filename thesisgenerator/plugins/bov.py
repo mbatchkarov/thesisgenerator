@@ -11,9 +11,10 @@ from discoutils.misc import ContainsEverything
 from thesisgenerator.classifiers import NoopTransformer
 from thesisgenerator.composers.vectorstore import PrecomputedSimilaritiesVectorSource, ConstantNeighbourVectorSource
 from thesisgenerator.plugins import tokenizers
-from thesisgenerator.plugins.bov_feature_handlers import get_token_handler, get_stats_recorder
+from thesisgenerator.plugins.bov_feature_handlers import get_token_handler
 from discoutils.tokens import DocumentFeature
 from discoutils.thesaurus_loader import Thesaurus
+from thesisgenerator.plugins.stats import get_stats_recorder
 
 
 class ThesaurusVectorizer(TfidfVectorizer):
@@ -125,11 +126,8 @@ class ThesaurusVectorizer(TfidfVectorizer):
                                          self.k,
                                          self.sim_compressor,
                                          self.vector_source)
-        if stats_hdf_file:
-            # requested stats that to go HDF, store the name so we can record stats to that name at decode time too
-            self.stats_hdf_file_ = stats_hdf_file
-        else:
-            self.stats_hdf_file_ = None
+        # requested stats that to go HDF, store the name so we can record stats to that name at decode time too
+        self.stats_hdf_file_ = stats_hdf_file
         self.stats = get_stats_recorder(self.record_stats, stats_hdf_file, '-tr')
         # a different stats recorder will be used for the testing data
 

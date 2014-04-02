@@ -1,14 +1,6 @@
-from collections import deque
 import logging
-import os
-from thesisgenerator.utils.misc import noop
+
 from thesisgenerator.utils.reflection_utils import get_named_object
-import pandas as pd
-
-
-def get_stats_recorder(enabled, stats_hdf_file, suffix):
-    f = '%s%s' % (stats_hdf_file, suffix)
-    return StatsRecorder(hdf_file=f) if enabled and stats_hdf_file else NoopStatsRecorder()
 
 
 def get_token_handler(handler_name, k, transformer_name, vector_source):
@@ -23,102 +15,6 @@ def get_token_handler(handler_name, k, transformer_name, vector_source):
         k,
         transformer))
     return handler(k, transformer, vector_source)
-
-
-class LexicalReplacementEvent(object):
-    def __init__(self, original, max_replacements, available_replacements, replacements, ranks, similarities):
-        self.original = original
-        self.max_replacements = max_replacements
-        self.available_replacements = available_replacements
-        self.replacements = replacements
-        self.ranks = ranks
-        self.similarities = similarities
-
-    def __str__(self):
-        return '%s (%d/%d available) --> %s, %s, %s' % (self.original, self.available_replacements,
-                                                        self.max_replacements, self.replacements,
-                                                        self.ranks, self.similarities)
-
-
-class StatsRecorder(object):
-    """
-    Provides facilities for counting seen, unseen,
-    in-thesaurus and out-of-thesaurus tokens and types
-    """
-
-    def __init__(self, hdf_file=None):
-        self.token_counts = pd.DataFrame(columns=('feature', 'count', 'IV', 'IT'))
-        self.token_counts.set_index('feature', inplace=True)
-        self.paraphrases = pd.DataFrame(columns=('feature', 'available_replacements', 'max_replacements',
-                                                 'replacement1', 'replacement1_rank', 'replacement1_sim',
-                                                 'replacement2', 'replacement2_rank', 'replacement2_sim',
-                                                 'replacement3', 'replacement3_rank', 'replacement3_sim'))
-        self.max_rows_in_memory = 1e20  # hold all data in memory
-
-        if hdf_file:
-            self.hdf_file = hdf_file  # store data here instead of in memory
-            self.max_rows_in_memory = 2  # how many items to store before flushing to HDF
-
-            if os.path.exists(self.hdf_file):
-                os.unlink(self.hdf_file)
-
-    def _flush_df_to_hdf(self, table_name, table):
-        with pd.get_store(self.hdf_file) as store:
-            table.fillna(-1)
-            store.append(table_name, table.convert_objects(),
-                         min_itemsize={'values': 50, 'index': 50})
-
-    def register_token(self, feature, iv, it):
-        s = feature.tokens_as_str()
-        try:
-            # if feature has been seen before increment count
-            row = self.token_counts.loc[s]
-            if map(bool, row.tolist()[1:]) == [iv, it]:
-                # todo this increment affects all columns in the given row, making booleans into ints
-                self.token_counts.loc[s, 'count'] += 1
-            else:
-                raise ValueError('The same feature seen with different IV/IT values, this is odd.')
-        except KeyError:
-            # token not known yet
-            new_df = pd.DataFrame([[1, iv, it]], columns=self.token_counts.columns, index=[s])
-            self.token_counts = pd.concat([self.token_counts, new_df])
-
-        if self.token_counts.shape[0] > self.max_rows_in_memory and self.hdf_file:
-            self._flush_df_to_hdf('token_counts', self.token_counts)
-            self.token_counts = self.token_counts[0:0]  # clear the chunk of data held in memory
-
-    def consolidate_stats(self):
-        self._flush_df_to_hdf('token_counts', self.token_counts)
-        reader = pd.read_hdf(self.hdf_file, 'token_counts', chunksize=1e5)
-        for chunk in reader:  # read the table bit by bit to save memory
-            tmp = pd.concat([self.token_counts, chunk])
-            self.token_counts = tmp.groupby(tmp.index).sum()  # add up the occurrences of each feature
-        with pd.get_store(self.hdf_file) as store:
-            store['token_counts'] = self.token_counts
-
-        self._flush_df_to_hdf('paraphrases', self.paraphrases)
-
-    def register_paraphrase(self, event):
-        # pad to size, making sure the right dtypes are inserted
-        # introducing NaN into the table causes pandas to promote column type, which
-        # results in incompatibility between the table on disk and the one in memory
-        # http://pandas.pydata.org/pandas-docs/stable/gotchas.html
-        while True:
-            current = len(event)
-            expected = len(self.paraphrases.columns)
-            if current >= expected:
-                break
-            event.extend(['NONE', -1, -1.0])
-        new_df = pd.DataFrame([event],
-                              columns=self.paraphrases.columns)
-        self.paraphrases = pd.concat([self.paraphrases, new_df])
-        if self.paraphrases.shape[0] > self.max_rows_in_memory and self.hdf_file:
-            self._flush_df_to_hdf('paraphrases', self.paraphrases)
-            self.paraphrases = self.paraphrases[0:0]
-
-
-class NoopStatsRecorder(StatsRecorder):
-    register_token = consolidate_stats = register_paraphrase = get_paraphrase_statistics = noop
 
 
 class BaseFeatureHandler():

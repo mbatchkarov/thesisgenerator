@@ -7,6 +7,7 @@ from glob import glob
 from discoutils.tokens import DocumentFeature
 import pandas as pd
 import numpy as np
+from thesisgenerator.plugins.stats import sum_up_token_counts
 
 
 def _get_counter_ignoring_negatives(df, column_list):
@@ -40,7 +41,7 @@ def stats_file(request):
     def fin():
         # remove the temp files produced by this test
         print 'finalizing test'
-        for f in glob('stats-tests-exp1-*'):
+        for f in glob('stats-tests-exp*'):
             print f
             os.unlink(f)
 
@@ -50,7 +51,7 @@ def stats_file(request):
 
 def test_coverage_statistics(stats_file):
     # decode time
-    df = pd.read_hdf(stats_file, 'token_counts')
+    df = sum_up_token_counts(stats_file)
     assert df.shape == (5, 3)  # 5 types in the dataset
     assert df['count'].sum() == 9.  # tokens
 
@@ -69,7 +70,7 @@ def test_coverage_statistics(stats_file):
 
     # at train time everything must be in vocabulary (that's how it works)
     # and in thesaurus (the test thesaurus is set up this way)
-    df = pd.read_hdf(stats_file.replace('-ev', '-tr'), 'token_counts')
+    df = sum_up_token_counts(stats_file.replace('-ev', '-tr'))
 
     assert df.query('IV == 0 and IT == 0').shape == (0, 3)  # 2 types both OOV and OOT
     assert df.query('IV == 0 and IT == 0')['count'].sum() == 0.0  # 4 tokens
@@ -83,6 +84,7 @@ def test_coverage_statistics(stats_file):
     assert df.query('IV > 0 and IT == 0').shape == (0, 3)
     assert df.query('IV > 0 and IT == 0')['count'].sum() == 0.0
 
+
 def test_get_decode_time_paraphrase_statistics(stats_file):
     """
     :param stats:
@@ -91,7 +93,10 @@ def test_get_decode_time_paraphrase_statistics(stats_file):
 
     # this test uses a signifier-signified encoding, i.e. only OOV-IT items are looked up
     df = pd.read_hdf(stats_file, 'paraphrases')
-
+    df.columns = ('feature', 'available_replacements', 'max_replacements',
+                  'replacement1', 'replacement1_rank', 'replacement1_sim',
+                  'replacement2', 'replacement2_rank', 'replacement2_sim',
+                  'replacement3', 'replacement3_rank', 'replacement3_sim')
     print 1
     assert df.shape == (5, 12)
 
