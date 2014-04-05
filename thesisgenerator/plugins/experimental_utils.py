@@ -41,7 +41,7 @@ def run_experiment(expid, subexpid=None, num_workers=4,
     if 'apollo' in hostname or 'node' in hostname:
         num_workers = 30
 
-    sizes = chain(range(10, 101, 15), range(200, 501, 100))
+    sizes = chain([10,50, 100], range(200, 501, 150))
     if expid == 0:
         # exp0 is for debugging only, we don't have to do much
         sizes = [5]  #range(10, 31, 10)
