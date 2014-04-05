@@ -78,6 +78,7 @@ class XmlTokenizer(object):
     def __init__(self, memory=NoopTransformer(), normalise_entities=False, use_pos=True,
                  coarse_pos=True, lemmatize=True, lowercase=True,
                  remove_stopwords=False, remove_short_words=False,
+                 remove_long_words=False,
                  use_cache=False, dependency_format='collapsed-ccprocessed'):
         #store all important parameteres
         self.normalise_entities = normalise_entities
@@ -87,6 +88,7 @@ class XmlTokenizer(object):
         self.lowercase = lowercase
         self.remove_stopwords = remove_stopwords
         self.remove_short_words = remove_short_words
+        self.remove_long_words = remove_long_words
         self.dependency_format = dependency_format
 
         # store the important parameters for use as joblib keys
@@ -138,7 +140,9 @@ class XmlTokenizer(object):
                 continue
 
             if self.remove_short_words and len(txt) <= 3:
-                # logging.debug('Tokenizer ignoring short word %s' % txt)
+                continue
+
+            if self.remove_long_words and len(txt) >= 25:
                 continue
 
             pos = element.find('POS').text.upper() if self.use_pos else ''

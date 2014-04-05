@@ -71,7 +71,9 @@ def run_experiment(expid, subexpid=None, num_workers=4,
         lemmatize=conf['feature_extraction']['lemmatize'],
         lowercase=conf['tokenizer']['lowercase'],
         remove_stopwords=conf['tokenizer']['remove_stopwords'],
-        remove_short_words=conf['tokenizer']['remove_short_words'])
+        remove_short_words=conf['tokenizer']['remove_short_words'],
+        remove_long_words=conf['tokenizer']['remove_long_words']
+    )
     tokenised_data = tokenize_data(raw_data, tokenizer, data_ids)
 
     # run data through the pipeline

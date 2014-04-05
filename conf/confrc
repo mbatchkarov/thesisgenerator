@@ -59,6 +59,7 @@ test_data=string(default='')
     keep_only_IT=boolean(default=False)
     remove_stopwords=boolean(default=False)
 	remove_short_words=boolean(default=False)
+	remove_long_words=boolean(default=False)
 
 [vector_sources] # this section will eventually replace all thesaurus-related options. There will not be a pre-computed sim matrix, just vectors in a suitable datastructure that allows fast online sim calculation
 	unigram_paths = list(default=list()) # path to either a Byblo events files or neighbours.strings file. If events, you must specify that precomputed=False
