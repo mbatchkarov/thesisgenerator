@@ -163,13 +163,22 @@ def get_data(replacement_scores):
     return x, y, thickness
 
 
-def plot_dots(replacement_scores):
+def plot_dots(replacement_scores, minsize=10., maxsize=200.):
     x, y, thickness = get_data(replacement_scores)
-    plt.scatter(x, y, np.array(thickness) / 2.0)
+    z = np.array(thickness)
+    range = min(z), max(z)
+    if min(z) < minsize:
+        z += (minsize - min(z))
+
+    # http://stackoverflow.com/a/17029736/419338
+    normalized_z = ((maxsize - minsize) * (z - min(z))) / (max(z) - min(z)) + minsize
+
+    plt.scatter(x, y, normalized_z)
     plt.hlines(0, min(x), max(x))
     plt.vlines(0, min(y), max(y))
     plt.xlabel('Class association of decode-time feature')
     plt.ylabel('Class association of replacements')
+    return range
 
 
 def round_scores_to_nearest_integer(scores):
@@ -194,10 +203,10 @@ def plot_regression_line(x, y, z):
     xi = np.arange(min(x), max(x))
     line = coef[0] * xi + coef[1]
     plt.plot(xi, line, 'r-')
-    plt.title('y=%.2fx+%.2f' % (coef[0], coef[1]))
+    return coef
 
 
-def loop_body(subexp, cv_fold):
+def extract_stats_over_cv(subexp, cv_fold):
     logging.info('Doing fold %s', cv_fold)
     a = _train_time_counts('stats/stats-%s-cv%d-tr.tc.csv' % (subexp, cv_fold))
     b = _decode_time_counts('stats/stats-%s-cv%d-ev.tc.csv' % (subexp, cv_fold))
@@ -206,12 +215,12 @@ def loop_body(subexp, cv_fold):
     return a, b, c, d, f
 
 
-def do_work(subexp='exp1-10', folds=25, workers=4):
+def do_work(subexp, folds=25, workers=4):
     logging.info('---------------------------------------------------')
     logging.info('Doing experiment %s', subexp)
     plt.figure(figsize=(11, 8), dpi=300)  # for A4 print
 
-    res = Parallel(n_jobs=workers)(delayed(loop_body)(subexp, cv_fold) for cv_fold in range(folds))
+    res = Parallel(n_jobs=workers)(delayed(extract_stats_over_cv)(subexp, cv_fold) for cv_fold in range(folds))
 
     train_counts = [x[0] for x in res]
     decode_counts = [x[1] for x in res]
@@ -242,9 +251,10 @@ def do_work(subexp='exp1-10', folds=25, workers=4):
             pickle.dump(it_iv_replacement_scores, outf)
 
         plt.subplot(2, 2, 4)
-        plot_regression_line(*get_data(it_iv_replacement_scores))
+        coef = plot_regression_line(*get_data(it_iv_replacement_scores))
         # Data currently rounded to 2 significant digits. Round to nearest int to make plot less cluttered
-        plot_dots(round_scores_to_nearest_integer(it_iv_replacement_scores))
+        myrange = plot_dots(round_scores_to_nearest_integer(it_iv_replacement_scores))
+        plt.title('y=%.2fx+%.2f; thickness = %s -- %s' % (coef[0], coef[1], myrange[0], myrange[1]))
 
     plt.tight_layout()
     plt.savefig('figures/stats-%s.png' % subexp, format='png')
@@ -256,8 +266,8 @@ if __name__ == '__main__':
                         filemode='w',
                         format="%(asctime)s\t%(module)s.%(funcName)s ""(line %(lineno)d)\t%(levelname)s : %(message)s")
 
-    # do_work(subexp='exp0-0', folds=2, workers=1)
-    do_work(subexp='exp1-10', folds=4)
+    do_work(subexp='exp0-0', folds=2, workers=1)
+    # do_work('exp1-10', folds=4)
     # do_work(subexp='exp2-10', folds=10)
-    do_work(subexp='exp3-10', folds=4)
+    do_work('exp3-10', folds=4)
 
