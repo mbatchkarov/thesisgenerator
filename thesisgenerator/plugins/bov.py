@@ -112,7 +112,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
             # it's probably a path to a shelved vector source
             # this is an ugly hack- I can't be sure it's really a Precomputed....
             logging.info('Deshelving %s', self.vector_source)
-            self.d = shelve.open(self.vector_source, flag='r') # read only
+            self.d = shelve.open(self.vector_source, flag='r', writeback=True) # read only
             self.vector_source = PrecomputedSimilaritiesVectorSource(Thesaurus(self.d))
 
         logging.debug('Identity of vector source is %d', id(vector_source))

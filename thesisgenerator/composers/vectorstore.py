@@ -33,7 +33,7 @@ class VectorSource(object):
         pass
 
     @abstractmethod
-    def _get_vector(self, tokens):
+    def get_vector(self, tokens):
         pass
 
 
@@ -80,7 +80,7 @@ class UnigramVectorSource(VectorSource):
             self.distrib_features_vocab = None
 
 
-    def _get_vector(self, feature):
+    def get_vector(self, feature):
         # word must be an iterable of Token objects
         """
         Returns a matrix of size (1, N) for the first token in the provided list. Warns if multiple tokens are given.
@@ -133,8 +133,8 @@ class UnigramDummyComposer(Composer):
     def __contains__(self, feature):
         return feature in self.unigram_source
 
-    def _get_vector(self, feature):
-        return self.unigram_source._get_vector(feature)
+    def get_vector(self, feature):
+        return self.unigram_source.get_vector(feature)
 
     def __str__(self):
         return '[UnigramDummyComposer wrapping %s]' % self.unigram_source
@@ -178,8 +178,8 @@ class AdditiveComposer(Composer):
         super(AdditiveComposer, self).__init__(unigram_source)
         self.function = np.add
 
-    def _get_vector(self, feature):
-        return sp.csr_matrix(reduce(self.function, [self.unigram_source._get_vector(t).A for t in feature[:]]))
+    def get_vector(self, feature):
+        return sp.csr_matrix(reduce(self.function, [self.unigram_source.get_vector(t).A for t in feature[:]]))
 
 
     def __contains__(self, feature):
@@ -229,8 +229,8 @@ class LeftmostWordComposer(AdditiveComposer):
         self.feature_pattern = {'2-GRAM', '3-GRAM', 'AN', 'NN', 'VO', 'SVO'}
 
 
-    def _get_vector(self, feature):
-        return self.unigram_source._get_vector(feature[self.hardcoded_index])
+    def get_vector(self, feature):
+        return self.unigram_source.get_vector(feature[self.hardcoded_index])
 
     def __contains__(self, feature):
         if feature.type not in self.feature_pattern:
@@ -312,7 +312,7 @@ class BaroniComposer(Composer):
     def __repr__(self):
         return str(self)
 
-    def _get_vector(self, feature):
+    def get_vector(self, feature):
         #todo test properly
         """
 
@@ -332,6 +332,9 @@ class BaroniComposer(Composer):
 
 class CompositeVectorSource(VectorSource):
     """
+    DEPRECATED. DO NOT USE. It doesn't make sense to compose the same phrase with multiple composers if
+    the aim is to compare composers.
+
     An object that takes vectors and composers as parameters and computes nearest neighbours on the fly
     """
     name = 'Composite'
@@ -367,7 +370,7 @@ class CompositeVectorSource(VectorSource):
         """
         logging.debug('Populating vector space with algorithm %s and vocabulary %s', algorithm, vocabulary)
         logging.debug('Composer mapping is %s', self.composer_mapping)
-        vectors = [c._get_vector(f)
+        vectors = [c.get_vector(f)
                    for f in vocabulary
                    for c in self.composer_mapping[f.type]
                    if f.type in self.composer_mapping and f in c]
@@ -409,19 +412,19 @@ class CompositeVectorSource(VectorSource):
                                     entry_filter=lambda x: x.type in feature_types)
         logging.info('Done writing to disk')
 
-    def _get_vector(self, feature):
+    def get_vector(self, feature):
         """
         Returns a set of vector for the specified ngram, one from each sub-source
         """
-        return [(c.name, c._get_vector(feature).todense()) for c in self.composer_mapping[feature.type]]
+        return [(c.name, c.get_vector(feature).todense()) for c in self.composer_mapping[feature.type]]
 
-    def _get_nearest_neighbours(self, feature):
+    def get_nearest_neighbours(self, feature):
         """
-        Returns (composer, sim, neighbour) tuples for the given n-gram, one from each composer._get_vector
+        Returns (composer, sim, neighbour) tuples for the given n-gram, one from each composer.get_vector
         Accepts structured features
         """
         res = []
-        for comp_name, vector in self._get_vector(feature):
+        for comp_name, vector in self.get_vector(feature):
             distances, indices = self.nbrs.kneighbors(vector, return_distance=True)
 
             for dist, ind in zip(distances[0, :], indices[0, :]):
@@ -435,13 +438,6 @@ class CompositeVectorSource(VectorSource):
                     res.append(data)
                     break
         return res
-
-    def get_nearest_neighbours(self, feature):
-        """
-        Returns only the third element of what self._get_nearest_neighbours returns
-        """
-        #print feature, self._get_nearest_neighbours(feature)
-        return map(itemgetter(1), self._get_nearest_neighbours(feature))
 
     def __str__(self):
         wrapped = ', '.join(str(c) for c in self.composers)
@@ -469,28 +465,14 @@ class PrecomputedSimilaritiesVectorSource(CompositeVectorSource):
         th = Thesaurus.from_tsv(**kwargs)
         return PrecomputedSimilaritiesVectorSource(th)
 
-    def _get_nearest_neighbours(self, feature):
+    def get_nearest_neighbours(self, feature):
         # Accepts structured features and strips the meta information from the feature and use as a string
-        # Returns (composer, sim, neighbour) tuples
-        # Feature structure is DocumentFeature('1-GRAM', ('Seattle/N',))
-
-        # strip the structural info from feature for thes lookup
-        res = self.th.get(feature.tokens_as_str())
-        # put structural info back in
-        return [(
-                    'Byblo',
-                    (  # create a DocumentFeature object based on the string provided by thesaurus
-                       DocumentFeature.from_string(x[0]),
-                       x[1]
-                    )
-                )
-                for x in res] if res else []
+        return self.th.get(feature, [])
 
     def __contains__(self, feature):
-        # strip the meta information from the feature and use as a string, thesaurus does not contain this info
-        return '_'.join(map(str, feature.tokens)) in self.th
+        return feature in self.th
 
-    def _get_vector(self, feature):
+    def get_vector(self, feature):
         raise ValueError('This is a precomputed neighbours object, it does not contain vectors.')
 
     def populate_vector_space(self, *args, **kwargs):
@@ -530,7 +512,7 @@ class ConstantNeighbourVectorSource(VectorSource):
         pass
 
 
-    def _get_vector(self):
+    def get_vector(self):
         pass
 
     def __contains__(self, feature):
