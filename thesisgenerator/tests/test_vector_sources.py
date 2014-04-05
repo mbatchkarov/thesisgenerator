@@ -31,17 +31,17 @@ class TestUnigramVectorSource(TestCase):
         # vectors come out right
         # a/N	amod:c	2   T:t1	1	T:t2	2	T:t3	3
         assert_array_equal(
-            self.source.get_vector(DocumentFeature.from_string('a/N')).todense(),
+            self.source._get_vector(DocumentFeature.from_string('a/N')).todense(),
             [[0., 2., 0., 1., 2., 3., 0., 0.]]
         )
 
         # vocab is in sorted order
         self.assertListEqual(
-            ['also/RB', 'amod:c/N', 'now/RB', 't:t1/N', 't:t2/N', 't:t3/N', 't:t4/N', 't:t5/N', ],
+            ['also/RB', 'amod:c', 'now/RB', 't:t1', 't:t2', 't:t3', 't:t4', 't:t5', ],
             self.source.distrib_features_vocab)
 
-        self.assertIsNone(self.source.get_vector(DocumentFeature.from_string('jfhjgjdfyjhgb/N')))
-        self.assertIsNone(self.source.get_vector(DocumentFeature.from_string('jfhjgjdfyjhgb/J')))
+        self.assertIsNone(self.source._get_vector(DocumentFeature.from_string('jfhjgjdfyjhgb/N')))
+        self.assertIsNone(self.source._get_vector(DocumentFeature.from_string('jfhjgjdfyjhgb/J')))
 
     def test_contains(self):
         """
@@ -53,7 +53,7 @@ class TestUnigramVectorSource(TestCase):
             self.assertNotIn(thing, self.source)
 
     def test_dimensionality_reduction(self):
-        v = self.reduced_source.get_vector(DocumentFeature.from_string('a/N'))
+        v = self.reduced_source._get_vector(DocumentFeature.from_string('a/N'))
         self.assertTupleEqual((1, 2), v.shape)
         print v.A
 
@@ -83,8 +83,8 @@ class TestAdditiveVectorSource(TestCase):
         for bigram in vocab:
             neighbours = composer.get_nearest_neighbours(bigram)
             self.assertEquals(len(neighbours), 1)
-            composer_name, (neighbour, sim) = neighbours[0]
-            print composer.get_vector(bigram), bigram, neighbours, sim
+            neighbour, sim = neighbours[0]
+            print composer._get_vector(bigram), bigram, neighbours
             self.assertEqual(bigram, neighbour)
             self.assertAlmostEqual(sim, 1, 5)
 
@@ -93,7 +93,7 @@ class TestAdditiveVectorSource(TestCase):
         for bigram in vocab:
             neighbours = composer.get_nearest_neighbours(bigram)
             self.assertEquals(len(neighbours), 1)
-            comp_name, (neighbour, sim) = neighbours[0]
+            neighbour, sim = neighbours[0]
             print bigram, neighbours
             self.assertNotEqual(bigram, neighbour)
             # The vectors for unigrams are 4D one-hot encoded, ie. a=1000, b=0100,...,d=0001
@@ -136,7 +136,7 @@ class TestCompositeVectorSource(TestCase):
         self.assertEqual(len(e), len(vocab) * len(subcomposers))
 
         for row, (feature, composer) in enumerate(e):
-            expected = composer.get_vector(feature).A.ravel()
+            expected = composer._get_vector(feature).A.ravel()
             observed = m[row, :]
             assert_array_equal(expected, observed)
 
@@ -200,7 +200,7 @@ class TestCompositeVectorSource(TestCase):
 class TestSimpleComposers(TestCase):
     def setUp(self):
         self.m = Mock()
-        self.m.get_vector.return_value = csr_matrix(np.arange(DIM))
+        self.m._get_vector.return_value = csr_matrix(np.arange(DIM))
 
     def test_with_real_data(self):
         source = UnigramVectorSource(path)
@@ -209,17 +209,17 @@ class TestSimpleComposers(TestCase):
 
         assert_array_equal(
             np.array([[0, 0, 0, 0, 0, 9, 0, 0]]),
-            mult.get_vector(DocumentFeature.from_string('a/N_b/V')).A
+            mult._get_vector(DocumentFeature.from_string('a/N_b/V')).A
         )
 
         assert_array_equal(
             np.array([[5, 2, 7, 1, 2, 6, 0, 0]]),
-            add.get_vector(DocumentFeature.from_string('a/N_b/V')).A
+            add._get_vector(DocumentFeature.from_string('a/N_b/V')).A
         )
 
         assert_array_equal(
             np.array([[5, 11, 15, 1, 2, 6, 10, 4]]),
-            add.get_vector(DocumentFeature.from_string('a/N_b/V_c/J')).A
+            add._get_vector(DocumentFeature.from_string('a/N_b/V_c/J')).A
         )
 
     def test_compose(self):
@@ -229,14 +229,14 @@ class TestSimpleComposers(TestCase):
         for i in range(1, 4):
             print i
             df = DocumentFeature.from_string('_'.join(['a/N'] * i))
-            result = add.get_vector(df)
+            result = add._get_vector(df)
             self.assertTrue(issparse(result))
             assert_array_equal(
                 np.arange(DIM).reshape((1, DIM)) * i,
                 result.A
             )
 
-            result = mult.get_vector(df)
+            result = mult._get_vector(df)
             self.assertTrue(issparse(result))
             assert_array_equal(
                 np.arange(DIM).reshape((1, DIM)) ** i,
@@ -253,6 +253,7 @@ class TestPrecomputedSimSource(TestCase):
             thesaurus_files=['thesisgenerator/resources/exp0-0c.strings'],
             sim_threshold=0, include_self=False)
 
+
     def test_get_nearest_neighbours(self):
         self.assertTupleEqual(
             self.source.get_nearest_neighbours(DocumentFeature.from_string('cat/N'))[0],
@@ -266,7 +267,6 @@ class TestPrecomputedSimSource(TestCase):
 
     def test_contains(self):
         self.assertTrue(DocumentFeature.from_string('cat/N') in self.source)
-        self.assertTrue('cat/N' in self.source)
         self.assertFalse(DocumentFeature.from_string('a/J_b/N') in self.source)
 
         self.assertTrue(DocumentFeature.from_string('a/N') in self.source2)
@@ -298,17 +298,17 @@ class TestMinMaxComposer(TestCase):
         f2 = DocumentFeature.from_string('b/V_c/J')
         f3 = DocumentFeature.from_string('b/V')
 
-        assert_array_equal(self.min_composer.get_vector(f1).A.ravel(),
+        assert_array_equal(self.min_composer._get_vector(f1).A.ravel(),
                            np.array([0., 0., 0., 0.]))
-        assert_array_equal(self.max_composer.get_vector(f1).A.ravel(),
+        assert_array_equal(self.max_composer._get_vector(f1).A.ravel(),
                            np.array([1., 1., 1., 0.]))
 
-        assert_array_equal(self.min_composer.get_vector(f2).A.ravel(),
+        assert_array_equal(self.min_composer._get_vector(f2).A.ravel(),
                            np.array([0, 0, 0, 0]))
-        assert_array_equal(self.max_composer.get_vector(f2).A.ravel(),
+        assert_array_equal(self.max_composer._get_vector(f2).A.ravel(),
                            np.array([0, 1, 1, 0]))
 
-        assert_array_equal(self.min_composer.get_vector(f3).A.ravel(),
+        assert_array_equal(self.min_composer._get_vector(f3).A.ravel(),
                            np.array([0., 1., 0., 0.]))
 
     def test_contains(self):
@@ -338,8 +338,8 @@ class TestHeadAndTailWordComposers(object):
 
     def test_get_vector(self, composers):
         head, tail = composers
-        v1 = head.get_vector(DocumentFeature.from_string('like/V_fruit/N'))
-        v2 = tail.get_vector(DocumentFeature.from_string('like/V_fruit/N'))
+        v1 = head._get_vector(DocumentFeature.from_string('like/V_fruit/N'))
+        v2 = tail._get_vector(DocumentFeature.from_string('like/V_fruit/N'))
         assert v1.shape == v2.shape == (1, 7)
         assert_array_equal(v1.A.ravel(), np.array([0, 0, 0, 0, 0, 0, 0.11]))
         assert_array_equal(v2.A.ravel(), np.array([0.06, 0.05, 0, 0, 0, 0, 0]))

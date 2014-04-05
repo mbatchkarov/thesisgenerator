@@ -263,10 +263,7 @@ class TestVectorBackedSelectKBest(TestCase):
             thesaurus_files=['thesisgenerator/resources/exp0-0a.strings'])
 
         # patch it to ensure it contains some bigram entries, as if they were calculated on the fly
-        new_feature = DocumentFeature.from_string('like/V_fruit/N')
-        new_feature.type = '2-GRAM' # the automatic parse above assign type verb-object to this feature, but
-        # during the test it's
-        composer.th[new_feature] = [(DocumentFeature.from_string('like/V'), 0.8)]
+        composer.th['like/V_fruit/N'] = [('like/V', 0.8)]
         tr_matrix, tr_voc, ev_matrix, ev_voc = self._do_feature_selection(False, 'all', handler='SignifierSignified',
                                                                           vector_source=composer, max_feature_len=2)
         self.assertTupleEqual(ev_matrix.shape, (3, 10))

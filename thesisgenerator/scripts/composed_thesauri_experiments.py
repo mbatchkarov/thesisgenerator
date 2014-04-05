@@ -27,8 +27,7 @@ class Experiment():
                  labelled_name,
                  unlabelled_name, unlabelled_num,
                  thesaurus_features_name, thesaurus_features_num,
-                 document_features, svd,
-                 baronified=False):
+                 document_features, svd):
         self.number = number
         self.composer_name = composer_name
         self.thesaurus_file = thesaurus_file
@@ -39,19 +38,16 @@ class Experiment():
         self.thesaurus_features_num = thesaurus_features_num
         self.svd = svd
         self.document_features = document_features
-        self.baronified = baronified
-
 
     def __str__(self):
         # num: doc_feats, comp, handler, unlab, svd, lab, thes_feats
-        return '%r' % ','.join([str(self.number),
+        return "'%s'" % ','.join([str(self.number),
                                   self.unlabelled_name,
                                   self.labelled_name,
                                   str(self.svd),
                                   self.composer_name,
                                   self.document_features,
-                                  self.thesaurus_features_name,
-                                  str(int(self.baronified))])
+                                  self.thesaurus_features_name])
 
     def __repr__(self):
         return str(self)
@@ -169,7 +165,7 @@ for doc_feature_type in ['AN', 'NN']:
                 print e, ','
                 exp_number += 1
 
-print '---- BARONIFIED -------'
+print '-----------'
 # do experiments with a reduced thesaurus entry sets, aka "Baronified"
 composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
                   RightmostWordComposer, BaroniComposer, Bunch(name='APDT'), Bunch(name='Socher')]
@@ -187,7 +183,7 @@ for labelled_corpus in ['R2', 'MR']:
                       'AN_NN_{unlab_name}-{svd_dims}_{composer_name}.baronified.sims.neighbours.strings'
             thesaurus_file = pattern.format(**locals())
         e = Experiment(exp_number, composer_name, thesaurus_file, labelled_corpus, unlab_name, unlab_num,
-                       thesf_name, thesf_num, 'AN_NN', svd_dims, baronified=True)
+                       thesf_name, thesf_num, 'AN_NN', svd_dims)
         experiments.append(e)
         exp_number += 1
         print e, ','
@@ -195,13 +191,7 @@ for labelled_corpus in ['R2', 'MR']:
 exp_number += 2 # set aside 2 numbers for random-neighbour experiments. These are based on 87 and 96
 #  (because these are the smallest real thesauri and I have to load them due to silly code) and
 # include random_neighbour_thesaurus=True
-print "'97,gigaw,R2,100,Random,AN_NN,dependencies,0',"
-print "'98,gigaw,MR,100,Random,AN_NN,dependencies,0',"
-# these baseline are not baronified even though they load up a baronified thesaurus at first. This isn't used until
-# decode time, when the vocabulary is already set. The random thesaurus acts as if it has entries for
-# all in-vocabulary items
 
-sys.exit(0)
 print 'Writing conf files'
 megasuperbase_conf_file = 'conf/exp1-superbase.conf'
 for exp in experiments:

@@ -1,7 +1,7 @@
-cat/N	a/N	4	b/N	2	c/N	1	d/N	1
-dog/N	a/N	3	b/N	3	c/N	1
-game/N	d/N	3	e/N	1	f/N	2
-kid/N	g/N	2	h/N	5	i/N	3
-fruit/N	a/N	1
-like/V	j/N	3	k/N	3
-play/V	k/N	3
+cat/N	a	4	b	2	c	1	d	1
+dog/N	a	3	b	3	c	1
+game/N	d	3	e	1	f	2
+kid/N	g	2	h	5	i	3
+fruit/N	a	1
+like/V	j	3	k	3
+play/V	k	3
