@@ -143,10 +143,11 @@ class TestThesaurusVectorizer(TestCase):
 
 
     def tearDown(self):
-        files = glob.glob('PostVectDump_test_main*')
-        for f in files:
-            if os.path.exists(f):
-                os.remove(f)
+        for pattern in ['PostVectDump_test_main*', 'stats-test_main-cv12345*']:
+            files = glob.glob(pattern)
+            for f in files:
+                if os.path.exists(f):
+                    os.remove(f)
 
     def test_baseline_use_all_features_signifier_only_23(self):
         self.feature_extraction_conf['vocab_from_thes'] = False
