@@ -1,8 +1,8 @@
 from collections import Counter, namedtuple
 import cPickle as pickle
-from itertools import chain
+from itertools import chain, groupby
 import logging
-from operator import add
+from operator import add, itemgetter
 from discoutils.tokens import DocumentFeature
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -133,7 +133,49 @@ def _print_counts_data(train_counts, title):
     logging.info('----------------------')
 
 
+def get_data(replacement_scores):
+    x = []
+    y = []
+    thickness = []
+    for (orig_value, repl_value), repl_count in replacement_scores.iteritems():
+        y.append(repl_value)
+        x.append(orig_value)
+        thickness.append(repl_count)
+    return x, y, thickness
+
+
+def plot_dots(replacement_scores):
+    x, y, thickness = get_data(replacement_scores)
+    plt.scatter(x, y, np.array(thickness) / 2.0)
+    plt.hlines(0, min(x), max(x))
+    plt.vlines(0, min(y), max(y))
+    plt.xlabel('Class association of decode-time feature')
+    plt.ylabel('Class association of replacements')
+
+
+def round_scores(scores):
+    s = [(int(a), int(b), c) for ((a, b), c) in scores.items()]
+    s = sorted(s, key=itemgetter(0, 1))
+    rounded_scores1 = {}
+    for key, group in groupby(s, itemgetter(0, 1)):
+        rounded_scores1[key] = sum(x[2] for x in group)
+    return rounded_scores1
+
+
+def plot_regression_line(x, y, z):
+    coef = np.polyfit(x, y, 1, w=z)
+    xi = np.arange(min(x), max(x))
+    line = coef[0] * xi + coef[1]
+    plt.plot(xi, line, 'r-')
+    plt.title('y=%.2fx+%.2f' % (coef[0], coef[1]))
+
+
 def do_work(subexp='exp1-10', folds=25):
+    logging.basicConfig(level=logging.INFO,
+                        filename='figures/stats-%s-counts.txt' % subexp,
+                        filemode='w',
+                        format="%(asctime)s\t%(module)s.%(funcName)s ""(line %(lineno)d)\t%(levelname)s : %(message)s")
+
     train_counts, decode_counts = [], []
     basic_stats, replacement_scores = [], []
 
@@ -158,31 +200,23 @@ def do_work(subexp='exp1-10', folds=25):
 
     replacement_scores = reduce(add, (Counter(x) for x in replacement_scores))
 
+    # sometimes there may not be any IV-IT features at decode time
     if replacement_scores:
+        # dump to disk so I can experiment with these counts later
         with open('stats/%s-scores.pkl' % subexp, 'w') as outf:
             pickle.dump(replacement_scores, outf)
-        # sometimes there may not be any IV-IT features at decode time
-        x = []
-        y = []
-        thickness = []
-        for (orig_value, repl_value), repl_count in replacement_scores.iteritems():
-            y.append(repl_value)
-            x.append(orig_value)
-            thickness.append(repl_count)
+
         plt.figure()
-        plt.scatter(x, y, thickness)
-        plt.hlines(0, min(x), max(x))
-        plt.vlines(0, min(y), max(y))
-        plt.xlabel('Class association of decode-time feature')
-        plt.ylabel('Class association of replacements')
+        plot_regression_line(*get_data(replacement_scores))
+        # round data in plot to make it more appealing
+        plot_dots(round_scores(replacement_scores))
+
         plt.savefig('figures/stats-%s-NB-scores.png' % subexp, format='png')
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO,
-                        format="%(asctime)s\t%(module)s.%(funcName)s ""(line %(lineno)d)\t%(levelname)s : %(message)s")
     # do_work(subexp='exp0-0', folds=2)
-    do_work(subexp='exp1-10', folds=10)
+    do_work(subexp='exp1-10', folds=2)
     # do_work(subexp='exp2-10', folds=10)
-    # do_work(subexp='exp3-10', folds=10)
+    do_work(subexp='exp3-10', folds=2)
 
