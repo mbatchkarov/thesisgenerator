@@ -52,10 +52,12 @@ class StatsRecorder(object):
             os.unlink(self.hdf_file)
 
     def _flush_df_to_hdf(self, table_name, data):
-        logging.info('Flushing statistics to %s', self.hdf_file)
+        logging.info('Flushing %s statistics to %s', table_name, self.hdf_file)
         df = pd.DataFrame(data)
         with pd.get_store(self.hdf_file) as store:
             store.append(table_name, df.convert_objects())  #, min_itemsize={'values': 50, 'index': 50}
+            store.flush()
+
 
 
     def register_token(self, feature, iv, it):
@@ -65,8 +67,10 @@ class StatsRecorder(object):
             self.token_counts = []  # clear the chunk of data held in memory
 
     def consolidate_stats(self):
-        self._flush_df_to_hdf('token_counts', self.token_counts)
         self._flush_df_to_hdf('paraphrases', self.paraphrases)
+        self._flush_df_to_hdf('token_counts', self.token_counts)
+        self.token_counts = []
+        self.paraphrases = []
 
     def register_paraphrase(self, event):
         # pad to size, making sure the right dtypes are inserted

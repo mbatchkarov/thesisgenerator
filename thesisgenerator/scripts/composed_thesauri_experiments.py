@@ -188,7 +188,7 @@ for labelled_corpus in ['R2', 'MR']:
         exp_number += 1
         print e, ','
 
-exp_number += 2 # set aside 2 numbers for random-neighbour experiments. These are based on 87 and 96
+exp_number += 2  # set aside 2 numbers for random-neighbour experiments. These are based on 87 and 96
 #  (because these are the smallest real thesauri and I have to load them due to silly code) and
 # include random_neighbour_thesaurus=True
 
@@ -197,7 +197,9 @@ megasuperbase_conf_file = 'conf/exp1-superbase.conf'
 for exp in experiments:
     # sanity check
     if os.path.exists(exp.thesaurus_file):
-        print "last modified: %s" % time.ctime(os.path.getmtime(exp.thesaurus_file)), exp.thesaurus_file
+        print "last modified: %s" % time.ctime(os.path.getmtime(exp.thesaurus_file)), \
+            os.stat(exp.thesaurus_file).st_size >> 20,\
+            exp.thesaurus_file # size in MB
     else:
         print 'MISSING THESAURUS:', exp.thesaurus_file
 

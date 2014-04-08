@@ -417,10 +417,11 @@ def go(conf_file, log_dir, data, vector_source, classpath='', clean=False, n_job
     all_scores.extend([score for one_set_of_scores in scores_over_cv for score in one_set_of_scores])
 
     # logging.info('Classifier scores are %s', all_scores)
-    # if config['feature_extraction']['record_stats']:
-    #     with open('stats%s' % config['name'], 'w') as outf:
-    #         logging.info('Dumping and stats over CV for this data size to %s', outf.name)
-    #         pickle.dump(stats_over_cv, outf)
+    if config['feature_extraction']['record_stats']:
+        for s in stats_over_cv:
+            with open('%s.pickle' % s.hdf_file, 'w') as outf:
+                logging.info('Saving NB parameters to %s', outf.name)
+                pickle.dump(s, outf)
 
     output_file = _analyze(all_scores, config['output_dir'], config['name'])
     return output_file, stats_over_cv
