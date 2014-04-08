@@ -1,5 +1,6 @@
 import logging
 import os
+from discoutils.misc import ContainsEverything
 from joblib import Memory
 import random
 from sklearn.datasets import load_files
@@ -105,7 +106,8 @@ def get_vector_source(conf, vector_source=None):
             if paths:
                 logging.info('Loading unigram vector sources')
                 unigram_source = UnigramVectorSource(paths,
-                                                     reduce_dimensionality=conf['vector_sources']['reduce_dimensionality'],
+                                                     reduce_dimensionality=conf['vector_sources'][
+                                                         'reduce_dimensionality'],
                                                      dimensions=conf['vector_sources']['dimensions'])
 
             composers = []
@@ -127,11 +129,16 @@ def get_vector_source(conf, vector_source=None):
             filename = 'shelf%d' % hash(tuple(paths))
             if not os.path.exists(filename):
                 logging.info('Loading precomputed neighbour sources')
+                entry_types_to_load = conf['vector_sources']['entry_types_to_load']
+                if not entry_types_to_load:
+                    entry_types_to_load = ContainsEverything()
+
                 vector_source = PrecomputedSimilaritiesVectorSource.from_file(
                     thesaurus_files=paths,
                     sim_threshold=conf['vector_sources']['sim_threshold'],
                     include_self=conf['vector_sources']['include_self'],
-                    allow_lexical_overlap=conf['vector_sources']['allow_lexical_overlap']
+                    allow_lexical_overlap=conf['vector_sources']['allow_lexical_overlap'],
+                    row_filter=lambda x, y: y.type in entry_types_to_load
                 )
                 vector_source.th.to_shelf(filename)
             vector_source = filename
