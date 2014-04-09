@@ -36,7 +36,8 @@ def load_text_data_into_memory(training_path, test_path=None, shuffle_targets=Fa
 
 
 def load_tokenizer(normalise_entities=False, use_pos=True, coarse_pos=True, lemmatize=True,
-                   lowercase=True, remove_stopwords=False, remove_short_words=False, joblib_caching=False):
+                   lowercase=True, remove_stopwords=False, remove_short_words=False,
+                   remove_long_words=False, joblib_caching=False):
     """
     Initialises the state of helper modules from a config object
     """
@@ -55,6 +56,7 @@ def load_tokenizer(normalise_entities=False, use_pos=True, coarse_pos=True, lemm
         lowercase=lowercase,
         remove_stopwords=remove_stopwords,
         remove_short_words=remove_short_words,
+        remove_long_words=remove_long_words,
         use_cache=joblib_caching
     )
     return tok
