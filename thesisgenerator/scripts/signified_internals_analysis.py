@@ -1,6 +1,7 @@
 from collections import Counter, namedtuple
 import cPickle as pickle
 from itertools import chain
+from operator import add
 from discoutils.tokens import DocumentFeature
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -145,14 +146,14 @@ def do_work():
         replacement_scores.append(b)
 
     # COLLATE AND AVERAGE STATS OVER CROSSVALIDATION
-    histogram_from_list(list(chain.from_iterable(x.rank for x in basic_stats)), 'stats-exp0-0-repl-ranks.png')
-    histogram_from_list(list(chain.from_iterable(x.sim for x in basic_stats)), 'stats-exp0-0-repl-sims.png')
+    histogram_from_list(list(chain.from_iterable(x.rank for x in basic_stats)), 'figures/stats-exp0-0-repl-ranks.png')
+    histogram_from_list(list(chain.from_iterable(x.sim for x in basic_stats)), 'figures/stats-exp0-0-repl-sims.png')
 
     _print_counts_data(train_counts, 'Train')
     _print_counts_data(decode_counts, 'Decode')
 
 
-
+    replacement_scores = reduce(add, (Counter(x) for x in replacement_scores))
     if replacement_scores:
         # sometimes there may not be any IV-IT features at decode time
         x = []
@@ -162,12 +163,13 @@ def do_work():
             y.append(repl_value)
             x.append(orig_value)
             thickness.append(repl_count)
+        plt.figure()
         plt.scatter(x, y, thickness)
         plt.hlines(0, min(x), max(x))
         plt.vlines(0, min(y), max(y))
         plt.xlabel('Class association of decode-time feature')
         plt.ylabel('Class association of replacements')
-        plt.show()
+        plt.savefig('figures/stats-exp0-0-NB-scores.png', format='png')
 
 
 if __name__ == '__main__':
