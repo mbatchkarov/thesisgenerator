@@ -46,12 +46,12 @@ def stats_file(request):
             os.unlink(f)
 
     request.addfinalizer(fin)
-    return stats_objects[0].hdf_file
+    return stats_objects[0].prefix
 
 
 def test_coverage_statistics(stats_file):
     # decode time
-    df = sum_up_token_counts(stats_file)
+    df = sum_up_token_counts('%s.tc.csv' % stats_file)
     assert df.shape == (5, 3)  # 5 types in the dataset
     assert df['count'].sum() == 9.  # tokens
 
@@ -70,7 +70,7 @@ def test_coverage_statistics(stats_file):
 
     # at train time everything must be in vocabulary (that's how it works)
     # and in thesaurus (the test thesaurus is set up this way)
-    df = sum_up_token_counts(stats_file.replace('-ev', '-tr'))
+    df = sum_up_token_counts('%s.tc.csv' % stats_file.replace('-ev', '-tr'))
 
     assert df.query('IV == 0 and IT == 0').shape == (0, 3)  # 2 types both OOV and OOT
     assert df.query('IV == 0 and IT == 0')['count'].sum() == 0.0  # 4 tokens
@@ -92,12 +92,7 @@ def test_get_decode_time_paraphrase_statistics(stats_file):
     """
 
     # this test uses a signifier-signified encoding, i.e. only OOV-IT items are looked up
-    df = pd.read_hdf(stats_file, 'paraphrases')
-    df.columns = ('feature', 'available_replacements', 'max_replacements',
-                  'replacement1', 'replacement1_rank', 'replacement1_sim',
-                  'replacement2', 'replacement2_rank', 'replacement2_sim',
-                  'replacement3', 'replacement3_rank', 'replacement3_sim')
-    print 1
+    df = pd.read_csv('%s.par.csv' % stats_file)
     assert df.shape == (5, 12)
 
     assert _get_counter_ignoring_negatives(df, ['replacement%d_sim' % (i + 1) for i in range(3)]) == \
@@ -110,5 +105,6 @@ def test_get_decode_time_paraphrase_statistics(stats_file):
            Counter({1: 2, 2: 3})  # 2 items have had 1 replacement, etc
 
     column_list = ['replacement%d' % (i + 1) for i in range(3)]
-    types = [DocumentFeature.from_string(x).type for x in np.ravel(df.ix[:, column_list].values) if x != 'NONE']
+    # x>0 check filters out NaN-s
+    types = [DocumentFeature.from_string(x).type for x in np.ravel(df.ix[:, column_list].values) if x > 0]
     assert Counter(types) == Counter({'1-GRAM': 8})  # 8 total replacements, all of them unigrams
