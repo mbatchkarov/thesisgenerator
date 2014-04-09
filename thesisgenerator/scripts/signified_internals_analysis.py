@@ -56,7 +56,7 @@ def _decode_time_counts(fname):
     )
 
 
-def _analyse_replacement_ranks_and_sims(df, fname):
+def _analyse_replacement_ranks_and_sims(df):
     # BASIC STATISTICS ABOUT REPLACEMENTS (RANK IN NEIGHBOURS LIST AND SIM OT ORIGINAL)
     res = {}
     for statistic in ['rank', 'sim']:
@@ -65,7 +65,7 @@ def _analyse_replacement_ranks_and_sims(df, fname):
             values = df['replacement%d_%s' % (i, statistic)]
             counts = df['count']
             for value, count in zip(values, counts):
-                if value != 'NONE' and value != -1:  #
+                if value > 0:  # filter out NaN-s
                     data.extend([value] * count)
         # histogram_from_list(data, 'figures/%s_%s_hist.png' % (fname, statistic))
         res[statistic] = data
@@ -73,12 +73,8 @@ def _analyse_replacement_ranks_and_sims(df, fname):
     return ReplacementsResult(**res)
 
 
-def _analyse_replacements(fname):
-    df = pd.read_hdf(fname, 'paraphrases')
-    df.columns = ('feature', 'available_replacements', 'max_replacements',
-                  'replacement1', 'replacement1_rank', 'replacement1_sim',
-                  'replacement2', 'replacement2_rank', 'replacement2_sim',
-                  'replacement3', 'replacement3_rank', 'replacement3_sim')
+def _analyse_replacements(paraphrases_file, pickle_file):
+    df = pd.read_csv(paraphrases_file, sep=', ')
     counts = df.groupby('feature').count().feature
     assert counts.sum() == df.shape[0]  # no missing rows
     df = df.drop_duplicates()
@@ -89,7 +85,7 @@ def _analyse_replacements(fname):
     # ANALYSE CLASS-CONDITIONAL PROBABILITY OF REPLACEMENTS
     #####################################################################
 
-    with open('%s.pickle' % fname) as infile:
+    with open(pickle_file) as infile:
         stats = pickle.load(infile)
     try:
         flp = stats.nb_feature_log_prob
@@ -119,7 +115,7 @@ def _analyse_replacements(fname):
                     repl_score = repl_sim * scores[DocumentFeature.from_string(replacement)]
                     replacement_scores[(orig_score, repl_score)] += repl_count
 
-    return _analyse_replacement_ranks_and_sims(df, fname), replacement_scores
+    return _analyse_replacement_ranks_and_sims(df), replacement_scores
 
 
 def _print_counts_data(train_counts, title):
@@ -127,8 +123,8 @@ def _print_counts_data(train_counts, title):
     print '| %s time statistics:' % title
     for field in train_counts[0]._fields:
         print '| %s: mean %f, std %f' % ( field,
-                                        np.mean([x._asdict()[field] for x in train_counts]),
-                                        np.std([x._asdict()[field] for x in train_counts]))
+                                          np.mean([x._asdict()[field] for x in train_counts]),
+                                          np.std([x._asdict()[field] for x in train_counts]))
     print '----------------------'
 
 
@@ -136,12 +132,11 @@ def do_work():
     train_counts, decode_counts = [], []
     basic_stats, replacement_scores = [], []
     for cv_fold in [0, 1]:
-        fname = 'stats-exp0-0-cv%d-tr' % cv_fold
-        train_counts.append(_train_time_counts(fname))
+        train_counts.append(_train_time_counts('stats-exp0-0-cv%d-tr.tc.csv' % cv_fold))
 
-        fname = 'stats-exp0-0-cv%d-ev' % cv_fold
-        decode_counts.append(_decode_time_counts(fname))
-        a, b = _analyse_replacements(fname)
+        decode_counts.append(_decode_time_counts('stats-exp0-0-cv%d-ev.tc.csv' % cv_fold))
+        a, b = _analyse_replacements('stats-exp0-0-cv%d-ev.par.csv' % cv_fold,
+                                     'stats-exp0-0-cv%d-ev.pkl' % cv_fold)
         basic_stats.append(a)
         replacement_scores.append(b)
 
@@ -151,7 +146,6 @@ def do_work():
 
     _print_counts_data(train_counts, 'Train')
     _print_counts_data(decode_counts, 'Decode')
-
 
     replacement_scores = reduce(add, (Counter(x) for x in replacement_scores))
     if replacement_scores:

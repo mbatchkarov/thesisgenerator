@@ -26,7 +26,7 @@ def sum_up_token_counts(hdf_file):
     """
     import pandas as pd
 
-    df = pd.read_csv(hdf_file)
+    df = pd.read_csv(hdf_file, sep=', ')
     counts = df.groupby('feature').count().feature
     assert counts.sum() == df.shape[0]  # no missing rows
     df = df.drop_duplicates()
@@ -56,12 +56,12 @@ class StatsRecorder(object):
             os.unlink(self.tc_file)
 
         with open(self.tc_file, 'w') as outfile:
-            outfile.write('feature,IV,IT\n')
+            outfile.write('feature, IV, IT\n')
         with open(self.par_file, 'w') as outfile:
-            outfile.write('feature,available_replacements,max_replacements,'
-                          'replacement1,replacement1_rank,replacement1_sim,'
-                          'replacement2,replacement2_rank,replacement2_sim,replacement3,'
-                          'replacement3_rank,replacement3_sim\n')
+            outfile.write('feature, available_replacements, max_replacements, '
+                          'replacement1, replacement1_rank, replacement1_sim, '
+                          'replacement2, replacement2_rank, replacement2_sim, replacement3, '
+                          'replacement3_rank, replacement3_sim\n')
 
     def _flush_df_to_hdf(self, filename, data):
         if data:
@@ -69,7 +69,7 @@ class StatsRecorder(object):
 
             with open(filename, 'a') as store:
                 for line in data:
-                    store.write(','.join(map(str, line)))
+                    store.write(', '.join(map(str, line)))
                     store.write('\n')
 
 

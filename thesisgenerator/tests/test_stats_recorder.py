@@ -92,7 +92,7 @@ def test_get_decode_time_paraphrase_statistics(stats_file):
     """
 
     # this test uses a signifier-signified encoding, i.e. only OOV-IT items are looked up
-    df = pd.read_csv('%s.par.csv' % stats_file)
+    df = pd.read_csv('%s.par.csv' % stats_file, sep=', ')
     assert df.shape == (5, 12)
 
     assert _get_counter_ignoring_negatives(df, ['replacement%d_sim' % (i + 1) for i in range(3)]) == \
