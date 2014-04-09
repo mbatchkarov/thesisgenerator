@@ -419,7 +419,7 @@ def go(conf_file, log_dir, data, vector_source, classpath='', clean=False, n_job
     # logging.info('Classifier scores are %s', all_scores)
     if config['feature_extraction']['record_stats']:
         for s in stats_over_cv:
-            with open('%s.pickle' % s.hdf_file, 'w') as outf:
+            with open('%s.pkl' % s.prefix, 'w') as outf:
                 logging.info('Saving NB parameters to %s', outf.name)
                 pickle.dump(s, outf)
 
