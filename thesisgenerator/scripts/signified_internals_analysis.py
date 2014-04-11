@@ -1,6 +1,7 @@
 from collections import Counter, namedtuple
 import cPickle as pickle
 from itertools import chain
+import logging
 from operator import add
 from discoutils.tokens import DocumentFeature
 import matplotlib.pyplot as plt
@@ -12,7 +13,7 @@ import numpy as np
 
 def histogram_from_list(l, path):
     MAX_LABEL_COUNT = 40
-    print 'Running histogram'
+    logging.info('Running histogram')
     plt.figure()
     if type(l[0]) == str:
         # numpy's histogram doesn't like strings
@@ -26,6 +27,7 @@ def histogram_from_list(l, path):
 
 def _train_time_counts(fname):
     # BASIC STATISTICS AT TRAINING TIME
+    logging.info('Traing time token counts')
     df = sum_up_token_counts(fname)
     vocab = set(df.index.tolist())
     df_it = df[df['IT'] > 0]
@@ -37,6 +39,7 @@ def _train_time_counts(fname):
 
 def _decode_time_counts(fname):
     # BASIC STATISTICS AT DECODE TIME
+    logging.info('Decode time token counts')
     df = sum_up_token_counts(fname)
     df_it = df[df['IT'] > 0]
     df_iv = df[df['IV'] > 0]
@@ -58,6 +61,7 @@ def _decode_time_counts(fname):
 
 def _analyse_replacement_ranks_and_sims(df):
     # BASIC STATISTICS ABOUT REPLACEMENTS (RANK IN NEIGHBOURS LIST AND SIM OT ORIGINAL)
+    logging.info('Basic replacements stats')
     res = {}
     for statistic in ['rank', 'sim']:
         data = []
@@ -74,6 +78,7 @@ def _analyse_replacement_ranks_and_sims(df):
 
 
 def _analyse_replacements(paraphrases_file, pickle_file):
+    logging.info('Advanced replacements stats')
     df = pd.read_csv(paraphrases_file, sep=', ')
     counts = df.groupby('feature').count().feature
     assert counts.sum() == df.shape[0]  # no missing rows
@@ -94,7 +99,7 @@ def _analyse_replacements(paraphrases_file, pickle_file):
         # high positive value mean strong association with class 0, very negative means the opposite
         scores = {feature: ratio[index] for index, feature in stats.nb_inv_voc.items()}
     except AttributeError:
-        print 'Classifier parameters unavailable'
+        logging.info('Classifier parameters unavailable')
         return None
 
     replacement_scores = defaultdict(int)
@@ -119,36 +124,43 @@ def _analyse_replacements(paraphrases_file, pickle_file):
 
 
 def _print_counts_data(train_counts, title):
-    print '----------------------'
-    print '| %s time statistics:' % title
+    logging.info('----------------------')
+    logging.info('| %s time statistics:' % title)
     for field in train_counts[0]._fields:
-        print '| %s: mean %f, std %f' % ( field,
-                                          np.mean([x._asdict()[field] for x in train_counts]),
-                                          np.std([x._asdict()[field] for x in train_counts]))
-    print '----------------------'
+        logging.info('| %s: mean %f, std %f', field,
+                     np.mean([x._asdict()[field] for x in train_counts]),
+                     np.std([x._asdict()[field] for x in train_counts]))
+    logging.info('----------------------')
 
 
-def do_work():
+def do_work(subexp='exp1-10', folds=25):
     train_counts, decode_counts = [], []
     basic_stats, replacement_scores = [], []
-    for cv_fold in [0, 1]:
-        train_counts.append(_train_time_counts('stats-exp0-0-cv%d-tr.tc.csv' % cv_fold))
 
-        decode_counts.append(_decode_time_counts('stats-exp0-0-cv%d-ev.tc.csv' % cv_fold))
-        a, b = _analyse_replacements('stats-exp0-0-cv%d-ev.par.csv' % cv_fold,
-                                     'stats-exp0-0-cv%d-ev.pkl' % cv_fold)
+    for cv_fold in range(folds):
+        logging.info('Doing fold %s', cv_fold)
+        train_counts.append(_train_time_counts('stats/stats-%s-cv%d-tr.tc.csv' % (subexp, cv_fold)))
+
+        decode_counts.append(_decode_time_counts('stats/stats-%s-cv%d-ev.tc.csv' % (subexp, cv_fold)))
+        a, b = _analyse_replacements('stats/stats-%s-cv%d-ev.par.csv' % (subexp, cv_fold),
+                                     'stats/stats-%s-cv%d-ev.pkl' % (subexp, cv_fold))
         basic_stats.append(a)
         replacement_scores.append(b)
 
     # COLLATE AND AVERAGE STATS OVER CROSSVALIDATION
-    histogram_from_list(list(chain.from_iterable(x.rank for x in basic_stats)), 'figures/stats-exp0-0-repl-ranks.png')
-    histogram_from_list(list(chain.from_iterable(x.sim for x in basic_stats)), 'figures/stats-exp0-0-repl-sims.png')
+    histogram_from_list(list(chain.from_iterable(x.rank for x in basic_stats)),
+                        'figures/stats-%s-repl-ranks.png' % subexp)
+    histogram_from_list(list(chain.from_iterable(x.sim for x in basic_stats)),
+                        'figures/stats-%s-repl-sims.png' % subexp)
 
     _print_counts_data(train_counts, 'Train')
     _print_counts_data(decode_counts, 'Decode')
 
     replacement_scores = reduce(add, (Counter(x) for x in replacement_scores))
+
     if replacement_scores:
+        with open('stats/%s-scores.pkl' % subexp, 'w') as outf:
+            pickle.dump(replacement_scores, outf)
         # sometimes there may not be any IV-IT features at decode time
         x = []
         y = []
@@ -163,9 +175,14 @@ def do_work():
         plt.vlines(0, min(y), max(y))
         plt.xlabel('Class association of decode-time feature')
         plt.ylabel('Class association of replacements')
-        plt.savefig('figures/stats-exp0-0-NB-scores.png', format='png')
+        plt.savefig('figures/stats-%s-NB-scores.png' % subexp, format='png')
 
 
 if __name__ == '__main__':
-    do_work()
+    logging.basicConfig(level=logging.INFO,
+                        format="%(asctime)s\t%(module)s.%(funcName)s ""(line %(lineno)d)\t%(levelname)s : %(message)s")
+    # do_work(subexp='exp0-0', folds=2)
+    do_work(subexp='exp1-10', folds=10)
+    # do_work(subexp='exp2-10', folds=10)
+    # do_work(subexp='exp3-10', folds=10)
 
