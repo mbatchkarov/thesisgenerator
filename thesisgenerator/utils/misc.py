@@ -6,7 +6,16 @@ __author__ = 'mmb28'
 
 
 def get_susx_mysql_conn():
-    import MySQLdb as mdb
+    """
+    Returns a mysql connection to the Sussex BoV database, or None if
+     - MySQLdb is not installed
+     - the db-credentials is not present
+    :return:
+    """
+    try:
+        import MySQLdb as mdb
+    except ImportError:
+        return None
 
     config = ConfigObj('thesisgenerator/db-credentials')
     if not config:
