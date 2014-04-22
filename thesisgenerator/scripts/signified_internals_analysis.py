@@ -266,10 +266,10 @@ def qualitative_replacement_study(scores, inv_voc, flp, df):
 
 
 def extract_stats_over_cv(subexp, cv_fold):
-    a = _train_time_counts('stats/stats-%s-cv%d-tr.tc.csv' % (subexp, cv_fold))
-    b = _decode_time_counts('stats/stats-%s-cv%d-ev.tc.csv' % (subexp, cv_fold))
-    (scores, inv_voc, flp), df, c, d, f, g = _analyse_replacements('stats/stats-%s-cv%d-ev.par.csv' % (subexp, cv_fold),
-                                                                   'stats/stats-%s-cv%d-ev.pkl' % (subexp, cv_fold))
+    a = _train_time_counts('statistics/stats-%s-cv%d-tr.tc.csv' % (subexp, cv_fold))
+    b = _decode_time_counts('statistics/stats-%s-cv%d-ev.tc.csv' % (subexp, cv_fold))
+    (scores, inv_voc, flp), df, c, d, f, g = _analyse_replacements('statistics/stats-%s-cv%d-ev.par.csv' % (subexp, cv_fold),
+                                                                   'statistics/stats-%s-cv%d-ev.pkl' % (subexp, cv_fold))
 
     if cv_fold == 0:
         qualitative_replacement_study(scores, inv_voc, flp, df)
@@ -313,7 +313,7 @@ def do_work(exp, subexp, folds=25, workers=4, cursor=None):
     # sometimes there may not be any IV-IT features at decode time
     if it_iv_replacement_scores:
         # dump to disk so I can experiment with these counts later
-        with open('stats/%s-scores.pkl' % name, 'w') as outf:
+        with open('statistics/%s-scores.pkl' % name, 'w') as outf:
             pickle.dump(it_iv_replacement_scores, outf)
 
         plt.subplot(2, 3, 4)
