@@ -1,3 +1,13 @@
+import sys
+import matplotlib
+
+sys.path.append('.')
+sys.path.append('..')
+sys.path.append('../..')
+
+
+matplotlib.use('Agg')  # so that matplotlib can run on headless machines
+
 from collections import Counter
 import cPickle as pickle
 from itertools import chain, groupby
@@ -10,6 +20,10 @@ import pandas as pd
 from thesisgenerator.plugins.stats import sum_up_token_counts
 from collections import defaultdict
 import numpy as np
+
+import matplotlib
+
+matplotlib.use('Agg')
 
 
 def histogram_from_list(l, subplot, title, weights=None):
@@ -103,6 +117,8 @@ def _analyse_replacements(paraphrases_file, pickle_file):
     df.set_index('feature', inplace=True)
     df['count'] = counts
 
+    logging.info('%d/%d IV IT tokens have no replacements', sum(df['available_replacements'] == 0), len(df))
+
     #####################################################################
     # ANALYSE CLASS-CONDITIONAL PROBABILITY OF REPLACEMENTS
     #####################################################################
@@ -145,15 +161,15 @@ def _analyse_replacements(paraphrases_file, pickle_file):
                 if repl_sim > 0:
                     it_oov_replacement_scores[round(repl_sim, 2)] += repl_count
 
-    return _analyse_replacement_ranks_and_sims(df), it_iv_replacement_scores, it_oov_replacement_scores, \
-           it_iv_sim_vs_replacement_ratio
+    return (scores, stats.nb_inv_voc, flp), df, _analyse_replacement_ranks_and_sims(df), \
+           it_iv_replacement_scores, it_oov_replacement_scores, it_iv_sim_vs_replacement_ratio
 
 
 def _print_counts_data(train_counts, title):
     logging.info('----------------------')
     logging.info('| %s time statistics:' % title)
     for field in train_counts[0].__dict__:
-        logging.info('| %s: mean %f, std %f', field,
+        logging.info('| %s: mean %d, std %2.2f', field,
                      np.mean([getattr(x, field) for x in train_counts]),
                      np.std([getattr(x, field) for x in train_counts]))
     logging.info('----------------------')
@@ -218,12 +234,45 @@ def plot_regression_line(x, y, z):
     return coef
 
 
+def qualitative_replacement_study(scores, inv_voc, flp, df):
+    def print_scores_of_feature_and_replacements(features, scores, counts):
+        for feature in features:
+            replacements = []
+            for i in range(1, 4):
+                r = df.ix[feature]['replacement%d' % i]
+                if r > 0:  # filter out NaN-s
+                    replacements.append(r)
+            replacements = [(f, round(scores[f], 2)) for f in replacements]
+            logging.info(' |%s (score=%2.2f, count=%d) -> %r', feature, scores[feature], counts[feature], replacements)
+
+    logging.info('\nQualitative study of replacements in fold 0:')
+
+    scores = {k.tokens_as_str(): v for k, v in scores.items()}
+    counts = dict(df['count'])
+
+    logging.info('  ---------------------------')
+    logging.info(' | Most informative features and their replacements')
+    sorted_scores = sorted(list(scores.items()), key=itemgetter(1))
+    iv_it_features = [i for i, _ in sorted_scores if i in df.index]
+    print_scores_of_feature_and_replacements(iv_it_features[:10] + iv_it_features[-10:], scores, counts)
+    logging.info('  ---------------------------')
+
+    logging.info('  ---------------------------')
+    logging.info(' | Most frequent features and their replacements')
+    most_common = [x[0] for x in sorted(list(counts.items()), key=itemgetter(1), reverse=True)
+                   if x[0] in df.index and x[0] in scores.keys()]
+    print_scores_of_feature_and_replacements(most_common[:10], scores, counts)
+    logging.info('  ---------------------------')
+
+
 def extract_stats_over_cv(subexp, cv_fold):
-    logging.info('Doing fold %s', cv_fold)
     a = _train_time_counts('stats/stats-%s-cv%d-tr.tc.csv' % (subexp, cv_fold))
     b = _decode_time_counts('stats/stats-%s-cv%d-ev.tc.csv' % (subexp, cv_fold))
-    c, d, f, g = _analyse_replacements('stats/stats-%s-cv%d-ev.par.csv' % (subexp, cv_fold),
-                                       'stats/stats-%s-cv%d-ev.pkl' % (subexp, cv_fold))
+    (scores, inv_voc, flp), df, c, d, f, g = _analyse_replacements('stats/stats-%s-cv%d-ev.par.csv' % (subexp, cv_fold),
+                                                                   'stats/stats-%s-cv%d-ev.pkl' % (subexp, cv_fold))
+
+    if cv_fold == 0:
+        qualitative_replacement_study(scores, inv_voc, flp, df)
     return a, b, c, d, f, g
 
 
@@ -309,10 +358,18 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO,
                         filename='figures/stats_output.txt',
                         filemode='w',
-                        format="%(asctime)s\t%(module)s.%(funcName)s ""(line %(lineno)d)\t%(levelname)s : %(message)s")
+                        format="%(message)s")
     from thesisgenerator.utils.misc import get_susx_mysql_conn
 
-    c = get_susx_mysql_conn().cursor()
+    conn = get_susx_mysql_conn()
+    c = conn.cursor() if conn else None
+
+    # do_work(0, 0, folds=2, workers=1)
+    # do_work(1, 10, folds=2, workers=1)
+
     for i in range(1, 45):
-        do_work(i, 5, folds=20, workers=5, cursor=c)
+        do_work(i, 5, folds=20, workers=20, cursor=c)
+
+    for i in range(57, 63):
+        do_work(i, 5, folds=20, workers=20, cursor=c)
 
