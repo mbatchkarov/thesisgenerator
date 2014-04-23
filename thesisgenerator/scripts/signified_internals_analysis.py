@@ -1,16 +1,22 @@
+import os
+import shelve
 import sys
-import matplotlib
 
 sys.path.append('.')
 sys.path.append('..')
 sys.path.append('../..')
 
+import matplotlib
 
 matplotlib.use('Agg')  # so that matplotlib can run on headless machines
 
+from discoutils.thesaurus_loader import Thesaurus
+from sklearn.metrics.pairwise import cosine_similarity
+from thesisgenerator.utils.conf_file_utils import parse_config_file
+from thesisgenerator.utils.misc import get_susx_mysql_conn
 from collections import Counter
 import cPickle as pickle
-from itertools import chain, groupby
+from itertools import chain, groupby, combinations
 import logging
 from operator import add, itemgetter
 from discoutils.tokens import DocumentFeature
@@ -20,10 +26,7 @@ import pandas as pd
 from thesisgenerator.plugins.stats import sum_up_token_counts
 from collections import defaultdict
 import numpy as np
-
-import matplotlib
-
-matplotlib.use('Agg')
+from scipy.stats import spearmanr, pearsonr
 
 
 def histogram_from_list(l, subplot, title, weights=None):
@@ -109,7 +112,19 @@ def get_replacements(df, feature):
             yield repl_feature, repl_sim
 
 
-def _analyse_replacements(paraphrases_file, pickle_file):
+def _load_classificational_vectors(pickle_file):
+    with open(pickle_file) as infile:
+        stats = pickle.load(infile)
+    try:
+        flp = stats.nb_feature_log_prob
+        inv_voc = stats.nb_inv_voc
+        return flp, inv_voc
+    except AttributeError:
+        logging.info('Classifier parameters unavailable')
+        return None, None
+
+
+def _analyse_replacements(paraphrases_file, flp, inv_voc):
     df = pd.read_csv(paraphrases_file, sep=', ')
     counts = df.groupby('feature').count().feature
     assert counts.sum() == df.shape[0]  # no missing rows
@@ -123,21 +138,13 @@ def _analyse_replacements(paraphrases_file, pickle_file):
     # ANALYSE CLASS-CONDITIONAL PROBABILITY OF REPLACEMENTS
     #####################################################################
 
-    with open(pickle_file) as infile:
-        stats = pickle.load(infile)
-    try:
-        flp = stats.nb_feature_log_prob
-        # this only works for binary classifiers and IV-IT features
-        ratio = flp[0, :] - flp[1, :]  # P(f|c0) / P(f|c1) in log space
-        # high positive value mean strong association with class 0, very negative means the opposite.
-        # This is called "class pull" below
-        scores = {feature: ratio[index] for index, feature in stats.nb_inv_voc.items()}
-    except AttributeError:
-        logging.info('Classifier parameters unavailable')
-        return None, None
+    # this only works for binary classifiers and IV-IT features
+    ratio = flp[0, :] - flp[1, :]  # P(f|c0) / P(f|c1) in log space
+    # high positive value mean strong association with class 0, very negative means the opposite.
+    # This is called "class pull" below
+    scores = {feature: ratio[index] for index, feature in inv_voc.items()}
 
     it_iv_replacement_scores = defaultdict(int)
-    it_iv_sim_vs_replacement_ratio = defaultdict(int)
     it_oov_replacement_scores = defaultdict(int)
     for f in df.index:  # this contains all IT features, regardless of whether they were IV or IT
         orig_score = scores.get(DocumentFeature.from_string(f), None)
@@ -150,10 +157,6 @@ def _analyse_replacements(paraphrases_file, pickle_file):
                         # -1 signifies no replacement has been found
                         repl_score = repl_sim * scores[DocumentFeature.from_string(replacement)]
                         it_iv_replacement_scores[(round(orig_score, 2), round(repl_score, 2))] += repl_count
-                        # ( P(f0|c0) / P(f0|c1) ) / (P(f1|c0) / P(f1|c1)) in log space. This doesn't yet express
-                        # what I want by I'm keeping it anyway
-                        ratio = orig_score - scores[DocumentFeature.from_string(replacement)]
-                        it_iv_sim_vs_replacement_ratio[(round(repl_sim, 2), round(ratio, 2))] += repl_count
         else:
             # this decode-time feature is IT, but OOV => we don't know it class conditional probs.
             # at least we know the class-cond probability of its replacements (because they must be IV)
@@ -161,15 +164,14 @@ def _analyse_replacements(paraphrases_file, pickle_file):
                 if repl_sim > 0:
                     it_oov_replacement_scores[round(repl_sim, 2)] += repl_count
 
-    return (scores, stats.nb_inv_voc, flp), df, _analyse_replacement_ranks_and_sims(df), \
-           it_iv_replacement_scores, it_oov_replacement_scores, it_iv_sim_vs_replacement_ratio
+    return scores, df, _analyse_replacement_ranks_and_sims(df), it_iv_replacement_scores, it_oov_replacement_scores
 
 
 def _print_counts_data(train_counts, title):
     logging.info('----------------------')
     logging.info('| %s time statistics:' % title)
     for field in train_counts[0].__dict__:
-        logging.info('| %s: mean %d, std %2.2f', field,
+        logging.info('| %s: mean %2.1f, std %2.1f', field,
                      np.mean([getattr(x, field) for x in train_counts]),
                      np.std([getattr(x, field) for x in train_counts]))
     logging.info('----------------------')
@@ -265,15 +267,58 @@ def qualitative_replacement_study(scores, inv_voc, flp, df):
     logging.info('  ---------------------------')
 
 
-def extract_stats_over_cv(subexp, cv_fold):
-    a = _train_time_counts('statistics/stats-%s-cv%d-tr.tc.csv' % (subexp, cv_fold))
-    b = _decode_time_counts('statistics/stats-%s-cv%d-ev.tc.csv' % (subexp, cv_fold))
-    (scores, inv_voc, flp), df, c, d, f, g = _analyse_replacements('statistics/stats-%s-cv%d-ev.par.csv' % (subexp, cv_fold),
-                                                                   'statistics/stats-%s-cv%d-ev.pkl' % (subexp, cv_fold))
+def correlate_similarities(all_classificational_vectors, inv_voc, iv_it_terms, thes_shelf):
+    '''
+    To what extent to classification and distributional vectors agree? Calculate and correlate
+    cos(a1,b1) and cos(a2,b2) for each a,b in IV IT features, where a1,b1 are distributional vectors and
+    a2,b2 are classificational ones
+    :param all_classificational_vectors:
+    :param inv_voc:
+    :param iv_it_terms:
+    :param thes_file:
+    :return:
+    '''
+    selected_rows = [row for row, feature in inv_voc.items() if feature in iv_it_terms]
+    classificational_vectors = all_classificational_vectors[selected_rows, :]
+    cl_thes = cosine_similarity(classificational_vectors)
+    new_voc = {inv_voc[row]: i for i, row in enumerate(selected_rows)}
 
+    d = shelve.open(thes_shelf, flag='r')  # read only
+    thes = Thesaurus(d)
+
+    dist_sims, class_sims = [], []
+    for first, second in combinations(iv_it_terms, 2):
+        dist_sim, class_sim = 0, 0
+        # when first and second are not neighbours in the thesaurus set their sim to 0
+        # todo not sure if this is optimal
+        dist_neighbours = thes.get(first, [])
+        for neigh, sim in dist_neighbours:
+            if neigh == second:
+                dist_sim = sim
+
+        class_sims.append(cl_thes[new_voc[first], new_voc[second]])
+        dist_sims.append(dist_sim)
+    if len(class_sims) != len(dist_sims):
+        raise ValueError
+    return class_sims, dist_sims
+
+
+def extract_stats_over_cv(exp, subexp, cv_fold, thes_shelf):
+    name = 'exp%d-%d' % (exp, subexp)
+    a = _train_time_counts('statistics/stats-%s-cv%d-tr.tc.csv' % (name, cv_fold))
+    b = _decode_time_counts('statistics/stats-%s-cv%d-ev.tc.csv' % (name, cv_fold))
+    flp, inv_voc = _load_classificational_vectors('statistics/stats-%s-cv%d-ev.pkl' % (name, cv_fold))
+
+    scores, df, c, d, f = _analyse_replacements('statistics/stats-%s-cv%d-ev.par.csv' % (name, cv_fold),
+                                                flp, inv_voc)
+    tmp_voc = {k: v.tokens_as_str() for k, v in inv_voc.items()}
+
+    (class_sims, dist_sims) = correlate_similarities(flp.T, tmp_voc,
+                                                     [x for x in tmp_voc.values() if x in df.index],
+                                                     thes_shelf)
     if cv_fold == 0:
         qualitative_replacement_study(scores, inv_voc, flp, df)
-    return a, b, c, d, f, g
+    return a, b, c, d, f, (class_sims, dist_sims)
 
 
 def do_work(exp, subexp, folds=25, workers=4, cursor=None):
@@ -284,14 +329,25 @@ def do_work(exp, subexp, folds=25, workers=4, cursor=None):
     plt.figure(figsize=(11, 8), dpi=300)  # for A4 print
     plt.matplotlib.rcParams.update({'font.size': 8})
 
-    res = Parallel(n_jobs=workers)(delayed(extract_stats_over_cv)(name, cv_fold) for cv_fold in range(folds))
+    conf, configspec_file = parse_config_file('conf/exp{0}/exp{0}_base.conf'.format(exp))
+    thes_file = conf['vector_sources']['unigram_paths'][0]
+    filename = 'shelf%d' % hash(tuple([thes_file]))
+    if not os.path.exists(filename):
+        thes = Thesaurus.from_tsv([thes_file])
+        thes.to_shelf(filename)
+    res = Parallel(n_jobs=workers)(delayed(extract_stats_over_cv)(exp, subexp, cv_fold, filename)
+                                   for cv_fold in range(folds))
 
     train_counts = [x[0] for x in res]
     decode_counts = [x[1] for x in res]
     basic_repl_stats = [x[2] for x in res]
     it_iv_replacement_scores = [x[3] for x in res]
     it_oov_replacement_scores = [x[4] for x in res]
-    it_iv_sim_vs_ratio = [x[5] for x in res]
+    class_sims = [x[5][0] for x in res]
+    dist_sims = [x[5][1] for x in res]
+
+    class_sims = list(chain.from_iterable(class_sims))
+    dist_sims = list(chain.from_iterable(dist_sims))
 
     # COLLATE AND AVERAGE STATS OVER CROSSVALIDATION
     histogram_from_list(list(chain.from_iterable(x.rank for x in basic_repl_stats)), 1, 'Replacement ranks')
@@ -302,7 +358,6 @@ def do_work(exp, subexp, folds=25, workers=4, cursor=None):
 
     it_iv_replacement_scores = reduce(add, (Counter(x) for x in it_iv_replacement_scores))
     it_oov_replacement_scores = reduce(add, (Counter(x) for x in it_oov_replacement_scores))
-    it_iv_sim_vs_ratio = reduce(add, (Counter(x) for x in it_iv_sim_vs_ratio))
 
     keys, values = [], []
     for k, v in it_oov_replacement_scores.items():
@@ -322,15 +377,25 @@ def do_work(exp, subexp, folds=25, workers=4, cursor=None):
         myrange = plot_dots(round_scores_to_given_precision(it_iv_replacement_scores))
         plt.title('y=%.2fx%+.2f; w=%s--%s' % (coef[0], coef[1], myrange[0], myrange[1]))
 
-    if it_iv_sim_vs_ratio:
+    if class_sims and dist_sims:
         plt.subplot(2, 3, 5)
-        coef = plot_regression_line(*get_data(it_iv_sim_vs_ratio))
-        myrange = plot_dots(round_scores_to_given_precision(it_iv_sim_vs_ratio, 1, 0),
-                            xlabel='sim(a,b)',
-                            ylabel='log(ratio(a))-log(ratio(b))',
-                            draw_axes=False)
-        plt.title('y=%.2fx%+.2f; w=%s--%s' % (coef[0], coef[1], myrange[0], myrange[1]))
+        plt.scatter(class_sims, dist_sims)
+        pearson = pearsonr(class_sims, dist_sims)
+        spearman = spearmanr(class_sims, dist_sims)
+        logging.info('Peason: %r', pearson)
+        logging.info('Spearman: %r', spearman)
+        plt.title('Pears=%.2f,Spear=%.2f, len=%d' % (pearson[0], spearman[0], len(dist_sims)))
+        plt.xlabel('class_sim(a,b)')
+        plt.ylabel('dist_sim(a,b)')
 
+        x1, y1 = [], []
+        for x, y in zip(class_sims, dist_sims):
+            if y > 0:
+                x1.append(x)
+                y1.append(y)
+
+        logging.info('Peason without zeroes (%d data points left): %r', len(x1), pearsonr(x1, y1))
+        logging.info('Spearman without zeroes: %r', spearmanr(x1, y1))
     if cursor:
         plt.subplot(2, 3, 6)
         query = 'SELECT score_mean, score_std FROM data%d WHERE NAME="%s" AND ' \
@@ -359,17 +424,18 @@ if __name__ == '__main__':
                         filename='figures/stats_output.txt',
                         filemode='w',
                         format="%(message)s")
-    from thesisgenerator.utils.misc import get_susx_mysql_conn
+    logging.getLogger().addHandler(logging.StreamHandler())
 
     conn = get_susx_mysql_conn()
     c = conn.cursor() if conn else None
 
     # do_work(0, 0, folds=2, workers=1)
-    # do_work(1, 10, folds=2, workers=1)
+    do_work(1, 0, folds=10, workers=5)
+    do_work(1, 5, folds=10, workers=5)
 
-    for i in range(1, 45):
-        do_work(i, 5, folds=20, workers=20, cursor=c)
-
-    for i in range(57, 63):
-        do_work(i, 5, folds=20, workers=20, cursor=c)
+    # for i in range(1, 45):
+    #     do_work(i, 5, folds=20, workers=20, cursor=c)
+    #
+    # for i in range(57, 63):
+    #     do_work(i, 5, folds=20, workers=20, cursor=c)
 
