@@ -3,28 +3,24 @@ import os
 import shelve
 import sys
 
-from thesisgenerator.scripts.analysis.plot import *
-from thesisgenerator.scripts.analysis.utils import *
-
-
 sys.path.append('.')
 sys.path.append('..')
 sys.path.append('../..')
 
-import matplotlib.pyplot as plt
 from discoutils.thesaurus_loader import Thesaurus
 from sklearn.metrics.pairwise import cosine_similarity
+from thesisgenerator.scripts.analysis.plot import *
+from thesisgenerator.scripts.analysis.utils import *
 from thesisgenerator.utils.conf_file_utils import parse_config_file
 from thesisgenerator.utils.misc import get_susx_mysql_conn
+from thesisgenerator.plugins.stats import sum_up_token_counts
 from collections import Counter
-import cPickle as pickle
 from itertools import chain, combinations
 import logging
 from operator import add, itemgetter
 from discoutils.tokens import DocumentFeature
 from joblib import Parallel, delayed
 import pandas as pd
-from thesisgenerator.plugins.stats import sum_up_token_counts
 from collections import defaultdict
 from scipy.stats import spearmanr, pearsonr
 
@@ -365,12 +361,11 @@ if __name__ == '__main__':
     conn = get_susx_mysql_conn()
     c = conn.cursor() if conn else None
 
-    do_work(0, 0, folds=2, workers=2)
-    do_work(1, 0, folds=2, workers=2, cursor=c)
+    # do_work(0, 0, folds=2, workers=2)
+    # do_work(1, 0, folds=2, workers=2, cursor=c)
+    for i in range(1, 45):
+        do_work(i, 5, folds=20, workers=20, cursor=c, do_slow_bit=parameters.slow)
 
-    # for i in range(1, 45):
-    #     do_work(i, 5, folds=20, workers=20, cursor=c, do_slow_bit=parameters.slow)
-    #
-    # for i in range(57, 63):
-    #     do_work(i, 5, folds=20, workers=20, cursor=c, do_slow_bit=parameters.slow)
+    for i in range(57, 63):
+        do_work(i, 5, folds=20, workers=20, cursor=c, do_slow_bit=parameters.slow)
 
