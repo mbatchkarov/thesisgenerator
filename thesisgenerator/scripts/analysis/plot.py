@@ -1,8 +1,9 @@
 import logging
 import numpy as np
+from collections import Counter
 import matplotlib.pyplot as plt
 import pandas as pd
-from collections import Counter
+from sklearn.metrics import r2_score
 from .utils import class_pull_results_as_list
 
 #####################################################################
@@ -52,9 +53,9 @@ def plot_dots(replacement_scores, minsize=10., maxsize=200., draw_axes=True,
     return range
 
 
-def plot_regression_line(x, y, z):
-    coef = np.polyfit(x, y, 1, w=z)
+def plot_regression_line(x, y, weights):
+    coef = np.polyfit(x, y, 1, w=weights)
+    p = np.poly1d(coef)
     xi = np.linspace(min(x), max(x))
-    line = coef[0] * xi + coef[1]
-    plt.plot(xi, line, 'r-')
-    return coef
+    plt.plot(xi, p(xi), 'r-')
+    return coef, r2_score(y, p(x)) # is this R2 score weighted?

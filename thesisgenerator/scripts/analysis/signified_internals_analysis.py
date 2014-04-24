@@ -280,7 +280,8 @@ def do_work(exp, subexp, folds=25, workers=4, cursor=None, do_slow_bit=False):
             thes.to_shelf(filename)
 
     all_data = Parallel(n_jobs=workers)(
-        delayed(extract_stats_for_a_single_fold)(exp, subexp, cv_fold, filename, do_slow_bit) for cv_fold in range(folds))
+        delayed(extract_stats_for_a_single_fold)(exp, subexp, cv_fold, filename, do_slow_bit) for cv_fold in
+        range(folds))
 
     # COLLATE AND AVERAGE STATS OVER CROSSVALIDATION, THEN DISPLAY
     histogram_from_list(list(chain.from_iterable(x.paraphrase_stats.rank for x in all_data)),
@@ -301,15 +302,12 @@ def do_work(exp, subexp, folds=25, workers=4, cursor=None, do_slow_bit=False):
             keys.append(k)
             values.append(v)
         histogram_from_list(keys, 3, 'IT-OOV replacements- class associations', weights=values)
-        # dump to disk so I can experiment with these counts later
-        with open('statistics/%s-scores.pkl' % name, 'w') as outf:
-            pickle.dump(it_iv_replacement_scores, outf)
 
         plt.subplot(2, 3, 4)
-        coef = plot_regression_line(*class_pull_results_as_list(it_iv_replacement_scores))  # todo r^2 statistic
+        coef, r2 = plot_regression_line(*class_pull_results_as_list(it_iv_replacement_scores))
         # Data currently rounded to 2 significant digits. Round to nearest int to make plot less cluttered
         myrange = plot_dots(round_class_pull_to_given_precision(it_iv_replacement_scores))
-        plt.title('y=%.2fx%+.2f; w=%s--%s' % (coef[0], coef[1], myrange[0], myrange[1]))
+        plt.title('y=%.2fx%+.2f; r2=%.2f; w=%s--%s' % (coef[0], coef[1], r2, myrange[0], myrange[1]))
 
     class_sims = list(chain.from_iterable(x.classificational_sims for x in all_data))
     dist_sims = list(chain.from_iterable(x.distributional_sims for x in all_data))
@@ -332,6 +330,10 @@ def do_work(exp, subexp, folds=25, workers=4, cursor=None, do_slow_bit=False):
 
         logging.info('Peason without zeroes (%d data points left): %r', len(x1), pearsonr(x1, y1))
         logging.info('Spearman without zeroes: %r', spearmanr(x1, y1))
+    else:
+        # use the space for something else
+        x, y, z = class_pull_results_as_list(it_iv_replacement_scores)
+        histogram_from_list(x, 5, 'Class association of decode-time feature (hist)', weights=z)
 
     if cursor:
         plt.subplot(2, 3, 6)
@@ -363,9 +365,8 @@ if __name__ == '__main__':
     conn = get_susx_mysql_conn()
     c = conn.cursor() if conn else None
 
-    do_work(0, 0, folds=2, workers=1)
-    # do_work(1, 0, folds=10, workers=5, cursor=c)
-    # do_work(1, 5, folds=10, workers=5)
+    do_work(0, 0, folds=2, workers=2)
+    do_work(1, 0, folds=2, workers=2, cursor=c)
 
     # for i in range(1, 45):
     #     do_work(i, 5, folds=20, workers=20, cursor=c, do_slow_bit=parameters.slow)
