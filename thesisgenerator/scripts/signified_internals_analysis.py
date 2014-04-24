@@ -162,7 +162,8 @@ def _analyse_replacements(paraphrases_file, flp, inv_voc):
             # at least we know the class-cond probability of its replacements (because they must be IV)
             for replacement, repl_sim in get_replacements(df, f):
                 if repl_sim > 0:
-                    it_oov_replacement_scores[round(repl_sim, 2)] += repl_count
+                    repl_score = repl_sim * scores[DocumentFeature.from_string(replacement)]
+                    it_oov_replacement_scores[round(repl_score, 2)] += repl_count
 
     return scores, df, _analyse_replacement_ranks_and_sims(df), it_iv_replacement_scores, it_oov_replacement_scores
 
@@ -245,7 +246,7 @@ def qualitative_replacement_study(scores, inv_voc, flp, df):
                 if r > 0:  # filter out NaN-s
                     replacements.append(r)
             replacements = [(f, round(scores[f], 2)) for f in replacements]
-            logging.info(' |%s (score=%2.2f, count=%d) -> %r', feature, scores[feature], counts[feature], replacements)
+            logging.info(' | %s (score=%2.2f, count=%d) -> %r', feature, scores[feature], counts[feature], replacements)
 
     logging.info('\nQualitative study of replacements in fold 0:')
 
@@ -305,20 +306,21 @@ def correlate_similarities(all_classificational_vectors, inv_voc, iv_it_terms, t
 
 def extract_stats_over_cv(exp, subexp, cv_fold, thes_shelf):
     name = 'exp%d-%d' % (exp, subexp)
-    a = _train_time_counts('statistics/stats-%s-cv%d-tr.tc.csv' % (name, cv_fold))
-    b = _decode_time_counts('statistics/stats-%s-cv%d-ev.tc.csv' % (name, cv_fold))
+    tr_counts = _train_time_counts('statistics/stats-%s-cv%d-tr.tc.csv' % (name, cv_fold))
+    ev_counts = _decode_time_counts('statistics/stats-%s-cv%d-ev.tc.csv' % (name, cv_fold))
     flp, inv_voc = _load_classificational_vectors('statistics/stats-%s-cv%d-ev.pkl' % (name, cv_fold))
 
-    scores, df, c, d, f = _analyse_replacements('statistics/stats-%s-cv%d-ev.par.csv' % (name, cv_fold),
-                                                flp, inv_voc)
+    classificational_scores, paraphrase_df, para_ranks_sims, it_iv_replacement_scores, it_oov_replacement_scores = \
+        _analyse_replacements('statistics/stats-%s-cv%d-ev.par.csv' % (name, cv_fold), flp, inv_voc)
     tmp_voc = {k: v.tokens_as_str() for k, v in inv_voc.items()}
 
     (class_sims, dist_sims) = correlate_similarities(flp.T, tmp_voc,
-                                                     [x for x in tmp_voc.values() if x in df.index],
+                                                     [x for x in tmp_voc.values() if x in paraphrase_df.index],
                                                      thes_shelf)
     if cv_fold == 0:
-        qualitative_replacement_study(scores, inv_voc, flp, df)
-    return a, b, c, d, f, (class_sims, dist_sims)
+        qualitative_replacement_study(classificational_scores, inv_voc, flp, paraphrase_df)
+    return tr_counts, ev_counts, para_ranks_sims, it_iv_replacement_scores,\
+           it_oov_replacement_scores, (class_sims, dist_sims)
 
 
 def do_work(exp, subexp, folds=25, workers=4, cursor=None):
@@ -337,7 +339,8 @@ def do_work(exp, subexp, folds=25, workers=4, cursor=None):
         thes.to_shelf(filename)
     res = Parallel(n_jobs=workers)(delayed(extract_stats_over_cv)(exp, subexp, cv_fold, filename)
                                    for cv_fold in range(folds))
-
+    # res is a list of
+    # tr_counts, ev_counts, para_ranks_sims, it_iv_replacement_scores, it_oov_replacement_scores, (class_sims, dist_sims)
     train_counts = [x[0] for x in res]
     decode_counts = [x[1] for x in res]
     basic_repl_stats = [x[2] for x in res]
