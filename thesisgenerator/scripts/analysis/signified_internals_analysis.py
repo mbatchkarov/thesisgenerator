@@ -233,33 +233,38 @@ def correlate_similarities(all_classificational_vectors, inv_voc, iv_it_terms, t
     return class_sims, dist_sims
 
 
-def extract_stats_for_a_single_fold(exp, subexp, cv_fold, thes_shelf, do_slow_bit):
+def extract_stats_for_a_single_fold(params, exp, subexp, cv_fold, thes_shelf):
     name = 'exp%d-%d' % (exp, subexp)
-    tr_counts = train_time_counts('statistics/stats-%s-cv%d-tr.tc.csv' % (name, cv_fold))
-    ev_counts = decode_time_counts('statistics/stats-%s-cv%d-ev.tc.csv' % (name, cv_fold))
+    class_pulls, it_iv_class_pulls, it_oov_class_pulls, basic_para_stats, \
+    tr_counts, ev_counts, class_sims, dist_sims = [None] * 8
+
+    if params.counts:
+        tr_counts = train_time_counts('statistics/stats-%s-cv%d-tr.tc.csv' % (name, cv_fold))
+        ev_counts = decode_time_counts('statistics/stats-%s-cv%d-ev.tc.csv' % (name, cv_fold))
     flp, inv_voc = load_classificational_vectors('statistics/stats-%s-cv%d-ev.pkl' % (name, cv_fold))
 
-    paraphrases_file = 'statistics/stats-%s-cv%d-ev.par.csv' % (name, cv_fold)
-    paraphrases_df = get_replacements_df(paraphrases_file)
-    basic_para_stats = analyse_replacement_ranks_and_sims(paraphrases_df)
-    class_pulls, it_iv_class_pulls, it_oov_class_pulls = analyse_replacements_class_pull(paraphrases_df, flp, inv_voc)
+    if params.basic_repl or params.class_pull:
+        paraphrases_file = 'statistics/stats-%s-cv%d-ev.par.csv' % (name, cv_fold)
+        paraphrases_df = get_replacements_df(paraphrases_file)
+        if params.basic_repl:
+            basic_para_stats = analyse_replacement_ranks_and_sims(paraphrases_df)
+        if params.class_pull:
+            class_pulls, it_iv_class_pulls, it_oov_class_pulls = analyse_replacements_class_pull(paraphrases_df,
+                                                                                                 flp, inv_voc)
 
-    if do_slow_bit:
+    if params.sim_corr:
         tmp_voc = {k: v.tokens_as_str() for k, v in inv_voc.items()}
         class_sims, dist_sims = correlate_similarities(flp.T, tmp_voc,
                                                        [x for x in tmp_voc.values() if x in paraphrases_df.index],
                                                        thes_shelf)
-    else:
-        class_sims, dist_sims = [], []
-
-    if cv_fold == 0:
+    if cv_fold == 0 and params.qualitative:
         qualitative_replacement_study(class_pulls, paraphrases_df)
 
     return StatsOverSingleFold(tr_counts, ev_counts, basic_para_stats, it_iv_class_pulls,
                                it_oov_class_pulls, class_sims, dist_sims)
 
 
-def do_work(exp, subexp, folds=25, workers=4, cursor=None, do_slow_bit=False):
+def do_work(params, exp, subexp, folds=25, workers=4, cursor=None):
     logging.info('---------------------------------------------------')
     name = 'exp%d-%d' % (exp, subexp)
     logging.info('Doing experiment %s', name)
@@ -270,20 +275,23 @@ def do_work(exp, subexp, folds=25, workers=4, cursor=None, do_slow_bit=False):
     conf, configspec_file = parse_config_file('conf/exp{0}/exp{0}_base.conf'.format(exp))
     thes_file = conf['vector_sources']['unigram_paths'][0]
     filename = 'shelf%d' % hash(tuple([thes_file]))
-    if do_slow_bit:
+    if params.sim_corr:
         if not os.path.exists(filename):
             thes = Thesaurus.from_tsv([thes_file])
             thes.to_shelf(filename)
 
     all_data = Parallel(n_jobs=workers)(
-        delayed(extract_stats_for_a_single_fold)(exp, subexp, cv_fold, filename, do_slow_bit) for cv_fold in
+        delayed(extract_stats_for_a_single_fold)(params, exp, subexp, cv_fold, filename) for cv_fold in
         range(folds))
 
     # COLLATE AND AVERAGE STATS OVER CROSSVALIDATION, THEN DISPLAY
-    histogram_from_list(list(chain.from_iterable(x.paraphrase_stats.rank for x in all_data)),
-                        1, 'Replacement ranks')
-    histogram_from_list(list(chain.from_iterable(x.paraphrase_stats.sim for x in all_data)),
-                        2, 'Replacement similarities')
+    try:
+        histogram_from_list(list(chain.from_iterable(x.paraphrase_stats.rank for x in all_data)),
+                            1, 'Replacement ranks')
+        histogram_from_list(list(chain.from_iterable(x.paraphrase_stats.sim for x in all_data)),
+                            2, 'Replacement similarities')
+    except AttributeError:
+        pass  # didn't collect these stats, so no rank/sim attribute
 
     print_counts_data([x.train_counts for x in all_data], 'Train')
     print_counts_data([x.decode_counts for x in all_data], 'Decode')
@@ -305,8 +313,8 @@ def do_work(exp, subexp, folds=25, workers=4, cursor=None, do_slow_bit=False):
         myrange = plot_dots(round_class_pull_to_given_precision(it_iv_replacement_scores))
         plt.title('y=%.2fx%+.2f; r2=%.2f; w=%s--%s' % (coef[0], coef[1], r2, myrange[0], myrange[1]))
 
-    class_sims = list(chain.from_iterable(x.classificational_sims for x in all_data))
-    dist_sims = list(chain.from_iterable(x.distributional_sims for x in all_data))
+    class_sims = list(chain.from_iterable(x.classificational_sims for x in all_data if x.classificational_sims))
+    dist_sims = list(chain.from_iterable(x.distributional_sims for x in all_data if x.distributional_sims))
     if class_sims and dist_sims:
         plt.subplot(2, 3, 5)
         plt.scatter(class_sims, dist_sims)
@@ -328,8 +336,9 @@ def do_work(exp, subexp, folds=25, workers=4, cursor=None, do_slow_bit=False):
         logging.info('Spearman without zeroes: %r', spearmanr(x1, y1))
     else:
         # use the space for something else
-        x, y, z = class_pull_results_as_list(it_iv_replacement_scores)
-        histogram_from_list(x, 5, 'Class association of decode-time feature (hist)', weights=z)
+        if params.class_pull:
+            x, y, z = class_pull_results_as_list(it_iv_replacement_scores)
+            histogram_from_list(x, 5, 'Class association of decode-time feature (hist)', weights=z)
 
     if cursor:
         plt.subplot(2, 3, 6)
@@ -343,8 +352,14 @@ def do_work(exp, subexp, folds=25, workers=4, cursor=None, do_slow_bit=False):
 def get_cmd_parser():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--slow', action='store_true', default=False,
-                        help='If set, will also do the very slow piece of analysis')
+    parser.add_argument('--qualitative', action='store_true', default=False)
+    parser.add_argument('--counts', action='store_true', default=False)
+    parser.add_argument('--basic-repl', action='store_true', default=False)
+    parser.add_argument('--class-pull', action='store_true', default=False)
+    parser.add_argument('--sim-corr', action='store_true', default=False)
+    parser.add_argument('--info', action='store_true', default=False)
+
+    parser.add_argument('--all', action='store_true', default=False)
     return parser
 
 
@@ -356,16 +371,25 @@ if __name__ == '__main__':
     logging.getLogger().addHandler(logging.StreamHandler())
 
     parameters = get_cmd_parser().parse_args()
+    if parameters.qualitative:
+        parameters.class_pull = True  # data from class_pull stage needed for qualitative study
+    if parameters.all:
+        for k, _ in parameters._get_kwargs():
+            parameters.__dict__[k] = True
+
     logging.info(parameters)
 
-    conn = get_susx_mysql_conn()
-    c = conn.cursor() if conn else None
+    if parameters.info:
+        conn = get_susx_mysql_conn()
+        c = conn.cursor() if conn else None
+    else:
+        c = None
 
-    # do_work(0, 0, folds=2, workers=2)
-    # do_work(1, 0, folds=2, workers=2, cursor=c)
-    for i in range(1, 45):
-        do_work(i, 5, folds=20, workers=20, cursor=c, do_slow_bit=parameters.slow)
-
-    for i in range(57, 63):
-        do_work(i, 5, folds=20, workers=20, cursor=c, do_slow_bit=parameters.slow)
+    do_work(parameters, 0, 0, folds=2, workers=2)
+    do_work(parameters, 1, 0, folds=2, workers=2, cursor=c)
+    # for i in range(1, 45):
+    #     do_work(i, 5, folds=20, workers=20, cursor=c)
+    #
+    # for i in range(57, 63):
+    #     do_work(i, 5, folds=20, workers=20, cursor=c)
 

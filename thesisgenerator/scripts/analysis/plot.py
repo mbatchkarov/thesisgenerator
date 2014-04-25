@@ -11,6 +11,8 @@ from .utils import class_pull_results_as_list
 #####################################################################
 
 def print_counts_data(counts_objects, title):
+    if not all(counts_objects):
+        return # did not collect any data
     logging.info('----------------------')
     logging.info('| %s time statistics:' % title)
     for field in counts_objects[0].__dict__:
