@@ -310,7 +310,7 @@ def do_work(params, exp, subexp, folds=25, workers=4, cursor=None):
         plt.subplot(2, 3, 4)
         coef, r2, r2adj = plot_regression_line(*class_pull_results_as_list(it_iv_replacement_scores))
         # Data currently rounded to 2 significant digits. Round to nearest int to make plot less cluttered
-        myrange = plot_dots(round_class_pull_to_given_precision(it_iv_replacement_scores))
+        myrange = plot_dots(*class_pull_results_as_list(round_class_pull_to_given_precision(it_iv_replacement_scores)))
         plt.title('y=%.2fx%+.2f; r2=%.2f(%.2f); w=%s--%s' % (coef[0], coef[1], r2, r2adj, myrange[0], myrange[1]))
 
     class_sims = list(chain.from_iterable(x.classificational_sims for x in all_data if x.classificational_sims))
@@ -337,8 +337,19 @@ def do_work(params, exp, subexp, folds=25, workers=4, cursor=None):
     else:
         # use the space for something else
         if params.class_pull:
+            plt.subplot(2, 3, 5)
             x, y, z = class_pull_results_as_list(it_iv_replacement_scores)
-            histogram_from_list(x, 5, 'Class association of decode-time feature (hist)', weights=z)
+            x1, y1, z1 = [], [], []
+            for xv, yv, zv in zip(x, y, z):
+                if not -4 < xv < 4:
+                    x1.append(xv)
+                    y1.append(yv)
+                    z1.append(zv)
+
+            coef, r2, r2adj = plot_regression_line(x1, y1, z1)
+            # Data currently rounded to 2 significant digits. Round to nearest int to make plot less cluttered
+            myrange = plot_dots(x1, y1, z1)
+            plt.title('y=%.2fx%+.2f; r2=%.2f(%.2f); w=%s--%s' % (coef[0], coef[1], r2, r2adj, myrange[0], myrange[1]))
 
     if cursor:
         plt.subplot(2, 3, 6)
@@ -385,11 +396,11 @@ if __name__ == '__main__':
     else:
         c = None
 
-    # do_work(parameters, 0, 0, folds=2, workers=2)
-    # do_work(parameters, 1, 0, folds=2, workers=2, cursor=c)
-    for i in range(1, 45):
-        do_work(i, 5, folds=20, workers=20, cursor=c)
-
-    for i in range(57, 63):
-        do_work(i, 5, folds=20, workers=20, cursor=c)
+    do_work(parameters, 0, 0, folds=2, workers=2)
+    do_work(parameters, 1, 0, folds=2, workers=2, cursor=c)
+    # for i in range(1, 45):
+    #     do_work(parameters, i, 5, folds=20, workers=20, cursor=c)
+    #
+    # for i in range(57, 63):
+    #     do_work(parameters, i, 5, folds=20, workers=20, cursor=c)
 

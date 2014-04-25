@@ -34,10 +34,9 @@ def histogram_from_list(l, subplot, title, weights=None):
         plt.title(title)
 
 
-def plot_dots(replacement_scores, minsize=10., maxsize=200., draw_axes=True,
+def plot_dots(x, y, thickness, minsize=10., maxsize=200., draw_axes=True,
               xlabel='Class association of decode-time feature',
               ylabel='Class association of replacements'):
-    x, y, thickness = class_pull_results_as_list(replacement_scores)
     z = np.array(thickness)
     range = min(z), max(z)
     if min(z) < minsize:
