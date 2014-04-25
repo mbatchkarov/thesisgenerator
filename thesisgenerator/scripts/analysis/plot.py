@@ -3,8 +3,8 @@ import numpy as np
 from collections import Counter
 import matplotlib.pyplot as plt
 import pandas as pd
-from sklearn.metrics import r2_score
 from .utils import class_pull_results_as_list
+import statsmodels.api as sm
 
 #####################################################################
 # FUNCTIONS THAT DISPLAY INFORMATION (PLOT OR LOG TO FILE)
@@ -56,8 +56,17 @@ def plot_dots(replacement_scores, minsize=10., maxsize=200., draw_axes=True,
 
 
 def plot_regression_line(x, y, weights):
-    coef = np.polyfit(x, y, 1, w=weights)
-    p = np.poly1d(coef)
-    xi = np.linspace(min(x), max(x))
-    plt.plot(xi, p(xi), 'r-')
-    return coef, r2_score(y, p(x)) # is this R2 score weighted?
+    # coef = np.polyfit(x, y, 1, w=weights)
+    # p = np.poly1d(coef)
+    # xs = np.linspace(min(x), max(x))
+    # plt.plot(xs, p(xs), 'r-')
+    # return coef, r2_score(y, p(x)) # is this R2 score weighted?
+
+    xs = np.linspace(min(x), max(x))
+    x1 = sm.add_constant(x)
+    model = sm.WLS(y, x1, weights=weights)
+    results = model.fit()
+    logging.info('Results of weighted linear regression: \n %s', results.summary())
+    coef = results.params[::-1] # statsmodels' linear equation is b+ax, numpy's is ax+b
+    plt.plot(xs, results.predict(sm.add_constant(xs)), 'r-')
+    return coef, results.rsquared, results.rsquared_adj

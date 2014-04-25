@@ -265,9 +265,9 @@ def extract_stats_for_a_single_fold(params, exp, subexp, cv_fold, thes_shelf):
 
 
 def do_work(params, exp, subexp, folds=25, workers=4, cursor=None):
-    logging.info('---------------------------------------------------')
+    logging.info('\n\n\n\n---------------------------------------------------')
     name = 'exp%d-%d' % (exp, subexp)
-    logging.info('Doing experiment %s', name)
+    logging.info('DOING EXPERIMENT %s', name)
 
     plt.figure(figsize=(11, 8), dpi=300)  # for A4 print
     plt.matplotlib.rcParams.update({'font.size': 8})
@@ -308,10 +308,10 @@ def do_work(params, exp, subexp, folds=25, workers=4, cursor=None):
         histogram_from_list(keys, 3, 'IT-OOV replacements- class associations', weights=values)
 
         plt.subplot(2, 3, 4)
-        coef, r2 = plot_regression_line(*class_pull_results_as_list(it_iv_replacement_scores))
+        coef, r2, r2adj = plot_regression_line(*class_pull_results_as_list(it_iv_replacement_scores))
         # Data currently rounded to 2 significant digits. Round to nearest int to make plot less cluttered
         myrange = plot_dots(round_class_pull_to_given_precision(it_iv_replacement_scores))
-        plt.title('y=%.2fx%+.2f; r2=%.2f; w=%s--%s' % (coef[0], coef[1], r2, myrange[0], myrange[1]))
+        plt.title('y=%.2fx%+.2f; r2=%.2f(%.2f); w=%s--%s' % (coef[0], coef[1], r2, r2adj, myrange[0], myrange[1]))
 
     class_sims = list(chain.from_iterable(x.classificational_sims for x in all_data if x.classificational_sims))
     dist_sims = list(chain.from_iterable(x.distributional_sims for x in all_data if x.distributional_sims))
@@ -385,11 +385,11 @@ if __name__ == '__main__':
     else:
         c = None
 
-    do_work(parameters, 0, 0, folds=2, workers=2)
-    do_work(parameters, 1, 0, folds=2, workers=2, cursor=c)
-    # for i in range(1, 45):
-    #     do_work(i, 5, folds=20, workers=20, cursor=c)
-    #
-    # for i in range(57, 63):
-    #     do_work(i, 5, folds=20, workers=20, cursor=c)
+    # do_work(parameters, 0, 0, folds=2, workers=2)
+    # do_work(parameters, 1, 0, folds=2, workers=2, cursor=c)
+    for i in range(1, 45):
+        do_work(i, 5, folds=20, workers=20, cursor=c)
+
+    for i in range(57, 63):
+        do_work(i, 5, folds=20, workers=20, cursor=c)
 
