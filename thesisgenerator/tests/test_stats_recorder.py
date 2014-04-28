@@ -22,10 +22,8 @@ def stats_file(request):
     vector_source = PrecomputedSimilaritiesVectorSource.from_file(
         thesaurus_files=['thesisgenerator/resources/exp0-0a.strings'])
     # exp1 is like exp0, but using Signified encoding
-    results = run_experiment(1, num_workers=1, predefined_sized=[3],
-                             prefix=prefix, vector_source=vector_source)
-    # results is a list of result triples, one per training data size
-    outfile, stats_objects = results[0]
+    run_experiment(1, num_workers=1, predefined_sized=[3],
+                   prefix=prefix, vector_source=vector_source)
 
     # setup goes like this:
     #   for each sample size K (here set to [3])
@@ -46,7 +44,9 @@ def stats_file(request):
             os.unlink(f)
 
     request.addfinalizer(fin)
-    return stats_objects[0].prefix
+
+    # prefix of all stats files that get produced
+    return 'stats-tests-exp1-0-cv0-ev'
 
 
 def test_coverage_statistics(stats_file):

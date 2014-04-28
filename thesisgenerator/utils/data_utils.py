@@ -140,6 +140,7 @@ def get_vector_source(conf, vector_source=None):
                     sim_threshold=conf['vector_sources']['sim_threshold'],
                     include_self=conf['vector_sources']['include_self'],
                     allow_lexical_overlap=conf['vector_sources']['allow_lexical_overlap'],
+                    max_neighbours=conf['vector_sources']['max_neighbours'],
                     row_filter=lambda x, y: y.type in entry_types_to_load
                 )
                 vector_source.th.to_shelf(filename)

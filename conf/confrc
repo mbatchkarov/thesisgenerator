@@ -70,6 +70,7 @@ test_data=string(default='')
 	dimensions = integer(default=1000) # if reduce_dimensionality, how many dimensions should the resultant vectors have
 	allow_lexical_overlap = boolean(default=True) # when a thesaurus is loaded from disk and this is set to true, neighbours that overlap lexically with the base entry will be removed. See unit test for spec.
     entry_types_to_load = list(default=list()) # when a thesaurus contain many types of entries, e.g. 1-GRAM, AN, NN, etc, which ones should be loaded. This can be used to reduce memory usage. If empty, all entries will be loaded.
+    max_neighbours = integer(default=99999999999999) # how many neighbours of each entry to keep in memory
     
 	[[thesisgenerator.composers.vectorstore.AdditiveComposer]]
 		run=boolean(default=False)
@@ -127,6 +128,7 @@ test_data=string(default='')
     	kernel=option('linear','rbf', 'poly')
 		C=float(default=50.)
     	gamma=float(default=0.01)
+    	probability=boolean()
 
 
     [[sklearn.svm.LinearSVC]]
