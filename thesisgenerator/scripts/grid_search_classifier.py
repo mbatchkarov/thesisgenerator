@@ -1,7 +1,10 @@
+import sys
+sys.path.append('.')
+sys.path.append('..')
+sys.path.append('../..')
 from pprint import pprint
 from sklearn.metrics import f1_score
 from sklearn.svm import SVC
-import sys
 from thesisgenerator.plugins.bov import ThesaurusVectorizer
 from thesisgenerator.utils.data_utils import load_text_data_into_memory, load_tokenizer, tokenize_data
 from sklearn.grid_search import GridSearchCV
