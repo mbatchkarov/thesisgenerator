@@ -137,8 +137,8 @@ def analyse_replacements_class_pull(df, flp, inv_voc):
 
     # ANALYSE CLASS-CONDITIONAL PROBABILITY OF REPLACEMENTS
     # this only works for binary classifiers and IV-IT features
-    ratio = flp[0, :] - flp[1, :]  # P(f|c0) / P(f|c1) in log space
-    # high positive value mean strong association with class 0, very negative means the opposite.
+    ratio = flp[:, 0] - flp[:, 1]  # P(f|c0) / P(f|c1) in log space (odds ratio?)
+    # value>>0  mean strong association with class A, <<0 means the opposite.
     # This is called "class pull" below
     scores = {feature: ratio[index] for index, feature in inv_voc.items()}
 
@@ -241,7 +241,7 @@ def extract_stats_for_a_single_fold(params, exp, subexp, cv_fold, thes_shelf):
     if params.counts:
         tr_counts = train_time_counts('statistics/stats-%s-cv%d-tr.tc.csv' % (name, cv_fold))
         ev_counts = decode_time_counts('statistics/stats-%s-cv%d-ev.tc.csv' % (name, cv_fold))
-    flp, inv_voc = load_classificational_vectors('statistics/stats-%s-cv%d-ev.pkl' % (name, cv_fold))
+    flp, inv_voc = load_classificational_vectors('statistics/stats-%s-cv%d-ev.SVC.pkl' % (name, cv_fold))
 
     if params.basic_repl or params.class_pull:
         paraphrases_file = 'statistics/stats-%s-cv%d-ev.par.csv' % (name, cv_fold)
@@ -337,7 +337,7 @@ def do_work(params, exp, subexp, folds=25, workers=4, cursor=None):
     else:
         # use the space for something else
         if params.class_pull:
-            plt.subplot(2, 3, 5)
+            # remove features with a low class pull and repeat analysis
             x, y, z = class_pull_results_as_list(it_iv_replacement_scores)
             x1, y1, z1 = [], [], []
             for xv, yv, zv in zip(x, y, z):
@@ -346,10 +346,13 @@ def do_work(params, exp, subexp, folds=25, workers=4, cursor=None):
                     y1.append(yv)
                     z1.append(zv)
 
-            coef, r2, r2adj = plot_regression_line(x1, y1, z1)
-            # Data currently rounded to 2 significant digits. Round to nearest int to make plot less cluttered
-            myrange = plot_dots(x1, y1, z1)
-            plt.title('y=%.2fx%+.2f; r2=%.2f(%.2f); w=%s--%s' % (coef[0], coef[1], r2, r2adj, myrange[0], myrange[1]))
+            if x1: # filtering may remove all features
+                plt.subplot(2, 3, 5)
+                coef, r2, r2adj = plot_regression_line(x1, y1, z1)
+                # Data currently rounded to 2 significant digits. Round to nearest int to make plot less cluttered
+                myrange = plot_dots(x1, y1, z1)
+                plt.title('y=%.2fx%+.2f; r2=%.2f(%.2f); w=%s--%s' % (coef[0], coef[1], r2,
+                                                                     r2adj, myrange[0], myrange[1]))
 
     if cursor:
         plt.subplot(2, 3, 6)
@@ -396,10 +399,10 @@ if __name__ == '__main__':
     else:
         c = None
 
-    do_work(parameters, 0, 0, folds=2, workers=2)
-    do_work(parameters, 1, 0, folds=2, workers=2, cursor=c)
-    # for i in range(1, 45):
-    #     do_work(parameters, i, 5, folds=20, workers=20, cursor=c)
+    do_work(parameters, 0, 0, folds=2, workers=1)
+    # do_work(parameters, 1, 0, folds=2, workers=2, cursor=c)
+    # for i in chain(range(6,12), [57,58,61]):
+    #     do_work(parameters, i, 5, folds=20, workers=6, cursor=c)
     #
     # for i in range(57, 63):
     #     do_work(parameters, i, 5, folds=20, workers=20, cursor=c)

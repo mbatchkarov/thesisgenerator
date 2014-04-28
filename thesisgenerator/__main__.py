@@ -30,6 +30,7 @@ from numpy.ma import hstack
 from sklearn import cross_validation
 from sklearn.pipeline import Pipeline
 
+from discoutils.misc import Bunch
 from thesisgenerator.composers.feature_selectors import MetadataStripper
 from thesisgenerator.utils.reflection_utils import get_named_object, get_intersection_of_parameters
 from thesisgenerator.utils.misc import ChainCallable
@@ -213,7 +214,7 @@ def _build_pipeline(cv_i, vector_source, feature_extr_conf, feature_sel_conf,
         fit_args['stripper__vector_source'] = vector_source
 
     if feature_extr_conf['record_stats']:
-        fit_args['vect__stats_hdf_file'] = 'stats-%s-cv%d'%(exp_name, cv_i)
+        fit_args['vect__stats_hdf_file'] = 'stats-%s-cv%d' % (exp_name, cv_i)
 
     pipeline = PicklingPipeline(pipeline_list, exp_name) if debug else Pipeline(pipeline_list)
     pipeline.set_params(**init_args)
@@ -258,13 +259,13 @@ def _cv_loop(configuration, cv_i, score_func, test_idx, train_idx, vector_source
         logging.info('Starting training of %s', clf)
         clf = clf.fit(matrix, y[train_idx])
         scores = score_func(y[test_idx], clf.predict(test_matrix))
-        #  score = dict(function -> value). Value is a float or np.array
 
-        if hasattr(clf, 'feature_log_prob_'):
-            # this is most likely a naive bayes classifier, store its parameters for analysis
+        if configuration['feature_extraction']['record_stats']:
             inv_voc = {index: feature for (feature, index) in pipeline.named_steps['vect'].vocabulary_.items()}
-            stats.nb_feature_log_prob = clf.feature_log_prob_
-            stats.nb_inv_voc = inv_voc
+            with open('%s.%s.pkl' % (stats.prefix, clf.__class__.__name__.split('.')[-1]), 'w') as outf:
+                logging.info('Pickling trained classifier to %s', outf.name)
+                b = Bunch(clf=clf, inv_voc=inv_voc)
+                pickle.dump(b, outf)
 
         for metric, score in scores.items():
             scores_this_cv_run.append(
@@ -273,7 +274,7 @@ def _cv_loop(configuration, cv_i, score_func, test_idx, train_idx, vector_source
                  metric.split('.')[-1],
                  score])
         logging.info('Done with %s', clf)
-    return scores_this_cv_run, stats
+    return scores_this_cv_run
 
 
 def _analyze(scores, output_dir, name):
@@ -408,23 +409,13 @@ def go(conf_file, log_dir, data, vector_source, classpath='', clean=False, n_job
     all_scores = []
     score_func = ChainCallable(config['evaluation'])
 
-    scores_and_stats = Parallel(n_jobs=n_jobs)(
+    scores_over_cv = Parallel(n_jobs=n_jobs)(
         delayed(_cv_loop)(config, i, score_func, test_idx, train_idx, vector_source, x_vals_seen, y_vals_seen)
         for i, (train_idx, test_idx) in enumerate(cv_iterator)
     )
-    scores_over_cv = [x[0] for x in scores_and_stats]
-    stats_over_cv = [x[1] for x in scores_and_stats]
     all_scores.extend([score for one_set_of_scores in scores_over_cv for score in one_set_of_scores])
-
-    # logging.info('Classifier scores are %s', all_scores)
-    if config['feature_extraction']['record_stats']:
-        for s in stats_over_cv:
-            with open('%s.pkl' % s.prefix, 'w') as outf:
-                logging.info('Saving NB parameters to %s', outf.name)
-                pickle.dump(s, outf)
-
     output_file = _analyze(all_scores, config['output_dir'], config['name'])
-    return output_file, stats_over_cv
+    return output_file
 
 
 if __name__ == '__main__':

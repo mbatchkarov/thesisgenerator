@@ -1,10 +1,11 @@
+from itertools import groupby
+from operator import itemgetter
+import pickle
+import numpy as np
+
 #####################################################################
 # UTILITY FUNCTIONS
 #####################################################################
-from itertools import groupby
-import logging
-from operator import itemgetter
-import pickle
 
 
 def class_pull_results_as_list(replacement_scores):
@@ -45,14 +46,13 @@ def round_class_pull_to_given_precision(scores, xprecision=0, yprecision=0):
 
 def load_classificational_vectors(pickle_file):
     with open(pickle_file) as infile:
-        stats = pickle.load(infile)
-    try:
-        flp = stats.nb_feature_log_prob
-        inv_voc = stats.nb_inv_voc
-        return flp, inv_voc
-    except AttributeError:
-        logging.warn('Classifier parameters unavailable')
-        return None, None
+        b = pickle.load(infile)
+
+    voc_size = len(b.inv_voc)
+    mat = np.zeros((voc_size, voc_size))
+    np.fill_diagonal(mat, 1)
+    probabilities = b.clf.predict_log_proba(mat)
+    return probabilities, b.inv_voc
 
 
 def get_experiment_info_string(cursor, exp_num, subexp_name):
