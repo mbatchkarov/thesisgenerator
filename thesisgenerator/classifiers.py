@@ -28,6 +28,7 @@ class MostCommonLabelClassifier(BaseEstimator):
     def fit(self, X, y):
         c = Counter(y)
         self.decision = c.most_common(1)[0][0]
+        return self
 
     def predict(self, X):
         return array([self.decision] * X.shape[0])
@@ -165,18 +166,23 @@ class PredefinedIndicesIterator(object):
 class SubsamplingPredefinedIndicesIterator(object):
     """
     A CV iterator that selects a stratified sample of all available training
-    documents, but returns all available test documents
+    documents, but returns all available test documents. Each sample contains the same ratio
+    of data points from each class as the full training set. This may occasionally result in sample size
+    that is slightly different that sample_size. E.g. if sample_size==5 and y_vals has the same number
+    of positives and negatives, one needs to sample 4 or 6 points to preserve the 1:1 ratio
     """
 
     def __init__(self, y_vals, train, test, num_samples, sample_size,
                  random_state=0):
         """
         Parameters:
-        y_vals - all targets, for both train and test set
-        train/test- indices of the train/test set
-        num_sample- how many CV runs to perform
-        sample_size- how large a sample to take from the test set
-        random_state- int or numpy.RandomState, as per scikit's docs
+        :param y_vals: - all targets, for both train and test set
+        :type y_vals: np.array
+        :param train:- indices of the train set
+        :param test:- indices of the test set
+        :param num_samples:- how many CV runs to perform
+        :param sample_size:- how large a sample to take from the test set
+        :param random_state:- int or numpy.RandomState, as per scikit's docs
         """
         self.y_vals = y_vals
         self.train = train
