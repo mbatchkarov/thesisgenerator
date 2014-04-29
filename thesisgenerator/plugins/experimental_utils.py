@@ -45,7 +45,7 @@ def run_experiment(expid, subexpid=None, num_workers=4,
     sizes = [500]
     if expid == 0:
         # exp0 is for debugging only, we don't have to do much
-        sizes = [500]  #range(10, 31, 10)
+        sizes = [5]  #range(10, 31, 10)
         num_workers = 1
 
     if predefined_sized:
