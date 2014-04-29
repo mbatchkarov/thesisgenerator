@@ -1,8 +1,9 @@
 import logging
 import os
-from discoutils.misc import ContainsEverything
-from joblib import Memory
 import random
+import numpy as np
+from joblib import Memory
+from discoutils.misc import ContainsEverything
 from sklearn.datasets import load_files
 from thesisgenerator.classifiers import NoopTransformer
 from thesisgenerator.composers.vectorstore import UnigramVectorSource, CompositeVectorSource, \
@@ -83,9 +84,8 @@ def _get_data_iterators(path, shuffle_targets=False):
     if shuffle_targets:
         logging.warn('RANDOMIZING TARGETS')
         random.shuffle(dataset.target)
-    targets_iterable = dataset.target
 
-    return data_iterable, targets_iterable
+    return data_iterable, np.array(dataset.target_names)[dataset.target]
 
 
 def get_vector_source(conf, vector_source=None):

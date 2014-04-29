@@ -248,16 +248,16 @@ def _cv_loop(configuration, cv_i, score_func, test_idx, train_idx, vector_source
     # code below is a simplified version of sklearn's _cross_val_score
     X = x_vals_seen
     y = y_vals_seen
-    X_train = [X[idx] for idx in train_idx]
-    X_test = [X[idx] for idx in test_idx]
-    # vectorize all data in advance, it's the same accross all classifiers
-    matrix = pipeline.fit_transform(X_train, y[train_idx], **fit_params)
-    test_matrix = pipeline.transform(X_test)
+    train_text = [X[idx] for idx in train_idx]
+    test_text = [X[idx] for idx in test_idx]
+    # vectorize all data in advance, it's the same across all classifiers
+    tr_matrix = pipeline.fit_transform(train_text, y[train_idx], **fit_params)
+    test_matrix = pipeline.transform(test_text)
     stats = pipeline.named_steps['vect'].stats
 
     for clf in _build_classifiers(configuration['classifiers']):
         logging.info('Starting training of %s', clf)
-        clf = clf.fit(matrix, y[train_idx])
+        clf = clf.fit(tr_matrix, y[train_idx])
         scores = score_func(y[test_idx], clf.predict(test_matrix))
 
         if configuration['feature_extraction']['record_stats']:
@@ -277,7 +277,7 @@ def _cv_loop(configuration, cv_i, score_func, test_idx, train_idx, vector_source
     return scores_this_cv_run
 
 
-def _analyze(scores, output_dir, name):
+def _analyze(scores, output_dir, name, class_names):
     """
     Stores a csv representation of the data set. Requires pandas
     """
@@ -295,7 +295,7 @@ def _analyze(scores, output_dir, name):
                 # todo verify the correct class id is inserted here
                 cleaned_scores.append([clf,
                                        run_no,
-                                       '%s-class%d' % (metric, id),
+                                       '%s-%s' % (metric, class_names[id]),
                                        val])
 
     # save raw results
@@ -414,7 +414,8 @@ def go(conf_file, log_dir, data, vector_source, classpath='', clean=False, n_job
         for i, (train_idx, test_idx) in enumerate(cv_iterator)
     )
     all_scores.extend([score for one_set_of_scores in scores_over_cv for score in one_set_of_scores])
-    output_file = _analyze(all_scores, config['output_dir'], config['name'])
+    class_names = dict(enumerate(sorted(set(y_vals_seen))))
+    output_file = _analyze(all_scores, config['output_dir'], config['name'], class_names)
     return output_file
 
 
@@ -443,7 +444,7 @@ if __name__ == '__main__':
 
     conf, configspec_file = parse_config_file(conf_file)
 
-    data, data_id = load_text_data_into_memory(conf['training_data'], conf['test_data'])
+    data, data_id, _ = load_text_data_into_memory(conf['training_data'], conf['test_data'])
     tokenizer = load_tokenizer(
         joblib_caching=conf['joblib_caching'],
         normalise_entities=conf['feature_extraction']['normalise_entities'],

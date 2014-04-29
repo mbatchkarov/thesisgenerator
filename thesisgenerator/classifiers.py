@@ -190,7 +190,9 @@ class SubsamplingPredefinedIndicesIterator(object):
         self.num_samples = num_samples
         self.sample_size = int(sample_size)
         self.rng = check_random_state(random_state)
-        self.counts = np.bincount(y_vals) / float(len(y_vals))
+        self.counts = Counter(y_vals)
+        for label, freq in self.counts.items():
+            self.counts[label] /= float(len(y_vals))
         logging.info('Will do %d runs, for each sampling %d documents from a training set of size %d',
                      self.num_samples,
                      self.sample_size,
@@ -200,7 +202,7 @@ class SubsamplingPredefinedIndicesIterator(object):
         for i in range(self.num_samples):
             ind_train = np.zeros((0,), dtype=np.int)
 
-            for label, proportion in enumerate(list(self.counts)):
+            for label, proportion in self.counts.items():
                 train_size = int(round(proportion * self.sample_size))
 
                 ind = np.nonzero(self.y_vals[self.train] == label)[0]
