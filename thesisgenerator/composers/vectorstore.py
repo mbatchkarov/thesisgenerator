@@ -52,7 +52,7 @@ class UnigramVectorSource(VectorSource):
             thesaurus_files=unigram_paths,
             sim_threshold=0,
             include_self=False,
-            aggressive_lowercasing=False)
+            lowercasing=False)
 
         # distributional features of each unigram in the loaded file
         self.feature_matrix, self.distrib_features_vocab, _ = thesaurus.to_sparse_matrix()

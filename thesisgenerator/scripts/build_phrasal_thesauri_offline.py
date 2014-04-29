@@ -363,7 +363,7 @@ def build_full_composed_thesauri_with_baroni_and_svd(corpus, features, stages, u
 
         if 'baroni' in stages:
             # do the actual training
-            thes = Thesaurus.from_tsv([all_reduced_vectors], aggressive_lowercasing=False)
+            thes = Thesaurus.from_tsv([all_reduced_vectors], lowercasing=False)
             thes.to_file(baroni_training_heads,
                          entry_filter=lambda x: x.type == '1-GRAM' and x.tokens[0].pos == 'N')
 

@@ -65,12 +65,12 @@ def do_work(corpus, features, svd_dims):
 
     # do the actual writing
     if svd_dims:
-        th = Thesaurus.from_tsv([observed_ngram_vectors_file], aggressive_lowercasing=False)
+        th = Thesaurus.from_tsv([observed_ngram_vectors_file], lowercasing=False)
     else:
         # th0 = Thesaurus.from_tsv([observed_unigram_vectors_file], aggressive_lowercasing=False)
         # th1 = Thesaurus.from_tsv([observed_ngram_vectors_file], aggressive_lowercasing=False)
         th = Thesaurus.from_tsv([observed_ngram_vectors_file, observed_unigram_vectors_file],
-                                aggressive_lowercasing=False)
+                                lowercasing=False)
 
     desired_counts_per_feature_type = [('N', 20000), ('V', 0), ('J', 10000), ('RB', 0), ('AN', 1e10), ('NN', 1e10)]
     mat, pos_tags, rows, cols = filter_out_infrequent_entries(desired_counts_per_feature_type, th)
