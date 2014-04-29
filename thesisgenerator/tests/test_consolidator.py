@@ -63,12 +63,12 @@ class TestConsolidator(TestCase):
         # the only feature of the test document of class 1 has only occurred
         # in class 0
         expected = (
-            ('precision_score-class0', (2. / 3, 0)),
-            ('precision_score-class1', (0, 0)),
-            ('recall_score-class0', (1, 0)),
-            ('recall_score-class1', (0, 0)),
-            ('f1_score-class0', (0.8, 0)),
-            ('f1_score-class1', (0, 0))
+            ('precision_score-earn', (2. / 3, 0)),
+            ('precision_score-not-earn', (0, 0)),
+            ('recall_score-earn', (1, 0)),
+            ('recall_score-not-earn', (0, 0)),
+            ('f1_score-earn', (0.8, 0)),
+            ('f1_score-not-earn', (0, 0))
         )
         # all std set to -1 to indicate only a single experiment was run
         # 0 may have suggested multiple experiments with identical results
@@ -77,9 +77,7 @@ class TestConsolidator(TestCase):
                   'metric = "{}";'.format(variable)
             cursor.execute(sql)
             res = cursor.fetchall()
-            logging.info('Testing that {} == {} ± {}'.format(variable,
-                                                             expected_value,
-                                                             exp_std))
+            logging.info('Testing that {} == {} ± {}'.format(variable, expected_value, exp_std))
             self.assertAlmostEqual(res[0][0], expected_value, 5)
             self.assertAlmostEqual(res[0][1], exp_std, 5)
 

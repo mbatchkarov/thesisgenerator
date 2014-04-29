@@ -1,4 +1,5 @@
 # coding=utf-8
+from collections import Counter
 import glob
 import os
 
@@ -99,11 +100,9 @@ class TestThesaurusVectorizer(TestCase):
         self.assertEqual(len(y_ev), 3)
         self.assertEqual(len(y_tr), 3)
 
-        # one doc of class 1 and two of class 0
+        # one doc of class not-earn and two of class earn
         for y in [y_tr, y_ev]:
-            self.assertEqual(y[0], 0)
-            self.assertEqual(y[1], 0)
-            self.assertEqual(y[2], 1)
+            self.assertDictEqual(Counter({'earn': 2, 'not-earn': 1}), Counter(y))
 
     def _vectorize_data(self, vector_source=None):
         # at this point self._load_data should have been called and as a result the fields
