@@ -4,12 +4,11 @@ import csv
 import glob
 import os
 import re
-
+import datetime
+import git
 import numpy
 from thesisgenerator.utils.conf_file_utils import parse_config_file
 
-
-__author__ = 'mmb28'
 
 """
 Goes through output and log files for a given experiment and collects
@@ -18,8 +17,7 @@ which may write it to a csv or to a database
 """
 
 
-def consolidate_results(writer, conf_dir, log_dir, output_dir,
-                        unknown_pos_stats_enabled=False):
+def consolidate_results(writer, conf_dir, output_dir):
     """
     Consolidates the results of a series of experiment and passes it on to a
     writer
@@ -28,67 +26,18 @@ def consolidate_results(writer, conf_dir, log_dir, output_dir,
     print 'Consolidating results from %s' % conf_dir
 
     experiments = glob.glob(os.path.join(conf_dir, '*.conf'))
-    unknown_pos_stats, found_pos_stats = {}, {}
     for conf_file in experiments:
         print 'Processing file %s' % conf_file
 
         config_obj, configspec_file = parse_config_file(conf_file)
 
         exp_name = config_obj['name']
-        ensure_vectors_exist = config_obj['feature_selection']['ensure_vectors_exist']
-        train_handler = config_obj['feature_extraction'][
-            'train_token_handler'].split('.')[-1]
-        decode_handler = config_obj['feature_extraction'][
-            'decode_token_handler'].split('.')[-1]
-        use_tfidf = config_obj['feature_extraction']['use_tfidf']
-
-        # find out thesaurus information
-        data_shape_x, data_shape_y = [], []
-        log_file = os.path.join(log_dir, '%s.log' % exp_name)
-
-        # todo this can consume loads of memory, should really scan the file a
-        # line at a time
-        with open(log_file) as infile:
-            log_txt = ''.join(infile.readlines())
-
-        sizes = re.findall('Data shape is (\(.*\))', log_txt)
-        sizes = [ast.literal_eval(x) for x in sizes]
-        # skip the information about the test set
-        sizes = numpy.array(sizes)[range(0, len(sizes), 2)]
-        for x in sizes:
-            data_shape_x.append(x[0])
-            data_shape_y.append(x[1])
-
-        if not data_shape_x:
-            # try the other way of getting the sample size
-            try:
-                x = re.findall('for each sampling (\d+) documents', log_txt)
-                data_shape_x.append(int(x[0]))
-            except Exception:
-                print "ERROR: that failed too, returning -1"
-                data_shape_x.append(-1)
-
-
-        # find out the name of the thesaurus(es) from the conf file
-        corpus, features, fef, pos = _infer_thesaurus_name(config_obj)
-
-        def my_mean(x):
-            return numpy.mean(x) if x else -1
-
-        def my_std(x):
-            return numpy.std(x) if x else -1
-
-        s = int(my_mean(data_shape_x))
-        if unknown_pos_stats_enabled:
-            unknown_pos_stats[s], found_pos_stats[s] = _pos_statistics(log_file)
+        cv_folds = config_obj['crossvalidation']['k']
+        sample_size = config_obj['crossvalidation']['sample_size']
 
         # find out the classifier score from the final csv file
         output_file = os.path.join(output_dir, '%s.out.csv' % exp_name)
-
-        import git
-
-        git_hash = git.Repo('.').head.commit.hexsha
-        import datetime
+        git_hash = git.Repo('.').head.commit.hexsha[:10]
 
         try:
             reader = csv.reader(open(output_file, 'r'))
@@ -102,22 +51,13 @@ def consolidate_results(writer, conf_dir, log_dir, output_dir,
                     git_hash,
                     datetime.datetime.now().isoformat(),
 
-                    # thesaurus information, if using exp0-0a naming format
-                    corpus,
-                    features,
-                    pos,
-                    fef,
-
                     # experiment settings
-                    int(my_mean(data_shape_x)),  #sample_size
+                    cv_folds,
+                    sample_size,  #sample_size
                     classifier,
                     # these need to be converted to a bool and then to an int
                     #  because mysql stores booleans as a tinyint and complains
                     #  if you pass in a python boolean
-                    int(ensure_vectors_exist),
-                    train_handler,
-                    decode_handler,
-                    int(use_tfidf),
 
                     # performance
                     metric,
@@ -126,59 +66,3 @@ def consolidate_results(writer, conf_dir, log_dir, output_dir,
         except IOError:
             print 'WARNING: %s is missing' % output_file
             continue  # file is missing
-
-        if unknown_pos_stats:
-            from pandas import DataFrame
-
-            df = DataFrame(unknown_pos_stats).T
-            df.to_csv('unknown_token_stats.csv')
-            df = DataFrame(found_pos_stats).T
-            df.to_csv('found_token_stats.csv')
-
-
-def _infer_thesaurus_name(config_obj):
-    thesauri = config_obj['vector_sources']['unigram_paths']
-
-    corpus, features, pos, fef = [], [], [], []
-    if thesauri:
-        for t in thesauri:
-            pattern = '.*exp(?P<corpus>\d+)-(?P<features>\d+)(?P<pos>[A-Za-z_]+)' \
-                      '(fef(?P<fef>\d+))?.*'
-            m = re.match(pattern, t)
-            try:
-                corpus.append(m.group('corpus'))
-                features.append(m.group('features'))
-                pos.append(m.group('pos'))
-                fef.append(m.group('fef') if m.group('fef') else '?')
-            except AttributeError:
-                # some of the named groups above are missing, try to find the name of the corpus
-                # this is a horrible stop-gap measure
-                if 'wiki' in t:
-                    corpus.append('wiki')
-                if 'giga' in t:
-                    corpus.append('giga')
-
-    return '_'.join(corpus), \
-           '_'.join(features), \
-           '_'.join(fef), \
-           '_'.join(pos)
-
-
-def _pos_statistics(input_file):
-    # todo this needs to be updated to IV/IT notation
-    regex1 = re.compile(".*Unknown token.*/(.*)")
-    regex2 = re.compile(".*Found thesaurus entry.*/(.*)")
-    unknown_pos, found_pos = [], []
-    with open(input_file) as infile:
-        for line in infile:
-            matches = regex1.findall(line)
-            if matches:
-                unknown_pos.append(matches[0])
-
-            matches = regex2.findall(line)
-            if matches:
-                found_pos.append(matches[0])
-
-    from collections import Counter
-
-    return Counter(unknown_pos), Counter(found_pos)

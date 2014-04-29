@@ -89,19 +89,10 @@ columns = [('id', 'INTEGER NOT NULL AUTO_INCREMENT'),
            ('git_hash', 'TEXT'),
            ('consolidation_date', 'TIMESTAMP'),
 
-           #  thesaurus information, if using exp0-0a.strings naming format
-           ('corpus', 'TEXT'),
-           ('features', 'TEXT'),
-           ('pos', 'TEXT'),
-           ('fef', 'TEXT'),
-
            # experiment settings
+           ('cv_folds', 'INTEGER'),
            ('sample_size', 'INTEGER'),
            ('classifier', 'TEXT'),
-           ('ensure_vectors_exist', 'BOOLEAN'),
-           ('train_token_handler', 'TEXT'),
-           ('decode_token_handler', 'TEXT'),
-           ('use_tfidf', 'BOOLEAN'),
 
            #  performance
            ('metric', 'TEXT'),
@@ -187,25 +178,21 @@ class ConsolidatedResultsSqlAndCsvWriter(object):
 
 def consolidate_single_experiment(prefix, expid):
     hostname = platform.node()
-    global output_dir, csv_out_fh, output_db_conn, writer
     output_dir = '%s/conf/exp%d/output/' % (prefix, expid)
     csv_out_fh = open(os.path.join(output_dir, "summary%d.csv" % expid), "w")
+    conf_dir = '%s/conf/exp%d/exp%d_base-variants' % (prefix, expid, expid)
     if not ('apollo' in hostname or 'node' in hostname):
         output_db_conn = get_susx_mysql_conn()
         writer = ConsolidatedResultsSqlAndCsvWriter(expid, csv_out_fh, output_db_conn)
     else:
         writer = ConsolidatedResultsCsvWriter(csv_out_fh)
-    consolidate_results(
-        writer,
-        '%s/conf/exp%d/exp%d_base-variants' % (prefix, expid, expid),
-        '%s/conf/exp%d/logs/' % (prefix, expid),
-        output_dir
-    )
+    consolidate_results(writer, conf_dir, output_dir )
 
 
 if __name__ == '__main__':
     # ----------- CONSOLIDATION -----------
 
     prefix = '/mnt/lustre/scratch/inf/mmb28/thesisgenerator'
-    for expid in range(80, 97):
+    # consolidate_single_experiment(prefix, 0)
+    for expid in range(97):
         consolidate_single_experiment(prefix, expid)

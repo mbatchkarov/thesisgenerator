@@ -53,26 +53,6 @@ class TestConsolidator(TestCase):
         cursor.execute('SELECT DISTINCT classifier from data0;')
         res = cursor.fetchall()
         self.assertEqual(len(res), 2)
-        #self.assertEqual(res[0][0], 'MultinomialNB')
-
-        expected = {
-            'corpus': '0',
-            'features': '0',
-            'pos': 'a',
-            'fef': '?',
-            'use_tfidf': 0,
-            'ensure_vectors_exist': 0,
-            'train_token_handler': 'BaseFeatureHandler',
-            # changing this to SignifierSignifiedFeatureHandler will not affect
-            #  the vector of the third test document, i.e. will not change
-            # performance
-            'decode_token_handler': 'SignifierSignifiedFeatureHandler'
-        }
-        for variable, expected_value in expected.items():
-            cursor.execute('SELECT DISTINCT %s from data0;' % variable)
-            res = cursor.fetchall()
-            print('Testing that {} == {}'.format(variable, expected_value))
-            self.assertEqual(res[0][0], expected_value)
 
         # values below copied from output file before consolidation, Naive Bayes
         # is not the ubject under test here
