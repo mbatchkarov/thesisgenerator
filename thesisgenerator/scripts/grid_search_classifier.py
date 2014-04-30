@@ -14,7 +14,7 @@ import numpy as np
 
 
 def scorer(estimator, X, y):
-    return f1_score(y, estimator.predict(X))
+    return f1_score(y, estimator.predict(X), average='macro', pos_label=None)
 
 
 def go(tr_path, ev_path):
