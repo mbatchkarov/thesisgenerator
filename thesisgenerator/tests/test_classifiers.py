@@ -1,4 +1,5 @@
 # coding=utf-8
+from collections import Counter
 from numpy import zeros
 from thesisgenerator.classifiers import MostCommonLabelClassifier, SubsamplingPredefinedIndicesIterator
 import numpy as np
@@ -28,8 +29,9 @@ def test_SubsamplingPredefinedIndicesIterator():
                 assert test == test_indices
                 assert len(train) == sample_size
                 assert all(x in train_indices for x in train)
+                counts = Counter(y_vals[train])
                 # equal number of positives and negatives in sample
-                assert np.bincount(y_vals[train_indices]).tolist() == [10, 10]
+                assert counts[0] == counts[1]
 
     it = SubsamplingPredefinedIndicesIterator(y_vals, train_indices, test_indices, 2, 5)
     for train, test in it:
