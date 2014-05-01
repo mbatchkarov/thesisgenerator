@@ -261,12 +261,16 @@ def _cv_loop(configuration, cv_i, score_func, test_idx, train_idx, vector_source
         predictions = clf.predict(test_matrix)
         scores = score_func(y[test_idx], predictions)
 
+        tr_set_scores = score_func(y[train_idx], clf.predict(tr_matrix))
+        logging.info('Training set scores: %r', tr_set_scores)
+
         if configuration['feature_extraction']['record_stats']:
             inv_voc = {index: feature for (feature, index) in pipeline.named_steps['vect'].vocabulary_.items()}
             with open('%s.%s.pkl' % (stats.prefix, clf.__class__.__name__.split('.')[-1]), 'w') as outf:
                 logging.info('Pickling trained classifier to %s', outf.name)
                 b = Bunch(clf=clf, inv_voc=inv_voc, tr_matrix=tr_matrix,
-                          test_matrix=test_matrix, predictions=predictions)
+                          test_matrix=test_matrix, predictions=predictions,
+                          y_tr=y[train_idx], y_ev=y[test_idx])
                 pickle.dump(b, outf)
 
         for metric, score in scores.items():

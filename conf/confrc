@@ -126,14 +126,15 @@ test_data=string(default='')
     [[sklearn.svm.SVC]]
     	run=boolean(default=False)
     	kernel=option('linear','rbf', 'poly')
-		C=float(default=50.)
-    	gamma=float(default=0.01)
+		C=float()
+    	gamma=float()
     	probability=boolean()
 
 
     [[sklearn.svm.LinearSVC]]
     	run=boolean(default=False)
-
+		C=float()
+		
 	[[thesisgenerator.classifiers.MostCommonLabelClassifier]]
 	    run=boolean(default=False)
 	    
