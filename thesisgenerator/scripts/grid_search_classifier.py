@@ -2,13 +2,11 @@ import sys
 sys.path.append('.')
 sys.path.append('..')
 sys.path.append('../..')
-from pprint import pprint
 from sklearn.metrics import f1_score
 from sklearn.svm import SVC
 from thesisgenerator.plugins.bov import ThesaurusVectorizer
 from thesisgenerator.utils.data_utils import load_text_data_into_memory, load_tokenizer, tokenize_data
 from sklearn.grid_search import GridSearchCV
-from sklearn.cross_validation import KFold
 import logging
 import numpy as np
 
@@ -31,12 +29,13 @@ def go(tr_path, ev_path):
         lemmatize=True,
         lowercase=True,
         remove_stopwords=True,
-        remove_short_words=False)
+        remove_short_words=False,
+        remove_long_words=True)
     x_tr, y_tr, x_ev, y_ev = tokenize_data(raw_data, tokenizer, data_ids)
 
     x_tr.extend(x_ev)
     y = np.hstack((y_tr, y_ev))
-    vect = ThesaurusVectorizer(min_df=1, ngram_range=(0, 0),
+    vect = ThesaurusVectorizer(min_df=1, ngram_range=(1, 1), unigram_feature_pos_tags=['N','J'],
                                extract_SVO_features=False, extract_VO_features=False)
     # grid search for best SVM parameters
     logging.info('vectorizing')
