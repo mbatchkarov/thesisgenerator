@@ -27,24 +27,33 @@ class Experiment():
                  labelled_name,
                  unlabelled_name, unlabelled_num,
                  thesaurus_features_name, thesaurus_features_num,
-                 document_features, svd):
+                 document_features, distrib_vector_dim):
         self.number = number
         self.composer_name = composer_name
         self.thesaurus_file = thesaurus_file
         self.labelled_name = labelled_name
-        self.unlabelled_name = unlabelled_name
-        self.unlabelled_num = unlabelled_num
-        self.thesaurus_features_name = thesaurus_features_name
-        self.thesaurus_features_num = thesaurus_features_num
-        self.svd = svd
         self.document_features = document_features
+
+        # todo this should really be moved to ExpLosion
+        if 'socher' in composer_name.lower():
+            self.unlabelled_name = '-'
+            self.unlabelled_num = '-'
+            self.thesaurus_features_name = '-'
+            self.thesaurus_features_num = '-'
+            self.distrib_vector_dim = 100
+        else:
+            self.unlabelled_name = unlabelled_name
+            self.unlabelled_num = unlabelled_num
+            self.thesaurus_features_name = thesaurus_features_name
+            self.thesaurus_features_num = thesaurus_features_num
+            self.distrib_vector_dim = distrib_vector_dim
 
     def __str__(self):
         # num: doc_feats, comp, handler, unlab, svd, lab, thes_feats
         return "'%s'" % ','.join([str(self.number),
                                   self.unlabelled_name,
                                   self.labelled_name,
-                                  str(self.svd),
+                                  str(self.distrib_vector_dim),
                                   self.composer_name,
                                   self.document_features,
                                   self.thesaurus_features_name])
@@ -191,7 +200,7 @@ for labelled_corpus in ['R2', 'MR']:
 exp_number += 2  # set aside 2 numbers for random-neighbour experiments. These are based on 87 and 96
 #  (because these are the smallest real thesauri and I have to load them due to silly code) and
 # include random_neighbour_thesaurus=True
-
+sys.exit(0)
 print 'Writing conf files'
 megasuperbase_conf_file = 'conf/exp1-superbase.conf'
 for exp in experiments:
