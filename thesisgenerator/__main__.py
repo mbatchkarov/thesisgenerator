@@ -214,7 +214,7 @@ def _build_pipeline(cv_i, vector_source, feature_extr_conf, feature_sel_conf,
         fit_args['stripper__vector_source'] = vector_source
 
     if feature_extr_conf['record_stats']:
-        fit_args['vect__stats_hdf_file'] = 'stats-%s-cv%d' % (exp_name, cv_i)
+        fit_args['vect__stats_hdf_file'] = 'statistics/stats-%s-cv%d' % (exp_name, cv_i)
 
     pipeline = PicklingPipeline(pipeline_list, exp_name) if debug else Pipeline(pipeline_list)
     pipeline.set_params(**init_args)
