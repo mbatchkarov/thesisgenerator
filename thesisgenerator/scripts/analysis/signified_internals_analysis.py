@@ -2,6 +2,7 @@ import argparse
 import os
 import shelve
 import sys
+from discoutils.misc import ContainsEverything
 
 sys.path.append('.')
 sys.path.append('..')
@@ -9,6 +10,7 @@ sys.path.append('../..')
 
 from discoutils.thesaurus_loader import Thesaurus
 from sklearn.metrics.pairwise import cosine_similarity
+from thesisgenerator.utils.data_utils import load_and_shelve_thesaurus
 from thesisgenerator.scripts.analysis.plot import *
 from thesisgenerator.scripts.analysis.utils import *
 from thesisgenerator.utils.conf_file_utils import parse_config_file
@@ -241,7 +243,7 @@ def extract_stats_for_a_single_fold(params, exp, subexp, cv_fold, thes_shelf):
     if params.counts:
         tr_counts = train_time_counts('statistics/stats-%s-cv%d-tr.tc.csv' % (name, cv_fold))
         ev_counts = decode_time_counts('statistics/stats-%s-cv%d-ev.tc.csv' % (name, cv_fold))
-    flp, inv_voc = load_classificational_vectors('statistics/stats-%s-cv%d-ev.SVC.pkl' % (name, cv_fold))
+    clf_vect, inv_voc = load_classificational_vectors('statistics/stats-%s-cv%d-ev.MultinomialNB.pkl' % (name, cv_fold))
 
     if params.basic_repl or params.class_pull:
         paraphrases_file = 'statistics/stats-%s-cv%d-ev.par.csv' % (name, cv_fold)
@@ -250,11 +252,11 @@ def extract_stats_for_a_single_fold(params, exp, subexp, cv_fold, thes_shelf):
             basic_para_stats = analyse_replacement_ranks_and_sims(paraphrases_df)
         if params.class_pull:
             class_pulls, it_iv_class_pulls, it_oov_class_pulls = analyse_replacements_class_pull(paraphrases_df,
-                                                                                                 flp, inv_voc)
+                                                                                                 clf_vect, inv_voc)
 
     if params.sim_corr:
         tmp_voc = {k: v.tokens_as_str() for k, v in inv_voc.items()}
-        class_sims, dist_sims = correlate_similarities(flp.T, tmp_voc,
+        class_sims, dist_sims = correlate_similarities(clf_vect, tmp_voc,
                                                        [x for x in tmp_voc.values() if x in paraphrases_df.index],
                                                        thes_shelf)
     if cv_fold == 0 and params.qualitative:
@@ -273,12 +275,13 @@ def do_work(params, exp, subexp, folds=25, workers=4, cursor=None):
     plt.matplotlib.rcParams.update({'font.size': 8})
 
     conf, configspec_file = parse_config_file('conf/exp{0}/exp{0}_base.conf'.format(exp))
-    thes_file = conf['vector_sources']['unigram_paths'][0]
-    filename = 'shelf%d' % hash(tuple([thes_file]))
-    if params.sim_corr:
-        if not os.path.exists(filename):
-            thes = Thesaurus.from_tsv([thes_file])
-            thes.to_shelf(filename)
+
+    filename = load_and_shelve_thesaurus(conf['vector_sources']['unigram_paths'],
+                                         conf['vector_sources']['sim_threshold'],
+                                         conf['vector_sources']['include_self'],
+                                         conf['vector_sources']['allow_lexical_overlap'],
+                                         conf['vector_sources']['max_neighbours'],
+                                         ContainsEverything())
 
     all_data = Parallel(n_jobs=workers)(
         delayed(extract_stats_for_a_single_fold)(params, exp, subexp, cv_fold, filename) for cv_fold in
@@ -346,7 +349,7 @@ def do_work(params, exp, subexp, folds=25, workers=4, cursor=None):
                     y1.append(yv)
                     z1.append(zv)
 
-            if x1: # filtering may remove all features
+            if x1:  # filtering may remove all features
                 plt.subplot(2, 3, 5)
                 coef, r2, r2adj = plot_regression_line(x1, y1, z1)
                 # Data currently rounded to 2 significant digits. Round to nearest int to make plot less cluttered
@@ -399,7 +402,7 @@ if __name__ == '__main__':
     else:
         c = None
 
-    do_work(parameters, 0, 0, folds=2, workers=1)
+    do_work(parameters, 0, 0, folds=2, workers=1, cursor=c)
     # do_work(parameters, 1, 0, folds=2, workers=2, cursor=c)
     # for i in chain(range(6,12), [57,58,61]):
     #     do_work(parameters, i, 5, folds=20, workers=6, cursor=c)

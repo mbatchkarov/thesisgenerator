@@ -1,4 +1,5 @@
 from itertools import groupby
+import logging
 from operator import itemgetter
 import pickle
 import numpy as np
@@ -64,6 +65,9 @@ def get_experiment_info_string(cursor, exp_num, subexp_name):
     cursor.execute(query)
     settings_data = cursor.fetchone()
     desc = cursor.description
+    if not settings_data:
+        logging.warn('Description of Experiment %d not found in database, using dummy values')
+        settings_data = '-' * len(desc)
     settings = {}
     for (key, value) in zip(desc, settings_data):
         settings[key[0]] = value

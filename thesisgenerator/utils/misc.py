@@ -1,6 +1,7 @@
 import inspect
 from configobj import ConfigObj
 from thesisgenerator.utils.reflection_utils import get_named_object
+import logging
 
 __author__ = 'mmb28'
 
@@ -15,13 +16,14 @@ def get_susx_mysql_conn():
     try:
         import MySQLdb as mdb
     except ImportError:
+        logging.warn('MySQLdb not installed')
         return None
 
     config = ConfigObj('thesisgenerator/db-credentials')
     if not config:
+        logging.warn('File thesisgenerator/db-credentials file not found. This is '
+                     'needed for a MySQL connection. Check your working directory.')
         return None
-        # thesisgenerator/db-credentials file not found. This is needed for a
-        # MySQL connection
 
     return mdb.connect(config['server'],
                        config['user'],
