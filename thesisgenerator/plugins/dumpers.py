@@ -191,7 +191,7 @@ def consolidate_single_experiment(prefix, expid):
 
 if __name__ == '__main__':
     # ----------- CONSOLIDATION -----------
-    logging.basicConfig(level=logging.INFO, format="%(message)s")
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s:\t%(message)s")
 
     prefix = '/mnt/lustre/scratch/inf/mmb28/thesisgenerator'
     # consolidate_single_experiment(prefix, 0)

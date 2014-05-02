@@ -384,7 +384,7 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO,
                         filename='figures/stats_output.txt',
                         filemode='w',
-                        format="%(message)s")
+                        format="%(levelname)s:\t%(message)s")
     logging.getLogger().addHandler(logging.StreamHandler())
 
     parameters = get_cmd_parser().parse_args()
@@ -402,11 +402,8 @@ if __name__ == '__main__':
     else:
         c = None
 
-    do_work(parameters, 0, 0, folds=2, workers=1, cursor=c)
-    # do_work(parameters, 1, 0, folds=2, workers=2, cursor=c)
-    # for i in chain(range(6,12), [57,58,61]):
-    #     do_work(parameters, i, 5, folds=20, workers=6, cursor=c)
-    #
-    # for i in range(57, 63):
-    #     do_work(parameters, i, 5, folds=20, workers=20, cursor=c)
+    # do_work(parameters, 0, 0, folds=2, workers=1, cursor=c)
+    do_work(parameters, 1, 0, folds=2, workers=2, cursor=c)
+    # for i in chain(range(1, 97)):
+    #     do_work(parameters, i, 0, folds=20, workers=20, cursor=c)
 

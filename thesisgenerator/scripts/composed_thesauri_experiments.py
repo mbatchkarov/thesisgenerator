@@ -200,7 +200,7 @@ for labelled_corpus in ['R2', 'MR']:
 exp_number += 2  # set aside 2 numbers for random-neighbour experiments. These are based on 87 and 96
 #  (because these are the smallest real thesauri and I have to load them due to silly code) and
 # include random_neighbour_thesaurus=True
-sys.exit(0)
+
 print 'Writing conf files'
 megasuperbase_conf_file = 'conf/exp1-superbase.conf'
 for exp in experiments:
