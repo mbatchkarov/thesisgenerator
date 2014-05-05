@@ -27,12 +27,14 @@ class Experiment():
                  labelled_name,
                  unlabelled_name, unlabelled_num,
                  thesaurus_features_name, thesaurus_features_num,
-                 document_features, distrib_vector_dim):
+                 document_features, distrib_vector_dim,
+                 baronified=False):
         self.number = number
         self.composer_name = composer_name
         self.thesaurus_file = thesaurus_file
         self.labelled_name = labelled_name
         self.document_features = document_features
+        self.baronified = baronified
 
         # todo this should really be moved to ExpLosion
         if 'socher' in composer_name.lower():
@@ -56,7 +58,8 @@ class Experiment():
                                   str(self.distrib_vector_dim),
                                   self.composer_name,
                                   self.document_features,
-                                  self.thesaurus_features_name])
+                                  self.thesaurus_features_name,
+                                  str(int(self.baronified))])
 
     def __repr__(self):
         return str(self)
@@ -192,7 +195,7 @@ for labelled_corpus in ['R2', 'MR']:
                       'AN_NN_{unlab_name}-{svd_dims}_{composer_name}.baronified.sims.neighbours.strings'
             thesaurus_file = pattern.format(**locals())
         e = Experiment(exp_number, composer_name, thesaurus_file, labelled_corpus, unlab_name, unlab_num,
-                       thesf_name, thesf_num, 'AN_NN', svd_dims)
+                       thesf_name, thesf_num, 'AN_NN', svd_dims, baronified=True)
         experiments.append(e)
         exp_number += 1
         print e, ','
