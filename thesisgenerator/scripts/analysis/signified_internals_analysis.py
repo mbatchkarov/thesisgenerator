@@ -118,7 +118,6 @@ def analyse_replacement_ranks_and_sims(df, thes_shelf):
             rank = [x[0] for x in thes[original]].index(replacement)
             res_ranks.extend([rank] * count)
 
-
     return ReplacementsResult(res_sims, res_ranks)
 
 
@@ -388,13 +387,13 @@ def get_cmd_parser():
 
 
 if __name__ == '__main__':
+    parameters = get_cmd_parser().parse_args()
     logging.basicConfig(level=logging.INFO,
-                        filename='figures/stats_output.txt',
+                        filename='figures/stats_output%d.txt' % parameters.experiment,
                         filemode='w',
                         format="%(levelname)s:\t%(message)s")
     logging.getLogger().addHandler(logging.StreamHandler())
 
-    parameters = get_cmd_parser().parse_args()
     if parameters.qualitative:
         parameters.class_pull = True  # data from class_pull stage needed for qualitative study
     if parameters.all:
