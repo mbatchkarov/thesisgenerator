@@ -61,7 +61,7 @@ def get_experiment_info_string(cursor, exp_num, subexp_name):
             'metric="macroavg_f1" AND classifier="MultinomialNB"' % (exp_num, subexp_name)
     cursor.execute(query)
     f1 = 'F1=%.2f+-%1.2f' % cursor.fetchall()[0]
-    query = "SELECT * FROM ExperimentDescriptions WHERE number=%d" % exp_num
+    query = "SELECT * FROM ExperimentDescriptions WHERE id=%d" % exp_num
     cursor.execute(query)
     settings_data = cursor.fetchone()
     desc = cursor.description
