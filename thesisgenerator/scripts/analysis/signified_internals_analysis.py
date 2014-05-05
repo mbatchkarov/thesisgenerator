@@ -115,8 +115,8 @@ def analyse_replacement_ranks_and_sims(df, thes_shelf):
         for original, replacement, sim, count in zip(df.index, replacements, sims, counts):
             if sim > 0:  # filter out NaN-s
                 res_sims.extend([sim] * count)
-            rank = [x[0] for x in thes[original]].index(replacement)
-            res_ranks.extend([rank] * count)
+                rank = [x[0] for x in thes[original]].index(replacement)
+                res_ranks.extend([rank] * count)
 
     return ReplacementsResult(res_sims, res_ranks)
 
