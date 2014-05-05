@@ -376,6 +376,8 @@ def get_cmd_parser():
     parser.add_argument('--sim-corr', action='store_true', default=False)
     parser.add_argument('--info', action='store_true', default=False)
 
+    parser.add_argument('--experiment', type=int, default=-1)
+
     parser.add_argument('--all', action='store_true', default=False)
     return parser
 
@@ -391,8 +393,9 @@ if __name__ == '__main__':
     if parameters.qualitative:
         parameters.class_pull = True  # data from class_pull stage needed for qualitative study
     if parameters.all:
-        for k, _ in parameters._get_kwargs():
-            parameters.__dict__[k] = True
+        for k, v in parameters._get_kwargs():
+            if v == False:
+                parameters.__dict__[k] = True
 
     logging.info(parameters)
 
@@ -402,8 +405,14 @@ if __name__ == '__main__':
     else:
         c = None
 
-    # do_work(parameters, 0, 0, folds=2, workers=1, cursor=c)
-    do_work(parameters, 1, 0, folds=2, workers=2, cursor=c)
-    # for i in chain(range(1, 97)):
-    #     do_work(parameters, i, 0, folds=20, workers=20, cursor=c)
+    if parameters.experiment < 0:
+        # do all experiments in order, all CV folds in parallel
+        logging.info('Analysing all experiments')
+        for i in chain(range(1, 97)):
+            do_work(parameters, i, 0, folds=20, workers=20, cursor=c)
+    else:
+        # do just one experiment, without any concurrency
+        logging.info('Analysing just one experiment: %d', v=parameters.experiment)
+        do_work(parameters, parameters.experiment, 0, folds=20, workers=1, cursor=c)
+        # do_work(parameters, 0, 0, folds=2, workers=1, cursor=c)
 
