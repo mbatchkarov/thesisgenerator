@@ -177,7 +177,6 @@ for doc_feature_type in ['AN', 'NN']:
                 print e, ','
                 exp_number += 1
 
-print '-----------'
 # do experiments with a reduced thesaurus entry sets, aka "Baronified"
 composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
                   RightmostWordComposer, BaroniComposer, Bunch(name='APDT'), Bunch(name='Socher')]
@@ -189,7 +188,8 @@ for labelled_corpus in ['R2', 'MR']:
         composer_name = composer_class.name
         if composer_name == 'Socher':
             thesaurus_file = os.path.join(prefix,
-                                          'socher_vectors/thesaurus_baronified/socher.baronified.sims.neighbours.strings')
+                                          'socher_vectors/thesaurus_baronified/socher.baronified.sims.neighbours'
+                                          '.strings')
         else:
             pattern = '{prefix}/exp{unlab_num}-{thesf_num}bAN_NN_{unlab_name}-{svd_dims}_{composer_name}_baronified/' \
                       'AN_NN_{unlab_name}-{svd_dims}_{composer_name}.baronified.sims.neighbours.strings'
@@ -200,18 +200,29 @@ for labelled_corpus in ['R2', 'MR']:
         exp_number += 1
         print e, ','
 
-exp_number += 2  # set aside 2 numbers for random-neighbour experiments. These are based on 87 and 96
+# set aside 2 numbers for random-neighbour experiments. These are based on 87 and 96
 #  (because these are the smallest real thesauri and I have to load them due to silly code) and
 # include random_neighbour_thesaurus=True
+print Experiment(exp_number, 'Random', None, 'R2', '-', None, '-', None, 'AN_NN', -1), ','
+exp_number += 1
+print Experiment(exp_number, 'Random', None, 'MR', '-', None, '-', None, 'AN_NN', -1), ','
+exp_number += 1
 
+# set aside 2 numbers for signifier experiments.
+print Experiment(exp_number, 'Signifier', None, 'R2', '-', None, '-', None, 'AN_NN', -1), ','
+exp_number += 1
+print Experiment(exp_number, 'Signifier', None, 'MR', '-', None, '-', None, 'AN_NN', -1), ','
+exp_number += 1
+
+sys.exit(0)
 print 'Writing conf files'
 megasuperbase_conf_file = 'conf/exp1-superbase.conf'
 for exp in experiments:
     # sanity check
     if os.path.exists(exp.thesaurus_file):
         print "last modified: %s" % time.ctime(os.path.getmtime(exp.thesaurus_file)), \
-            os.stat(exp.thesaurus_file).st_size >> 20,\
-            exp.thesaurus_file # size in MB
+            os.stat(exp.thesaurus_file).st_size >> 20, \
+            exp.thesaurus_file  # size in MB
     else:
         print 'MISSING THESAURUS:', exp.thesaurus_file
 
