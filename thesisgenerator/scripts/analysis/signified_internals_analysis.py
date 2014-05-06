@@ -102,19 +102,24 @@ def decode_time_counts(fname):
     )
 
 
-def analyse_replacement_ranks_and_sims(df):
+def analyse_replacement_ranks_and_sims(df, thes_shelf):
     # BASIC STATISTICS ABOUT REPLACEMENTS (RANK IN NEIGHBOURS LIST AND SIM OT ORIGINAL)
-    res = {}
-    for statistic in ['rank', 'sim']:
-        data = []
-        for i in range(1, 4):
-            values = df['replacement%d_%s' % (i, statistic)]
-            counts = df['count']
-            for value, count in zip(values, counts):
-                if value > 0:  # filter out NaN-s
-                    data.extend([value] * count)
-        res[statistic] = data
-    return ReplacementsResult(**res)
+    d = shelve.open(thes_shelf, flag='r')  # read only
+    thes = Thesaurus(d)
+
+    res_sims, res_ranks = [], []
+    for i in range(1, 4):
+        replacements = df['replacement%d' % i]
+        sims = df['replacement%d_sim' % i]
+        counts = df['count']
+        for original, replacement, sim, count in zip(df.index, replacements, sims, counts):
+            if sim > 0:  # filter out NaN-s
+                res_sims.extend([sim] * count)
+            rank = [x[0] for x in thes[original]].index(replacement)
+            res_ranks.extend([rank] * count)
+
+
+    return ReplacementsResult(res_sims, res_ranks)
 
 
 def get_replacements_df(paraphrases_file):
@@ -249,7 +254,7 @@ def extract_stats_for_a_single_fold(params, exp, subexp, cv_fold, thes_shelf):
         paraphrases_file = 'statistics/stats-%s-cv%d-ev.par.csv' % (name, cv_fold)
         paraphrases_df = get_replacements_df(paraphrases_file)
         if params.basic_repl:
-            basic_para_stats = analyse_replacement_ranks_and_sims(paraphrases_df)
+            basic_para_stats = analyse_replacement_ranks_and_sims(paraphrases_df, thes_shelf)
         if params.class_pull:
             class_pulls, it_iv_class_pulls, it_oov_class_pulls = analyse_replacements_class_pull(paraphrases_df,
                                                                                                  clf_vect, inv_voc)
@@ -413,6 +418,6 @@ if __name__ == '__main__':
     else:
         # do just one experiment, without any concurrency
         logging.info('Analysing just one experiment: %d', parameters.experiment)
-        do_work(parameters, parameters.experiment, 0, folds=20, workers=1, cursor=c)
-        # do_work(parameters, 0, 0, folds=2, workers=1, cursor=c)
+        # do_work(parameters, parameters.experiment, 0, folds=20, workers=1, cursor=c)
+        do_work(parameters, 0, 0, folds=2, workers=1, cursor=c)
 
