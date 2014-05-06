@@ -39,14 +39,14 @@ def stats_file(request):
     def fin():
         # remove the temp files produced by this test
         print 'finalizing test'
-        for f in glob('stats-tests-exp*'):
+        for f in glob('statistics/stats-tests-exp*'):
             print f
             os.unlink(f)
 
     request.addfinalizer(fin)
 
     # prefix of all stats files that get produced
-    return 'stats-tests-exp1-0-cv0-ev'
+    return 'statistics/stats-tests-exp1-0-cv0-ev'
 
 
 def test_coverage_statistics(stats_file):
