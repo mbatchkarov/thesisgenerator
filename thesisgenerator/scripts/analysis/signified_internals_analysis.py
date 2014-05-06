@@ -115,6 +115,14 @@ def analyse_replacement_ranks_and_sims(df, thes_shelf):
         for original, replacement, sim, count in zip(df.index, replacements, sims, counts):
             if sim > 0:  # filter out NaN-s
                 res_sims.extend([sim] * count)
+                # normally all original-s and their replacements will be in the provided thesaurus, i.e. a replacement
+                # event will only occur for IV-IT features
+                # For some baselines this is not the case:
+                # 1. Signifier baseline does not do any replacements. The paraphrases csv file will be empty and
+                # get_replacements_df will fail
+                # 2. The random-neighbour replacement may result in replacements for IV-OOT, which in turn causes
+                # a KeyError below
+                # Most of the analysis done by this script doesn't make sense in these special cases so it's OK to fail
                 rank = [x[0] for x in thes[original]].index(replacement)
                 res_ranks.extend([rank] * count)
 
@@ -270,7 +278,7 @@ def extract_stats_for_a_single_fold(params, exp, subexp, cv_fold, thes_shelf):
                                it_oov_class_pulls, class_sims, dist_sims)
 
 
-def do_work(params, exp, subexp, folds=25, workers=4, cursor=None):
+def do_work(params, exp, subexp, folds=20, workers=4, cursor=None):
     logging.info('\n\n\n\n---------------------------------------------------')
     name = 'exp%d-%d' % (exp, subexp)
     logging.info('DOING EXPERIMENT %s', name)
@@ -288,8 +296,7 @@ def do_work(params, exp, subexp, folds=25, workers=4, cursor=None):
                                          ContainsEverything())
 
     all_data = Parallel(n_jobs=workers)(
-        delayed(extract_stats_for_a_single_fold)(params, exp, subexp, cv_fold, filename) for cv_fold in
-        range(folds))
+        delayed(extract_stats_for_a_single_fold)(params, exp, subexp, cv_fold, filename) for cv_fold in range(folds))
 
     # COLLATE AND AVERAGE STATS OVER CROSSVALIDATION, THEN DISPLAY
     try:
