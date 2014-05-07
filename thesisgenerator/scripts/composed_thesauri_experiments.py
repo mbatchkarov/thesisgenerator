@@ -214,7 +214,7 @@ exp_number += 1
 print Experiment(exp_number, 'Signifier', None, 'MR', '-', None, '-', None, 'AN_NN', -1), ','
 exp_number += 1
 
-sys.exit(0)
+# sys.exit(0)
 print 'Writing conf files'
 megasuperbase_conf_file = 'conf/exp1-superbase.conf'
 for exp in experiments:
@@ -244,7 +244,7 @@ for exp in experiments:
     set_in_conf_file(base_conf_file, ['output_dir'], './conf/exp%d/output' % exp.number)
     set_in_conf_file(base_conf_file, ['name'], 'exp%d' % exp.number)
     set_in_conf_file(base_conf_file, ['training_data'], train_data)
-    set_in_conf_file(base_conf_file, ['test_data'], test_data)
+    # set_in_conf_file(base_conf_file, ['test_data'], test_data)
 
     requested_features = exp.document_features.split('_')
     for doc_feature_type in ['AN', 'NN', 'VO', 'SVO']:
