@@ -122,6 +122,7 @@ test_data=string(default='')
 
     [[sklearn.linear_model.LogisticRegression]]
 		run=boolean(default=False)
+		C=float()
 
     [[sklearn.svm.SVC]]
     	run=boolean(default=False)

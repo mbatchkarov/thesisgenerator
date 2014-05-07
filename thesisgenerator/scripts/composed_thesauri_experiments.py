@@ -234,11 +234,11 @@ for exp in experiments:
     # print base_conf_file, '\t\t', thes
     shutil.copy(megasuperbase_conf_file, base_conf_file)
     if exp.labelled_name == 'R2':
-        train_data = 'sample-data/reuters21578/r8train-tagged-grouped'
-        test_data = 'sample-data/reuters21578/r8test-tagged-grouped'
+        train_data = 'sample-data/reuters21578/r8-tagged-grouped'
+        # test_data = 'sample-data/reuters21578/r8test-tagged-grouped'
     else:
-        train_data = 'sample-data/movie-reviews-train-tagged'
-        test_data = 'sample-data/movie-reviews-test-tagged'
+        train_data = 'sample-data/movie-reviews-tagged'
+        # test_data = 'sample-data/movie-reviews-test-tagged'
 
     set_in_conf_file(base_conf_file, ['vector_sources', 'unigram_paths'], [exp.thesaurus_file])
     set_in_conf_file(base_conf_file, ['output_dir'], './conf/exp%d/output' % exp.number)

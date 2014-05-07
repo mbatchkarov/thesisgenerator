@@ -39,6 +39,8 @@ def load_text_data_into_memory(training_path, test_path=None, shuffle_targets=Fa
     if test_path:
         logging.info('Loading raw test set %s' % test_path)
         x_test, y_test = _get_data_iterators(test_path, shuffle_targets=shuffle_targets)
+    else:
+        x_test, y_test = None, None
     return (x_train, y_train, x_test, y_test), (training_path, test_path)
 
 
