@@ -26,7 +26,7 @@ def tokenize_data(data, tokenizer, corpus_ids):
     x_tr, y_tr, x_test, y_test = data
     #todo this logic needs to be moved to feature extractor
     x_tr = tokenizer.tokenize_corpus(x_tr, corpus_ids[0])
-    if x_test and y_test:
+    if x_test is not None and y_test is not None and corpus_ids[1] is not None:
         x_test = tokenizer.tokenize_corpus(x_test, corpus_ids[1])
     data = (x_tr, y_tr, x_test, y_test)
     return data
