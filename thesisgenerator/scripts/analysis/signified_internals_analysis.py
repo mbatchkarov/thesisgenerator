@@ -74,7 +74,6 @@ class StatsOverSingleFold(object):
 def train_time_counts(fname):
     # BASIC STATISTICS AT TRAINING TIME
     df = sum_up_token_counts(fname)
-    vocab = set(df.index.tolist())
     df_it = df[df['IT'] > 0]
     return TrainCount(df['count'].sum(),
                       df.shape[0],
@@ -131,11 +130,10 @@ def analyse_replacement_ranks_and_sims(df, thes_shelf):
 
 def get_replacements_df(paraphrases_file):
     df = pd.read_csv(paraphrases_file, sep=', ')
-    counts = df.groupby('feature').count().feature
-    assert counts.sum() == df.shape[0]  # no missing rows
+    counts = df.groupby('feature').count()
     df = df.drop_duplicates()
     df.set_index('feature', inplace=True)
-    df['count'] = counts
+    df['count'] = counts.available_replacements
     return df
 
 
@@ -248,30 +246,38 @@ def correlate_similarities(all_classificational_vectors, inv_voc, iv_it_terms, t
 
 
 def extract_stats_for_a_single_fold(params, exp, subexp, cv_fold, thes_shelf):
+    logging.info('Doing fold %d', cv_fold)
     name = 'exp%d-%d' % (exp, subexp)
     class_pulls, it_iv_class_pulls, it_oov_class_pulls, basic_para_stats, \
     tr_counts, ev_counts, class_sims, dist_sims = [None] * 8
 
     if params.counts:
+        logging.info('Counting')
         tr_counts = train_time_counts('statistics/stats-%s-cv%d-tr.tc.csv' % (name, cv_fold))
         ev_counts = decode_time_counts('statistics/stats-%s-cv%d-ev.tc.csv' % (name, cv_fold))
+    logging.info('Classificational vectors')
     clf_vect, inv_voc = load_classificational_vectors('statistics/stats-%s-cv%d-ev.MultinomialNB.pkl' % (name, cv_fold))
 
     if params.basic_repl or params.class_pull:
+        logging.info('Loading paraphrases from disk')
         paraphrases_file = 'statistics/stats-%s-cv%d-ev.par.csv' % (name, cv_fold)
         paraphrases_df = get_replacements_df(paraphrases_file)
         if params.basic_repl:
+            logging.info('Basic replacement stats')
             basic_para_stats = analyse_replacement_ranks_and_sims(paraphrases_df, thes_shelf)
         if params.class_pull:
+            logging.info('Class pull')
             class_pulls, it_iv_class_pulls, it_oov_class_pulls = analyse_replacements_class_pull(paraphrases_df,
                                                                                                  clf_vect, inv_voc)
 
     if params.sim_corr:
+        logging.info('Sim correlation')
         tmp_voc = {k: v.tokens_as_str() for k, v in inv_voc.items()}
         class_sims, dist_sims = correlate_similarities(clf_vect, tmp_voc,
                                                        [x for x in tmp_voc.values() if x in paraphrases_df.index],
                                                        thes_shelf)
     if cv_fold == 0 and params.qualitative:
+        logging.info('Qualitative study')
         qualitative_replacement_study(class_pulls, paraphrases_df)
 
     return StatsOverSingleFold(tr_counts, ev_counts, basic_para_stats, it_iv_class_pulls,
@@ -288,6 +294,7 @@ def do_work(params, exp, subexp, folds=20, workers=4, cursor=None):
 
     conf, configspec_file = parse_config_file('conf/exp{0}/exp{0}_base.conf'.format(exp))
 
+    logging.info('Preparing thesaurus')
     filename = load_and_shelve_thesaurus(conf['vector_sources']['unigram_paths'],
                                          conf['vector_sources']['sim_threshold'],
                                          conf['vector_sources']['include_self'],
@@ -298,6 +305,7 @@ def do_work(params, exp, subexp, folds=20, workers=4, cursor=None):
     all_data = Parallel(n_jobs=workers)(
         delayed(extract_stats_for_a_single_fold)(params, exp, subexp, cv_fold, filename) for cv_fold in range(folds))
 
+    logging.info('Finished all CV folds, collating')
     # COLLATE AND AVERAGE STATS OVER CROSSVALIDATION, THEN DISPLAY
     try:
         histogram_from_list(list(chain.from_iterable(x.paraphrase_stats.rank for x in all_data)),
@@ -375,6 +383,7 @@ def do_work(params, exp, subexp, folds=20, workers=4, cursor=None):
 
     plt.tight_layout()
     plt.savefig('figures/stats-%s.png' % name, format='png')
+    logging.info('Done all analysis')
 
 
 def get_cmd_parser():
@@ -398,7 +407,7 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO,
                         filename='figures/stats_output%d.txt' % parameters.experiment,
                         filemode='w',
-                        format="%(levelname)s:\t%(message)s")
+                        format="%(asctime)s %(levelname)s:\t%(message)s")
     logging.getLogger().addHandler(logging.StreamHandler())
 
     if parameters.qualitative:

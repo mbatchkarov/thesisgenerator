@@ -1,6 +1,8 @@
 import logging
 import os
 from thesisgenerator.utils.misc import noop
+import pandas as pd
+
 
 
 def sum_up_token_counts(hdf_file):
@@ -24,14 +26,12 @@ def sum_up_token_counts(hdf_file):
     :return:
     :rtype: pd.DataFrame
     """
-    import pandas as pd
-
     df = pd.read_csv(hdf_file, sep=', ')
-    counts = df.groupby('feature').count().feature
-    assert counts.sum() == df.shape[0]  # no missing rows
+    counts = df.groupby('feature').count()
+    assert counts.IV.sum() == counts.IT.sum() == df.shape[0]  # no missing rows
     df = df.drop_duplicates()
     df.set_index('feature', inplace=True)
-    df['count'] = counts
+    df['count'] = counts.IV
     return df
 
 
