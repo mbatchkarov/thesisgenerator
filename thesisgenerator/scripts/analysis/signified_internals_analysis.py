@@ -137,7 +137,7 @@ def get_replacements_df(paraphrases_file):
     return df
 
 
-def analyse_replacements_class_pull(df, flp, frequent_inv_voc, full_inv_voc):
+def analyse_replacements_class_pull(df, flp, frequent_inv_voc):
     def get_replacements(df, feature):
         for i in range(1, 4):
             repl_feature = df.ix[feature]['replacement%d' % i]
@@ -195,10 +195,12 @@ def analyse_replacements_class_pull(df, flp, frequent_inv_voc, full_inv_voc):
 def qualitative_replacement_study(class_pulls, repl_df):
     def print_scores_of_feature_and_replacements(features, scores, counts):
         for feature in features:
+            if feature not in class_pulls:
+                continue
             replacements = []
             for i in range(1, 4):
                 r = repl_df.ix[feature]['replacement%d' % i]
-                if r > 0:  # filter out NaN-s
+                if r > 0 and r in class_pulls:  # filter out NaN-s
                     replacements.append(r)
             replacements = [(f, round(scores[f], 2)) for f in replacements]
             logging.info(' | %s (score=%2.2f, count=%d) -> %r', feature,
@@ -268,7 +270,7 @@ def extract_stats_for_a_single_fold(params, exp, subexp, cv_fold, thes_shelf):
 
     logging.info('Classificational vectors')
     pkl_path = 'statistics/stats-%s-cv%d-ev.MultinomialNB.pkl' % (name, cv_fold)
-    clf_vect, frequent_inv_voc, full_inv_voc = load_classificational_vectors(pkl_path, params.min_freq)
+    clf_vect, frequent_inv_voc = load_classificational_vectors(pkl_path, params.min_freq)
 
     if params.basic_repl or params.class_pull:
         logging.info('Loading paraphrases from disk')
@@ -281,8 +283,7 @@ def extract_stats_for_a_single_fold(params, exp, subexp, cv_fold, thes_shelf):
             logging.info('Class pull')
             class_pulls, it_iv_class_pulls, it_oov_class_pulls = analyse_replacements_class_pull(paraphrases_df,
                                                                                                  clf_vect,
-                                                                                                 frequent_inv_voc,
-                                                                                                 full_inv_voc)
+                                                                                                 frequent_inv_voc)
 
     if params.sim_corr:
         logging.info('Sim correlation')
@@ -347,6 +348,9 @@ def do_work(params, exp, subexp, folds=20, workers=4, cursor=None):
         coef, r2, r2adj = plot_regression_line(*class_pull_results_as_list(it_iv_replacement_scores))
         # Data currently rounded to 2 significant digits. Round to nearest int to make plot less cluttered
         myrange = plot_dots(*class_pull_results_as_list(round_class_pull_to_given_precision(it_iv_replacement_scores)))
+        ax = plt.gca()
+        ax.set_ylim([-15, 15])
+        ax.set_xlim([-15, 15])
         plt.title('y=%.2fx%+.2f; r2=%.2f(%.2f); w=%s--%s' % (coef[0], coef[1], r2, r2adj, myrange[0], myrange[1]))
 
     class_sims = list(chain.from_iterable(x.classificational_sims for x in all_data if x.classificational_sims))
@@ -449,7 +453,7 @@ if __name__ == '__main__':
     else:
         # do just one experiment, without any concurrency
         logging.info('Analysing just one experiment: %d', parameters.experiment)
-        # do_work(parameters, parameters.experiment, 0, folds=20, workers=1, cursor=c)
-        # do_work(parameters, 0, 0, folds=4, workers=1, cursor=c)
-        do_work(parameters, 8, 0, folds=4, workers=1, cursor=c)
+        do_work(parameters, parameters.experiment, 0, folds=20, workers=2, cursor=c)
+        # do_work(parameters, 0, 0, folds=4, workers=1, cursor=None)
+        # do_work(parameters, 8, 0, folds=4, workers=1, cursor=None)
 
