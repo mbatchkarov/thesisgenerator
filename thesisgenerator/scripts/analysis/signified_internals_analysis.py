@@ -434,5 +434,5 @@ if __name__ == '__main__':
         # do just one experiment, without any concurrency
         logging.info('Analysing just one experiment: %d', parameters.experiment)
         do_work(parameters, parameters.experiment, 0, folds=20, workers=1, cursor=c)
-        # do_work(parameters, 0, 0, folds=2, workers=1, cursor=c)
+        # do_work(parameters, 0, 0, folds=4, workers=1, cursor=c)
 

@@ -3,6 +3,7 @@ import logging
 from operator import itemgetter
 import pickle
 import numpy as np
+import scipy.sparse as sp
 
 #####################################################################
 # UTILITY FUNCTIONS
@@ -50,9 +51,9 @@ def load_classificational_vectors(pickle_file):
         b = pickle.load(infile)
 
     voc_size = len(b.inv_voc)
-    mat = np.zeros((voc_size, voc_size))
-    np.fill_diagonal(mat, 1)
-    probabilities = b.clf.predict_log_proba(mat)
+    mat = sp.lil_matrix((voc_size, voc_size))
+    mat.setdiag(np.ones((voc_size,)))
+    probabilities = b.clf.predict_log_proba(mat.tocsr())
     return probabilities, b.inv_voc
 
 
