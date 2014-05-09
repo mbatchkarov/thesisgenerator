@@ -137,7 +137,7 @@ def get_replacements_df(paraphrases_file):
     return df
 
 
-def analyse_replacements_class_pull(df, flp, inv_voc):
+def analyse_replacements_class_pull(df, flp, frequent_inv_voc, full_inv_voc):
     def get_replacements(df, feature):
         for i in range(1, 4):
             repl_feature = df.ix[feature]['replacement%d' % i]
@@ -151,31 +151,41 @@ def analyse_replacements_class_pull(df, flp, inv_voc):
     # this only works for binary classifiers and IV-IT features
     ratio = flp[:, 0] - flp[:, 1]  # P(f|c0) / P(f|c1) in log space (odds ratio?)
     # value>>0  mean strong association with class A, <<0 means the opposite.
-    # This is called "class pull" below
-    scores = {feature: ratio[index] for index, feature in inv_voc.items()}
+    # This is called "class pull" below. This is only reliable for features the occur frequently
+    # in the training set
+    reliable_scores = {feature: ratio[index] for index, feature in frequent_inv_voc.items()}
 
     it_iv_replacement_scores = defaultdict(int)
     it_oov_replacement_scores = defaultdict(int)
-    for f in df.index:  # this contains all IT features, regardless of whether they were IV or IT
-        orig_score = scores.get(DocumentFeature.from_string(f), None)
+    for f in df.index:  # this contains all IT features, regardless of whether they were IV or IT, and
+        # their frequency in the training set
+        orig_score = reliable_scores.get(DocumentFeature.from_string(f), None)
         repl_count = df.ix[f]['count']
         if orig_score:
             # this is an IT, IV feature
             if repl_count > 0:
-                for replacement, repl_sim in get_replacements(df, f):
+                for replacement_str, repl_sim in get_replacements(df, f):
                     if repl_sim > 0:
                         # -1 signifies no replacement has been found
-                        repl_score = repl_sim * scores[DocumentFeature.from_string(replacement)]
+                        repl_doc_feat = DocumentFeature.from_string(replacement_str)
+                        if repl_doc_feat not in reliable_scores:
+                            continue
+                        repl_score = repl_sim * reliable_scores[repl_doc_feat]
                         it_iv_replacement_scores[(round(orig_score, 2), round(repl_score, 2))] += repl_count
         else:
             # this decode-time feature is IT, but OOV => we don't know it class conditional probs.
             # at least we know the class-cond probability of its replacements (because they must be IV)
-            for replacement, repl_sim in get_replacements(df, f):
+            for replacement_str, repl_sim in get_replacements(df, f):
                 if repl_sim > 0:
-                    repl_score = repl_sim * scores[DocumentFeature.from_string(replacement)]
+                    repl_doc_feat = DocumentFeature.from_string(replacement_str)
+                    if repl_doc_feat not in reliable_scores:
+                        continue
+                    repl_score = repl_sim * reliable_scores[repl_doc_feat]
                     it_oov_replacement_scores[round(repl_score, 2)] += repl_count
 
-    return scores, it_iv_replacement_scores, it_oov_replacement_scores
+    if len(it_iv_replacement_scores) < 2:
+        raise ValueError('Too little data points to scatter. Need at least 2, got %d', len(it_iv_replacement_scores))
+    return reliable_scores, it_iv_replacement_scores, it_oov_replacement_scores
 
 
 #####################################################################
@@ -255,8 +265,10 @@ def extract_stats_for_a_single_fold(params, exp, subexp, cv_fold, thes_shelf):
         logging.info('Counting')
         tr_counts = train_time_counts('statistics/stats-%s-cv%d-tr.tc.csv' % (name, cv_fold))
         ev_counts = decode_time_counts('statistics/stats-%s-cv%d-ev.tc.csv' % (name, cv_fold))
+
     logging.info('Classificational vectors')
-    clf_vect, inv_voc = load_classificational_vectors('statistics/stats-%s-cv%d-ev.MultinomialNB.pkl' % (name, cv_fold))
+    pkl_path = 'statistics/stats-%s-cv%d-ev.MultinomialNB.pkl' % (name, cv_fold)
+    clf_vect, frequent_inv_voc, full_inv_voc = load_classificational_vectors(pkl_path, params.min_freq)
 
     if params.basic_repl or params.class_pull:
         logging.info('Loading paraphrases from disk')
@@ -268,11 +280,13 @@ def extract_stats_for_a_single_fold(params, exp, subexp, cv_fold, thes_shelf):
         if params.class_pull:
             logging.info('Class pull')
             class_pulls, it_iv_class_pulls, it_oov_class_pulls = analyse_replacements_class_pull(paraphrases_df,
-                                                                                                 clf_vect, inv_voc)
+                                                                                                 clf_vect,
+                                                                                                 frequent_inv_voc,
+                                                                                                 full_inv_voc)
 
     if params.sim_corr:
         logging.info('Sim correlation')
-        tmp_voc = {k: v.tokens_as_str() for k, v in inv_voc.items()}
+        tmp_voc = {k: v.tokens_as_str() for k, v in frequent_inv_voc.items()}
         class_sims, dist_sims = correlate_similarities(clf_vect, tmp_voc,
                                                        [x for x in tmp_voc.values() if x in paraphrases_df.index],
                                                        thes_shelf)
@@ -357,24 +371,25 @@ def do_work(params, exp, subexp, folds=20, workers=4, cursor=None):
         logging.info('Peason without zeroes (%d data points left): %r', len(x1), pearsonr(x1, y1))
         logging.info('Spearman without zeroes: %r', spearmanr(x1, y1))
     else:
-        # use the space for something else
-        if params.class_pull:
-            # remove features with a low class pull and repeat analysis
-            x, y, z = class_pull_results_as_list(it_iv_replacement_scores)
-            x1, y1, z1 = [], [], []
-            for xv, yv, zv in zip(x, y, z):
-                if not -4 < xv < 4:
-                    x1.append(xv)
-                    y1.append(yv)
-                    z1.append(zv)
-
-            if x1:  # filtering may remove all features
-                plt.subplot(2, 3, 5)
-                coef, r2, r2adj = plot_regression_line(x1, y1, z1)
-                # Data currently rounded to 2 significant digits. Round to nearest int to make plot less cluttered
-                myrange = plot_dots(x1, y1, z1)
-                plt.title('y=%.2fx%+.2f; r2=%.2f(%.2f); w=%s--%s' % (coef[0], coef[1], r2,
-                                                                     r2adj, myrange[0], myrange[1]))
+        pass
+        # # use the space for something else
+        # if params.class_pull:
+        #     # remove features with a low class pull and repeat analysis
+        #     x, y, z = class_pull_results_as_list(it_iv_replacement_scores)
+        #     x1, y1, z1 = [], [], []
+        #     for xv, yv, zv in zip(x, y, z):
+        #         if not -4 < xv < 4:
+        #             x1.append(xv)
+        #             y1.append(yv)
+        #             z1.append(zv)
+        #
+        #     if x1:  # filtering may remove all features
+        #         plt.subplot(2, 3, 5)
+        #         coef, r2, r2adj = plot_regression_line(x1, y1, z1)
+        #         # Data currently rounded to 2 significant digits. Round to nearest int to make plot less cluttered
+        #         myrange = plot_dots(x1, y1, z1)
+        #         plt.title('y=%.2fx%+.2f; r2=%.2f(%.2f); w=%s--%s' % (coef[0], coef[1], r2,
+        #                                                              r2adj, myrange[0], myrange[1]))
 
     if cursor:
         plt.subplot(2, 3, 6)
@@ -397,6 +412,7 @@ def get_cmd_parser():
     parser.add_argument('--info', action='store_true', default=False)
 
     parser.add_argument('--experiment', type=int, default=-1)
+    parser.add_argument('--min-freq', type=int, default=0)
 
     parser.add_argument('--all', action='store_true', default=False)
     return parser
@@ -433,6 +449,7 @@ if __name__ == '__main__':
     else:
         # do just one experiment, without any concurrency
         logging.info('Analysing just one experiment: %d', parameters.experiment)
-        do_work(parameters, parameters.experiment, 0, folds=20, workers=1, cursor=c)
+        # do_work(parameters, parameters.experiment, 0, folds=20, workers=1, cursor=c)
         # do_work(parameters, 0, 0, folds=4, workers=1, cursor=c)
+        do_work(parameters, 8, 0, folds=4, workers=1, cursor=c)
 

@@ -46,15 +46,21 @@ def round_class_pull_to_given_precision(scores, xprecision=0, yprecision=0):
     return rounded_scores
 
 
-def load_classificational_vectors(pickle_file):
+def load_classificational_vectors(pickle_file, min_freq):
     with open(pickle_file) as infile:
         b = pickle.load(infile)
+
+    feature_counts_in_tr_set = np.array(b.tr_matrix.sum(axis=0)).ravel()
+    idx_to_keep = np.where(feature_counts_in_tr_set > min_freq)[0]
 
     voc_size = len(b.inv_voc)
     mat = sp.lil_matrix((voc_size, voc_size))
     mat.setdiag(np.ones((voc_size,)))
     probabilities = b.clf.predict_log_proba(mat.tocsr())
-    return probabilities, b.inv_voc
+
+    logging.info('%d/%d features are frequent enough in train set for their classificational vectors '
+                 'to be considered reliable. Threshold = %d', len(idx_to_keep), len(b.inv_voc), min_freq)
+    return probabilities[idx_to_keep, :], {i: b.inv_voc[idx] for i, idx in enumerate(idx_to_keep)}, b.inv_voc
 
 
 def get_experiment_info_string(cursor, exp_num, subexp_name):
