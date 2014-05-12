@@ -48,7 +48,7 @@ class ReplacementsResult(object):
 
 class StatsOverSingleFold(object):
     def __init__(self, train_counts, decode_counts, paraphrase_stats, it_iv_class_pull, it_oov_class_pull,
-                 classificational_sims, distributional_sims):
+                 classificational_and_dist_sims):
         """
 
         :type train_counts: TrainCount
@@ -64,8 +64,7 @@ class StatsOverSingleFold(object):
         self.paraphrase_stats = paraphrase_stats
         self.it_iv_class_pull = it_iv_class_pull
         self.it_oov_class_pull = it_oov_class_pull
-        self.classificational_sims = classificational_sims
-        self.distributional_sims = distributional_sims
+        self.classificational_and_dist_sims = classificational_and_dist_sims
 
 
 ######################################################
@@ -134,7 +133,7 @@ def get_replacements_df(paraphrases_file):
     return df
 
 
-def calculate_class_pull(flp, frequent_inv_voc):
+def get_class_pull(flp, frequent_inv_voc):
     # ANALYSE CLASS-CONDITIONAL PROBABILITY OF REPLACEMENTS
     # this only works for binary classifiers and IV-IT features
     ratio = flp[:, 0] - flp[:, 1]  # P(f|c0) / P(f|c1) in log space (odds ratio?)
@@ -237,7 +236,7 @@ def correlate_similarities(reliable_classificational_vectors, inv_voc, iv_it_ter
     cl_thes = cosine_similarity(classificational_vectors)
     logging.info('Correlating dist and clf sim of %d features that are both IV and IT', len(iv_it_voc))
 
-    dist_sims, class_sims = [], []
+    result = dict()
     for first, second in combinations(iv_it_voc.keys(), 2):
         dist_sim, class_sim = 0, 0
         # when first and second are not neighbours in the thesaurus set their sim to 0
@@ -247,18 +246,17 @@ def correlate_similarities(reliable_classificational_vectors, inv_voc, iv_it_ter
             if neigh == second:
                 dist_sim = sim
 
-        class_sims.append(cl_thes[iv_it_voc[first], iv_it_voc[second]])
-        dist_sims.append(dist_sim)
-    if len(class_sims) != len(dist_sims):
-        raise ValueError
-    return class_sims, dist_sims
+        class_sim = cl_thes[iv_it_voc[first], iv_it_voc[second]]
+        dist_sim = dist_sim
+        result[tuple(sorted([first, second]))] = (class_sim, dist_sim)
+    return result
 
 
 def get_stats_for_a_single_fold(params, exp, subexp, cv_fold, thes_shelf):
     logging.info('Doing fold %d', cv_fold)
     name = 'exp%d-%d' % (exp, subexp)
     class_pulls, it_iv_class_pulls, it_oov_class_pulls, basic_para_stats, \
-    tr_counts, ev_counts, class_sims, dist_sims = [None] * 8
+    tr_counts, ev_counts, class_and_dist_sims = [None] * 7
 
     if params.counts:
         logging.info('Counting')
@@ -281,22 +279,22 @@ def get_stats_for_a_single_fold(params, exp, subexp, cv_fold, thes_shelf):
             basic_para_stats = analyse_replacement_ranks_and_sims(paraphrases_df, thes)
         if params.class_pull:
             logging.info('Class pull')
-            reliable_scores = calculate_class_pull(reliable_clf_vect, reliable_inv_voc)
+            reliable_scores = get_class_pull(reliable_clf_vect, reliable_inv_voc)
             reliable_scores = {k.tokens_as_str(): v for k, v in reliable_scores.iteritems()}
             it_iv_class_pulls, it_oov_class_pulls = analyse_replacements_class_pull(reliable_scores, full_inv_voc, thes)
 
     if params.sim_corr:
         logging.info('Sim correlation')
         reliable_inv_voc = {k: v.tokens_as_str() for k, v in reliable_inv_voc.items()}
-        class_sims, dist_sims = correlate_similarities(reliable_clf_vect, reliable_inv_voc,
-                                                       [x for x in reliable_inv_voc.values() if x in thes],
-                                                       thes)
+        class_and_dist_sims = correlate_similarities(reliable_clf_vect, reliable_inv_voc,
+                                                     [x for x in reliable_inv_voc.values() if x in thes],
+                                                     thes)
     if cv_fold == 0 and params.qualitative:
         logging.info('Qualitative study')
         qualitative_replacement_study(reliable_scores, paraphrases_df)
 
     return StatsOverSingleFold(tr_counts, ev_counts, basic_para_stats, it_iv_class_pulls,
-                               it_oov_class_pulls, class_sims, dist_sims)
+                               it_oov_class_pulls, class_and_dist_sims)
 
 
 def do_work(params, exp, subexp, folds=20, workers=4, cursor=None):
@@ -355,8 +353,15 @@ def do_work(params, exp, subexp, folds=20, workers=4, cursor=None):
         # ax.set_xlim([-15, 15])
         plt.title('y=%.2fx%+.2f; r2=%.2f(%.2f); w=%s--%s' % (coef[0], coef[1], r2, r2adj, myrange[0], myrange[1]))
 
-    class_sims = list(chain.from_iterable(x.classificational_sims for x in all_data if x.classificational_sims))
-    dist_sims = list(chain.from_iterable(x.distributional_sims for x in all_data if x.distributional_sims))
+    class_sims = defaultdict(list)
+    dist_sims = defaultdict(list)
+    for x in all_data:
+        for k, v in x.classificational_and_dist_sims.items():
+            class_sims[k].append(v[0])
+            dist_sims[k].append(v[1])
+
+    class_sims = [np.mean(class_sims[k]) for k in sorted(class_sims.keys())]
+    dist_sims = [np.mean(dist_sims[k]) for k in sorted(dist_sims.keys())]
     if class_sims and dist_sims:
         plt.subplot(2, 3, 5)
         plt.scatter(class_sims, dist_sims)
@@ -461,7 +466,7 @@ if __name__ == '__main__':
     else:
         # do just one experiment, without any concurrency
         logging.info('Analysing just one experiment: %d', parameters.experiment)
-        do_work(parameters, parameters.experiment, 0, folds=20, workers=2, cursor=c)
-        # do_work(parameters, 0, 0, folds=2, workers=1, cursor=None)
+        # do_work(parameters, parameters.experiment, 0, folds=20, workers=2, cursor=c)
+        do_work(parameters, 0, 0, folds=2, workers=1, cursor=None)
         # do_work(parameters, 8, 0, folds=4, workers=1, cursor=None)
 
