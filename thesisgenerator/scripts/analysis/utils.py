@@ -64,7 +64,7 @@ def load_classificational_vectors(pickle_file, min_freq):
 
     logging.info('%d/%d features are frequent enough in train set for their classificational vectors '
                  'to be considered reliable. Threshold = %d', sum(mask_to_keep), len(b.inv_voc), min_freq)
-    return probabilities[mask_to_keep, :], foo
+    return probabilities[mask_to_keep, :], foo, b.inv_voc
 
 
 def get_experiment_info_string(cursor, exp_num, subexp_name):

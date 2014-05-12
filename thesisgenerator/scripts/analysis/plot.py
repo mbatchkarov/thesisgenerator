@@ -12,7 +12,7 @@ import statsmodels.api as sm
 
 def print_counts_data(counts_objects, title):
     if not all(counts_objects):
-        return # did not collect any data
+        return  # did not collect any data
     logging.info('----------------------')
     logging.info('| %s time statistics:' % title)
     for field in counts_objects[0].__dict__:
@@ -54,18 +54,21 @@ def plot_dots(x, y, thickness, minsize=10., maxsize=200., draw_axes=True,
     return range
 
 
-def plot_regression_line(x, y, weights):
+def plot_regression_line(x, y, weights=None):
     # coef = np.polyfit(x, y, 1, w=weights)
     # p = np.poly1d(coef)
     # xs = np.linspace(min(x), max(x))
     # plt.plot(xs, p(xs), 'r-')
     # return coef, r2_score(y, p(x)) # is this R2 score weighted?
 
+    assert len(x) == len(y)
+    if not weights:
+        weights = [1] * len(x)
     xs = np.linspace(min(x), max(x))
     x1 = sm.add_constant(x)
     model = sm.WLS(y, x1, weights=weights)
     results = model.fit()
     logging.info('Results of weighted linear regression: \n %s', results.summary())
-    coef = results.params[::-1] # statsmodels' linear equation is b+ax, numpy's is ax+b
+    coef = results.params[::-1]  # statsmodels' linear equation is b+ax, numpy's is ax+b
     plt.plot(xs, results.predict(sm.add_constant(xs)), 'r-')
     return coef, results.rsquared, results.rsquared_adj

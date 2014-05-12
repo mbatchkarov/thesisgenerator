@@ -101,11 +101,8 @@ def decode_time_counts(fname):
     )
 
 
-def analyse_replacement_ranks_and_sims(df, thes_shelf):
+def analyse_replacement_ranks_and_sims(df, thes):
     # BASIC STATISTICS ABOUT REPLACEMENTS (RANK IN NEIGHBOURS LIST AND SIM OT ORIGINAL)
-    d = shelve.open(thes_shelf, flag='r')  # read only
-    thes = Thesaurus(d)
-
     res_sims, res_ranks = [], []
     for i in range(1, 4):
         replacements = df['replacement%d' % i]
@@ -137,16 +134,7 @@ def get_replacements_df(paraphrases_file):
     return df
 
 
-def analyse_replacements_class_pull(df, flp, frequent_inv_voc):
-    def get_replacements(df, feature):
-        for i in range(1, 4):
-            repl_feature = df.ix[feature]['replacement%d' % i]
-            repl_sim = df.ix[feature]['replacement%d_sim' % i]
-            if repl_sim > 0:
-                yield repl_feature, repl_sim
-
-    logging.info('%d/%d IV IT tokens have no replacements', sum(df['available_replacements'] == 0), len(df))
-
+def calculate_class_pull(flp, frequent_inv_voc):
     # ANALYSE CLASS-CONDITIONAL PROBABILITY OF REPLACEMENTS
     # this only works for binary classifiers and IV-IT features
     ratio = flp[:, 0] - flp[:, 1]  # P(f|c0) / P(f|c1) in log space (odds ratio?)
@@ -154,38 +142,47 @@ def analyse_replacements_class_pull(df, flp, frequent_inv_voc):
     # This is called "class pull" below. This is only reliable for features the occur frequently
     # in the training set
     reliable_scores = {feature: ratio[index] for index, feature in frequent_inv_voc.items()}
+    return reliable_scores
 
+
+def analyse_replacements_class_pull(reliable_scores, full_inv_voc, thes):
+    def get_neighbours(feature, thes, vocabulary, k):
+        # this is a copy of the first bit of BaseFeatureHandler's _paraphrase method
+        neighbours = thes[feature]
+
+        neighbours = [(neighbour, sim) for neighbour, sim in neighbours if neighbour in vocabulary]
+
+        for neighbour, sim in neighbours[:k]:
+            yield neighbour, sim
+
+    # logging.info('%d/%d IV IT tokens have no replacements', sum(df['available_replacements'] == 0), len(df))
+
+    voc = set(x.tokens_as_str() for x in full_inv_voc.values())
     it_iv_replacement_scores = defaultdict(int)
     it_oov_replacement_scores = defaultdict(int)
-    for f in df.index:  # this contains all IT features, regardless of whether they were IV or IT, and
-        # their frequency in the training set
-        orig_score = reliable_scores.get(DocumentFeature.from_string(f), None)
-        repl_count = df.ix[f]['count']
-        if orig_score:
-            # this is an IT, IV feature
-            if repl_count > 0:
-                for replacement_str, repl_sim in get_replacements(df, f):
-                    if repl_sim > 0:
-                        # -1 signifies no replacement has been found
-                        repl_doc_feat = DocumentFeature.from_string(replacement_str)
-                        if repl_doc_feat not in reliable_scores:
-                            continue
-                        repl_score = repl_sim * reliable_scores[repl_doc_feat]
-                        it_iv_replacement_scores[(round(orig_score, 2), round(repl_score, 2))] += repl_count
+    for doc_feat, orig_score in reliable_scores.iteritems():  # this contains all IV features with a
+        # "high" frequency in the training set. These may or may not be contained in the given thesaurus.
+        if doc_feat in thes:
+            for repl_feat, repl_sim in get_neighbours(doc_feat, thes, voc, 3):
+                if repl_feat not in reliable_scores:
+                    continue
+                # todo considers the similarity between an entry and its neighbours
+                repl_score = repl_sim * reliable_scores[repl_feat]
+                # using doubles as keys, rounding needed
+                it_iv_replacement_scores[(round(orig_score, 2), round(repl_score, 2))] += 1
         else:
-            # this decode-time feature is IT, but OOV => we don't know it class conditional probs.
-            # at least we know the class-cond probability of its replacements (because they must be IV)
-            for replacement_str, repl_sim in get_replacements(df, f):
-                if repl_sim > 0:
-                    repl_doc_feat = DocumentFeature.from_string(replacement_str)
-                    if repl_doc_feat not in reliable_scores:
-                        continue
-                    repl_score = repl_sim * reliable_scores[repl_doc_feat]
-                    it_oov_replacement_scores[round(repl_score, 2)] += repl_count
+            pass
+            # # this decode-time feature is IT, but OOV => we don't know it class conditional probs.
+            # # at least we know the class-cond probability of its replacements (because they must be IV)
+            # for replacement_str, repl_sim in get_neighbours(doc_feat, thes, voc, 3):
+            #     if replacement_str not in reliable_scores:
+            #         continue
+            #     repl_score = repl_sim * reliable_scores[replacement_str]
+            #     it_oov_replacement_scores[round(repl_score, 2)] += 1
 
     if len(it_iv_replacement_scores) < 2:
         raise ValueError('Too little data points to scatter. Need at least 2, got %d', len(it_iv_replacement_scores))
-    return reliable_scores, it_iv_replacement_scores, it_oov_replacement_scores
+    return it_iv_replacement_scores, it_oov_replacement_scores
 
 
 #####################################################################
@@ -208,7 +205,6 @@ def qualitative_replacement_study(class_pulls, repl_df):
 
     logging.info('\nQualitative study of replacements in fold 0:')
 
-    class_pulls = {k.tokens_as_str(): v for k, v in class_pulls.items()}
     counts = dict(repl_df['count'])
 
     logging.info('  ---------------------------')
@@ -226,22 +222,23 @@ def qualitative_replacement_study(class_pulls, repl_df):
     logging.info('  ---------------------------')
 
 
-def correlate_similarities(all_classificational_vectors, inv_voc, iv_it_terms, thes_shelf):
+def correlate_similarities(reliable_classificational_vectors, inv_voc, iv_it_terms, thes):
     """
     To what extent to classification and distributional vectors agree? Calculate and correlate
     cos(a1,b1) and cos(a2,b2) for each a,b in IV IT features, where a1,b1 are distributional vectors and
     a2,b2 are classificational ones. This is slow as a thesaurus file needs to be loaded from disk.
     """
-    selected_rows = [row for row, feature in inv_voc.items() if feature in iv_it_terms]
-    classificational_vectors = all_classificational_vectors[selected_rows, :]
-    cl_thes = cosine_similarity(classificational_vectors)
-    new_voc = {inv_voc[row]: i for i, row in enumerate(selected_rows)}
 
-    d = shelve.open(thes_shelf, flag='r')  # read only
-    thes = Thesaurus(d)
+    # some reliable vocabulary items were not in thesaurus, remove them
+    selected_rows = [row for row, feature in inv_voc.items() if feature in iv_it_terms]
+    iv_it_voc = {inv_voc[row]: idx for idx, row in enumerate(selected_rows)}
+    classificational_vectors = reliable_classificational_vectors[selected_rows, :]
+    # build a thesaurus out of the remaining classificational vectors
+    cl_thes = cosine_similarity(classificational_vectors)
+    logging.info('Correlating dist and clf sim of %d features that are both IV and IT', len(iv_it_voc))
 
     dist_sims, class_sims = [], []
-    for first, second in combinations(iv_it_terms, 2):
+    for first, second in combinations(iv_it_voc.keys(), 2):
         dist_sim, class_sim = 0, 0
         # when first and second are not neighbours in the thesaurus set their sim to 0
         # todo not sure if this is optimal
@@ -250,14 +247,14 @@ def correlate_similarities(all_classificational_vectors, inv_voc, iv_it_terms, t
             if neigh == second:
                 dist_sim = sim
 
-        class_sims.append(cl_thes[new_voc[first], new_voc[second]])
+        class_sims.append(cl_thes[iv_it_voc[first], iv_it_voc[second]])
         dist_sims.append(dist_sim)
     if len(class_sims) != len(dist_sims):
         raise ValueError
     return class_sims, dist_sims
 
 
-def extract_stats_for_a_single_fold(params, exp, subexp, cv_fold, thes_shelf):
+def get_stats_for_a_single_fold(params, exp, subexp, cv_fold, thes_shelf):
     logging.info('Doing fold %d', cv_fold)
     name = 'exp%d-%d' % (exp, subexp)
     class_pulls, it_iv_class_pulls, it_oov_class_pulls, basic_para_stats, \
@@ -268,9 +265,12 @@ def extract_stats_for_a_single_fold(params, exp, subexp, cv_fold, thes_shelf):
         tr_counts = train_time_counts('statistics/stats-%s-cv%d-tr.tc.csv' % (name, cv_fold))
         ev_counts = decode_time_counts('statistics/stats-%s-cv%d-ev.tc.csv' % (name, cv_fold))
 
+    d = shelve.open(thes_shelf, flag='r')  # read only
+    thes = Thesaurus(d)
+
     logging.info('Classificational vectors')
     pkl_path = 'statistics/stats-%s-cv%d-ev.MultinomialNB.pkl' % (name, cv_fold)
-    clf_vect, frequent_inv_voc = load_classificational_vectors(pkl_path, params.min_freq)
+    reliable_clf_vect, reliable_inv_voc, full_inv_voc = load_classificational_vectors(pkl_path, params.min_freq)
 
     if params.basic_repl or params.class_pull:
         logging.info('Loading paraphrases from disk')
@@ -278,22 +278,22 @@ def extract_stats_for_a_single_fold(params, exp, subexp, cv_fold, thes_shelf):
         paraphrases_df = get_replacements_df(paraphrases_file)
         if params.basic_repl:
             logging.info('Basic replacement stats')
-            basic_para_stats = analyse_replacement_ranks_and_sims(paraphrases_df, thes_shelf)
+            basic_para_stats = analyse_replacement_ranks_and_sims(paraphrases_df, thes)
         if params.class_pull:
             logging.info('Class pull')
-            class_pulls, it_iv_class_pulls, it_oov_class_pulls = analyse_replacements_class_pull(paraphrases_df,
-                                                                                                 clf_vect,
-                                                                                                 frequent_inv_voc)
+            reliable_scores = calculate_class_pull(reliable_clf_vect, reliable_inv_voc)
+            reliable_scores = {k.tokens_as_str(): v for k, v in reliable_scores.iteritems()}
+            it_iv_class_pulls, it_oov_class_pulls = analyse_replacements_class_pull(reliable_scores, full_inv_voc, thes)
 
     if params.sim_corr:
         logging.info('Sim correlation')
-        tmp_voc = {k: v.tokens_as_str() for k, v in frequent_inv_voc.items()}
-        class_sims, dist_sims = correlate_similarities(clf_vect, tmp_voc,
-                                                       [x for x in tmp_voc.values() if x in paraphrases_df.index],
-                                                       thes_shelf)
+        reliable_inv_voc = {k: v.tokens_as_str() for k, v in reliable_inv_voc.items()}
+        class_sims, dist_sims = correlate_similarities(reliable_clf_vect, reliable_inv_voc,
+                                                       [x for x in reliable_inv_voc.values() if x in thes],
+                                                       thes)
     if cv_fold == 0 and params.qualitative:
         logging.info('Qualitative study')
-        qualitative_replacement_study(class_pulls, paraphrases_df)
+        qualitative_replacement_study(reliable_scores, paraphrases_df)
 
     return StatsOverSingleFold(tr_counts, ev_counts, basic_para_stats, it_iv_class_pulls,
                                it_oov_class_pulls, class_sims, dist_sims)
@@ -318,7 +318,7 @@ def do_work(params, exp, subexp, folds=20, workers=4, cursor=None):
                                          ContainsEverything())
 
     all_data = Parallel(n_jobs=workers)(
-        delayed(extract_stats_for_a_single_fold)(params, exp, subexp, cv_fold, filename) for cv_fold in range(folds))
+        delayed(get_stats_for_a_single_fold)(params, exp, subexp, cv_fold, filename) for cv_fold in range(folds))
 
     logging.info('Finished all CV folds, collating')
     # COLLATE AND AVERAGE STATS OVER CROSSVALIDATION, THEN DISPLAY
@@ -337,20 +337,22 @@ def do_work(params, exp, subexp, folds=20, workers=4, cursor=None):
     it_oov_replacement_scores = reduce(add, (Counter(x.it_oov_class_pull) for x in all_data))
 
     # sometimes there may not be any IV-IT features at decode time
-    if it_iv_replacement_scores and it_oov_replacement_scores:
-        keys, values = [], []
-        for k, v in it_oov_replacement_scores.items():
-            keys.append(k)
-            values.append(v)
-        histogram_from_list(keys, 3, 'IT-OOV replacements- class associations', weights=values)
+    if it_iv_replacement_scores:
+        if it_oov_replacement_scores:
+            keys, values = [], []
+            for k, v in it_oov_replacement_scores.items():
+                keys.append(k)
+                values.append(v)
+            histogram_from_list(keys, 3, 'IT-OOV replacements- class associations', weights=values)
 
         plt.subplot(2, 3, 4)
         coef, r2, r2adj = plot_regression_line(*class_pull_results_as_list(it_iv_replacement_scores))
+        logging.info('R-squared of class-pull plot: %f', r2)
         # Data currently rounded to 2 significant digits. Round to nearest int to make plot less cluttered
         myrange = plot_dots(*class_pull_results_as_list(round_class_pull_to_given_precision(it_iv_replacement_scores)))
         ax = plt.gca()
-        ax.set_ylim([-15, 15])
-        ax.set_xlim([-15, 15])
+        # ax.set_ylim([-15, 15])
+        # ax.set_xlim([-15, 15])
         plt.title('y=%.2fx%+.2f; r2=%.2f(%.2f); w=%s--%s' % (coef[0], coef[1], r2, r2adj, myrange[0], myrange[1]))
 
     class_sims = list(chain.from_iterable(x.classificational_sims for x in all_data if x.classificational_sims))
@@ -360,8 +362,11 @@ def do_work(params, exp, subexp, folds=20, workers=4, cursor=None):
         plt.scatter(class_sims, dist_sims)
         pearson = pearsonr(class_sims, dist_sims)
         spearman = spearmanr(class_sims, dist_sims)
+        _, r2, _ = plot_regression_line(class_sims, dist_sims)
+
         logging.info('Peason: %r', pearson)
         logging.info('Spearman: %r', spearman)
+        logging.info('R-squared of sim correlation: %r', r2)
         plt.title('Pears=%.2f,Spear=%.2f, len=%d' % (pearson[0], spearman[0], len(dist_sims)))
         plt.xlabel('class_sim(a,b)')
         plt.ylabel('dist_sim(a,b)')
@@ -372,8 +377,10 @@ def do_work(params, exp, subexp, folds=20, workers=4, cursor=None):
                 x1.append(x)
                 y1.append(y)
 
+        _, r2, _ = plot_regression_line(x1, y1)
         logging.info('Peason without zeroes (%d data points left): %r', len(x1), pearsonr(x1, y1))
         logging.info('Spearman without zeroes: %r', spearmanr(x1, y1))
+        logging.info('R-squared of sim correlation without zeroes: %r', r2)
     else:
         pass
         # # use the space for something else
@@ -423,6 +430,7 @@ def get_cmd_parser():
 
 
 if __name__ == '__main__':
+    print os.getpid()
     parameters = get_cmd_parser().parse_args()
     logging.basicConfig(level=logging.INFO,
                         filename='figures/stats_output%d.txt' % parameters.experiment,
@@ -454,6 +462,6 @@ if __name__ == '__main__':
         # do just one experiment, without any concurrency
         logging.info('Analysing just one experiment: %d', parameters.experiment)
         do_work(parameters, parameters.experiment, 0, folds=20, workers=2, cursor=c)
-        # do_work(parameters, 0, 0, folds=4, workers=1, cursor=None)
+        # do_work(parameters, 0, 0, folds=2, workers=1, cursor=None)
         # do_work(parameters, 8, 0, folds=4, workers=1, cursor=None)
 
