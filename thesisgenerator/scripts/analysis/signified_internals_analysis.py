@@ -148,28 +148,35 @@ def analyse_replacements_class_pull(reliable_scores, full_inv_voc, thes):
     def get_neighbours(feature, thes, vocabulary, k):
         # this is a copy of the first bit of BaseFeatureHandler's _paraphrase method
         neighbours = thes[feature]
-
         neighbours = [(neighbour, sim) for neighbour, sim in neighbours if neighbour in vocabulary]
+        return neighbours[:k]
 
-        for neighbour, sim in neighbours[:k]:
-            yield neighbour, sim
-
-    # logging.info('%d/%d IV IT tokens have no replacements', sum(df['available_replacements'] == 0), len(df))
 
     voc = set(x.tokens_as_str() for x in full_inv_voc.values())
     it_iv_replacement_scores = defaultdict(int)
     it_oov_replacement_scores = defaultdict(int)
+    not_in_thes, IT_but_no_IV_replacements, IT_has_IV_replacements = 0, 0, 0
     for doc_feat, orig_score in reliable_scores.iteritems():  # this contains all IV features with a
         # "high" frequency in the training set. These may or may not be contained in the given thesaurus.
         if doc_feat in thes:
-            for repl_feat, repl_sim in get_neighbours(doc_feat, thes, voc, 3):
+            neighbours = get_neighbours(doc_feat, thes, voc, 3)
+            if neighbours:
+                # logging.info('No IV replacements')
+                IT_has_IV_replacements += 1
+            else:
+                IT_but_no_IV_replacements += 1
+            for i, (repl_feat, repl_sim) in enumerate(neighbours):
                 if repl_feat not in reliable_scores:
+                    # logging.info('%d Replacement not reliable', i)
                     continue
+                # logging.info('Replacement score is reliable')
                 # todo considers the similarity between an entry and its neighbours
                 repl_score = repl_sim * reliable_scores[repl_feat]
                 # using doubles as keys, rounding needed
                 it_iv_replacement_scores[(round(orig_score, 2), round(repl_score, 2))] += 1
         else:
+            # logging.info('Original not in thesaurus')
+            not_in_thes += 1
             pass
             # # this decode-time feature is IT, but OOV => we don't know it class conditional probs.
             # # at least we know the class-cond probability of its replacements (because they must be IV)
@@ -179,8 +186,13 @@ def analyse_replacements_class_pull(reliable_scores, full_inv_voc, thes):
             #     repl_score = repl_sim * reliable_scores[replacement_str]
             #     it_oov_replacement_scores[round(repl_score, 2)] += 1
 
+    logging.info('%d/%d reliable features not in thesaurus', not_in_thes, len(reliable_scores))
+    logging.info('%d/%d reliable features have no IV thes neighbours, and %d do. These may not be reliable though',
+                 IT_but_no_IV_replacements,
+                 len(reliable_scores),
+                 IT_has_IV_replacements)
     if len(it_iv_replacement_scores) < 2:
-        raise ValueError('Too little data points to scatter. Need at least 2, got %d', len(it_iv_replacement_scores))
+        raise ValueError('Too little data points to scatter. Need at least 2, got %d' % len(it_iv_replacement_scores))
     return it_iv_replacement_scores, it_oov_replacement_scores
 
 
@@ -269,6 +281,8 @@ def get_stats_for_a_single_fold(params, exp, subexp, cv_fold, thes_shelf):
     logging.info('Classificational vectors')
     pkl_path = 'statistics/stats-%s-cv%d-ev.MultinomialNB.pkl' % (name, cv_fold)
     reliable_clf_vect, reliable_inv_voc, full_inv_voc = load_classificational_vectors(pkl_path, params.min_freq)
+    logging.info('%d features with reliable clf vectors are in thesaurus',
+                 sum(x.tokens_as_str() in thes for x in reliable_inv_voc.values()))
 
     if params.basic_repl or params.class_pull:
         logging.info('Loading paraphrases from disk')

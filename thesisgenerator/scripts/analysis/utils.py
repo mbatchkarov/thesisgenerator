@@ -1,3 +1,4 @@
+from collections import Counter
 from itertools import groupby
 import logging
 from operator import itemgetter
@@ -51,7 +52,11 @@ def load_classificational_vectors(pickle_file, min_freq):
         b = pickle.load(infile)
 
     feature_counts_in_tr_set = np.array(b.tr_matrix.sum(axis=0)).ravel()
-    mask_to_keep = feature_counts_in_tr_set > min_freq
+    exceeds_threshold = feature_counts_in_tr_set > min_freq
+    not_unigram = [b.inv_voc[idx].type != '1-GRAM' for idx in range(len(b.inv_voc))]
+    # not_unigram = [True for idx in range(len(b.inv_voc))]
+
+    mask_to_keep = np.logical_and(exceeds_threshold, not_unigram)
 
     voc_size = len(b.inv_voc)
     mat = sp.lil_matrix((voc_size, voc_size))
@@ -62,8 +67,9 @@ def load_classificational_vectors(pickle_file, min_freq):
     # keys are still in the old space, order them again
     foo = {new_index: pruned_voc[old_index] for new_index, old_index in enumerate(sorted(pruned_voc.keys()))}
 
-    logging.info('%d/%d features are frequent enough in train set for their classificational vectors '
+    logging.info('%d/%d non-unigram features are frequent enough in train set for their classificational vectors '
                  'to be considered reliable. Threshold = %d', sum(mask_to_keep), len(b.inv_voc), min_freq)
+    logging.info('Their types are %r', Counter(x.type for x in foo.values()))
     return probabilities[mask_to_keep, :], foo, b.inv_voc
 
 
