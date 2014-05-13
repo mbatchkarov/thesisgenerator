@@ -367,41 +367,42 @@ def do_work(params, exp, subexp, folds=20, workers=4, cursor=None):
         # ax.set_xlim([-15, 15])
         plt.title('y=%.2fx%+.2f; r2=%.2f(%.2f); w=%s--%s' % (coef[0], coef[1], r2, r2adj, myrange[0], myrange[1]))
 
-    class_sims = defaultdict(list)
-    dist_sims = defaultdict(list)
-    for x in all_data:
-        for k, v in x.classificational_and_dist_sims.items():
-            class_sims[k].append(v[0])
-            dist_sims[k].append(v[1])
+    if params.sim_corr:
+        class_sims = defaultdict(list)
+        dist_sims = defaultdict(list)
+        for x in all_data:
+            for k, v in x.classificational_and_dist_sims.items():
+                class_sims[k].append(v[0])
+                dist_sims[k].append(v[1])
 
-    class_sims = [np.mean(class_sims[k]) for k in sorted(class_sims.keys())]
-    dist_sims = [np.mean(dist_sims[k]) for k in sorted(dist_sims.keys())]
-    if class_sims and dist_sims:
-        plt.subplot(2, 3, 5)
-        plt.scatter(class_sims, dist_sims)
-        pearson = pearsonr(class_sims, dist_sims)
-        spearman = spearmanr(class_sims, dist_sims)
-        _, r2, _ = plot_regression_line(class_sims, dist_sims)
+        class_sims = [np.mean(class_sims[k]) for k in sorted(class_sims.keys())]
+        dist_sims = [np.mean(dist_sims[k]) for k in sorted(dist_sims.keys())]
+        if class_sims and dist_sims:
+            plt.subplot(2, 3, 5)
+            plt.scatter(class_sims, dist_sims)
+            pearson = pearsonr(class_sims, dist_sims)
+            spearman = spearmanr(class_sims, dist_sims)
+            _, r2, _ = plot_regression_line(class_sims, dist_sims)
 
-        logging.info('Peason: %r', pearson)
-        logging.info('Spearman: %r', spearman)
-        logging.info('R-squared of sim correlation: %r', r2)
-        plt.title('Pears=%.2f,Spear=%.2f, len=%d' % (pearson[0], spearman[0], len(dist_sims)))
-        plt.xlabel('class_sim(a,b)')
-        plt.ylabel('dist_sim(a,b)')
+            logging.info('Peason: %r', pearson)
+            logging.info('Spearman: %r', spearman)
+            logging.info('R-squared of sim correlation: %r', r2)
+            plt.title('Pears=%.2f,Spear=%.2f, len=%d' % (pearson[0], spearman[0], len(dist_sims)))
+            plt.xlabel('class_sim(a,b)')
+            plt.ylabel('dist_sim(a,b)')
 
-        x1, y1 = [], []
-        for x, y in zip(class_sims, dist_sims):
-            if y > 0:
-                x1.append(x)
-                y1.append(y)
+            x1, y1 = [], []
+            for x, y in zip(class_sims, dist_sims):
+                if y > 0:
+                    x1.append(x)
+                    y1.append(y)
 
-        _, r2, _ = plot_regression_line(x1, y1)
-        logging.info('Peason without zeroes (%d data points left): %r', len(x1), pearsonr(x1, y1))
-        logging.info('Spearman without zeroes: %r', spearmanr(x1, y1))
-        logging.info('R-squared of sim correlation without zeroes: %r', r2)
-    else:
-        pass
+            _, r2, _ = plot_regression_line(x1, y1)
+            logging.info('Peason without zeroes (%d data points left): %r', len(x1), pearsonr(x1, y1))
+            logging.info('Spearman without zeroes: %r', spearmanr(x1, y1))
+            logging.info('R-squared of sim correlation without zeroes: %r', r2)
+        else:
+            pass
         # # use the space for something else
         # if params.class_pull:
         #     # remove features with a low class pull and repeat analysis
