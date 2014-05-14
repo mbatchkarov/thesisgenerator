@@ -76,9 +76,8 @@ def get_good_vectors(all_clf_vectors, feature_counts_in_tr_set, min_freq, inv_vo
                    enumerate(sorted(pruned_inv_voc.keys()))}
 
     logging.info('Their types are %r', Counter(x.type for x in new_inv_voc.values()))
-    feature_counts = {v: feature_counts_in_tr_set[k] for k, v in inv_voc.items() if v in new_inv_voc.values()}
 
-    return all_clf_vectors[mask_to_keep, :], new_inv_voc, feature_counts  # feature counts
+    return all_clf_vectors[mask_to_keep, :], new_inv_voc  # feature counts
 
 
 def get_experiment_info_string(cursor, exp_num, subexp_name):

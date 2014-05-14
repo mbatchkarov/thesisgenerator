@@ -145,8 +145,7 @@ def get_log_likelihood_ratio(feature_log_probas, inv_voc):
 
 def _get_neighbours(feature, thes, vocabulary, k):
     # this is a copy of the first bit of BaseFeatureHandler's _paraphrase method
-    neighbours = thes[feature]
-    neighbours = [(neighbour, sim) for neighbour, sim in neighbours if neighbour in vocabulary]
+    neighbours = [(neighbour, sim) for neighbour, sim in thes[feature] if neighbour in vocabulary]
     return neighbours[:k]
 
 
@@ -194,8 +193,7 @@ def _print_scores_of_feature_and_replacements(features, scores, counts, thes, vo
     for feature in features:
         if feature not in scores:
             continue
-        replacements = [(repl, round(scores[repl], 2)) for repl, sim in
-                        _get_neighbours(feature, thes, voc, 3) if repl in scores]
+        replacements = [(repl, round(scores.get(repl, np.NaN), 2)) for repl, sim in _get_neighbours(feature, thes, voc, 3)]
         logging.info(' | %s (score=%2.2f, count=%d) -> %r', feature,
                      scores[feature],
                      counts[feature],
@@ -273,31 +271,25 @@ def get_stats_for_a_single_fold(params, exp, subexp, cv_fold, thes_shelf):
 
     logging.info('Classificational vectors')
     pkl_path = 'statistics/stats-%s-cv%d-ev.MultinomialNB.pkl' % (name, cv_fold)
-    # good_clf_vect, good_inv_voc, full_inv_voc, feature_counts = load_classificational_vectors(pkl_path,
-    # params.min_freq)
-    all_clf_vect, full_inv_voc, feature_counts = load_classificational_vectors(pkl_path)
-    good_clf_vect, good_inv_voc, feature_counts = get_good_vectors(all_clf_vect, feature_counts,
-                                                                   params.min_freq,
-                                                                   full_inv_voc, thes)
+    all_clf_vect, full_inv_voc, all_feature_counts = load_classificational_vectors(pkl_path)
+    good_clf_vect, good_inv_voc = get_good_vectors(all_clf_vect, all_feature_counts, params.min_freq, full_inv_voc, thes)
 
-    feature_counts = {k.tokens_as_str(): v for k, v in feature_counts.iteritems()}
+    all_feature_counts = {v.tokens_as_str(): all_feature_counts[k] for k, v in full_inv_voc.items()}
     good_inv_voc = {k: v.tokens_as_str() for k, v in good_inv_voc.iteritems()}
     full_inv_voc = {k: v.tokens_as_str() for k, v in full_inv_voc.iteritems()}
     full_voc = set(full_inv_voc.values())
-
 
     if params.class_pull:
         logging.info('Class pull')
         llr = get_log_likelihood_ratio(good_clf_vect, good_inv_voc)
         llr_of_good_features = analyse_replacements_class_pull(llr, full_voc, thes)
-        logging.info('LLR of good features %r', llr_of_good_features)
 
     if params.sim_corr:
         logging.info('Sim correlation')
         class_and_dist_sims = correlate_similarities(good_clf_vect, good_inv_voc, thes)
     if cv_fold == 0 and params.qualitative:
         logging.info('Qualitative study')
-        qualitative_replacement_study(llr, feature_counts, thes, full_voc)
+        qualitative_replacement_study(llr, all_feature_counts, thes, full_voc)
 
     return StatsOverSingleFold(tr_counts, ev_counts, basic_para_stats, llr_of_good_features,
                                it_oov_class_pulls, class_and_dist_sims)
@@ -340,6 +332,8 @@ def do_work(params, exp, subexp, folds=20, workers=4, cursor=None):
     it_iv_replacement_scores = reduce(add, (Counter(x.it_iv_class_pull) for x in all_data))
     it_oov_replacement_scores = reduce(add, (Counter(x.it_oov_class_pull) for x in all_data))
 
+    logging.info('LLR of good features %r', it_iv_replacement_scores)
+
     # sometimes there may not be any IV-IT features at decode time
     if it_iv_replacement_scores:
         if it_oov_replacement_scores:
@@ -354,9 +348,6 @@ def do_work(params, exp, subexp, folds=20, workers=4, cursor=None):
         logging.info('R-squared of class-pull plot: %f', r2)
         # Data currently rounded to 2 significant digits. Round to nearest int to make plot less cluttered
         myrange = plot_dots(*class_pull_results_as_list(round_class_pull_to_given_precision(it_iv_replacement_scores)))
-        ax = plt.gca()
-        # ax.set_ylim([-15, 15])
-        # ax.set_xlim([-15, 15])
         plt.title('y=%.2fx%+.2f; r2=%.2f(%.2f); w=%s--%s' % (coef[0], coef[1], r2, r2adj, myrange[0], myrange[1]))
 
     if params.sim_corr:
@@ -393,26 +384,6 @@ def do_work(params, exp, subexp, folds=20, workers=4, cursor=None):
             logging.info('Peason without zeroes (%d data points left): %r', len(x1), pearsonr(x1, y1))
             logging.info('Spearman without zeroes: %r', spearmanr(x1, y1))
             logging.info('R-squared of sim correlation without zeroes: %r', r2)
-        else:
-            pass
-            # # use the space for something else
-            # if params.class_pull:
-            #     # remove features with a low class pull and repeat analysis
-            #     x, y, z = class_pull_results_as_list(it_iv_replacement_scores)
-            #     x1, y1, z1 = [], [], []
-            #     for xv, yv, zv in zip(x, y, z):
-            #         if not -4 < xv < 4:
-            #             x1.append(xv)
-            #             y1.append(yv)
-            #             z1.append(zv)
-            #
-            #     if x1:  # filtering may remove all features
-            #         plt.subplot(2, 3, 5)
-            #         coef, r2, r2adj = plot_regression_line(x1, y1, z1)
-            #         # Data currently rounded to 2 significant digits. Round to nearest int to make plot less cluttered
-            #         myrange = plot_dots(x1, y1, z1)
-            #         plt.title('y=%.2fx%+.2f; r2=%.2f(%.2f); w=%s--%s' % (coef[0], coef[1], r2,
-            #                                                              r2adj, myrange[0], myrange[1]))
 
     if cursor:
         plt.subplot(2, 3, 6)
