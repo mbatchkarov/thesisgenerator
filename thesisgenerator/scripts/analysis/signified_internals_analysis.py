@@ -167,10 +167,8 @@ def analyse_replacements_class_pull(scores, full_voc, thes):
                 continue
 
             has_good_neighbours = True
-            # todo considers the similarity between an entry and its neighbours
-            repl_score = repl_sim * scores[repl_feat]
             # using doubles as keys, rounding needed
-            it_iv_replacement_scores[(round(orig_score, 2), round(repl_score, 2))] += 1
+            it_iv_replacement_scores[(round(orig_score, 2), round(scores[repl_feat], 2))] += 1
         if has_good_neighbours:
             good_neighbour_count += 1
 
