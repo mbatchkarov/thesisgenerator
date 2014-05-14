@@ -47,30 +47,38 @@ def round_class_pull_to_given_precision(scores, xprecision=0, yprecision=0):
     return rounded_scores
 
 
-def load_classificational_vectors(pickle_file, min_freq):
+def load_classificational_vectors(pickle_file):
     with open(pickle_file) as infile:
         b = pickle.load(infile)
 
     feature_counts_in_tr_set = np.array(b.tr_matrix.sum(axis=0)).ravel()
-    exceeds_threshold = feature_counts_in_tr_set > min_freq
-    not_unigram = [b.inv_voc[idx].type != '1-GRAM' for idx in range(len(b.inv_voc))]
-    # not_unigram = [True for idx in range(len(b.inv_voc))]
-
-    mask_to_keep = np.logical_and(exceeds_threshold, not_unigram)
 
     voc_size = len(b.inv_voc)
     mat = sp.lil_matrix((voc_size, voc_size))
     mat.setdiag(np.ones((voc_size,)))
     probabilities = b.clf.predict_log_proba(mat.tocsr())
 
-    pruned_voc = {idx: b.inv_voc[idx] for idx, keep_this in enumerate(mask_to_keep) if keep_this}
-    # keys are still in the old space, order them again
-    foo = {new_index: pruned_voc[old_index] for new_index, old_index in enumerate(sorted(pruned_voc.keys()))}
+    return probabilities, b.inv_voc, feature_counts_in_tr_set
 
-    logging.info('%d/%d non-unigram features are frequent enough in train set for their classificational vectors '
-                 'to be considered reliable. Threshold = %d', sum(mask_to_keep), len(b.inv_voc), min_freq)
-    logging.info('Their types are %r', Counter(x.type for x in foo.values()))
-    return probabilities[mask_to_keep, :], foo, b.inv_voc
+
+def get_good_vectors(all_clf_vectors, feature_counts_in_tr_set, min_freq, inv_voc, thes):
+    exceeds_threshold = feature_counts_in_tr_set > min_freq
+    not_unigram = [inv_voc[idx].type != '1-GRAM' for idx in range(len(inv_voc))]
+    in_thes = [inv_voc[idx].tokens_as_str() in thes for idx in range(len(inv_voc))]
+    mask_to_keep = np.logical_and(np.logical_and(in_thes, not_unigram),
+                                  exceeds_threshold)
+    logging.info('%d/%d features are considered good (IV, IT, NP and frequent)', sum(mask_to_keep), len(inv_voc))
+
+    # keys need to be consecutive, but the selection above will remove some of them. Assign new consecutive keys
+    # to the remaining values (in order), eg. {1:a, 2:b, 3:c} becomes {1:a, 2:c}
+    pruned_inv_voc = {idx: inv_voc[idx] for idx, keep_this in enumerate(mask_to_keep) if keep_this}
+    new_inv_voc = {new_index: pruned_inv_voc[old_index] for new_index, old_index in
+                   enumerate(sorted(pruned_inv_voc.keys()))}
+
+    logging.info('Their types are %r', Counter(x.type for x in new_inv_voc.values()))
+    feature_counts = {v: feature_counts_in_tr_set[k] for k, v in inv_voc.items() if v in new_inv_voc.values()}
+
+    return all_clf_vectors[mask_to_keep, :], new_inv_voc, feature_counts  # feature counts
 
 
 def get_experiment_info_string(cursor, exp_num, subexp_name):
