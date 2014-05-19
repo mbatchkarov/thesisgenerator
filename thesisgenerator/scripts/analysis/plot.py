@@ -55,14 +55,8 @@ def plot_dots(x, y, thickness, minsize=10., maxsize=200., draw_axes=True,
 
 
 def plot_regression_line(x, y, weights=None):
-    # coef = np.polyfit(x, y, 1, w=weights)
-    # p = np.poly1d(coef)
-    # xs = np.linspace(min(x), max(x))
-    # plt.plot(xs, p(xs), 'r-')
-    # return coef, r2_score(y, p(x)) # is this R2 score weighted?
-
     assert len(x) == len(y)
-    if not weights:
+    if weights is None:
         weights = [1] * len(x)
     xs = np.linspace(min(x), max(x))
     x1 = sm.add_constant(x)
@@ -72,3 +66,15 @@ def plot_regression_line(x, y, weights=None):
     coef = results.params[::-1]  # statsmodels' linear equation is b+ax, numpy's is ax+b
     plt.plot(xs, results.predict(sm.add_constant(xs)), 'r-')
     return coef, results.rsquared, results.rsquared_adj
+
+
+def sum_of_squares_score_diagonal_line(x, y, weights=None):
+    assert len(x) == len(y)
+    if weights is None:
+        weights = [1] * len(x)
+    #  check that the weights are all integers, doesn't make sense to pass them into np.repeat otherwise
+    assert 0 == weights - np.array(weights, dtype=int)
+
+    x1 = np.repeat(x, weights)
+    y1 = np.repeat(y, weights)
+
