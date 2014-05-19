@@ -1,17 +1,14 @@
 import numpy as np
 from numpy.testing import assert_almost_equal
-from thesisgenerator.scripts.analysis.plot import plot_regression_line
+import pytest
+from thesisgenerator.scripts.analysis.plot import plot_regression_line, sum_of_squares_score_diagonal_line
 
 
 def _eval_at(coef, x):
     """
     Evaluates ax + b, where a,b = coef
     :param coef: array-like of len 2, higher-order coefficient first
-    :type coef:
-    :param x:
     :type x: scalar or array-like
-    :return:
-    :rtype:
     """
     assert len(coef) == 2  # model must be linear
     return np.polyval(coef, x)
@@ -51,7 +48,7 @@ def test_weighted_regression():
     # test that duplicating a data point is equivalent to doubling its weight
     w1 = np.array([1, 1, 1, 1, 1])
     y1 = np.array([2, 3, 4, 6, 6])
-    x1 = np.array([0,1,2,3,3])
+    x1 = np.array([0, 1, 2, 3, 3])
     coef1, _, _ = plot_regression_line(x1, y1, w1)
 
     w2 = np.array([1, 1, 1, 2])
@@ -61,5 +58,39 @@ def test_weighted_regression():
     assert set(x1) == set(x2)
     assert_almost_equal(coef1, coef2)
 
+
 def test_sum_of_squares_score_diagonal_line():
-    assert False
+    # unequal parameter lengths
+    with pytest.raises(AssertionError):
+        sum_of_squares_score_diagonal_line([1], [1, 2])
+    # non-integer weights
+    with pytest.raises(AssertionError):
+        sum_of_squares_score_diagonal_line([1, 2], [1, 2], [1.0, 1.1])
+
+    # all points weighted equally
+    # perfect fit
+    assert sum_of_squares_score_diagonal_line([-1, 1, 2, 3], [-1, 1, 2, 3]) == 0
+
+    # invariant to number of data points
+    v1 = sum_of_squares_score_diagonal_line([-1, 1, 3], [-1, 1, 3])
+    v2 = sum_of_squares_score_diagonal_line([-1, 1, 2, 3], [-1, 1, 2, 3])
+    assert v1 == v2
+
+    # a line that is further off 45 degrees has a higher error
+    v1 = sum_of_squares_score_diagonal_line([-1, 1, 2, 3], [-1, 1, 2, 3])
+    v2 = sum_of_squares_score_diagonal_line([-1, 1, 2, 3], [-1, 1, 2, 4])
+    v3 = sum_of_squares_score_diagonal_line([-1, 1, 2, 3], [-1, 1, 2, 5])
+    assert v1 < v2 < v3
+
+    # check the weighted case
+    # perfect fit, different weights
+    v1 = sum_of_squares_score_diagonal_line([-1, 1, 3], [-1, 1, 3], [2, 1, 1])
+    v2 = sum_of_squares_score_diagonal_line([-1, 1, 3], [-1, 1, 3], [1, 2, 2])
+    assert v1 == v2
+
+    # OK fit, increasing weight of point that is off target
+    v0 = sum_of_squares_score_diagonal_line([-1, 3], [-1, 3], [1, 1])
+    v1 = sum_of_squares_score_diagonal_line([-1, 3], [-1, 4], [1, 1])
+    v2 = sum_of_squares_score_diagonal_line([-1, 3], [-1, 4], [1, 2])
+    v3 = sum_of_squares_score_diagonal_line([-1, 3], [-1, 4], [1, 3])
+    assert v0 < v1 < v2 < v3

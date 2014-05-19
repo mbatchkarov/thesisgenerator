@@ -72,9 +72,14 @@ def sum_of_squares_score_diagonal_line(x, y, weights=None):
     assert len(x) == len(y)
     if weights is None:
         weights = [1] * len(x)
+    else:
+        assert len(weights) == len(x)
+
     #  check that the weights are all integers, doesn't make sense to pass them into np.repeat otherwise
-    assert 0 == weights - np.array(weights, dtype=int)
+    assert 0 == sum(weights - np.array(weights, dtype=int))
 
     x1 = np.repeat(x, weights)
     y1 = np.repeat(y, weights)
+
+    return np.sum((x1 - y1) ** 2) / float(len(x1))
 

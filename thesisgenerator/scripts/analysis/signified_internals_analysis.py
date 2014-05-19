@@ -342,11 +342,14 @@ def do_work(params, exp, subexp, folds=20, workers=4, cursor=None):
             histogram_from_list(keys, 3, 'IT-OOV replacements- class associations', weights=values)
 
         plt.subplot(2, 3, 4)
-        coef, r2, r2adj = plot_regression_line(*class_pull_results_as_list(it_iv_replacement_scores))
+        x, y, weights = class_pull_results_as_list(it_iv_replacement_scores)
+        coef, r2, r2adj = plot_regression_line(x, y, weights)
         logging.info('R-squared of class-pull plot: %f', r2)
         # Data currently rounded to 2 significant digits. Round to nearest int to make plot less cluttered
         myrange = plot_dots(*class_pull_results_as_list(round_class_pull_to_given_precision(it_iv_replacement_scores)))
         plt.title('y=%.2fx%+.2f; r2=%.2f(%.2f); w=%s--%s' % (coef[0], coef[1], r2, r2adj, myrange[0], myrange[1]))
+        logging.info('Sum-of-squares error compared to perfect diagonal = %f',
+                     sum_of_squares_score_diagonal_line(x, y, weights))
 
     if params.sim_corr:
         class_sims = defaultdict(list)
