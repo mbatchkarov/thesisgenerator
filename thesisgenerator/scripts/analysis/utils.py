@@ -62,11 +62,16 @@ def load_classificational_vectors(pickle_file):
 
 
 def get_good_vectors(all_clf_vectors, feature_counts_in_tr_set, min_freq, inv_voc, thes):
-    exceeds_threshold = feature_counts_in_tr_set > min_freq
+    exceeds_threshold = feature_counts_in_tr_set >= min_freq
     not_unigram = [inv_voc[idx].type != '1-GRAM' for idx in range(len(inv_voc))]
     in_thes = [inv_voc[idx].tokens_as_str() in thes for idx in range(len(inv_voc))]
     mask_to_keep = np.logical_and(np.logical_and(in_thes, not_unigram),
                                   exceeds_threshold)
+    logging.info('%d total features. Types are %r. %d are IT.',
+                 len(inv_voc),
+                 Counter(x.type for x in inv_voc.values()),
+                 sum(in_thes))
+    logging.info('The types of those IT are %r', Counter(x.type for x in inv_voc.values() if x.tokens_as_str() in thes))
     logging.info('%d/%d features are considered good (IV, IT, NP and frequent)', sum(mask_to_keep), len(inv_voc))
 
     # keys need to be consecutive, but the selection above will remove some of them. Assign new consecutive keys
