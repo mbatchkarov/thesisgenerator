@@ -133,7 +133,7 @@ def get_replacements_df(paraphrases_file):
     return df
 
 
-def get_log_likelihood_ratio(feature_log_probas, inv_voc):
+def get_log_odds(feature_log_probas, inv_voc):
     # ANALYSE CLASS-CONDITIONAL PROBABILITY OF REPLACEMENTS
     # this only works for binary classifiers and IV-IT features
     ratio = feature_log_probas[:, 0] - feature_log_probas[:, 1]  # P(f|c0) / P(f|c1) in log space
@@ -245,6 +245,28 @@ def correlate_similarities(classificational_vectors, inv_voc, thes):
         result[tuple(sorted([first, second]))] = (class_sim, dist_sim)
     return result
 
+def _test_replacement_match(paraphrases_df, thes, voc):
+    '''
+    Make sure the replacements the classifier really makes are decode time are the ones we are using here.
+    This is needed because we don't directly read the log of replacements that were made, but instead compute
+    on the fly what the classifier would have done. This is needed because some of the train-time features never
+    occur in the test set and are thus never replaced, so they are not in the log. We are still interested in these
+    though as they provided useful information.
+
+    :param paraphrases_df: the replacements that were actually made
+    '''
+
+    logging.info('Checking inferred and actual replacements for %d features match', len(paraphrases_df.index))
+    for feature in paraphrases_df.index: # for all features that were actually replaced
+        # these are the replacements we think the classifier would have made
+        inferred_replacements = [repl for repl, sim in _get_neighbours(feature, thes, voc, 3)]
+        # these are the logged replacement that did take place
+        recorded_replacements = []
+        for i in range(1, 4):
+            r = paraphrases_df['replacement%d' % i][feature]
+            if r > 0: # remove NaN
+                recorded_replacements.append(r)
+        assert recorded_replacements == inferred_replacements
 
 def get_stats_for_a_single_fold(params, exp, subexp, cv_fold, thes_shelf):
     logging.info('Doing fold %d', cv_fold)
@@ -260,13 +282,6 @@ def get_stats_for_a_single_fold(params, exp, subexp, cv_fold, thes_shelf):
     d = shelve.open(thes_shelf, flag='r')  # read only
     thes = Thesaurus(d)
 
-    if params.basic_repl:
-        logging.info('Loading paraphrases from disk')
-        paraphrases_file = 'statistics/stats-%s-cv%d-ev.par.csv' % (name, cv_fold)
-        paraphrases_df = get_replacements_df(paraphrases_file)
-        logging.info('Basic replacement stats')
-        basic_para_stats = analyse_replacement_ranks_and_sims(paraphrases_df, thes)
-
     logging.info('Classificational vectors')
     pkl_path = 'statistics/stats-%s-cv%d-ev.MultinomialNB.pkl' % (name, cv_fold)
     all_clf_vect, full_inv_voc, all_feature_counts = load_classificational_vectors(pkl_path)
@@ -277,17 +292,27 @@ def get_stats_for_a_single_fold(params, exp, subexp, cv_fold, thes_shelf):
     full_inv_voc = {k: v.tokens_as_str() for k, v in full_inv_voc.iteritems()}
     full_voc = set(full_inv_voc.values())
 
+    if params.basic_repl:
+        logging.info('Loading paraphrases from disk')
+        paraphrases_file = 'statistics/stats-%s-cv%d-ev.par.csv' % (name, cv_fold)
+        paraphrases_df = get_replacements_df(paraphrases_file)
+        logging.info('Basic replacement stats')
+        basic_para_stats = analyse_replacement_ranks_and_sims(paraphrases_df, thes)
+        # sanity check
+        _test_replacement_match(paraphrases_df, thes, full_voc)
+
+
     if params.class_pull:
         logging.info('Class pull')
-        llr = get_log_likelihood_ratio(good_clf_vect, good_inv_voc)
-        llr_of_good_features = analyse_replacements_class_pull(llr, full_voc, thes)
+        log_odds = get_log_odds(good_clf_vect, good_inv_voc)
+        llr_of_good_features = analyse_replacements_class_pull(log_odds, full_voc, thes)
 
     if params.sim_corr:
         logging.info('Sim correlation')
         class_and_dist_sims = correlate_similarities(good_clf_vect, good_inv_voc, thes)
     if cv_fold == 0 and params.qualitative:
         logging.info('Qualitative study')
-        qualitative_replacement_study(llr, all_feature_counts, thes, full_voc)
+        qualitative_replacement_study(log_odds, all_feature_counts, thes, full_voc)
 
     return StatsOverSingleFold(tr_counts, ev_counts, basic_para_stats, llr_of_good_features,
                                it_oov_class_pulls, class_and_dist_sims)
