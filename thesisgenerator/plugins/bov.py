@@ -42,7 +42,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
                  extract_NN_features=True,
                  extract_VO_features=True,
                  extract_SVO_features=True,
-                 unigram_feature_pos_tags = ContainsEverything(),
+                 unigram_feature_pos_tags=ContainsEverything(),
                  remove_features_with_NER=False,
                  random_neighbour_thesaurus=False
 
@@ -112,8 +112,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
             # it's probably a path to a shelved vector source
             # this is an ugly hack- I can't be sure it's really a Precomputed....
             logging.info('Deshelving %s', self.vector_source)
-            self.d = shelve.open(self.vector_source, flag='r') # read only
-            self.vector_source = PrecomputedSimilaritiesVectorSource(Thesaurus(self.d))
+            self.vector_source = PrecomputedSimilaritiesVectorSource(Thesaurus.from_shelf_readonly(self.vector_source))
 
         logging.debug('Identity of vector source is %d', id(vector_source))
         if self.vector_source:
@@ -269,7 +268,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
         # extract sentence-internal token n-grams
         min_n, max_n = map(int, ngram_range)
         for sentence, (parse_tree, token_indices) in sentences:
-            if not sentence: # the sentence segmenter sometimes returns empty sentences
+            if not sentence:  # the sentence segmenter sometimes returns empty sentences
                 continue
 
             if parse_tree:
@@ -375,7 +374,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
                 params = {'doc_id': doc_id, 'feature': feature,
                           'feature_index_in_vocab': feature_index_in_vocab,
                           'vocabulary': vocabulary, 'j_indices': j_indices,
-                          'values': values, 'stats':self.stats}
+                          'values': values, 'stats': self.stats}
                 if is_in_vocabulary and is_in_th:
                     self.handler.handle_IV_IT_feature(**params)
                 if is_in_vocabulary and not is_in_th:

@@ -178,7 +178,7 @@ def load_and_shelve_thesaurus(files, sim_threshold, include_self,
     return filename
 
 
-def _do_work(th, conf):  # should really be a lambda/closure but joblib doesn't work with lambdas
+def _shelve_single_thesaurus(th, conf):  # should really be a lambda/closure but joblib doesn't work with lambdas
     entry_types_to_load = conf['vector_sources']['entry_types_to_load']
     if not entry_types_to_load:
         entry_types_to_load = ContainsEverything()
@@ -203,7 +203,7 @@ def shelve_all_thesauri(n_jobs):
     thesauri = set(parse_config_file(path)[0]['vector_sources']['unigram_paths'][0] for path in conf_files)
     conf, _ = parse_config_file('conf/exp1-superbase.conf')
 
-    Parallel(n_jobs=n_jobs)(delayed(_do_work)(th, conf) for th in thesauri)
+    Parallel(n_jobs=n_jobs)(delayed(_shelve_single_thesaurus)(th, conf) for th in thesauri)
 
 
 if __name__ == '__main__':

@@ -293,8 +293,7 @@ def get_stats_for_a_single_fold(params, exp, subexp, cv_fold, thes_shelf):
         tr_counts = train_time_counts('statistics/stats-%s-cv%d-tr.tc.csv' % (name, cv_fold))
         ev_counts = decode_time_counts('statistics/stats-%s-cv%d-ev.tc.csv' % (name, cv_fold))
 
-    d = shelve.open(thes_shelf, flag='r')  # read only
-    thes = Thesaurus(d)
+    thes = Thesaurus.from_shelf_readonly(thes_shelf)
 
     logging.info('Classificational vectors')
     pkl_path = 'statistics/stats-%s-cv%d-ev.MultinomialNB.pkl' % (name, cv_fold)
