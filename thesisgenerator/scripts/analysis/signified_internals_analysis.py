@@ -20,6 +20,8 @@ from collections import Counter
 from itertools import chain, combinations
 import logging
 import random
+import numpy as np
+from scipy.stats import chisquare
 from operator import add, itemgetter
 from discoutils.tokens import DocumentFeature
 from joblib import Parallel, delayed
@@ -305,14 +307,14 @@ def get_stats_for_a_single_fold(params, exp, subexp, cv_fold, thes_shelf):
     full_inv_voc = {k: v.tokens_as_str() for k, v in full_inv_voc.iteritems()}
     full_voc = set(full_inv_voc.values())
 
+    paraphrases_file = 'statistics/stats-%s-cv%d-ev.par.csv' % (name, cv_fold)
+    paraphrases_df = get_replacements_df(paraphrases_file)
+    # sanity check
+    _test_replacement_match(paraphrases_df, thes, full_voc)
     if params.basic_repl:
         logging.info('Loading paraphrases from disk')
-        paraphrases_file = 'statistics/stats-%s-cv%d-ev.par.csv' % (name, cv_fold)
-        paraphrases_df = get_replacements_df(paraphrases_file)
         logging.info('Basic replacement stats')
         basic_para_stats = analyse_replacement_ranks_and_sims(paraphrases_df, thes)
-        # sanity check
-        _test_replacement_match(paraphrases_df, thes, full_voc)
 
     if params.class_pull:
         logging.info('Class pull')
@@ -328,6 +330,23 @@ def get_stats_for_a_single_fold(params, exp, subexp, cv_fold, thes_shelf):
 
     return StatsOverSingleFold(tr_counts, ev_counts, basic_para_stats, llr_of_good_features,
                                it_oov_class_pulls, class_and_dist_sims)
+
+
+def replacement_scores_contingency_matrix(x_scores, y_scores, weights, thresh=1):
+    x = np.array(x_scores)
+    y = np.array(y_scores)
+    pospos = sum((x > thresh) & (y > thresh))
+    posneg = sum((x > thresh) & (y < -thresh))
+    negpos = sum((x < -thresh) & (y > thresh))
+    negneg = sum((x < -thresh) & (y < -thresh))
+
+    observed = [pospos, negneg, posneg, negpos]
+    expected = [(pospos + negneg) / 2., (pospos + negneg) / 2., 0, 0]
+    logging.info('Results of unweighted chi-square test of replacement-score contingency table: %r',
+                 chisquare(observed, expected))
+    logging.info('%d/%d data points have a high enough log odds score. '
+                 '%d/%d data points are in the wrong quadrant.', sum(observed), len(x),
+                 posneg + negpos, sum(observed))
 
 
 def do_work(params, exp, subexp, folds=20, workers=4, cursor=None):
@@ -387,6 +406,8 @@ def do_work(params, exp, subexp, folds=20, workers=4, cursor=None):
         plt.title('y=%.2fx%+.2f; r2=%.2f(%.2f); w=%s--%s' % (coef[0], coef[1], r2, r2adj, myrange[0], myrange[1]))
         logging.info('Sum-of-squares error compared to perfect diagonal = %f',
                      sum_of_squares_score_diagonal_line(x, y, weights))
+
+        replacement_scores_contingency_matrix(x, y, weights)
 
     if params.sim_corr:
         class_sims = defaultdict(list)
