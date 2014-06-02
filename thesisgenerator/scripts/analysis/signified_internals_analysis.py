@@ -19,6 +19,7 @@ from thesisgenerator.plugins.stats import sum_up_token_counts
 from collections import Counter
 from itertools import chain, combinations
 import logging
+import random
 from operator import add, itemgetter
 from discoutils.tokens import DocumentFeature
 from joblib import Parallel, delayed
@@ -191,11 +192,14 @@ def _print_scores_of_feature_and_replacements(features, scores, counts, thes, vo
     for feature in features:
         if feature not in scores:
             continue
-        replacements = [(repl, round(scores.get(repl, np.NaN), 2)) for repl, sim in _get_neighbours(feature, thes, voc, 3)]
-        logging.info(' | %s (score=%2.2f, count=%d) -> %r', feature,
-                     scores[feature],
-                     counts[feature],
-                     replacements)
+        replacements = [(repl, round(scores.get(repl, -1), 2))
+                        for repl, sim in _get_neighbours(feature, thes, voc, 3)
+                        if scores.get(repl, -1) > 0]
+        if replacements:
+            logging.info(' | %s (score=%2.2f, count=%d) -> %r', feature,
+                         scores[feature],
+                         counts[feature],
+                         replacements)
 
 
 def qualitative_replacement_study(scores, counts, thes, full_voc):
@@ -214,6 +218,12 @@ def qualitative_replacement_study(scores, counts, thes, full_voc):
     most_common = [x[0] for x in sorted(list(counts.items()), key=itemgetter(1), reverse=True)
                    if x[0] in thes and x[0] in scores.keys()]
     _print_scores_of_feature_and_replacements(most_common[:10], scores, counts, thes, full_voc)
+    logging.info('  ---------------------------')
+
+    logging.info('  ---------------------------')
+    logging.info(' | A random sample of reliable features and their reliable replacements')
+    _print_scores_of_feature_and_replacements(random.sample(feats_sorted_by_score, min(300, len(scores))),
+                                              scores, counts, thes, full_voc)
     logging.info('  ---------------------------')
 
 
@@ -245,6 +255,7 @@ def correlate_similarities(classificational_vectors, inv_voc, thes):
         result[tuple(sorted([first, second]))] = (class_sim, dist_sim)
     return result
 
+
 def _test_replacement_match(paraphrases_df, thes, voc):
     '''
     Make sure the replacements the classifier really makes are decode time are the ones we are using here.
@@ -257,16 +268,17 @@ def _test_replacement_match(paraphrases_df, thes, voc):
     '''
 
     logging.info('Checking inferred and actual replacements for %d features match', len(paraphrases_df.index))
-    for feature in paraphrases_df.index: # for all features that were actually replaced
+    for feature in paraphrases_df.index:  # for all features that were actually replaced
         # these are the replacements we think the classifier would have made
         inferred_replacements = [repl for repl, sim in _get_neighbours(feature, thes, voc, 3)]
         # these are the logged replacement that did take place
         recorded_replacements = []
         for i in range(1, 4):
             r = paraphrases_df['replacement%d' % i][feature]
-            if r > 0: # remove NaN
+            if r > 0:  # remove NaN
                 recorded_replacements.append(r)
         assert recorded_replacements == inferred_replacements
+
 
 def get_stats_for_a_single_fold(params, exp, subexp, cv_fold, thes_shelf):
     logging.info('Doing fold %d', cv_fold)
@@ -285,7 +297,8 @@ def get_stats_for_a_single_fold(params, exp, subexp, cv_fold, thes_shelf):
     logging.info('Classificational vectors')
     pkl_path = 'statistics/stats-%s-cv%d-ev.MultinomialNB.pkl' % (name, cv_fold)
     all_clf_vect, full_inv_voc, all_feature_counts = load_classificational_vectors(pkl_path)
-    good_clf_vect, good_inv_voc = get_good_vectors(all_clf_vect, all_feature_counts, params.min_freq, full_inv_voc, thes)
+    good_clf_vect, good_inv_voc = get_good_vectors(all_clf_vect, all_feature_counts, params.min_freq, full_inv_voc,
+                                                   thes)
 
     all_feature_counts = {v.tokens_as_str(): all_feature_counts[k] for k, v in full_inv_voc.items()}
     good_inv_voc = {k: v.tokens_as_str() for k, v in good_inv_voc.iteritems()}
@@ -300,7 +313,6 @@ def get_stats_for_a_single_fold(params, exp, subexp, cv_fold, thes_shelf):
         basic_para_stats = analyse_replacement_ranks_and_sims(paraphrases_df, thes)
         # sanity check
         _test_replacement_match(paraphrases_df, thes, full_voc)
-
 
     if params.class_pull:
         logging.info('Class pull')
