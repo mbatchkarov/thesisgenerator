@@ -346,6 +346,7 @@ def replacement_scores_contingency_matrix(x_scores, y_scores, weights, thresh=1)
     logging.info('%d/%d data points have a high enough log odds score. '
                  '%d/%d data points are in the wrong quadrant.', sum(observed), len(x),
                  posneg + negpos, sum(observed))
+    logging.info('Breakdown by category: pospos %d, posneg %d, negpos %d, negneg %d', pospos, posneg, negpos, negneg)
 
 
 def do_work(params, exp, subexp, folds=20, workers=4, cursor=None):
