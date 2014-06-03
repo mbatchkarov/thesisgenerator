@@ -197,7 +197,7 @@ def _print_scores_of_feature_and_replacements(features, scores, counts, thes, vo
             continue
         replacements = [(repl, round(scores.get(repl, -1), 2))
                         for repl, sim in _get_neighbours(feature, thes, voc, 3)
-                        if scores.get(repl, -1) > 0]
+                        if repl in scores]
         if replacements:
             logging.info(' | %s (score=%2.2f, count=%d) -> %r', feature,
                          scores[feature],
