@@ -510,5 +510,5 @@ if __name__ == '__main__':
             do_work(parameters, 0, 0, folds=2, workers=1, cursor=None)
         else:
             # production version
-            do_work(parameters, parameters.experiment, 0, folds=20, workers=2, cursor=c)
+            do_work(parameters, parameters.experiment, 0, folds=20, workers=1, cursor=c)
 

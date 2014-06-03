@@ -173,7 +173,7 @@ def load_and_shelve_thesaurus(files, sim_threshold, include_self,
                                 allow_lexical_overlap=allow_lexical_overlap,
                                 max_neighbours=max_neighbours,
                                 row_filter=lambda x, y: y.type in entry_types_to_load)
-        logging.info('Shelving %s', files)
+        logging.info('Shelving %s to %s', files, filename)
         th.to_shelf(filename)
     return filename
 
