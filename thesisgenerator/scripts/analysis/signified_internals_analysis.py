@@ -20,6 +20,7 @@ from collections import Counter
 from itertools import chain, combinations
 import logging
 import random
+import platform
 import numpy as np
 from scipy.stats import chisquare
 from operator import add, itemgetter
@@ -501,9 +502,13 @@ if __name__ == '__main__':
         for i in chain(range(1, 97)):
             do_work(parameters, i, 0, folds=20, workers=20, cursor=c)
     else:
-        # do just one experiment, without any concurrency
+        # do just one experiment, with minimal concurrency
         logging.info('Analysing just one experiment: %d', parameters.experiment)
-        # do_work(parameters, parameters.experiment, 0, folds=20, workers=2, cursor=c)
-        do_work(parameters, 0, 0, folds=2, workers=1, cursor=None)
-        # do_work(parameters, 8, 0, folds=4, workers=1, cursor=None)
+        hostname = platform.node()
+        if not ('apollo' in hostname or 'node' in hostname):
+            logging.info('RUNNING DEVELOPMENT VERSION')
+            do_work(parameters, 0, 0, folds=2, workers=1, cursor=None)
+        else:
+            # production version
+            do_work(parameters, parameters.experiment, 0, folds=20, workers=2, cursor=c)
 
