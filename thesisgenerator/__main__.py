@@ -258,13 +258,14 @@ def _cv_loop(configuration, cv_i, score_func, test_idx, train_idx, vector_source
 
     # remove documents with too few features
     to_keep_train = tr_matrix.A.sum(axis=1) >= 5 # todo hardcoded thresholds
-    to_keep_test = test_matrix.A.sum(axis=1) >= 1
     logging.info('%d/%d train documents have enough features', sum(to_keep_train), len(y_train))
-    logging.info('%d/%d test documents have enough features', sum(to_keep_test), len(y_test))
     tr_matrix = tr_matrix[to_keep_train, :]
     y_train = y_train[to_keep_train]
+    # do the same for the test set
+    to_keep_test = test_matrix.A.sum(axis=1) >= 1
+    logging.info('%d/%d test documents have enough features', sum(to_keep_test), len(y_test))
     test_matrix = test_matrix[to_keep_test, :]
-    y_test = y_train[to_keep_test]
+    y_test = y_test[to_keep_test]
 
     for clf in _build_classifiers(configuration['classifiers']):
         logging.info('Starting training of %s', clf)
