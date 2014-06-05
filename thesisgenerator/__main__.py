@@ -236,7 +236,7 @@ def _build_classifiers(classifiers_conf):
         yield clf(**init_args)
 
 
-def _cv_loop(configuration, cv_i, score_func, test_idx, train_idx, vector_source, x_vals_seen, y_vals_seen):
+def _cv_loop(configuration, cv_i, score_func, test_idx, train_idx, vector_source, X, y):
     scores_this_cv_run = []
     pipeline, fit_params = _build_pipeline(cv_i, vector_source,
                                            configuration['feature_extraction'],
@@ -246,22 +246,33 @@ def _cv_loop(configuration, cv_i, score_func, test_idx, train_idx, vector_source
                                            configuration['debug'],
                                            exp_name=configuration['name'])
     # code below is a simplified version of sklearn's _cross_val_score
-    X = x_vals_seen
-    y = y_vals_seen
     train_text = [X[idx] for idx in train_idx]
     test_text = [X[idx] for idx in test_idx]
+    y_train = y[train_idx]
+    y_test = y[test_idx]
+
     # vectorize all data in advance, it's the same across all classifiers
-    tr_matrix = pipeline.fit_transform(train_text, y[train_idx], **fit_params)
+    tr_matrix = pipeline.fit_transform(train_text, y_train, **fit_params)
     test_matrix = pipeline.transform(test_text)
     stats = pipeline.named_steps['vect'].stats
 
+    # remove documents with too few features
+    to_keep_train = tr_matrix.A.sum(axis=1) >= 5 # todo hardcoded thresholds
+    to_keep_test = test_matrix.A.sum(axis=1) >= 1
+    logging.info('%d/%d train documents have enough features', sum(to_keep_train), len(y_train))
+    logging.info('%d/%d test documents have enough features', sum(to_keep_test), len(y_test))
+    tr_matrix = tr_matrix[to_keep_train, :]
+    y_train = y_train[to_keep_train]
+    test_matrix = test_matrix[to_keep_test, :]
+    y_test = y_train[to_keep_test]
+
     for clf in _build_classifiers(configuration['classifiers']):
         logging.info('Starting training of %s', clf)
-        clf = clf.fit(tr_matrix, y[train_idx])
+        clf = clf.fit(tr_matrix, y_train)
         predictions = clf.predict(test_matrix)
-        scores = score_func(y[test_idx], predictions)
+        scores = score_func(y_test, predictions)
 
-        tr_set_scores = score_func(y[train_idx], clf.predict(tr_matrix))
+        tr_set_scores = score_func(y_train, clf.predict(tr_matrix))
         logging.info('Training set scores: %r', tr_set_scores)
 
         if configuration['feature_extraction']['record_stats']:
@@ -270,7 +281,7 @@ def _cv_loop(configuration, cv_i, score_func, test_idx, train_idx, vector_source
                 logging.info('Pickling trained classifier to %s', outf.name)
                 b = Bunch(clf=clf, inv_voc=inv_voc, tr_matrix=tr_matrix,
                           test_matrix=test_matrix, predictions=predictions,
-                          y_tr=y[train_idx], y_ev=y[test_idx])
+                          y_tr=y_train, y_ev=y_test)
                 pickle.dump(b, outf)
 
         for metric, score in scores.items():
