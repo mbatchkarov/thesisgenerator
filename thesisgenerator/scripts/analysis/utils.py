@@ -68,13 +68,7 @@ def get_good_vectors(all_clf_vectors, feature_counts_in_tr_set, min_freq, inv_vo
     mask_to_keep = np.logical_and(np.logical_and(in_thes, not_unigram),
                                   exceeds_threshold)
 
-    # # todo check if feature has any good neighbours, else remove it from good list
-    # for idx, doc_feat in inv_voc.items():
-    #     neighbours = _get_neighbours(doc_feat, thes, full_voc, 3)
-    #     if neighbours:
-    #         has_IV_replacements += 1
-    #     else:
-    #         no_IV_replacements +=
+    # todo check if feature has any good neighbours, else remove it from good list
     logging.info('%d total features. Types are %r. %d are IT.',
                  len(inv_voc),
                  Counter(x.type for x in inv_voc.values()),
