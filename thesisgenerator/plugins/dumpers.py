@@ -181,8 +181,8 @@ def consolidate_single_experiment(prefix, expid):
     output_dir = '%s/conf/exp%d/output/' % (prefix, expid)
     csv_out_fh = open(os.path.join(output_dir, "summary%d.csv" % expid), "w")
     conf_dir = '%s/conf/exp%d/exp%d_base-variants' % (prefix, expid, expid)
-    if not ('apollo' in hostname or 'node' in hostname):
-        output_db_conn = get_susx_mysql_conn()
+    output_db_conn = get_susx_mysql_conn()
+    if output_db_conn:
         writer = ConsolidatedResultsSqlAndCsvWriter(expid, csv_out_fh, output_db_conn)
     else:
         writer = ConsolidatedResultsCsvWriter(csv_out_fh)
