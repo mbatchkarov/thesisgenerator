@@ -30,9 +30,9 @@ import pandas as pd
 from collections import defaultdict
 from scipy.stats import spearmanr, pearsonr
 
-######################################################
+# #####################################################
 # CLASSES TO STORE RESULTS OF DIFFERENT ANALYSES
-######################################################
+# #####################################################
 
 class DecodeTimeCounts(object):
     def __init__(self, *args):
@@ -71,7 +71,7 @@ class StatsOverSingleFold(object):
         self.classificational_and_dist_sims = classificational_and_dist_sims
 
 
-######################################################
+# #####################################################
 # BASIC (AND FAST) ANALYSIS FUNCTIONS
 ######################################################
 def train_time_counts(fname):
@@ -332,22 +332,28 @@ def get_stats_for_a_single_fold(params, exp, subexp, cv_fold, thes_shelf):
                                it_oov_class_pulls, class_and_dist_sims)
 
 
-def replacement_scores_contingency_matrix(x_scores, y_scores, weights, thresh=1):
+def replacement_scores_contingency_matrix(x_scores, y_scores, weights, thresh=1.):
+    def count(x, y, thresh, weighted):
+        pospos = sum((x > thresh) & (y > thresh))
+        posneg = sum((x > thresh) & (y < -thresh))
+        negpos = sum((x < -thresh) & (y > thresh))
+        negneg = sum((x < -thresh) & (y < -thresh))
+
+        total = pospos + negneg + posneg + negpos
+        logging.info('What quadrant are replacements in?')
+        logging.info('%d/%d data points have a high enough log odds score (thresh = %d). '
+                     '%d/%d data points are in the wrong quadrant (%s).',
+                     total, len(x), thresh,
+                     posneg + negpos, total,
+                     weighted)
+        logging.info('Breakdown by category: pospos %d, posneg %d, negpos %d, negneg %d', pospos, posneg, negpos,
+                     negneg)
+
     x = np.array(x_scores)
     y = np.array(y_scores)
-    pospos = sum((x > thresh) & (y > thresh))
-    posneg = sum((x > thresh) & (y < -thresh))
-    negpos = sum((x < -thresh) & (y > thresh))
-    negneg = sum((x < -thresh) & (y < -thresh))
+    count(x, y, thresh, 'unweighted')
 
-    observed = [pospos, negneg, posneg, negpos]
-    expected = [(pospos + negneg) / 2., (pospos + negneg) / 2., 0, 0]
-    logging.info('Results of unweighted chi-square test of replacement-score contingency table: %r',
-                 chisquare(observed, expected))
-    logging.info('%d/%d data points have a high enough log odds score. '
-                 '%d/%d data points are in the wrong quadrant.', sum(observed), len(x),
-                 posneg + negpos, sum(observed))
-    logging.info('Breakdown by category: pospos %d, posneg %d, negpos %d, negneg %d', pospos, posneg, negpos, negneg)
+    count(np.repeat(x, weights), np.repeat(y, weights), thresh, 'weighted')
 
 
 def do_work(params, exp, subexp, folds=20, workers=4, cursor=None):
