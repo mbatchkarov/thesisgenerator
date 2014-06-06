@@ -17,7 +17,8 @@ from thesisgenerator.utils.conf_file_utils import parse_config_file
 from thesisgenerator.utils.misc import get_susx_mysql_conn
 from thesisgenerator.plugins.stats import sum_up_token_counts
 from collections import Counter
-from itertools import chain, combinations
+from itertools import chain, combinations, groupby
+from operator import attrgetter
 import logging
 import random
 import platform
@@ -71,9 +72,20 @@ class StatsOverSingleFold(object):
         self.classificational_and_dist_sims = classificational_and_dist_sims
 
 
+class ReplacementLogOddsScore(object):
+    def __init__(self, lo_original, lo_replacement, frequency, sim):
+        self.lo_original = lo_original
+        self.lo_replacement = lo_replacement
+        self.frequency = frequency
+        self.sim = sim
+
+    def __add__(self, other):
+        return ReplacementLogOddsScore()
+
+
 # #####################################################
 # BASIC (AND FAST) ANALYSIS FUNCTIONS
-######################################################
+# #####################################################
 def train_time_counts(fname):
     # BASIC STATISTICS AT TRAINING TIME
     df = sum_up_token_counts(fname)
@@ -154,11 +166,11 @@ def _get_neighbours(feature, thes, vocabulary, k):
 
 
 def analyse_replacements_class_pull(scores, full_voc, thes):
-    it_iv_replacement_scores = defaultdict(int)
+    it_iv_replacement_scores = []
     no_IV_replacements, has_IV_replacements, good_neighbour_count, = 0, 0, 0
 
     for doc_feat, orig_score in scores.iteritems():  # this contains all good features in the training set (=IV, IT
-        #  features with a "high" frequency). Their neighbours may or may not be contained in the given thesaurus.
+        # features with a "high" frequency). Their neighbours may or may not be contained in the given thesaurus.
         neighbours = _get_neighbours(doc_feat, thes, full_voc, 3)
         if neighbours:
             has_IV_replacements += 1
@@ -172,7 +184,10 @@ def analyse_replacements_class_pull(scores, full_voc, thes):
 
             has_good_neighbours = True
             # using doubles as keys, rounding needed
-            it_iv_replacement_scores[(round(orig_score, 2), round(scores[repl_feat], 2))] += 1
+            foo = ReplacementLogOddsScore(round(orig_score, 2),
+                                          round(scores[repl_feat], 2),
+                                          1, repl_sim)
+            it_iv_replacement_scores.append(foo)
         if has_good_neighbours:
             good_neighbour_count += 1
 
@@ -182,14 +197,14 @@ def analyse_replacements_class_pull(scores, full_voc, thes):
                  no_IV_replacements,
                  len(scores))
     logging.info('%d/%d reliable features have reliable neighbours', good_neighbour_count, has_IV_replacements)
-    if len(it_iv_replacement_scores) < 2:
+    if len(set((x.lo_original, x.lo_replacement) for x in it_iv_replacement_scores)) < 2:
         raise ValueError('Too little data points to scatter. Need at least 2, got %d' % len(it_iv_replacement_scores))
     return it_iv_replacement_scores
 
 
-#####################################################################
+# ####################################################################
 # FUNCTIONS THAT DO MORE ADVANCED ANALYSIS
-#####################################################################
+# ####################################################################
 
 def _print_scores_of_feature_and_replacements(features, scores, counts, thes, voc):
     for feature in features:
@@ -286,7 +301,7 @@ def _test_replacement_match(paraphrases_df, thes, voc):
 def get_stats_for_a_single_fold(params, exp, subexp, cv_fold, thes_shelf):
     logging.info('Doing fold %d', cv_fold)
     name = 'exp%d-%d' % (exp, subexp)
-    class_pulls, llr_of_good_features, it_oov_class_pulls, basic_para_stats, \
+    class_pulls, lo_of_good_features, it_oov_class_pulls, basic_para_stats, \
     tr_counts, ev_counts, class_and_dist_sims = [None] * 7
 
     if params.counts:
@@ -319,7 +334,7 @@ def get_stats_for_a_single_fold(params, exp, subexp, cv_fold, thes_shelf):
     if params.class_pull:
         logging.info('Class pull')
         log_odds = get_log_odds(good_clf_vect, good_inv_voc)
-        llr_of_good_features = analyse_replacements_class_pull(log_odds, full_voc, thes)
+        lo_of_good_features = analyse_replacements_class_pull(log_odds, full_voc, thes)
 
     if params.sim_corr:
         logging.info('Sim correlation')
@@ -328,32 +343,38 @@ def get_stats_for_a_single_fold(params, exp, subexp, cv_fold, thes_shelf):
         logging.info('Qualitative study')
         qualitative_replacement_study(log_odds, all_feature_counts, thes, full_voc)
 
-    return StatsOverSingleFold(tr_counts, ev_counts, basic_para_stats, llr_of_good_features,
+    return StatsOverSingleFold(tr_counts, ev_counts, basic_para_stats, lo_of_good_features,
                                it_oov_class_pulls, class_and_dist_sims)
 
 
-def replacement_scores_contingency_matrix(x_scores, y_scores, weights, thresh=1.):
-    def count(x, y, thresh, weighted):
-        pospos = sum((x > thresh) & (y > thresh))
-        posneg = sum((x > thresh) & (y < -thresh))
-        negpos = sum((x < -thresh) & (y > thresh))
-        negneg = sum((x < -thresh) & (y < -thresh))
+def replacement_scores_contingency_matrix(x_scores, y_scores, freq, sims, xthreshold=1., ythreshold=0.):
+    def count(x, y, xthresh, ythresh, comment, weights=None):
+        # todo needs a unit test badly
+        if weights is None:
+            weights = np.ones(len(x))
+        pospos = sum(((x > xthresh) & (y > ythresh)) * weights)
+        posneg = sum(((x > xthresh) & (y < -ythresh)) * weights)
+        negpos = sum(((x < -xthresh) & (y > ythresh)) * weights)
+        negneg = sum(((x < -xthresh) & (y < -ythresh)) * weights)
 
         total = pospos + negneg + posneg + negpos
-        logging.info('What quadrant are replacements in?')
-        logging.info('%d/%d data points have a high enough log odds score (thresh = %d). '
-                     '%d/%d data points are in the wrong quadrant (%s).',
-                     total, len(x), thresh,
-                     posneg + negpos, total,
-                     weighted)
-        logging.info('Breakdown by category: pospos %d, posneg %d, negpos %d, negneg %d', pospos, posneg, negpos,
-                     negneg)
+        logging.info('--- What quadrant are replacements in?')
+        logging.info('%.2f/%.2f data points have a high enough log odds score (thresh = %.2f, %.2f). ',
+                     total, np.sum(weights), xthresh, ythresh)
+        logging.info('%.2f/%.2f data points are in the wrong quadrant (%s).',
+                     posneg + negpos, total, comment)
+        logging.info('Breakdown by category: pospos %.2f, posneg %.2f, negpos %.2f, negneg %.2f',
+                     pospos, posneg, negpos, negneg)
 
     x = np.array(x_scores)
     y = np.array(y_scores)
-    count(x, y, thresh, 'unweighted')
 
-    count(np.repeat(x, weights), np.repeat(y, weights), thresh, 'weighted')
+    count(x, y, xthreshold, ythreshold, 'unweighted')
+    count(x, y, xthreshold, ythreshold, 'weighted by freq', weights=freq)
+    count(x, y, xthreshold, ythreshold, 'weighted by sim', weights=sims)
+    count(x, y, xthreshold, ythreshold, 'weighted by sim and freq', weights=np.array(sims) * freq)
+    count(x, y, xthreshold, ythreshold, 'weighted by seriousness, sim and freq',
+          weights=np.abs((x-y)*np.array(sims) * freq))
 
 
 def do_work(params, exp, subexp, folds=20, workers=4, cursor=None):
@@ -390,31 +411,40 @@ def do_work(params, exp, subexp, folds=20, workers=4, cursor=None):
     print_counts_data([x.train_counts for x in all_data], 'Train')
     print_counts_data([x.decode_counts for x in all_data], 'Decode')
 
-    it_iv_replacement_scores = reduce(add, (Counter(x.it_iv_class_pull) for x in all_data))
-    it_oov_replacement_scores = reduce(add, (Counter(x.it_oov_class_pull) for x in all_data))
-
-    logging.info('LLR of good features %r', it_iv_replacement_scores)
+    it_iv_replacement_scores = []
+    func = attrgetter('lo_original', 'lo_replacement')
+    all_replacements = sorted(chain.from_iterable(x.it_iv_class_pull for x in all_data), key=func)
+    for key, group in groupby(all_replacements, func):
+        g = list(group)
+        it_iv_replacement_scores.append(ReplacementLogOddsScore(key[0], key[1], len(g), g[0].sim))
+    # it_iv_replacement_scores = reduce(add, (Counter(x.it_iv_class_pull) for x in all_data))
+    # it_oov_replacement_scores = reduce(add, (Counter(x.it_oov_class_pull) for x in all_data))
+    # logging.info('LLR of good features %r', it_iv_replacement_scores)
 
     # sometimes there may not be any IV-IT features at decode time
     if it_iv_replacement_scores:
-        if it_oov_replacement_scores:
-            keys, values = [], []
-            for k, v in it_oov_replacement_scores.items():
-                keys.append(k)
-                values.append(v)
-            histogram_from_list(keys, 3, 'IT-OOV replacements- class associations', weights=values)
+        # if it_oov_replacement_scores:
+        # keys, values = [], []
+        #     for k, v in it_oov_replacement_scores.items():
+        #         keys.append(k)
+        #         values.append(v)
+        #     histogram_from_list(keys, 3, 'IT-OOV replacements- class associations', weights=values)
 
         plt.subplot(2, 3, 4)
-        x, y, weights = class_pull_results_as_list(it_iv_replacement_scores)
-        coef, r2, r2adj = plot_regression_line(x, y, weights)
+        orig_lo = [foo.lo_original for foo in it_iv_replacement_scores]
+        repl_lo = [foo.lo_replacement for foo in it_iv_replacement_scores]
+        type_frequencies = [foo.frequency for foo in it_iv_replacement_scores]
+        repl_sims = [foo.sim for foo in it_iv_replacement_scores]
+
+        coef, r2, r2adj = plot_regression_line(orig_lo, repl_lo, type_frequencies)
         logging.info('R-squared of class-pull plot: %f', r2)
         # Data currently rounded to 2 significant digits. Round to nearest int to make plot less cluttered
-        myrange = plot_dots(*class_pull_results_as_list(round_class_pull_to_given_precision(it_iv_replacement_scores)))
+        myrange = plot_dots(orig_lo, repl_lo, type_frequencies)
         plt.title('y=%.2fx%+.2f; r2=%.2f(%.2f); w=%s--%s' % (coef[0], coef[1], r2, r2adj, myrange[0], myrange[1]))
         logging.info('Sum-of-squares error compared to perfect diagonal = %f',
-                     sum_of_squares_score_diagonal_line(x, y, weights))
+                     sum_of_squares_score_diagonal_line(orig_lo, repl_lo, type_frequencies))
 
-        replacement_scores_contingency_matrix(x, y, weights)
+        replacement_scores_contingency_matrix(orig_lo, repl_lo, type_frequencies, repl_sims)
 
     if params.sim_corr:
         class_sims = defaultdict(list)
