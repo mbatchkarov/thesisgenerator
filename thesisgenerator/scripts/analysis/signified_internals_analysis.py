@@ -73,14 +73,57 @@ class StatsOverSingleFold(object):
 
 
 class ReplacementLogOddsScore(object):
+    """
+    This class holds information about replacements that occurs at decode time, such as
+    the classificational log odds score of the original feature and its replacement,
+    their thesaurus similarity and the number of times this replacement was made
+    """
     def __init__(self, lo_original, lo_replacement, frequency, sim):
         self.lo_original = lo_original
         self.lo_replacement = lo_replacement
         self.frequency = frequency
         self.sim = sim
 
-    def __add__(self, other):
-        return ReplacementLogOddsScore()
+    def __str__(self):
+        return 'LO(%.1f) -> LO(%.1f): sim %.2f, %d times' % (self.lo_original, self.lo_replacement,
+                                                             self.sim, self.frequency)
+
+    def __repr__(self):
+        return str(self)
+
+    def __eq__(self, other):
+        return all(getattr(self, field) == getattr(other, field)
+                   for field in self.__dict__.keys())
+
+    def round_log_odds_scores(self, precision):
+        self.lo_original = round(self.lo_original, precision)
+        self.lo_replacement= round(self.lo_replacement, precision)
+        return self
+
+    @staticmethod
+    def add_up(mylist, rounding=None):
+        """
+        Adds up an iterable of ReplacementLogOddsScore objects by grouping them by
+        lo_original and lo_replacement, adding up their frequencies and averaging their similarities
+
+        :param rounding: optional rounding. This is passed as the second parameter to round()
+        :type rounding: int
+        """
+        if rounding is not None:
+            data = [foo.round_log_odds_scores(rounding) for foo in mylist]
+        else:
+            data = list(mylist)
+
+        res = []
+        func = attrgetter('lo_original', 'lo_replacement')
+
+        data = sorted(data, key=func)
+        for key, group in groupby(data, func):
+            g = list(group)
+            res.append(ReplacementLogOddsScore(key[0], key[1],
+                                               sum(x.frequency for x in g),
+                                               np.mean([foo.sim for foo in g])))
+        return res
 
 
 # #####################################################
@@ -408,18 +451,17 @@ def do_work(params, exp, subexp, folds=20, workers=4, cursor=None):
     except AttributeError:
         pass  # didn't collect these stats, so no rank/sim attribute
 
-    print_counts_data([x.train_counts for x in all_data], 'Train')
-    print_counts_data([x.decode_counts for x in all_data], 'Decode')
+    print_counts_data([foo.train_counts for foo in all_data], 'Train')
+    print_counts_data([foo.decode_counts for foo in all_data], 'Decode')
 
     it_iv_replacement_scores = []
     func = attrgetter('lo_original', 'lo_replacement')
     all_replacements = sorted(chain.from_iterable(x.it_iv_class_pull for x in all_data), key=func)
     for key, group in groupby(all_replacements, func):
         g = list(group)
-        it_iv_replacement_scores.append(ReplacementLogOddsScore(key[0], key[1], len(g), g[0].sim))
-    # it_iv_replacement_scores = reduce(add, (Counter(x.it_iv_class_pull) for x in all_data))
-    # it_oov_replacement_scores = reduce(add, (Counter(x.it_oov_class_pull) for x in all_data))
-    # logging.info('LLR of good features %r', it_iv_replacement_scores)
+        it_iv_replacement_scores.append(ReplacementLogOddsScore(key[0], key[1], sum(x.frequency for x in g), g[0].sim))
+
+    it_iv_replacement_scores = ReplacementLogOddsScore.add_up(chain.from_iterable(x.it_iv_class_pull for x in all_data))
 
     # sometimes there may not be any IV-IT features at decode time
     if it_iv_replacement_scores:
@@ -436,15 +478,20 @@ def do_work(params, exp, subexp, folds=20, workers=4, cursor=None):
         type_frequencies = [foo.frequency for foo in it_iv_replacement_scores]
         repl_sims = [foo.sim for foo in it_iv_replacement_scores]
 
-        coef, r2, r2adj = plot_regression_line(orig_lo, repl_lo, type_frequencies)
-        logging.info('R-squared of class-pull plot: %f', r2)
-        # Data currently rounded to 2 significant digits. Round to nearest int to make plot less cluttered
-        myrange = plot_dots(orig_lo, repl_lo, type_frequencies)
-        plt.title('y=%.2fx%+.2f; r2=%.2f(%.2f); w=%s--%s' % (coef[0], coef[1], r2, r2adj, myrange[0], myrange[1]))
         logging.info('Sum-of-squares error compared to perfect diagonal = %f',
                      sum_of_squares_score_diagonal_line(orig_lo, repl_lo, type_frequencies))
 
         replacement_scores_contingency_matrix(orig_lo, repl_lo, type_frequencies, repl_sims)
+        rounded_it_iv_replacement_scores = ReplacementLogOddsScore.add_up(it_iv_replacement_scores, 0)
+        rounded_orig_lo = [foo.lo_original for foo in rounded_it_iv_replacement_scores]
+        rounded_repl_lo = [foo.lo_replacement for foo in rounded_it_iv_replacement_scores]
+        rounded_type_frequencies = [foo.frequency for foo in rounded_it_iv_replacement_scores]
+
+        coef, r2, r2adj = plot_regression_line(orig_lo, repl_lo, type_frequencies)
+        logging.info('R-squared of class-pull plot: %f', r2)
+        # Data currently rounded to 2 significant digits. Round to nearest int to make plot less cluttered
+        myrange = plot_dots(rounded_orig_lo, rounded_repl_lo, rounded_type_frequencies)
+        plt.title('y=%.2fx%+.2f; r2=%.2f(%.2f); w=%s--%s' % (coef[0], coef[1], r2, r2adj, myrange[0], myrange[1]))
 
     if params.sim_corr:
         class_sims = defaultdict(list)

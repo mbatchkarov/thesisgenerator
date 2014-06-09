@@ -2,6 +2,7 @@ import numpy as np
 from numpy.testing import assert_almost_equal
 import pytest
 from thesisgenerator.scripts.analysis.plot import plot_regression_line, sum_of_squares_score_diagonal_line
+from thesisgenerator.scripts.analysis.signified_internals_analysis import ReplacementLogOddsScore
 
 
 def _eval_at(coef, x):
@@ -94,3 +95,20 @@ def test_sum_of_squares_score_diagonal_line():
     v2 = sum_of_squares_score_diagonal_line([-1, 3], [-1, 4], [1, 2])
     v3 = sum_of_squares_score_diagonal_line([-1, 3], [-1, 4], [1, 3])
     assert v0 < v1 < v2 < v3
+
+def test_ReplacementLogOddsScore_add_up():
+    # check counts are correctly added up
+    assert ReplacementLogOddsScore.add_up([ReplacementLogOddsScore(1.1, 2.2, 1, 1)] * 5) == \
+           [ReplacementLogOddsScore(1.1, 2.2, 5, 1)]
+
+    # check similarities are averaged
+    assert ReplacementLogOddsScore.add_up([
+        ReplacementLogOddsScore(1.1, 2.2, 1, 1),
+        ReplacementLogOddsScore(1.1, 2.2, 1, 3),
+        ReplacementLogOddsScore(10, 22, 1, 1),
+        ReplacementLogOddsScore(10, 22, 1, 3),
+        ]) == \
+           [
+               ReplacementLogOddsScore(1.1, 2.2, 2, 2),
+               ReplacementLogOddsScore(10, 22, 2, 2),
+            ]
