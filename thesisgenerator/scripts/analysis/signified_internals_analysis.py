@@ -78,15 +78,19 @@ class ReplacementLogOddsScore(object):
     the classificational log odds score of the original feature and its replacement,
     their thesaurus similarity and the number of times this replacement was made
     """
-    def __init__(self, lo_original, lo_replacement, frequency, sim):
+
+    def __init__(self, original, replacement, lo_original, lo_replacement, frequency, sim):
+        self.original = original
+        self.replacement = replacement
         self.lo_original = lo_original
         self.lo_replacement = lo_replacement
         self.frequency = frequency
         self.sim = sim
 
     def __str__(self):
-        return 'LO(%.1f) -> LO(%.1f): sim %.2f, %d times' % (self.lo_original, self.lo_replacement,
-                                                             self.sim, self.frequency)
+        return '%s LO(%.1f) -> %s LO(%.1f): mean sim %.2f, %d times' % (self.original, self.lo_original,
+                                                                        self.replacement, self.lo_replacement,
+                                                                        self.sim, self.frequency)
 
     def __repr__(self):
         return str(self)
@@ -97,7 +101,7 @@ class ReplacementLogOddsScore(object):
 
     def round_log_odds_scores(self, precision):
         self.lo_original = round(self.lo_original, precision)
-        self.lo_replacement= round(self.lo_replacement, precision)
+        self.lo_replacement = round(self.lo_replacement, precision)
         return self
 
     @staticmethod
@@ -120,7 +124,9 @@ class ReplacementLogOddsScore(object):
         data = sorted(data, key=func)
         for key, group in groupby(data, func):
             g = list(group)
-            res.append(ReplacementLogOddsScore(key[0], key[1],
+            res.append(ReplacementLogOddsScore(tuple(sorted(set(x.original for x in g))),
+                                               tuple(sorted(set(x.replacement for x in g))),
+                                               key[0], key[1],
                                                sum(x.frequency for x in g),
                                                np.mean([foo.sim for foo in g])))
         return res
@@ -227,7 +233,8 @@ def analyse_replacements_class_pull(scores, full_voc, thes):
 
             has_good_neighbours = True
             # using doubles as keys, rounding needed
-            foo = ReplacementLogOddsScore(round(orig_score, 2),
+            foo = ReplacementLogOddsScore(doc_feat, repl_feat,
+                                          round(orig_score, 2),
                                           round(scores[repl_feat], 2),
                                           1, repl_sim)
             it_iv_replacement_scores.append(foo)
@@ -285,6 +292,15 @@ def qualitative_replacement_study(scores, counts, thes, full_voc):
     logging.info(' | A random sample of reliable features and their reliable replacements')
     _print_scores_of_feature_and_replacements(random.sample(feats_sorted_by_score, min(300, len(scores))),
                                               scores, counts, thes, full_voc)
+    logging.info('  ---------------------------')
+
+    logging.info('  ---------------------------')
+    logging.info(' | Most informative features')
+    for feature in feats_sorted_by_score[:20] + feats_sorted_by_score[-20:]:
+        logging.info(' | %s (score=%2.2f, count=%d)',
+                     feature,
+                     scores[feature],
+                     counts[feature])
     logging.info('  ---------------------------')
 
 
@@ -417,7 +433,31 @@ def replacement_scores_contingency_matrix(x_scores, y_scores, freq, sims, xthres
     count(x, y, xthreshold, ythreshold, 'weighted by sim', weights=sims)
     count(x, y, xthreshold, ythreshold, 'weighted by sim and freq', weights=np.array(sims) * freq)
     count(x, y, xthreshold, ythreshold, 'weighted by seriousness, sim and freq',
-          weights=np.abs((x-y)*np.array(sims) * freq))
+          weights=np.abs((x - y) * np.array(sims) * freq))
+
+
+def _print_extremes_of_LO_scatter_plot(it_iv_replacement_scores, orig_lo, repl_lo):
+    # get samples from each corner of the log-odds scatter plot
+    logging.info('------------------------------------------------')
+    logging.info('Samples from all corners of scatter plot (90th percentile)')
+    min_x, max_x = .90 * min(orig_lo), .90 * max(orig_lo)
+    min_y, max_y = .90 * min(repl_lo), .90 * max(repl_lo)
+    topleft, bottomleft, topright, bottomright = [], [], [], []
+    for foo in it_iv_replacement_scores:
+        if foo.lo_original < min_x and foo.lo_replacement < min_y:
+            bottomleft.append(foo)
+        if foo.lo_original < min_x and foo.lo_replacement > max_y:
+            bottomright.append(foo)
+        if foo.lo_original > max_x and foo.lo_replacement < min_y:
+            topleft.append(foo)
+        if foo.lo_original > max_x and foo.lo_replacement > max_y:
+            topright.append(foo)
+    for mylist, position in zip([topleft, bottomright, topright, bottomleft],
+                                ['top left', 'bottom right', 'top right', 'bottom left']):
+        logging.info('%s:', position.upper())
+        for foo in mylist:
+            logging.info(foo)
+    logging.info('------------------------------------------------')
 
 
 def do_work(params, exp, subexp, folds=20, workers=4, cursor=None):
@@ -454,29 +494,23 @@ def do_work(params, exp, subexp, folds=20, workers=4, cursor=None):
     print_counts_data([foo.train_counts for foo in all_data], 'Train')
     print_counts_data([foo.decode_counts for foo in all_data], 'Decode')
 
-    it_iv_replacement_scores = []
-    func = attrgetter('lo_original', 'lo_replacement')
-    all_replacements = sorted(chain.from_iterable(x.it_iv_class_pull for x in all_data), key=func)
-    for key, group in groupby(all_replacements, func):
-        g = list(group)
-        it_iv_replacement_scores.append(ReplacementLogOddsScore(key[0], key[1], sum(x.frequency for x in g), g[0].sim))
-
     it_iv_replacement_scores = ReplacementLogOddsScore.add_up(chain.from_iterable(x.it_iv_class_pull for x in all_data))
 
     # sometimes there may not be any IV-IT features at decode time
     if it_iv_replacement_scores:
         # if it_oov_replacement_scores:
         # keys, values = [], []
-        #     for k, v in it_oov_replacement_scores.items():
-        #         keys.append(k)
-        #         values.append(v)
-        #     histogram_from_list(keys, 3, 'IT-OOV replacements- class associations', weights=values)
+        # for k, v in it_oov_replacement_scores.items():
+        # keys.append(k)
+        # values.append(v)
+        # histogram_from_list(keys, 3, 'IT-OOV replacements- class associations', weights=values)
 
         plt.subplot(2, 3, 4)
         orig_lo = [foo.lo_original for foo in it_iv_replacement_scores]
         repl_lo = [foo.lo_replacement for foo in it_iv_replacement_scores]
         type_frequencies = [foo.frequency for foo in it_iv_replacement_scores]
         repl_sims = [foo.sim for foo in it_iv_replacement_scores]
+
 
         logging.info('Sum-of-squares error compared to perfect diagonal = %f',
                      sum_of_squares_score_diagonal_line(orig_lo, repl_lo, type_frequencies))
@@ -486,6 +520,9 @@ def do_work(params, exp, subexp, folds=20, workers=4, cursor=None):
         rounded_orig_lo = [foo.lo_original for foo in rounded_it_iv_replacement_scores]
         rounded_repl_lo = [foo.lo_replacement for foo in rounded_it_iv_replacement_scores]
         rounded_type_frequencies = [foo.frequency for foo in rounded_it_iv_replacement_scores]
+
+        if params.qualitative:
+            _print_extremes_of_LO_scatter_plot(it_iv_replacement_scores, orig_lo, repl_lo)
 
         coef, r2, r2adj = plot_regression_line(orig_lo, repl_lo, type_frequencies)
         logging.info('R-squared of class-pull plot: %f', r2)
