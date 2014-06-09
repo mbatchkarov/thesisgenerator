@@ -6,6 +6,9 @@ shuffle_targets=boolean(default=False) # randomly change the labels of all docum
 training_data=string(default='')
 test_data=string(default='')
 
+min_test_features = integer() # minimum number of features in a document at train/decode time. Documents failing this test are removed from the data set.
+min_train_features = integer() 
+
 [feature_extraction]
     run=boolean(default=True)
     vectorizer=string # class of vectorizer
