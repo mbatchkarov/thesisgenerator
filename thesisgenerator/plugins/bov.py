@@ -108,19 +108,6 @@ class ThesaurusVectorizer(TfidfVectorizer):
 
     def fit_transform(self, raw_documents, y=None, vector_source=None, stats_hdf_file=None):
         self.vector_source = vector_source
-        if isinstance(self.vector_source, str):
-            # it's probably a path to a shelved vector source
-            # this is an ugly hack- I can't be sure it's really a Precomputed....
-            logging.info('Deshelving %s', self.vector_source)
-            self.vector_source = PrecomputedSimilaritiesVectorSource(Thesaurus.from_shelf_readonly(self.vector_source))
-
-        logging.debug('Identity of vector source is %d', id(vector_source))
-        if self.vector_source:
-            try:
-                logging.debug('The BallTree is %s', vector_source.nbrs)
-            except AttributeError:
-                logging.debug('The vector source is %s', vector_source)
-
         self.handler = get_token_handler(self.train_token_handler,
                                          self.k,
                                          self.sim_compressor,
@@ -166,7 +153,6 @@ class ThesaurusVectorizer(TfidfVectorizer):
 
         # once training is done, convert all document features (unigrams and composable ngrams)
         # to a ditributional feature vector
-        logging.info('Done vectorizing')
 
         return X, self.vocabulary_
 

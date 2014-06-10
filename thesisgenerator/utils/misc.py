@@ -2,9 +2,7 @@ import inspect
 from configobj import ConfigObj
 from thesisgenerator.utils.reflection_utils import get_named_object
 import logging
-
-__author__ = 'mmb28'
-
+import numpy as np
 
 def get_susx_mysql_conn():
     """
@@ -88,3 +86,25 @@ class ChainCallable(object):
             result[func_name.strip()] = (
                 func(true_labels, predicted_labels, **call_args))
         return result
+
+def calculate_log_odds(X, y):
+    """
+
+    :param X: term-document matrix, shape (m,n)
+    :type X: array-like
+    :param y: document labels, shape (m,)
+    :type y: array-like
+    :return: log odds scores of all features
+    :rtype: array-like, shape (n,)
+    """
+    # todo this is quite slow
+    log_odds = np.empty(X.shape[1])
+    class0_indices = (y == sorted(set(y))[0])
+    for idx in range(X.shape[1]):
+        all_counts = X[:, idx].A.ravel()  # document counts of this feature
+        total_counts = sum(all_counts > 0)  # how many docs the feature occurs in
+        count_in_class0 = sum(all_counts[class0_indices])  # how many of them are class 0
+        p = float(count_in_class0) / total_counts;
+        log_odds_this_feature = np.log(p) - np.log(1 - p)
+        log_odds[idx] = log_odds_this_feature
+    return log_odds

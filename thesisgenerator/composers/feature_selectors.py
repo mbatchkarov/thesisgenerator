@@ -3,6 +3,7 @@ from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.feature_selection import SelectKBest, chi2
 import numpy as np
 from sklearn.feature_selection.univariate_selection import _clean_nans
+from thesisgenerator.utils.misc import calculate_log_odds
 
 __author__ = 'mmb28'
 
@@ -23,16 +24,20 @@ class VectorBackedSelectKBest(SelectKBest):
      mapping of features to columns in X before any feature selection is done.
     """
 
-    def __init__(self, score_func=chi2, k='all', ensure_vectors_exist=False):
+    def __init__(self, score_func=chi2, k='all', ensure_vectors_exist=False, min_log_odds_score=0):
+        """
+        :param min_log_odds_score: any feature with a log odds score between -min_log_odds_score and
+        min_log_odds_score will be removed. Assumes the classification problem is binary.
+        """
         if not score_func:
             score_func = chi2
         self.k = k
         self.ensure_vectors_exist = ensure_vectors_exist
+        self.min_log_odds_score = min_log_odds_score
         self.vocabulary_ = None
         super(VectorBackedSelectKBest, self).__init__(score_func=score_func, k=k)
 
     def fit(self, X, y, vector_source=None):
-        logging.info('Training feature selector')
         self.vector_source = vector_source
         logging.debug('Identity of vector source is %d', id(vector_source))
         if vector_source:
@@ -46,17 +51,19 @@ class VectorBackedSelectKBest(SelectKBest):
             raise ValueError('VectorSource required with ensure_vectors_exist')
 
         # Vectorizer also returns its vocabulary, store it and work with the rest
-        X_only, self.vocabulary_ = X
+        X, self.vocabulary_ = X
 
-        if self.k == 'all' or int(self.k) >= X_only.shape[1]:
+        if self.k == 'all' or int(self.k) >= X.shape[1]:
             # do not bother calculating feature informativeness if all features will be used anyway
-            self.scores_ = np.ones((X_only.shape[1],))
+            self.scores_ = np.ones((X.shape[1],))
         else:
-            super(VectorBackedSelectKBest, self).fit(X_only, y)
+            super(VectorBackedSelectKBest, self).fit(X, y)
 
-        if self.ensure_vectors_exist:
-            self.to_keep = self._zero_score_of_oot_features()
-        logging.info('Done training feature selector')
+        self.vectors_mask = self._zero_score_of_oot_feats() \
+            if self.ensure_vectors_exist else np.ones(X.shape[1], dtype=bool)
+        self.log_odds_mask = self._zero_score_of_low_log_odds_features(X, y) \
+            if self.min_log_odds_score > 0 else np.ones(X.shape[1], dtype=bool);
+
         return self
 
     def transform(self, X):
@@ -69,22 +76,21 @@ class VectorBackedSelectKBest(SelectKBest):
             logging.error('Empty vocabulary')
             return X[0], self.vocabulary_
 
-    def _zero_score_of_oot_features(self):
-        logging.info('Zeroing scores of document features without a distributional vector')
+    def _zero_score_of_oot_feats(self):
         mask = np.ones(self.scores_.shape, dtype=bool)
-        count = 0
         for feature, index in self.vocabulary_.iteritems():
             if feature not in self.vector_source:
-                #print feature, 'not found'
-                self.scores_[index] = 0
-                mask[index] = 0
-                count += 1
-        total_features = self.scores_.shape[0]
-        logging.info('Zeroed %d/%d scores', count, total_features)
-        if total_features == count:
+                mask[index] = False
+        if sum(mask) == len(mask):
             logging.error('Feature selector removed all features')
             raise ValueError('Empty vocabulary')
         return mask
+
+    def _zero_score_of_low_log_odds_features(self, X, y):
+        if len(set(y)) != 2:
+            raise ValueError('Calculating a log odds score requires a binary classification task')
+        log_odds = calculate_log_odds(X, y)
+        return (log_odds > self.min_log_odds_score) | (log_odds < -self.min_log_odds_score)
 
     def _update_vocab_according_to_mask(self, mask):
         v = self.vocabulary_
@@ -101,26 +107,16 @@ class VectorBackedSelectKBest(SelectKBest):
 
     def _get_support_mask(self):
         k = self.k
-        scores = self.scores_
-        if k == 'all' or k > len(scores):
-            # at this point self._remove_oot_features will have been invoked, and there is no
-            # further feature selection to do
-            logging.warn('Chi2 using all %d document features (you requested %r)', len(scores), k)
-            try:
-                first_mask = self.to_keep
-            except AttributeError:
-                # self.keep_after_first_pass_mask does not exist because self.ensure_vectors_exist=False
-                # i.e. all features are kept, set a mask of ones
-                first_mask = np.ones(scores.shape, dtype=bool)
-            self._update_vocab_according_to_mask(first_mask)
-            return scores > 0
+        chi2_scores = self.scores_
+        chi2_mask = np.ones(chi2_scores.shape, dtype=bool)
 
-        logging.info('Using %d document features', k)
-        scores = _clean_nans(scores)
-        mask = np.zeros(scores.shape, dtype=bool)
-        selected_indices = np.argsort(scores)[-k:]
+        if k != 'all' or k < len(chi2_scores):
+            chi2_scores = _clean_nans(chi2_scores)
+            selected_indices = np.argsort(chi2_scores)[:k]
+            chi2_mask[selected_indices] = False
 
-        mask[selected_indices] = 1
+        mask = chi2_mask & self.vectors_mask & self.log_odds_mask
+        logging.info('%d/%d features survived feature selection', sum(mask), len(mask))
         self._update_vocab_according_to_mask(mask)
         return mask
 
@@ -141,7 +137,7 @@ class MetadataStripper(BaseEstimator, TransformerMixin):
         self.build_tree = build_tree
 
     def fit(self, X, y, vector_source=None):
-        matrix, self.voc = X # store voc, may be handy for for debugging
+        matrix, self.voc = X  # store voc, may be handy for for debugging
         self.vector_source = vector_source
         logging.debug('Identity of vector source is %d', id(vector_source))
         if self.vector_source:

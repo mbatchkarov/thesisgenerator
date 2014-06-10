@@ -174,7 +174,7 @@ def test_with_chi2_and_thesaurus_feature_selection():
     """
     Test a combination of feature selection through vector source and low chi2 score. Unigram features only.
     """
-    tr_matrix, tr_voc, ev_matrix, ev_voc = _do_feature_selection(True, 2, delete_kid=True)
+    tr_matrix, tr_voc, ev_matrix, ev_voc = _do_feature_selection(True, 3, delete_kid=True)
 
     assert tr_voc == ev_voc
     voc = {

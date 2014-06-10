@@ -100,9 +100,10 @@ min_train_features = integer()
     method=string(default='thesisgenerator.composers.feature_selectors.VectorBackedSelectKBest')
     scoring_function=string
     ensure_vectors_exist=boolean(default=False)
-    k=integer(default=99999999999999)
+    k=integer(default=99999999999999) # if doing feature selection by chi-squared, how many features to keep
     alpha=float
     percentile=int
+    min_log_odds_score=float() # features with a log odds score outside the range [-min_log_odds_score, min_log_odds_score] will be removed
 
 [dimensionality_reduction]
     run=boolean(default=False)

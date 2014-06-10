@@ -31,6 +31,8 @@ from sklearn import cross_validation
 from sklearn.pipeline import Pipeline
 
 from discoutils.misc import Bunch
+from discoutils.thesaurus_loader import Thesaurus
+from thesisgenerator.composers.vectorstore import PrecomputedSimilaritiesVectorSource
 from thesisgenerator.composers.feature_selectors import MetadataStripper
 from thesisgenerator.utils.reflection_utils import get_named_object, get_intersection_of_parameters
 from thesisgenerator.utils.misc import ChainCallable
@@ -194,6 +196,11 @@ def _build_pipeline(cv_i, vector_source, feature_extr_conf, feature_sel_conf,
     """
     init_args, fit_args = {}, {}
     pipeline_list = []
+
+    if isinstance(vector_source, str):
+            # it's probably a path to a shelved vector source
+            # this is an ugly hack- I can't be sure it's really a PrecomputedSimilaritiesVectorSource
+            vector_source = PrecomputedSimilaritiesVectorSource(Thesaurus.from_shelf_readonly(vector_source))
 
     _build_vectorizer(cv_i, vector_source, init_args, fit_args, feature_extr_conf,
                       pipeline_list, output_dir, exp_name=exp_name)
