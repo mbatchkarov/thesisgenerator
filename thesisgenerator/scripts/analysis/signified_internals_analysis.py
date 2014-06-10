@@ -16,6 +16,7 @@ from thesisgenerator.scripts.analysis.utils import *
 from thesisgenerator.utils.conf_file_utils import parse_config_file
 from thesisgenerator.utils.misc import get_susx_mysql_conn
 from thesisgenerator.plugins.stats import sum_up_token_counts
+from thesisgenerator.utils.misc import calculate_log_odds
 from collections import Counter
 from itertools import chain, combinations, groupby
 from operator import attrgetter
@@ -372,7 +373,7 @@ def get_stats_for_a_single_fold(params, exp, subexp, cv_fold, thes_shelf):
 
     logging.info('Classificational vectors')
     pkl_path = 'statistics/stats-%s-cv%d-ev.MultinomialNB.pkl' % (name, cv_fold)
-    all_clf_vect, full_inv_voc, all_feature_counts = load_classificational_vectors(pkl_path)
+    all_clf_vect, full_inv_voc, all_feature_counts, X, y = load_classificational_vectors(pkl_path)
     good_clf_vect, good_inv_voc = get_good_vectors(all_clf_vect, all_feature_counts, params.min_freq, full_inv_voc,
                                                    thes)
 
@@ -392,7 +393,7 @@ def get_stats_for_a_single_fold(params, exp, subexp, cv_fold, thes_shelf):
 
     if params.class_pull:
         logging.info('Class pull')
-        log_odds = get_log_odds(good_clf_vect, good_inv_voc)
+        log_odds = calculate_log_odds(X, y)
         lo_of_good_features = analyse_replacements_class_pull(log_odds, full_voc, thes)
 
     if params.sim_corr:

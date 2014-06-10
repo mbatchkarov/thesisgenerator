@@ -58,7 +58,7 @@ def load_classificational_vectors(pickle_file):
     mat.setdiag(np.ones((voc_size,)))
     probabilities = b.clf.predict_log_proba(mat.tocsr())
 
-    return probabilities, b.inv_voc, feature_counts_in_tr_set
+    return probabilities, b.inv_voc, feature_counts_in_tr_set, b.tr_matrix, b.y_tr
 
 
 def get_good_vectors(all_clf_vectors, feature_counts_in_tr_set, min_freq, inv_voc, thes):
