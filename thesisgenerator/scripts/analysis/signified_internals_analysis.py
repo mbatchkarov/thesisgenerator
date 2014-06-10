@@ -439,9 +439,9 @@ def replacement_scores_contingency_matrix(x_scores, y_scores, freq, sims, xthres
 def _print_extremes_of_LO_scatter_plot(it_iv_replacement_scores, orig_lo, repl_lo):
     # get samples from each corner of the log-odds scatter plot
     logging.info('------------------------------------------------')
-    logging.info('Samples from all corners of scatter plot (90th percentile)')
-    min_x, max_x = .90 * min(orig_lo), .90 * max(orig_lo)
-    min_y, max_y = .90 * min(repl_lo), .90 * max(repl_lo)
+    logging.info('Samples from all corners of scatter plot (80th percentile)')
+    min_x, max_x = .8 * min(orig_lo), .8 * max(orig_lo)
+    min_y, max_y = .8 * min(repl_lo), .8 * max(repl_lo)
     topleft, bottomleft, topright, bottomright = [], [], [], []
     for foo in it_iv_replacement_scores:
         if foo.lo_original < min_x and foo.lo_replacement < min_y:
