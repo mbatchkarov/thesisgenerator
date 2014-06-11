@@ -110,7 +110,8 @@ class VectorBackedSelectKBest(SelectKBest):
         chi2_scores = self.scores_
         chi2_mask = np.ones(chi2_scores.shape, dtype=bool)
 
-        if k != 'all' or k < len(chi2_scores):
+        if k != 'all' and k < len(chi2_scores):
+            # we don't want all features to be kept, and the number we want is less than the number available
             chi2_scores = _clean_nans(chi2_scores)
             selected_indices = np.argsort(chi2_scores)[:k]
             chi2_mask[selected_indices] = False
