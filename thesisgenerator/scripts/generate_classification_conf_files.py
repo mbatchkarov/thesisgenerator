@@ -171,13 +171,13 @@ def baronified_experiments(exp_number, prefix):
 def baselines(exp_number):
     # random-neighbour experiments. These include an "random_neighbour_thesaurus=True" option in the conf file
     for corpus in ['R2', 'MR']:
-        e = Experiment(exp_number, 'Random', 'NOTHESAURUS', corpus, '-', None, '-', None, 'AN_NN', -1,
+        e = Experiment(exp_number, 'Random', None, corpus, '-', None, '-', None, 'AN_NN', -1,
                        random_neighbour_thesaurus=True)
         experiments.append(e)
         exp_number += 1
 
         # signifier experiments (bag-of-words)
-        e = Experiment(exp_number, 'Signifier', 'NOTHESAURUS', corpus, '-', None, '-', None, 'AN_NN', -1,
+        e = Experiment(exp_number, 'Signifier', None, corpus, '-', None, '-', None, 'AN_NN', -1,
                        decode_token_handler='BaseFeatureHandler')
         experiments.append(e)
         exp_number += 1
@@ -223,7 +223,7 @@ print 'Writing conf files'
 megasuperbase_conf_file = 'conf/exp1-superbase.conf'
 for exp in experiments:
     # sanity check
-    if os.path.exists(exp.thesaurus_file):
+    if exp.thesaurus_file and os.path.exists(exp.thesaurus_file):
         print "last modified: %s" % time.ctime(os.path.getmtime(exp.thesaurus_file)), \
             os.stat(exp.thesaurus_file).st_size >> 20, \
             exp.thesaurus_file  # size in MB
@@ -246,7 +246,8 @@ for exp in experiments:
                      'thesisgenerator.plugins.bov_feature_handlers.%s' % exp.decode_token_handler)
     set_in_conf_file(base_conf_file, ['feature_extraction', 'random_neighbour_thesaurus'],
                      exp.random_neighbour_thesaurus)
-    set_in_conf_file(base_conf_file, ['vector_sources', 'unigram_paths'], [exp.thesaurus_file])
+    set_in_conf_file(base_conf_file, ['vector_sources', 'unigram_paths'],
+                     [exp.thesaurus_file] if exp.thesaurus_file else [])
     set_in_conf_file(base_conf_file, ['output_dir'], './conf/exp%d/output' % exp.number)
     set_in_conf_file(base_conf_file, ['name'], 'exp%d' % exp.number)
 
