@@ -24,7 +24,9 @@ class Experiment():
                  unlabelled_name, unlabelled_num,
                  thesaurus_features_name, thesaurus_features_num,
                  document_features, distrib_vector_dim,
-                 baronified=False, use_similarity=True):
+                 baronified=False, use_similarity=True,
+                 random_neighbour_thesaurus=False,
+                 decode_token_handler='SignifiedOnlyFeatureHandler'):
         self.number = number
         self.composer_name = composer_name
         self.thesaurus_file = thesaurus_file
@@ -32,6 +34,8 @@ class Experiment():
         self.document_features = document_features
         self.baronified = baronified
         self.use_similarity = use_similarity
+        self.random_neighbour_thesaurus = random_neighbour_thesaurus
+        self.decode_token_handler = decode_token_handler
 
         # todo this should really be moved to ExpLosion
         if 'socher' in composer_name.lower():
@@ -56,7 +60,11 @@ class Experiment():
                                   self.composer_name,
                                   self.document_features,
                                   self.thesaurus_features_name,
-                                  str(int(self.baronified))])
+                                  str(int(self.baronified)),
+                                  str(int(self.use_similarity)),
+                                  str(int(self.random_neighbour_thesaurus)),
+                                  self.decode_token_handler,
+                                  ])
 
     def __repr__(self):
         return str(self)
@@ -78,9 +86,9 @@ def basic_experiments(exp_number, prefix, composer_algos, use_similarity=True):
                         if composer_name == 'Baroni' and svd_dims == 0:
                             continue  # not training Baroni without SVD
                         if composer_name == 'APDT' and thesf_name == 'windows':
-                            continue # APDT only works with dependency unigram vectors
+                            continue  # APDT only works with dependency unigram vectors
                         if composer_name == 'Socher':
-                            continue # Socher RAE done separately below as it only works for a small subset of settings
+                            continue  # Socher RAE done separately below as it only works for a small subset of settings
 
                         if composer_name == 'Observed':
                             pattern = unred_obs_pattern if svd_dims < 1 else reduced_obs_pattern
@@ -94,7 +102,6 @@ def basic_experiments(exp_number, prefix, composer_algos, use_similarity=True):
                                        use_similarity=use_similarity)
                         experiments.append(e)
                         exp_number += 1
-                        print e, ','
 
     # do Socher RAE experiments
     for labelled_corpus in ['R2', 'MR']:
@@ -103,7 +110,6 @@ def basic_experiments(exp_number, prefix, composer_algos, use_similarity=True):
                        'Neuro', 'Neuro', 'Neuro', 'Neuro', 'AN_NN', 0)
         experiments.append(e)
         exp_number += 1
-        print e, ','
     return exp_number
 
 
@@ -111,7 +117,7 @@ def an_only_nn_only_experiments(exp_number, prefix, composer_algos):
     # do some experiment with AN or NN features only for comparison
     thesf_num, thesf_name = 12, 'dependencies'  # only dependencies
     unlab_num, unlab_name = 10, 'gigaw'
-    svd_dims = 100 # do only 100 dimensional experiments (to include Baroni and Socher)
+    svd_dims = 100  # do only 100 dimensional experiments (to include Baroni and Socher)
     for labelled_corpus in ['R2']:
         for doc_feature_type in ['AN', 'NN']:
             for composer_class in composer_algos:
@@ -131,7 +137,6 @@ def an_only_nn_only_experiments(exp_number, prefix, composer_algos):
 
                 if e not in experiments:
                     experiments.append(e)
-                    print e, ','
                     exp_number += 1
 
     return exp_number
@@ -166,16 +171,18 @@ def baronified_experiments(exp_number, prefix):
 
 def baselines(exp_number):
     # random-neighbour experiments. These include an "random_neighbour_thesaurus=True" option in the conf file
-    print Experiment(exp_number, 'Random', None, 'R2', '-', None, '-', None, 'AN_NN', -1), ','
-    exp_number += 1
-    print Experiment(exp_number, 'Random', None, 'MR', '-', None, '-', None, 'AN_NN', -1), ','
-    exp_number += 1
+    for corpus in ['R2', 'MR']:
+        e = Experiment(exp_number, 'Random', 'NOTHESAURUS', corpus, '-', None, '-', None, 'AN_NN', -1,
+                       random_neighbour_thesaurus=True)
+        experiments.append(e)
+        exp_number += 1
 
-    # signifier experiments (bag-of-words)
-    print Experiment(exp_number, 'Signifier', None, 'R2', '-', None, '-', None, 'AN_NN', -1), ','
-    exp_number += 1
-    print Experiment(exp_number, 'Signifier', None, 'MR', '-', None, '-', None, 'AN_NN', -1), ','
-    exp_number += 1
+        # signifier experiments (bag-of-words)
+        e = Experiment(exp_number, 'Signifier', 'NOTHESAURUS', corpus, '-', None, '-', None, 'AN_NN', -1,
+                       decode_token_handler='BaseFeatureHandler')
+        experiments.append(e)
+        exp_number += 1
+
     return exp_number
 
 
@@ -205,9 +212,12 @@ experiments = []
 
 exp_number = baselines(1)
 exp_number = basic_experiments(exp_number, prefix, composer_algos, use_similarity=True)
-exp_number = basic_experiments(exp_number , prefix, composer_algos, use_similarity=False)
+exp_number = basic_experiments(exp_number, prefix, composer_algos, use_similarity=False)
 exp_number = an_only_nn_only_experiments(exp_number, prefix, composer_algos)
 # exp_number = baronified_experiments(exp_number, prefix)
+
+for e in experiments:
+    print e, ','
 
 # sys.exit(0)
 print 'Writing conf files'
@@ -226,20 +236,20 @@ for exp in experiments:
         os.mkdir(experiment_dir)
 
     base_conf_file = os.path.join(experiment_dir, 'exp%d_base.conf' % exp.number)
-    # print base_conf_file, '\t\t', thes
     shutil.copy(megasuperbase_conf_file, base_conf_file)
     if exp.labelled_name == 'R2':
         train_data = 'sample-data/reuters21578/r8-tagged-grouped'
-        # test_data = 'sample-data/reuters21578/r8test-tagged-grouped'
     else:
         train_data = 'sample-data/movie-reviews-tagged'
-        # test_data = 'sample-data/movie-reviews-test-tagged'
 
+    set_in_conf_file(base_conf_file, ['training_data'], train_data)
+    set_in_conf_file(base_conf_file, ['feature_extraction', 'decode_token_handler'],
+                     'thesisgenerator.plugins.bov_feature_handlers.%s' % exp.decode_token_handler)
+    set_in_conf_file(base_conf_file, ['feature_extraction', 'random_neighbour_thesaurus'],
+                     exp.random_neighbour_thesaurus)
     set_in_conf_file(base_conf_file, ['vector_sources', 'unigram_paths'], [exp.thesaurus_file])
     set_in_conf_file(base_conf_file, ['output_dir'], './conf/exp%d/output' % exp.number)
     set_in_conf_file(base_conf_file, ['name'], 'exp%d' % exp.number)
-    set_in_conf_file(base_conf_file, ['training_data'], train_data)
-    # set_in_conf_file(base_conf_file, ['test_data'], test_data)
 
     requested_features = exp.document_features.split('_')
     for doc_feature_type in ['AN', 'NN', 'VO', 'SVO']:
