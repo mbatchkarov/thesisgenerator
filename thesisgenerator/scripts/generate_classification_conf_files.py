@@ -130,8 +130,7 @@ def an_only_nn_only_experiments(exp_number, prefix, composer_algos):
                         pattern = reduced_obs_pattern
                     else:
                         pattern = reduced_pattern
-
-                thesaurus_file = pattern.format(**locals())
+                    thesaurus_file = pattern.format(**locals())
                 e = Experiment(exp_number, composer_name, thesaurus_file, labelled_corpus, unlab_name, unlab_num,
                                thesf_name, thesf_num, doc_feature_type, svd_dims)
 
