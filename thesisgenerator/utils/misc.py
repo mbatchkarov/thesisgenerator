@@ -46,7 +46,7 @@ def noop(*args, **kwargs):
     pass
 
 
-def one(*args, *kwargs):
+def one(*args, **kwargs):
     return 1.
 
 class ChainCallable(object):
