@@ -100,14 +100,14 @@ def calculate_log_odds(X, y):
     :return: log odds scores of all features
     :rtype: array-like, shape (n,)
     """
-    # todo this is quite slow
     log_odds = np.empty(X.shape[1])
-    class0_indices = (y == sorted(set(y))[0])
+    class0_indices = y == sorted(set(y))[0]
+    X = X.A
     for idx in range(X.shape[1]):
-        all_counts = X[:, idx].A.ravel()  # document counts of this feature
-        total_counts = sum(all_counts > 0)  # how many docs the feature occurs in
-        count_in_class0 = sum(all_counts[class0_indices])  # how many of them are class 0
-        p = float(count_in_class0) / total_counts;
+        all_counts = X[:, idx]  # document counts of this feature
+        total_counts = np.count_nonzero(all_counts)  # how many docs the feature occurs in
+        count_in_class0 = np.count_nonzero(all_counts[class0_indices])  # how many of them are class 0
+        p = float(count_in_class0) / total_counts
         log_odds_this_feature = np.log(p) - np.log(1 - p)
         log_odds[idx] = log_odds_this_feature
     return log_odds
