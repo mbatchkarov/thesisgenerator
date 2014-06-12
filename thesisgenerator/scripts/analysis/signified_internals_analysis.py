@@ -379,6 +379,7 @@ def get_stats_for_a_single_fold(params, exp, subexp, cv_fold, thes_shelf):
 
     all_feature_counts = {v.tokens_as_str(): all_feature_counts[k] for k, v in full_inv_voc.items()}
     good_inv_voc = {k: v.tokens_as_str() for k, v in good_inv_voc.iteritems()}
+    good_voc = {v: k for k, v in good_inv_voc.iteritems()}
     full_inv_voc = {k: v.tokens_as_str() for k, v in full_inv_voc.iteritems()}
     full_voc = set(full_inv_voc.values())
 
@@ -393,7 +394,10 @@ def get_stats_for_a_single_fold(params, exp, subexp, cv_fold, thes_shelf):
 
     if params.class_pull:
         logging.info('Class pull')
-        log_odds = calculate_log_odds(X, y)
+        log_odds = calculate_log_odds(X, y)  # this is a numpy array, turn to a dict
+        # the old method for calculating log odds only did it for the features that are considered good. The current
+        # one does it for all features, so remove the bad ones
+        log_odds = {full_inv_voc[k]: v for k, v in enumerate(log_odds) if full_inv_voc[k] in good_voc}
         lo_of_good_features = analyse_replacements_class_pull(log_odds, full_voc, thes)
 
     if params.sim_corr:
@@ -511,7 +515,6 @@ def do_work(params, exp, subexp, folds=20, workers=4, cursor=None):
         repl_lo = [foo.lo_replacement for foo in it_iv_replacement_scores]
         type_frequencies = [foo.frequency for foo in it_iv_replacement_scores]
         repl_sims = [foo.sim for foo in it_iv_replacement_scores]
-
 
         logging.info('Sum-of-squares error compared to perfect diagonal = %f',
                      sum_of_squares_score_diagonal_line(orig_lo, repl_lo, type_frequencies))
