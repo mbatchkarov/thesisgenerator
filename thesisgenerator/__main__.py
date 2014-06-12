@@ -284,7 +284,7 @@ def _cv_loop(configuration, cv_i, score_func, test_idx, train_idx, vector_source
         logging.info('Training set scores: %r', tr_set_scores)
 
         if configuration['feature_extraction']['record_stats']:
-            inv_voc = {index: feature for (feature, index) in pipeline.named_steps['vect'].vocabulary_.items()}
+            inv_voc = {index: feature for (feature, index) in pipeline.named_steps['fs'].vocabulary_.items()}
             with open('%s.%s.pkl' % (stats.prefix, clf.__class__.__name__.split('.')[-1]), 'w') as outf:
                 logging.info('Pickling trained classifier to %s', outf.name)
                 b = Bunch(clf=clf, inv_voc=inv_voc, tr_matrix=tr_matrix,
