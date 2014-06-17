@@ -98,7 +98,7 @@ def _get_data_iterators(path, shuffle_targets=False):
 
 
 def get_vector_source(conf, vector_source=None):
-    vectors_exist_ = conf['feature_selection']['ensure_vectors_exist']
+    vectors_exist_ = conf['feature_selection']['must_be_in_thesaurus']
     handler_ = conf['feature_extraction']['decode_token_handler']
     if 'signified' in handler_.lower() or vectors_exist_:
         # vectors are needed either at decode time (signified handler) or during feature selection
@@ -107,7 +107,7 @@ def get_vector_source(conf, vector_source=None):
 
         if not paths:
             raise ValueError('You must provide at least one neighbour source because you requested %s '
-                             ' and ensure_vectors_exist=%s' % (handler_, vectors_exist_))
+                             ' and must_be_in_thesaurus=%s' % (handler_, vectors_exist_))
         if any('events' in x for x in paths) and precomputed:
             logging.warn('Possible configuration error: you requested precomputed '
                          'thesauri to be used but passed in the following files: \n%s', paths)

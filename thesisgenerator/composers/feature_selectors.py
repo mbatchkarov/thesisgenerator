@@ -24,7 +24,7 @@ class VectorBackedSelectKBest(SelectKBest):
      mapping of features to columns in X before any feature selection is done.
     """
 
-    def __init__(self, score_func=chi2, k='all', ensure_vectors_exist=False, min_log_odds_score=0):
+    def __init__(self, score_func=chi2, k='all', must_be_in_thesaurus=False, min_log_odds_score=0):
         """
         :param min_log_odds_score: any feature with a log odds score between -min_log_odds_score and
         min_log_odds_score will be removed. Assumes the classification problem is binary.
@@ -32,7 +32,7 @@ class VectorBackedSelectKBest(SelectKBest):
         if not score_func:
             score_func = chi2
         self.k = k
-        self.ensure_vectors_exist = ensure_vectors_exist
+        self.must_be_in_thesaurus = must_be_in_thesaurus
         self.min_log_odds_score = min_log_odds_score
         self.vocabulary_ = None
         super(VectorBackedSelectKBest, self).__init__(score_func=score_func, k=k)
@@ -45,10 +45,10 @@ class VectorBackedSelectKBest(SelectKBest):
                 logging.info('The BallTree is %s', vector_source.nbrs)
             except AttributeError:
                 logging.debug('The vector source is %s', vector_source)
-        if not self.vector_source and self.ensure_vectors_exist:
+        if not self.vector_source and self.must_be_in_thesaurus:
             logging.error(
                 'You requested feature selection based on vector presence but did not provide a vector source.')
-            raise ValueError('VectorSource required with ensure_vectors_exist')
+            raise ValueError('VectorSource required with must_be_in_thesaurus')
 
         # Vectorizer also returns its vocabulary, store it and work with the rest
         X, self.vocabulary_ = X
@@ -60,7 +60,7 @@ class VectorBackedSelectKBest(SelectKBest):
             super(VectorBackedSelectKBest, self).fit(X, y)
 
         self.vectors_mask = self._zero_score_of_oot_feats() \
-            if self.ensure_vectors_exist else np.ones(X.shape[1], dtype=bool)
+            if self.must_be_in_thesaurus else np.ones(X.shape[1], dtype=bool)
         self.log_odds_mask = self._zero_score_of_low_log_odds_features(X, y) \
             if self.min_log_odds_score > 0 else np.ones(X.shape[1], dtype=bool);
 

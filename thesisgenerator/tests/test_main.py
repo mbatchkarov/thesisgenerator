@@ -56,7 +56,7 @@ class TestThesaurusVectorizer(TestCase):
             'run': True,
             'method': 'thesisgenerator.composers.feature_selectors.VectorBackedSelectKBest',
             'scoring_function': 'sklearn.feature_selection.chi2',
-            'ensure_vectors_exist': False,
+            'must_be_in_thesaurus': False,
             'k': 'all',
             'vector_source': None
         }
@@ -176,7 +176,7 @@ class TestThesaurusVectorizer(TestCase):
         )
 
     def test_baseline_ignore_nonthesaurus_features_signifier_only_22(self):
-        self.feature_selection_conf['ensure_vectors_exist'] = True
+        self.feature_selection_conf['must_be_in_thesaurus'] = True
         self._thesaurus_opts['thesaurus_files'] = ['thesisgenerator/resources/exp0-0b.strings']
         self._reload_thesaurus_and_tokenizer()
 
@@ -202,7 +202,7 @@ class TestThesaurusVectorizer(TestCase):
         )
 
     def test_baseline_use_all_features_with__signifier_signified_25(self):
-        self.feature_selection_conf['ensure_vectors_exist'] = False
+        self.feature_selection_conf['must_be_in_thesaurus'] = False
         self.feature_extraction_conf['decode_token_handler'] = \
             'thesisgenerator.plugins.bov_feature_handlers.SignifierSignifiedFeatureHandler'
         self.feature_extraction_conf['k'] = 1 # equivalent to max
@@ -235,7 +235,7 @@ class TestThesaurusVectorizer(TestCase):
 
     def test_baseline_ignore_nonthesaurus_features_with_signifier_signified_24(
             self):
-        self.feature_selection_conf['ensure_vectors_exist'] = True
+        self.feature_selection_conf['must_be_in_thesaurus'] = True
         self.feature_extraction_conf['decode_token_handler'] = \
             'thesisgenerator.plugins.bov_feature_handlers.SignifierSignifiedFeatureHandler'
         self.feature_extraction_conf['k'] = 1 # equivalent to max
@@ -266,7 +266,7 @@ class TestThesaurusVectorizer(TestCase):
         )
 
     def test_baseline_use_all_features_with_signified_27(self):
-        self.feature_selection_conf['ensure_vectors_exist'] = False
+        self.feature_selection_conf['must_be_in_thesaurus'] = False
         self.feature_extraction_conf['decode_token_handler'] = \
             'thesisgenerator.plugins.bov_feature_handlers.SignifiedOnlyFeatureHandler'
         self.feature_extraction_conf['k'] = 1 # equivalent to max
@@ -297,7 +297,7 @@ class TestThesaurusVectorizer(TestCase):
         )
 
     def test_baseline_ignore_nonthesaurus_features_with_signified_26(self):
-        self.feature_selection_conf['ensure_vectors_exist'] = True
+        self.feature_selection_conf['must_be_in_thesaurus'] = True
         self.feature_extraction_conf['decode_token_handler'] = \
             'thesisgenerator.plugins.bov_feature_handlers.SignifiedOnlyFeatureHandler'
         self.feature_extraction_conf['k'] = 1 # equivalent to max
@@ -328,7 +328,7 @@ class TestThesaurusVectorizer(TestCase):
         )
 
     def test_baseline_use_all_features_with_signified_random_28(self):
-        self.feature_selection_conf['ensure_vectors_exist'] = False
+        self.feature_selection_conf['must_be_in_thesaurus'] = False
         self.feature_extraction_conf['decode_token_handler'] = \
             'thesisgenerator.plugins.bov_feature_handlers.SignifierRandomBaselineFeatureHandler'
         self.feature_extraction_conf['k'] = 1    # equivalent to max

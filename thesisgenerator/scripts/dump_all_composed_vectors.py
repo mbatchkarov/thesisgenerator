@@ -85,7 +85,7 @@ def compose_and_write_vectors(unigram_vector_paths, short_vector_dataset_name, c
         ('vect', ThesaurusVectorizer(ngram_range=(1, 1), min_df=1, use_tfidf=False,
                                      extract_VO_features=False, extract_SVO_features=False,
                                      unigram_feature_pos_tags=['N', 'J'])),
-        ('fs', VectorBackedSelectKBest(ensure_vectors_exist=True)),
+        ('fs', VectorBackedSelectKBest(must_be_in_thesaurus=True)),
         ('stripper', MetadataStripper(nn_algorithm='brute', build_tree=False))
     ])
 

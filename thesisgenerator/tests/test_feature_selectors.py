@@ -25,7 +25,7 @@ def strip(mydict):
     return {feature.tokens_as_str(): count for feature, count in mydict.iteritems()}
 
 
-def _do_feature_selection(ensure_vectors_exist, k, handler='Base', vector_source='default', max_feature_len=1,
+def _do_feature_selection(must_be_in_thesaurus, k, handler='Base', vector_source='default', max_feature_len=1,
                           delete_kid=False):
     """
     Loads a data set, vectorizes it by extracting n-grams (default n=1) using a feature handler (default
@@ -62,7 +62,7 @@ def _do_feature_selection(ensure_vectors_exist, k, handler='Base', vector_source
          ThesaurusVectorizer(min_df=1, use_tfidf=False,
                              ngram_range=(1, max_feature_len),
                              decode_token_handler=handler_pattern.format(handler))),
-        ('fs', VectorBackedSelectKBest(ensure_vectors_exist=ensure_vectors_exist, k=k)),
+        ('fs', VectorBackedSelectKBest(must_be_in_thesaurus=must_be_in_thesaurus, k=k)),
         ('dumper', FeatureVectorsCsvDumper('fs-test'))
     ]
     p = Pipeline(pipeline_list)
