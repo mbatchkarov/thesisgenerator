@@ -260,8 +260,15 @@ def _cv_loop(configuration, cv_i, score_func, test_idx, train_idx, vector_source
 
     # vectorize all data in advance, it's the same across all classifiers
     tr_matrix = pipeline.fit_transform(train_text, y_train, **fit_params)
+    # Update the vocabulary of the vectorizer. The feature selector may remove some vocabulary entries,
+    # but the vectorizer will be unaware of this. Because the vectorizer's logic is conditional on whether
+    # features are IV or OOV, this is a problem. (The issue is caused by the fact that the vectorizer and feature
+    # selector are not independent. The special logic of the vectorizer should have been implemented as a third
+    # transformer, but this would require too much work at this time.
+    pipeline.named_steps['vect'].vocabulary_ = pipeline.named_steps['fs'].vocabulary_
     test_matrix = pipeline.transform(test_text)
     stats = pipeline.named_steps['vect'].stats
+
 
     # remove documents with too few features
     to_keep_train = tr_matrix.A.sum(axis=1) >= configuration['min_train_features']

@@ -117,7 +117,16 @@ class VectorBackedSelectKBest(SelectKBest):
             chi2_mask[selected_indices] = False
 
         mask = chi2_mask & self.vectors_mask & self.log_odds_mask
-        logging.info('%d/%d features survived feature selection', sum(mask), len(mask))
+        logging.info('%d/%d features survived feature selection', np.count_nonzero(mask), len(mask))
+
+        # Only keep the scores of the features that survived. This array is used to check the
+        # input data shape at train and decode time matches. However, because the post-feature-selections
+        # vocabulary is passed back into the vectorizer, at decode time the input will likely be smaller. This is
+        # like doing feature selection in the vectorizer.
+        self.scores_ = self.scores_[mask]
+        self.log_odds_mask = self.log_odds_mask[mask]
+        self.vectors_mask = self.vectors_mask[mask]
+
         self._update_vocab_according_to_mask(mask)
         return mask
 
