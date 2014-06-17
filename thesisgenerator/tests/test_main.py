@@ -129,6 +129,8 @@ class TestThesaurusVectorizer(TestCase):
         x_tr, y_tr, x_test, y_test = tokenize_data(raw_data, self.tokenizer, self.dataset_names)
 
         x1 = pipeline.fit_transform(x_tr, y_tr, **fit_params)
+        if 'fs' in pipeline.named_steps:
+            pipeline.named_steps['vect'].vocabulary_ = pipeline.named_steps['fs'].vocabulary_
 
         voc = pipeline.named_steps['fs'].vocabulary_
         x2 = pipeline.transform(x_test)
@@ -233,18 +235,15 @@ class TestThesaurusVectorizer(TestCase):
             )
         )
 
-    def test_baseline_ignore_nonthesaurus_features_with_signifier_signified_24(
-            self):
+    def test_baseline_ignore_nonthesaurus_features_with_signifier_signified_24(self):
         self.feature_selection_conf['must_be_in_thesaurus'] = True
         self.feature_extraction_conf['decode_token_handler'] = \
             'thesisgenerator.plugins.bov_feature_handlers.SignifierSignifiedFeatureHandler'
         self.feature_extraction_conf['k'] = 1 # equivalent to max
-        self._thesaurus_opts['thesaurus_files'] = \
-            ['thesisgenerator/resources/exp0-0b.strings']
+        self._thesaurus_opts['thesaurus_files'] = ['thesisgenerator/resources/exp0-0b.strings']
         self._reload_thesaurus_and_tokenizer()
 
-        self.x_tr, self.y_tr, self.x_ev, self.y_ev = self. \
-            _load_data('thesisgenerator/resources/test-baseline')
+        self.x_tr, self.y_tr, self.x_ev, self.y_ev = self._load_data('thesisgenerator/resources/test-baseline')
 
         x1, x2, voc = self._vectorize_data()
 

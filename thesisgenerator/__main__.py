@@ -265,7 +265,8 @@ def _cv_loop(configuration, cv_i, score_func, test_idx, train_idx, vector_source
     # features are IV or OOV, this is a problem. (The issue is caused by the fact that the vectorizer and feature
     # selector are not independent. The special logic of the vectorizer should have been implemented as a third
     # transformer, but this would require too much work at this time.
-    pipeline.named_steps['vect'].vocabulary_ = pipeline.named_steps['fs'].vocabulary_
+    if 'fs' in pipeline.named_steps:
+        pipeline.named_steps['vect'].vocabulary_ = pipeline.named_steps['fs'].vocabulary_
     test_matrix = pipeline.transform(test_text)
     stats = pipeline.named_steps['vect'].stats
 
@@ -292,8 +293,8 @@ def _cv_loop(configuration, cv_i, score_func, test_idx, train_idx, vector_source
 
         if configuration['feature_extraction']['record_stats']:
             # if a feature selectors exist, use its vocabulary
-            step_name = 'fs' if 'fs' in pipeline.named_steps else 'vect'
-            inv_voc = {index: feature for (feature, index) in pipeline.named_steps[step_name].vocabulary_.items()}
+            # step_name = 'fs' if 'fs' in pipeline.named_steps else 'vect'
+            inv_voc = {index: feature for (feature, index) in pipeline.named_steps['vect'].vocabulary_.items()}
             with open('%s.%s.pkl' % (stats.prefix, clf.__class__.__name__.split('.')[-1]), 'w') as outf:
                 logging.info('Pickling trained classifier to %s', outf.name)
                 b = Bunch(clf=clf, inv_voc=inv_voc, tr_matrix=tr_matrix,

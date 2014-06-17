@@ -70,6 +70,8 @@ def _do_feature_selection(must_be_in_thesaurus, k, handler='Base', vector_source
                   'fs__vector_source': vector_source}
 
     tr_matrix, tr_voc = p.fit_transform(x_train, y_train, **fit_params)
+    if 'fs' in p.named_steps:
+        p.named_steps['vect'].vocabulary_ = p.named_steps['fs'].vocabulary_
     ev_matrix, ev_voc = p.transform(x_test)
     return tr_matrix.A, strip(tr_voc), ev_matrix.A, strip(ev_voc)
 
