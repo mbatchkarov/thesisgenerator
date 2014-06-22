@@ -107,7 +107,7 @@ def basic_experiments(exp_number, prefix, composer_algos, use_similarity=True):
     for labelled_corpus in ['R2', 'MR']:
         composer_name = 'Socher'
         e = Experiment(exp_number, composer_name, socher_thesaurus_file, labelled_corpus,
-                       'Neuro', 'Neuro', 'Neuro', 'Neuro', 'AN_NN', 0)
+                       'Neuro', 'Neuro', 'Neuro', 'Neuro', 'AN_NN', 0, use_similarity=use_similarity)
         experiments.append(e)
         exp_number += 1
     return exp_number
