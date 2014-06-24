@@ -299,7 +299,8 @@ def _cv_loop(configuration, cv_i, score_func, test_idx, train_idx, vector_source
                 logging.info('Pickling trained classifier to %s', outf.name)
                 b = Bunch(clf=clf, inv_voc=inv_voc, tr_matrix=tr_matrix,
                           test_matrix=test_matrix, predictions=predictions,
-                          y_tr=y_train, y_ev=y_test)
+                          y_tr=y_train, y_ev=y_test, train_mask=to_keep_train,
+                          test_mask=to_keep_test)
                 pickle.dump(b, outf)
 
         for metric, score in scores.items():

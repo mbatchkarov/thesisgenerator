@@ -623,7 +623,7 @@ if __name__ == '__main__':
     if parameters.experiment < 0:
         # do all experiments in order, all CV folds in parallel
         logging.info('Analysing all experiments')
-        for i in chain(range(1, 97)):
+        for i in chain(range(1, 121)):
             do_work(parameters, i, 0, folds=20, workers=20, cursor=c)
     else:
         # do just one experiment, with minimal concurrency
