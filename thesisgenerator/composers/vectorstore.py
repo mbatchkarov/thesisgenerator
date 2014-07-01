@@ -2,9 +2,9 @@ from abc import ABCMeta, abstractmethod
 from collections import defaultdict
 import logging
 from random import choice
-from operator import itemgetter
 from pickle import load
 
+import numpy as np
 from scipy.spatial.distance import cosine
 from sklearn.neighbors import NearestNeighbors
 import scipy.sparse as sp
@@ -14,9 +14,8 @@ from sklearn.random_projection import SparseRandomProjection
 import discoutils.io_utils as utils
 from discoutils.thesaurus_loader import Thesaurus
 
-import numpy as np
 from discoutils.tokens import DocumentFeature, Token
-
+from thesisgenerator.utils.misc import memoize
 
 class VectorSource(object):
     __metaclass__ = ABCMeta
@@ -465,6 +464,7 @@ class PrecomputedSimilaritiesVectorSource(CompositeVectorSource):
         th = Thesaurus.from_tsv(**kwargs)
         return PrecomputedSimilaritiesVectorSource(th)
 
+    @memoize
     def get_nearest_neighbours(self, feature):
         # Accepts structured features and strips the meta information from the feature and use as a string
         # Returns (composer, sim, neighbour) tuples

@@ -63,7 +63,7 @@ class StatsRecorder(object):
                           'replacement2, replacement2_rank, replacement2_sim, replacement3, '
                           'replacement3_rank, replacement3_sim\n')
 
-    def _flush_df_to_hdf(self, filename, data):
+    def _flush_data_to_csv(self, filename, data):
         if data:
             logging.info('Flushing statistics to %s', filename)
 
@@ -76,12 +76,12 @@ class StatsRecorder(object):
     def register_token(self, feature, iv, it):
         self.token_counts.append([feature.tokens_as_str(), iv, it])
         if len(self.token_counts) > self.max_rows_in_memory:
-            self._flush_df_to_hdf(self.tc_file, self.token_counts)
+            self._flush_data_to_csv(self.tc_file, self.token_counts)
             self.token_counts = []  # clear the chunk of data held in memory
 
     def consolidate_stats(self):
-        self._flush_df_to_hdf(self.par_file, self.paraphrases)
-        self._flush_df_to_hdf(self.tc_file, self.token_counts)
+        self._flush_data_to_csv(self.par_file, self.paraphrases)
+        self._flush_data_to_csv(self.tc_file, self.token_counts)
         self.token_counts = []
         self.paraphrases = []
 
@@ -99,7 +99,7 @@ class StatsRecorder(object):
             event.extend(['NaN', 'NaN', 'NaN'])
         self.paraphrases.append(event)
         if len(self.paraphrases) > self.max_rows_in_memory:
-            self._flush_df_to_hdf(self.par_file, self.paraphrases)
+            self._flush_data_to_csv(self.par_file, self.paraphrases)
             self.paraphrases = []  # clear the chunk of data held in memory
 
 
