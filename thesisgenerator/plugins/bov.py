@@ -9,7 +9,7 @@ import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 from discoutils.misc import ContainsEverything
 from thesisgenerator.classifiers import NoopTransformer
-from thesisgenerator.composers.vectorstore import PrecomputedSimilaritiesVectorSource, ConstantNeighbourVectorSource
+from thesisgenerator.composers.vectorstore import PrecomputedSimilaritiesVectorSource, DummyNeighbourVectorSource
 from thesisgenerator.plugins import tokenizers
 from thesisgenerator.plugins.bov_feature_handlers import get_token_handler
 from discoutils.tokens import DocumentFeature
@@ -163,7 +163,8 @@ class ThesaurusVectorizer(TfidfVectorizer):
         if self.random_neighbour_thesaurus:
             # this is a bit of hack and a waste of effort, since a thesaurus will have been loaded first
             logging.info('Building random neighbour vector source with vocabulary of size %d', len(self.vocabulary_))
-            self.vector_source = ConstantNeighbourVectorSource(self.vocabulary_, self.k)
+            self.vector_source.k = self.k
+            self.vector_source.vocab = self.vocabulary_
 
         self.ngram_range = self.ngram_range_decode
 

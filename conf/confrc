@@ -65,8 +65,7 @@ min_train_features = integer()
 	remove_long_words=boolean(default=False)
 
 [vector_sources] # this section will eventually replace all thesaurus-related options. There will not be a pre-computed sim matrix, just vectors in a suitable datastructure that allows fast online sim calculation
-	unigram_paths = list(default=list()) # path to either a Byblo events files or neighbours.strings file. If events, you must specify that precomputed=False
-	precomputed=boolean(default=True) # whether the unigram_paths contain vectors or precomputed term similarities
+	unigram_paths = list(default=list()) # path to either a Byblo neighbours.strings file.
 	include_self=boolean(default=False) # whether the thesaurus loader includes an entry as its own nearest neighbour
 	sim_threshold=float(default=0.0) # exclude neighbours from thesaurus if sim is less than threshold
 	reduce_dimensionality=boolean(default=False) # whether the dimensionality of the lexical unigram vectors should be reduced. This greatly speeds up later operations on these vectors.

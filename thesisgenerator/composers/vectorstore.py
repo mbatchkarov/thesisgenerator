@@ -489,36 +489,42 @@ class PrecomputedSimilaritiesVectorSource(CompositeVectorSource):
         return '[PrecomputedSimilaritiesVectorSource with %d entries]' % len(self.th)
 
 
-class ConstantNeighbourVectorSource(VectorSource):
+class DummyNeighbourVectorSource(VectorSource):
     """
-    A thesaurus-like object which has
-     1) a single neighbour for every possible entry
+    A thesaurus-like object which has either:
+     1) a single neighbour for every possible entry, b/N
      2) a single random neighbour for every possible entry. That neighbour is chosen from the vocabulary that is
         passed in (as a dict {feature:index} )
     """
     name = 'Constant'
 
-    def __init__(self, vocab=None, k=1):
+    def __init__(self, vocab=None, k=1, constant=True):
         self.vocab = vocab
         self.k = k
+        self.constant = constant
 
 
     def get_nearest_neighbours(self, feature):
-        if self.vocab:
-            return [(choice(self.vocab.keys()), 1.0) for _ in range(self.k)]
-        else:
+        if self.constant:
             return [
                 (
                     DocumentFeature('1-GRAM', (Token('b', 'N'),)),
                     1.0
                 )
             ]
+        else:
+            if not self.vocab:
+                raise ValueError('You need to provide a set of value to choose from first.')
+            return [(choice(self.vocab.keys()), 1.0) for _ in range(self.k)]
 
     def populate_vector_space(self, *args, **kwargs):
         pass
 
 
     def get_vector(self):
+        pass
+
+    def to_shelf(self, *args, **kwargs):
         pass
 
     def __contains__(self, feature):

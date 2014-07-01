@@ -9,7 +9,7 @@ import numpy as np
 from numpy.ma import std
 import numpy.testing as t
 import scipy.sparse as sp
-from thesisgenerator.composers.vectorstore import PrecomputedSimilaritiesVectorSource, ConstantNeighbourVectorSource
+from thesisgenerator.composers.vectorstore import PrecomputedSimilaritiesVectorSource, DummyNeighbourVectorSource
 
 from thesisgenerator.plugins import tokenizers
 from thesisgenerator import __main__
@@ -337,7 +337,7 @@ class TestThesaurusVectorizer(TestCase):
         self.x_tr, self.y_tr, self.x_ev, self.y_ev = self. \
             _load_data('thesisgenerator/resources/test-baseline')
 
-        source = ConstantNeighbourVectorSource()
+        source = DummyNeighbourVectorSource()
         x1, x2, voc = self._vectorize_data(source)
 
         self.assertDictEqual(self.full_vocab, strip(voc))

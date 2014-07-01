@@ -14,7 +14,7 @@ from joblib import Memory, Parallel, delayed
 from discoutils.misc import ContainsEverything
 from sklearn.datasets import load_files
 from thesisgenerator.classifiers import NoopTransformer
-from thesisgenerator.composers.vectorstore import UnigramVectorSource, CompositeVectorSource
+from thesisgenerator.composers.vectorstore import UnigramVectorSource, CompositeVectorSource, DummyNeighbourVectorSource
 from thesisgenerator.plugins import tokenizers
 from thesisgenerator.utils.conf_file_utils import parse_config_file
 from thesisgenerator.utils.reflection_utils import get_named_object, get_intersection_of_parameters
@@ -100,54 +100,30 @@ def _get_data_iterators(path, shuffle_targets=False):
 def get_vector_source(conf, vector_source=None):
     vectors_exist_ = conf['feature_selection']['must_be_in_thesaurus']
     handler_ = conf['feature_extraction']['decode_token_handler']
+    random_thes = conf['feature_extraction']['random_neighbour_thesaurus']
+    paths = conf['vector_sources']['unigram_paths']
+
+    if random_thes:
+        return DummyNeighbourVectorSource(k=conf['feature_extraction']['k'], constant=False)
+
     if 'signified' in handler_.lower() or vectors_exist_:
         # vectors are needed either at decode time (signified handler) or during feature selection
-        paths = conf['vector_sources']['unigram_paths']
-        precomputed = conf['vector_sources']['precomputed']
 
-        if not paths:
+        if not paths and not random_thes:
             raise ValueError('You must provide at least one neighbour source because you requested %s '
                              ' and must_be_in_thesaurus=%s' % (handler_, vectors_exist_))
-        if any('events' in x for x in paths) and precomputed:
-            logging.warn('Possible configuration error: you requested precomputed '
-                         'thesauri to be used but passed in the following files: \n%s', paths)
 
-        if not precomputed:
-            # load unigram vectors and initialise required composers based on these vectors
-            if paths:
-                logging.info('Loading unigram vector sources')
-                unigram_source = UnigramVectorSource(paths,
-                                                     reduce_dimensionality=conf['vector_sources'][
-                                                         'reduce_dimensionality'],
-                                                     dimensions=conf['vector_sources']['dimensions'])
+        logging.info('Loading precomputed neighbour source')
+        entry_types_to_load = conf['vector_sources']['entry_types_to_load']
+        if not entry_types_to_load:
+            entry_types_to_load = ContainsEverything()
 
-            composers = []
-            for section in conf['vector_sources']:
-                if 'composer' in section and conf['vector_sources'][section]['run']:
-                    # the object must only take keyword arguments
-                    composer_class = get_named_object(section)
-                    args = get_intersection_of_parameters(composer_class, conf['vector_sources'][section])
-                    args['unigram_source'] = unigram_source
-                    composers.append(composer_class(**args))
-            if composers and not vector_source:
-                # if a vector_source has not been predefined
-                vector_source = CompositeVectorSource(
-                    composers,
-                    conf['vector_sources']['sim_threshold'],
-                    conf['vector_sources']['include_self'],
-                )
-        else:
-            logging.info('Loading precomputed neighbour source')
-            entry_types_to_load = conf['vector_sources']['entry_types_to_load']
-            if not entry_types_to_load:
-                entry_types_to_load = ContainsEverything()
-
-            vector_source = load_and_shelve_thesaurus(paths,
-                                                      conf['vector_sources']['sim_threshold'],
-                                                      conf['vector_sources']['include_self'],
-                                                      conf['vector_sources']['allow_lexical_overlap'],
-                                                      conf['vector_sources']['max_neighbours'],
-                                                      entry_types_to_load)
+        vector_source = load_and_shelve_thesaurus(paths,
+                                                  conf['vector_sources']['sim_threshold'],
+                                                  conf['vector_sources']['include_self'],
+                                                  conf['vector_sources']['allow_lexical_overlap'],
+                                                  conf['vector_sources']['max_neighbours'],
+                                                  entry_types_to_load)
     else:
         if not vector_source:
             # if a vector source has not been passed in and has not been initialised, then init it to avoid
@@ -174,7 +150,8 @@ def load_and_shelve_thesaurus(files, sim_threshold, include_self,
                                 max_neighbours=max_neighbours,
                                 row_filter=lambda x, y: y.type in entry_types_to_load)
         logging.info('Shelving %s to %s', files, filename)
-        th.to_shelf(filename)
+        if len(th) > 0: # don't bother with empty thesauri
+            th.to_shelf(filename)
     return filename
 
 
