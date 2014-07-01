@@ -39,10 +39,10 @@ class Experiment():
 
         # todo this should really be moved to ExpLosion
         if 'socher' in composer_name.lower():
-            self.unlabelled_name = '-'
-            self.unlabelled_num = '-'
-            self.thesaurus_features_name = '-'
-            self.thesaurus_features_num = '-'
+            self.unlabelled_name = 'neuro'
+            self.unlabelled_num = 12
+            self.thesaurus_features_name = 'neuro'
+            self.thesaurus_features_num = 14
             self.distrib_vector_dim = 100
         else:
             self.unlabelled_name = unlabelled_name
@@ -177,7 +177,6 @@ def socher_unigram_vector_experiments(exp_number, prefix, use_similarity=True):
         for composer_class in composer_algos:
             composer_name = composer_class.name
             thesaurus_file = unred_pattern.format(**locals())
-            print os.path.exists(thesaurus_file), thesaurus_file
             e = Experiment(exp_number, composer_name, thesaurus_file, labelled_corpus, unlab_name,
                            unlab_num,
                            thesf_name, thesf_num, 'AN_NN', svd_dims,
