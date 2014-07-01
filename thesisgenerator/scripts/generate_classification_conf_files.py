@@ -103,7 +103,7 @@ def basic_experiments(exp_number, prefix, composer_algos, use_similarity=True):
                         experiments.append(e)
                         exp_number += 1
 
-    # do Socher RAE experiments
+    # do experiments where Socher(2011) provides both unigram vectors and composition algorithm
     for labelled_corpus in ['R2', 'MR']:
         composer_name = 'Socher'
         e = Experiment(exp_number, composer_name, socher_thesaurus_file, labelled_corpus,
@@ -167,6 +167,24 @@ def baronified_experiments(exp_number, prefix):
             print e, ','
     return exp_number
 
+def socher_unigram_vector_experiments(exp_number, prefix, use_similarity=True):
+    thesf_num, thesf_name = 14, 'neuro'
+    unlab_num, unlab_name =  12,  'neuro'
+    svd_dims = 100
+    composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer, RightmostWordComposer]
+
+    for labelled_corpus in ['R2', 'MR']:
+        for composer_class in composer_algos:
+            composer_name = composer_class.name
+            thesaurus_file = unred_pattern.format(**locals())
+            print os.path.exists(thesaurus_file), thesaurus_file
+            e = Experiment(exp_number, composer_name, thesaurus_file, labelled_corpus, unlab_name,
+                           unlab_num,
+                           thesf_name, thesf_num, 'AN_NN', svd_dims,
+                           use_similarity=use_similarity)
+            experiments.append(e)
+            exp_number += 1
+
 
 def baselines(exp_number):
     # random-neighbour experiments. These include an "random_neighbour_thesaurus=True" option in the conf file
@@ -213,7 +231,9 @@ exp_number = baselines(1)
 exp_number = basic_experiments(exp_number, prefix, composer_algos, use_similarity=True)
 exp_number = basic_experiments(exp_number, prefix, composer_algos, use_similarity=False)
 exp_number = an_only_nn_only_experiments(exp_number, prefix, composer_algos)
+exp_number = socher_unigram_vector_experiments(exp_number, prefix)
 # exp_number = baronified_experiments(exp_number, prefix)
+
 
 for e in experiments:
     print e, ','
