@@ -150,13 +150,15 @@ def load_and_shelve_thesaurus(files, sim_threshold, include_self,
                                 max_neighbours=max_neighbours,
                                 row_filter=lambda x, y: y.type in entry_types_to_load)
         logging.info('Shelving %s to %s', files, filename)
-        if len(th) > 0: # don't bother with empty thesauri
+        if len(th) > 0:  # don't bother with empty thesauri
             th.to_shelf(filename)
     return filename
 
 
-def _shelve_single_thesaurus(th, conf):  # should really be a lambda/closure but joblib doesn't work with lambdas
+def shelve_single_thesaurus(conf_file):
+    conf, _ = parse_config_file(conf_file)
     entry_types_to_load = conf['vector_sources']['entry_types_to_load']
+    th = conf['vector_sources']['unigram_paths'][0]
     if not entry_types_to_load:
         entry_types_to_load = ContainsEverything()
 
@@ -177,10 +179,7 @@ def shelve_all_thesauri(n_jobs):
     :return:
     """
     conf_files = glob('conf/exp*/exp*_base.conf')
-    thesauri = set(parse_config_file(path)[0]['vector_sources']['unigram_paths'][0] for path in conf_files)
-    conf, _ = parse_config_file('conf/exp1-superbase.conf')
-
-    Parallel(n_jobs=n_jobs)(delayed(_shelve_single_thesaurus)(th, conf) for th in thesauri)
+    Parallel(n_jobs=n_jobs)(delayed(shelve_single_thesaurus)(conf) for conf in conf_files)
 
 
 if __name__ == '__main__':
@@ -189,6 +188,13 @@ if __name__ == '__main__':
                                "message)s")
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('jobs', type=int)
-    shelve_all_thesauri(parser.parse_args().jobs)
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument('--jobs', type=int, help='Number of shelving jobs (will do all possible thesauri)')
+    group.add_argument('--experiment', type=int, help='Shelve just the thesaurus of this experiment')
+
+    parameters = parser.parse_args()
+    if parameters.jobs:
+        shelve_all_thesauri(parser.parse_args().jobs)
+    else:
+        shelve_single_thesaurus('conf/exp{0}/exp{0}_base.conf'.format(parameters.experiment))
 
