@@ -404,7 +404,7 @@ class CompositeVectorSource(VectorSource):
         """
         logging.info('Writing all features to disk to %s', vectors_path)
         voc = self.composers[0].unigram_source.distrib_features_vocab
-        m = self.feature_matrix
+        m = self.feature_matrix.tocoo()
         entry_index = self.entry_index
 
         utils.write_vectors_to_disk(m, entry_index, voc, vectors_path, features_path, new_entries_path,
@@ -464,7 +464,6 @@ class PrecomputedSimilaritiesVectorSource(CompositeVectorSource):
         th = Thesaurus.from_tsv(**kwargs)
         return PrecomputedSimilaritiesVectorSource(th)
 
-    @memoize
     def get_nearest_neighbours(self, feature):
         # Accepts structured features and strips the meta information from the feature and use as a string
         # Returns (composer, sim, neighbour) tuples
