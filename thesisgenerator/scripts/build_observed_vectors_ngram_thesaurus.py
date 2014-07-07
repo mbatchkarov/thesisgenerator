@@ -9,7 +9,7 @@ sys.path.append('..')
 sys.path.append('../..')
 import os
 from discoutils.tokens import DocumentFeature
-from discoutils.thesaurus_loader import Thesaurus
+from discoutils.thesaurus_loader import Thesaurus, Vectors
 from discoutils.io_utils import write_vectors_to_disk
 from thesisgenerator.scripts.build_phrasal_thesauri_offline import do_second_part_without_base_thesaurus, \
     _find_conf_file, baronify_files, _find_events_file
@@ -65,11 +65,11 @@ def do_work(corpus, features, svd_dims):
 
     # do the actual writing
     if svd_dims:
-        th = Thesaurus.from_tsv([observed_ngram_vectors_file], lowercasing=False)
+        th = Vectors.from_tsv([observed_ngram_vectors_file], lowercasing=False)
     else:
         # th0 = Thesaurus.from_tsv([observed_unigram_vectors_file], aggressive_lowercasing=False)
         # th1 = Thesaurus.from_tsv([observed_ngram_vectors_file], aggressive_lowercasing=False)
-        th = Thesaurus.from_tsv([observed_ngram_vectors_file, observed_unigram_vectors_file],
+        th = Vectors.from_tsv([observed_ngram_vectors_file, observed_unigram_vectors_file],
                                 lowercasing=False)
 
     desired_counts_per_feature_type = [('N', 20000), ('V', 0), ('J', 10000), ('RB', 0), ('AN', 1e10), ('NN', 1e10)]

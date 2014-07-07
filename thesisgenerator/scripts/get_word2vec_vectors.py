@@ -10,7 +10,7 @@ sys.path.append('../..')
 
 import gensim, logging, errno
 
-from discoutils.thesaurus_loader import Thesaurus
+from discoutils.thesaurus_loader import Thesaurus, Vectors
 import numpy as np
 from thesisgenerator.plugins.tokenizers import XmlTokenizer
 
@@ -99,7 +99,7 @@ vectors = dict()
 dimension_names = ['word2vec_feat%02d'%i for i in range(100)] # word2vec produces 100-dim vectors
 for word in model.vocab.keys():
     vectors[word] = zip(dimension_names, model[word])
-th1 = Thesaurus(vectors)
+th1 = Vectors(vectors)
 th1.to_tsv(unigram_events_file, preserve_order=True)
 
 # <codecell>

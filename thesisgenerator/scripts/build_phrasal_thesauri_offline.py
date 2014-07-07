@@ -285,7 +285,7 @@ def build_unreduced_AN_NN_thesauri(corpus, corpus_name, features,
             composer_algos = [Bunch(name='APDT')]  # only build this thesaurus
 
             # make a byblo-compatible events, entries and features files
-            thesaurus = Thesaurus.from_tsv([apdt_composed_vectors])
+            thesaurus = Vectors.from_tsv([apdt_composed_vectors])
             mat, cols, rows = thesaurus.to_sparse_matrix()
 
             pattern = os.path.join(ngram_vectors_dir, 'AN_NN_{}_APDT.{}.filtered.strings')
@@ -382,7 +382,7 @@ def build_full_composed_thesauri_with_baroni_and_svd(corpus, features, stages, u
 
         if 'baroni' in stages:
             # do the actual training
-            thes = Thesaurus.from_tsv([all_reduced_vectors], lowercasing=False)
+            thes = Vectors.from_tsv([all_reduced_vectors], lowercasing=False)
             thes.to_tsv(baroni_training_heads,
                         entry_filter=lambda x: x.type == '1-GRAM' and x.tokens[0].pos == 'N')
 
