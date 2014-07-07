@@ -5,10 +5,7 @@ from pickle import load
 import numpy as np
 import scipy.sparse as sp
 from discoutils.thesaurus_loader import Thesaurus, Vectors
-
 from discoutils.tokens import DocumentFeature
-
-
 
 
 def check_vectors(unigram_source):
@@ -28,8 +25,15 @@ class ComposerMixin(object):
         :return:
         :rtype:
         """
-        # todo return mat, cols, rows; append them to  self.mat, rows
-        pass
+        # todo store vectors of composed items in composer, not in unigram source?
+        # otherwise each composition over the same source will grow the data
+        new_matrix = sp.vstack(self.get_vector(foo) for foo in things if foo in self)
+        self.unigram_source.matrix = sp.vstack([self.unigram_source.matrix, new_matrix], format='csr')
+        old_len = len(self.unigram_source.rows)
+        for i, foo in enumerate(things):
+            key = foo if isinstance(foo, str) else foo.tokens_as_str()
+            self.unigram_source.rows[key] = i + old_len
+        return self.unigram_source.matrix, self.unigram_source.columns, self.unigram_source.rows
 
 
 class AdditiveComposer(Vectors, ComposerMixin):
@@ -83,9 +87,6 @@ class MultiplicativeComposer(AdditiveComposer):
         self.unigram_source = check_vectors(unigram_source)
         self.function = np.multiply
 
-    def __contains__(self, feature):
-        return self.contains_impl(feature)
-
 
 class MinComposer(MultiplicativeComposer):
     name = 'Min'
@@ -93,9 +94,6 @@ class MinComposer(MultiplicativeComposer):
     def __init__(self, unigram_source):
         self.unigram_source = check_vectors(unigram_source)
         self.function = lambda m, n: np.minimum(m, n)
-
-    def __contains__(self, feature):
-        return self.contains_impl(feature)
 
 
 class MaxComposer(MinComposer):
@@ -105,9 +103,6 @@ class MaxComposer(MinComposer):
         self.unigram_source = check_vectors(unigram_source)
         self.function = lambda m, n: np.maximum(m, n)
 
-    def __contains__(self, feature):
-        return self.contains_impl(feature)
-
 
 class LeftmostWordComposer(AdditiveComposer):
     name = 'Left'
@@ -116,7 +111,6 @@ class LeftmostWordComposer(AdditiveComposer):
         self.unigram_source = check_vectors(unigram_source)
         self.hardcoded_index = 0
         self.entry_types = {'2-GRAM', '3-GRAM', 'AN', 'NN', 'VO', 'SVO'}
-
 
     def get_vector(self, feature):
         if isinstance(feature, str):
@@ -130,9 +124,6 @@ class LeftmostWordComposer(AdditiveComposer):
             # no point in composing single-word document features
             return False
         return feature[self.hardcoded_index].tokens_as_str() in self.unigram_source
-
-    def __contains__(self, feature):
-        return self.contains_impl(feature)
 
 
 class RightmostWordComposer(LeftmostWordComposer):

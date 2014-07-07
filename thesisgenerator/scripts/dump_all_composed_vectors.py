@@ -99,7 +99,7 @@ def compose_and_write_vectors(unigram_vector_paths, short_vector_dataset_name, c
 
     x_tr, y_tr, x_ev, y_ev = tokenized_data
     vectors = Vectors.from_tsv(unigram_vector_paths)
-    Parallel(n_jobs=1)(delayed(_loop_body)(composer_class,
+    Parallel(n_jobs=1)(delayed(_loop_body)(composer_class, # todo enable concurrency
                                            output_dir,
                                            pipeline,
                                            pretrained_Baroni_composer_file,

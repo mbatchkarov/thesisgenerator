@@ -66,130 +66,6 @@ class TestAdditiveVectorSource(TestCase):
         self.assertNotIn(unk_unigram_feature, self.composer)
         self.assertNotIn(unk_bigram_feature, self.composer)
 
-        # def test_get_nearest_neighbour(self):
-        # vectors = Vectors.from_tsv(['thesisgenerator/resources/ones.vectors.txt'])
-        #     composer = AdditiveComposer(vectors)
-        #     tokens_only = [DocumentFeature.from_string(x).tokens[0] for x in vectors.rows.keys()]
-        #     vocab = [DocumentFeature('2-GRAM', (x, y)) for (x, y) in
-        #              combinations(tokens_only, 2)]
-        #     composer.compose_all(vocab)
-        #     print '----------- Setting include_self to True ------------'
-        #     for bigram in vocab:
-        #         neighbours = composer.get_nearest_neighbours(bigram)
-        #         self.assertEquals(len(neighbours), 1)
-        #         composer_name, (neighbour, sim) = neighbours[0]
-        #         print composer.get_vector(bigram), bigram, neighbours, sim
-        #         self.assertEqual(bigram, neighbour)
-        #         self.assertAlmostEqual(sim, 1, 5)
-        #
-        #     print '----------- Setting include_self to False ------------'
-        #     composer.include_self = False
-        #     for bigram in vocab:
-        #         neighbours = composer.get_nearest_neighbours(bigram)
-        #         self.assertEquals(len(neighbours), 1)
-        #         comp_name, (neighbour, sim) = neighbours[0]
-        #         print bigram, neighbours
-        #         self.assertNotEqual(bigram, neighbour)
-        #         # The vectors for unigrams are 4D one-hot encoded, ie. a=1000, b=0100,...,d=0001
-        #         # The pointwise sum of any of these two has two ones and two zeros. If v1 = x1+y1, v2=x2+y2,
-        #         # ( x1,x2,y1,y2 \in {a,b,c,d} ) then v1 and v2 share either 0, 1 or 2 non-zero dimensions.
-        #         # If they share 2, i.e. we've added the same terms up and include_self will prevent this neighbour
-        #         # from being returned. If they share no dimensions, the cosine sim is 0 and the sim_threshold will
-        #         # kick in. The nearest neighbour of the sum of any two vectors (not including itself) is the one where
-        #         # they only share one dimension, i.e. [1,0,1,0] and [1,0,0,1], and the cosine of these two is ~0.5.
-        #
-        #         self.assertAlmostEqual(sim, 0.5, 5)
-        #
-        #     composer.sim_threshold = 0.6
-        #     # no neighbours should be returned now, because 0.6 > 0.5
-        #     for bigram in vocab:
-        #         neighbours = composer.get_nearest_neighbours(bigram)
-        #         self.assertEquals(len(neighbours), 0)
-
-
-    # class TestCompositeVectorSource(TestCase):
-    # def setUp(self):
-    #         unigrams_vectors = Vectors(path)
-    #         self.composer = CompositeVectorSource([AdditiveComposer(unigrams_vectors),
-    #                                                UnigramOnlyNoopComposer(unigrams_vectors)],
-    #                                               0.0, False)
-    #
-    #     def test_entry_index(self):
-    #         unigrams_vectors = UnigramVectorSource(['thesisgenerator/resources/ones.vectors.txt'])
-    #         subcomposers = [AdditiveComposer(unigrams_vectors), MultiplicativeComposer(unigrams_vectors),
-    #                         LeftmostWordComposer(unigrams_vectors), RightmostWordComposer(unigrams_vectors)]
-    #         composer = CompositeVectorSource(subcomposers,
-    #                                          sim_threshold=0, include_self=True)
-    #         tokens_only = [x.tokens[0] for x in unigrams_vectors.entry_index.keys()]
-    #         vocab = [DocumentFeature('2-GRAM', (x, y)) for (x, y) in
-    #                  combinations(tokens_only, 2)]
-    #         composer.populate_vector_space(vocab)
-    #
-    #         m = composer.feature_matrix.A
-    #         e = composer.debug_entry_index
-    #         self.assertEqual(len(e), len(vocab) * len(subcomposers))
-    #
-    #         for row, (feature, composer) in enumerate(e):
-    #             expected = composer.get_vector(feature).A.ravel()
-    #             observed = m[row, :]
-    #             assert_array_equal(expected, observed)
-    #
-    #
-    #     def test_contains(self):
-    #         self.assertIn(unigram_feature, self.composer)
-    #         self.assertIn(bigram_feature, self.composer)
-    #
-    #         self.assertNotIn(unk_unigram_feature, self.composer)
-    #         self.assertNotIn(unk_bigram_feature, self.composer)
-
-    #def test_only_composable_features(self):
-    #    """
-    #    Test that a set of composer accepts only things that can be composed
-    #    """
-    #    source = CompositeVectorSource(self.conf)
-    #    self.assertIn(bigram_feature, source)
-    #    self.assertIn(an_feature, source)
-    #    self.assertNotIn(unk_unigram_feature, source)
-    #    self.assertNotIn(unk_unigram_feature, source)
-    #    self.assertNotIn(unigram_feature, source)
-    #
-    #
-    #def test_also_include_unigram_features(self):
-    #    """
-    #    Test that when include_unigram_features is enabled unigram features as well as
-    #    composable features are accepted
-    #    """
-    #    self.conf['include_unigram_features'] = True
-    #    source = CompositeVectorSource(self.conf)
-    #    for x in known_features:
-    #        self.assertIn(x, source)
-    #
-    #def test_include_unigram_features_only(self):
-    #    self.conf['include_unigram_features'] = True
-    #    self.conf = {key: value for key, value in self.conf.items() if 'Composer' not in key}
-    #    source = CompositeVectorSource(self.conf)
-    #    self.assertNotIn(bigram_feature, source)
-    #    self.assertIn(unigram_feature, source)
-    #    #self.assertSetEqual(source.__contains__(known_features), unigram_feature)
-
-    #def test_build_vector_space(self):
-    #    source = CompositeVectorSource(self.conf)
-    #    training_features = [x for x in all_features if x in source]
-    #    source.populate_vector_space(training_features)
-    #    for f in training_features:
-    #        #print 'Composing', f
-    #        #print 'Composed vectors are ', source.get_vector(f)
-    #        #print 'Nearest neighbours are\n'
-    #        for (_, (dist, _)) in source._get_nearest_neighbours(f):
-    #            # nearest neighbour should be the feature itself
-    #            self.assertAlmostEquals(dist, 0., places=4)
-    #            #print '---------------------------'
-    #
-    #    for comp, dist, neigh in source._get_nearest_neighbours(('2-GRAM', ('c/j', 'a/n'))):
-    #        self.assertIn(neigh, training_features)
-    #        #print comp, dist, neigh
-    #        #todo expand this test
-
 
 class TestSimpleComposers(TestCase):
     def setUp(self):
@@ -237,49 +113,6 @@ class TestSimpleComposers(TestCase):
                 result.A
             )
 
-
-# class TestPrecomputedSimSource(TestCase):
-# def setUp(self):
-#         self.source = Thesaurus.from_tsv(
-#             tsv_files=['thesisgenerator/resources/exp0-0a.strings'],
-#             sim_threshold=0, include_self=False)
-#         self.source2 = Thesaurus.from_tsv(
-#             tsv_files=['thesisgenerator/resources/exp0-0c.strings'],
-#             sim_threshold=0, include_self=False)
-#
-#
-#     def test_get_nearest_neighbours(self):
-#         self.assertTupleEqual(
-#             self.source.get_nearest_neighbours(('cat/N'))[0],
-#             (DocumentFeature('1-GRAM', (Token('dog', 'N'),)), 0.8)
-#         )
-#
-#         self.assertTupleEqual(
-#             self.source2.get_nearest_neighbours(('a/J_b/N'))[0],
-#             (('g/N'), 0.8)
-#         )
-#
-#     def test_contains(self):
-#         self.assertTrue(('cat/N') in self.source)
-#         self.assertFalse(('a/J_b/N') in self.source)
-#
-#         self.assertTrue(('a/N') in self.source2)
-#         self.assertTrue(('a/J_b/N') in self.source2)
-
-# commented out because it requires manual setup to binary resources
-#class TestBaroniComposer(object):
-#    @pytest.fixture
-#    def composer(self):
-#        unigram_source = UnigramVectorSource(
-#            ['thesisgenerator/resources/baroni/julie.onlyN-SVD300.clean.vectors'])
-#        model_file = 'thesisgenerator/resources/baroni/julie.ANs.clean.AN-model.model.pkl'
-#        return BaroniComposer(unigram_source, model_file)
-#
-#    def test_contains(self, composer):
-#        # that composers only contains african/J and a bunch of nouns
-#        assert ('african/J_price/N') in composer
-#        assert ('african/J_south/N') in composer
-#        assert ('african/J_somemadeupword/N') not in composer
 
 class TestMinMaxComposer(TestCase):
     def setUp(self):
@@ -338,3 +171,21 @@ class TestHeadAndTailWordComposers(object):
         assert v1.shape == v2.shape == (1, 7)
         assert_array_equal(v1.A.ravel(), np.array([0, 0, 0, 0, 0, 0, 0.11]))
         assert_array_equal(v2.A.ravel(), np.array([0.06, 0.05, 0, 0, 0, 0, 0]))
+
+    def test_compose_all(self, composers):
+        composer, _ = composers
+        original_matrix, original_cols, original_rows = composer.unigram_source.to_sparse_matrix()
+        matrix, cols, rows = composer.compose_all(['cat/N_game/N', DocumentFeature.from_string('dog/N_game/N')])
+
+        # the columns should remain unchanges
+        assert original_cols == cols
+        # the first rows are for the unigrams that existed before composition- 7 of them
+        assert_array_equal(original_matrix.A, matrix.A[:7, :])
+        # two new rows should appear, one for each composed feature
+        # this should be reflected in both the index and the matrix
+        assert composer.unigram_source.rows['cat/N_game/N'] == 7
+        assert composer.unigram_source.rows['dog/N_game/N'] == 8
+        assert matrix.shape == (9, 7) == (len(rows), len(cols))
+        assert_array_equal(matrix.A[7, :], composer.unigram_source.get_vector('cat/N').A.ravel())
+        assert_array_equal(matrix.A[8, :], composer.unigram_source.get_vector('dog/N').A.ravel())
+
