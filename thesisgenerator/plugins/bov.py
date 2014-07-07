@@ -9,7 +9,7 @@ import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 from discoutils.misc import ContainsEverything
 from thesisgenerator.classifiers import NoopTransformer
-from thesisgenerator.composers.vectorstore import PrecomputedSimilaritiesVectorSource, DummyNeighbourVectorSource
+from thesisgenerator.composers.vectorstore import DummyThesaurus
 from thesisgenerator.plugins import tokenizers
 from thesisgenerator.plugins.bov_feature_handlers import get_token_handler
 from discoutils.tokens import DocumentFeature
@@ -107,11 +107,11 @@ class ThesaurusVectorizer(TfidfVectorizer):
                                                   dtype=dtype)
 
     def fit_transform(self, raw_documents, y=None, vector_source=None, stats_hdf_file=None):
-        self.vector_source = vector_source
+        self.thesaurus = vector_source
         self.handler = get_token_handler(self.train_token_handler,
                                          self.k,
                                          self.sim_compressor,
-                                         self.vector_source)
+                                         self.thesaurus)
         # requested stats that to go HDF, store the name so we can record stats to that name at decode time too
         self.stats_hdf_file_ = stats_hdf_file
         self.stats = get_stats_recorder(self.record_stats, stats_hdf_file, '-tr')
@@ -163,22 +163,22 @@ class ThesaurusVectorizer(TfidfVectorizer):
         if self.random_neighbour_thesaurus:
             # this is a bit of hack and a waste of effort, since a thesaurus will have been loaded first
             logging.info('Building random neighbour vector source with vocabulary of size %d', len(self.vocabulary_))
-            self.vector_source.k = self.k
-            self.vector_source.vocab = self.vocabulary_
+            self.thesaurus.k = self.k
+            self.thesaurus.vocab = self.vocabulary_
 
         self.ngram_range = self.ngram_range_decode
 
         self.handler = get_token_handler(self.decode_token_handler,
                                          self.k,
                                          self.sim_compressor,
-                                         self.vector_source)
+                                         self.thesaurus)
 
         # todo can't populate at this stage of the pipeline, because the vocabulary might
         # change if feature selection is enabled. Trying to do this will result in attempts to compose
         # features that we do not know how to compose because these have not been removed by FS
-        #if self.vector_source:
-        #    logging.info('Populating vector source %s prior to transform', self.vector_source)
-        #    self.vector_source.populate_vector_space(self.vocabulary_.keys())
+        #if self.thesaurus:
+        #    logging.info('Populating vector source %s prior to transform', self.thesaurus)
+        #    self.thesaurus.populate_vector_space(self.vocabulary_.keys())
 
         #  BEGIN a modified version of super.transform that works when vocabulary is empty
         _, X = self._count_vocab(raw_documents, fixed_vocab=True)
@@ -282,7 +282,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
         #        if a.upper().endswith('/J') and b.upper().endswith('/N'):
         #            features.append(('AN', (a, b)))
 
-        #return self.vector_source.accept_features(features)  # + last_chars + shapes
+        #return self.thesaurus.accept_features(features)  # + last_chars + shapes
         return features  # + last_chars + shapes
 
     def my_analyzer(self):
@@ -352,8 +352,8 @@ class ThesaurusVectorizer(TfidfVectorizer):
 
                 #is_in_vocabulary = bool(feature_index_in_vocab is not None)
                 is_in_vocabulary = feature in vocabulary
-                #is_in_th = bool(self.vector_source.get(feature))
-                is_in_th = feature in self.vector_source if self.vector_source else False
+                #is_in_th = bool(self.thesaurus.get(feature))
+                is_in_th = feature in self.thesaurus if self.thesaurus else False
                 self.stats.register_token(feature, is_in_vocabulary, is_in_th)
 
                 #j_indices.append(feature_index_in_vocab) # todo this is the original code, also updates vocabulary

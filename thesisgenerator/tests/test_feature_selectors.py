@@ -6,8 +6,7 @@ import numpy.testing as t
 from pandas.io.parsers import read_csv
 
 from thesisgenerator.composers.feature_selectors import VectorBackedSelectKBest
-from thesisgenerator.composers.vectorstore import CompositeVectorSource, UnigramVectorSource, \
-    UnigramDummyComposer, PrecomputedSimilaritiesVectorSource
+from thesisgenerator.composers.vectorstore import *
 from thesisgenerator.plugins.bov import ThesaurusVectorizer
 from thesisgenerator.plugins.dumpers import FeatureVectorsCsvDumper
 from discoutils.tokens import DocumentFeature, Token
@@ -46,16 +45,14 @@ def _do_feature_selection(must_be_in_thesaurus, k, handler='Base', vector_source
     x_train, y_train, x_test, y_test = tokenize_data(raw_data, tokenizer, data_ids)
 
     if vector_source == 'default':
-        unigrams_vectors = UnigramVectorSource(
-            ['thesisgenerator/resources/thesauri/exp0-0a.txt.events-unfiltered.strings'])
-        vector_source = CompositeVectorSource([UnigramDummyComposer(unigrams_vectors)],
-                                              0.0, False)
+        unigrams_vect = Vectors.from_tsv(['thesisgenerator/resources/thesauri/exp0-0a.txt.events-unfiltered.strings'])
+        vector_source = unigrams_vect
 
     if delete_kid:
         # the set of vectors we load from disk covers all unigrams in the training set, which makes it boring
         # let's remove one entry
-        del unigrams_vectors.entry_index[DocumentFeature.from_string('kid/N')]
-        unigrams_vectors.feature_matrix = unigrams_vectors.feature_matrix[:, :-1]
+        del unigrams_vect['kid/N']
+        unigrams_vect.matrix = unigrams_vect.matrix[:, :-1]
 
     pipeline_list = [
         ('vect',
@@ -257,13 +254,12 @@ def test_bigram_features_with_composer_without_fs():
     """
 
     # load a mock unigram thesaurus, bypassing the similarity calculation provided by CompositeVectorSource
-    composer = PrecomputedSimilaritiesVectorSource.from_file(
-        tsv_files=['thesisgenerator/resources/exp0-0a.strings'])
+    unigrams = Thesaurus.from_tsv(tsv_files=['thesisgenerator/resources/exp0-0a.strings'])
 
     # patch it to ensure it contains some bigram entries, as if they were calculated on the fly
-    composer.th['like/V_fruit/N'] = [('like/V', 0.8)]
+    unigrams['like/V_fruit/N'] = [('like/V', 0.8)]
     tr_matrix, tr_voc, ev_matrix, ev_voc = _do_feature_selection(False, 'all', handler='SignifierSignified',
-                                                                 vector_source=composer, max_feature_len=2)
+                                                                 vector_source=unigrams, max_feature_len=2)
     assert ev_matrix.shape == (3, 10)
     t.assert_array_equal(tr_matrix, training_matrix_signifier_bigrams)
 

@@ -1,20 +1,15 @@
-import logging
-
+from discoutils.tokens import DocumentFeature
 from thesisgenerator.utils.reflection_utils import get_named_object
 
 
-def get_token_handler(handler_name, k, transformer_name, vector_source):
+def get_token_handler(handler_name, k, transformer_name, thesaurus):
     # k- parameter for _paraphrase
     # sim_transformer- callable that transforms the raw sim scores in
     # _paraphrase
     # todo replace k with a named object
     handler = get_named_object(handler_name)
     transformer = get_named_object(transformer_name)
-    logging.info('Returning token handler %s (k=%s, sim transformer=%s)' % (
-        handler,
-        k,
-        transformer))
-    return handler(k, transformer, vector_source)
+    return handler(k, transformer, thesaurus)
 
 
 class BaseFeatureHandler():
@@ -67,13 +62,14 @@ class BaseFeatureHandler():
         """
 
         #logging.debug('Paraphrasing %r in doc %d', feature, doc_id)
-        neighbours = self.vector_source.get_nearest_neighbours(feature)
+        neighbours = self.thesaurus[feature]
 
         # if there are any neighbours filter the list of
         # neighbours so that it contains only pairs where
         # the neighbour has been seen
-        neighbours = [(neighbour, rank, sim) for rank, (neighbour, sim) in enumerate(neighbours)
-                      if neighbour in vocabulary]
+        neighbours = [(DocumentFeature.from_string(neighbour), rank, sim)
+                      for rank, (neighbour, sim) in enumerate(neighbours)
+                      if DocumentFeature.from_string(neighbour) in vocabulary]
         k, available_neighbours = self.k, len(neighbours)
         event = [feature.tokens_as_str(), available_neighbours, self.k]
 
@@ -100,10 +96,10 @@ class SignifierSignifiedFeatureHandler(BaseFeatureHandler):
         ignoring the feature
     """
 
-    def __init__(self, k, sim_transformer, vector_source):
+    def __init__(self, k, sim_transformer, thesaurus):
         self.k = k
         self.sim_transformer = sim_transformer
-        self.vector_source = vector_source
+        self.thesaurus = thesaurus
 
     def handle_OOV_IT_feature(self, **kwargs):
         self._paraphrase(**kwargs)
@@ -115,10 +111,10 @@ class SignifiedOnlyFeatureHandler(BaseFeatureHandler):
     thesaurus for all IT features
     """
 
-    def __init__(self, k, sim_transformer, vector_source):
+    def __init__(self, k, sim_transformer, thesaurus):
         self.k = k
         self.sim_transformer = sim_transformer
-        self.vector_source = vector_source
+        self.thesaurus = thesaurus
 
     def handle_OOV_IT_feature(self, **kwargs):
         self._paraphrase(**kwargs)
@@ -134,10 +130,10 @@ class SignifierRandomBaselineFeatureHandler(SignifiedOnlyFeatureHandler):
     Ignores all OOT features and inserts K random IV tokens for all IT features
     """
 
-    def __init__(self, k, sim_transformer, vector_source):
+    def __init__(self, k, sim_transformer, thesaurus):
         self.k = k
         self.sim_transformer = sim_transformer
-        self.vector_source = vector_source
+        self.thesaurus = thesaurus
 
     def handle_OOV_IT_feature(self, **kwargs):
         self._paraphrase(**kwargs)

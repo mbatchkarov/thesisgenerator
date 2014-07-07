@@ -9,7 +9,8 @@ import numpy as np
 from numpy.ma import std
 import numpy.testing as t
 import scipy.sparse as sp
-from thesisgenerator.composers.vectorstore import PrecomputedSimilaritiesVectorSource, DummyNeighbourVectorSource
+from discoutils.thesaurus_loader import Thesaurus
+from thesisgenerator.composers.vectorstore import DummyThesaurus
 
 from thesisgenerator.plugins import tokenizers
 from thesisgenerator import __main__
@@ -26,7 +27,7 @@ class TestThesaurusVectorizer(TestCase):
             'tsv_files': ['thesisgenerator/resources/exp0-0a.strings'],
             'sim_threshold': 0
         }
-        self.vector_source = PrecomputedSimilaritiesVectorSource.from_file(**self._thesaurus_opts)
+        self.vector_source = Thesaurus.from_tsv(**self._thesaurus_opts)
 
         self.tokenizer_opts = {
             'normalise_entities': False,
@@ -57,7 +58,7 @@ class TestThesaurusVectorizer(TestCase):
             'scoring_function': 'sklearn.feature_selection.chi2',
             'must_be_in_thesaurus': False,
             'k': 'all',
-            'vector_source': None
+            'thesaurus': None
         }
 
         self.default_prefix = 'thesisgenerator/resources/test'
@@ -137,8 +138,8 @@ class TestThesaurusVectorizer(TestCase):
         return x1, x2, voc
 
     def _reload_thesaurus_and_tokenizer(self):
-        self.vector_source = PrecomputedSimilaritiesVectorSource.from_file(**self._thesaurus_opts)
-        self.feature_selection_conf['vector_source'] = self.vector_source
+        self.vector_source = Thesaurus.from_tsv(**self._thesaurus_opts)
+        self.feature_selection_conf['thesaurus'] = self.vector_source
         self.tokenizer = tokenizers.XmlTokenizer(**self.tokenizer_opts)
 
 
@@ -330,7 +331,7 @@ class TestThesaurusVectorizer(TestCase):
         self.x_tr, self.y_tr, self.x_ev, self.y_ev = self. \
             _load_data('thesisgenerator/resources/test-baseline')
 
-        source = DummyNeighbourVectorSource()
+        source = DummyThesaurus()
         x1, x2, voc = self._vectorize_data(source)
 
         self.assertDictEqual(self.full_vocab, strip(voc))

@@ -40,11 +40,6 @@ class VectorBackedSelectKBest(SelectKBest):
     def fit(self, X, y, vector_source=None):
         self.vector_source = vector_source
         logging.debug('Identity of vector source is %d', id(vector_source))
-        if vector_source:
-            try:
-                logging.info('The BallTree is %s', vector_source.nbrs)
-            except AttributeError:
-                logging.debug('The vector source is %s', vector_source)
         if not self.vector_source and self.must_be_in_thesaurus:
             logging.error(
                 'You requested feature selection based on vector presence but did not provide a vector source.')
@@ -81,7 +76,7 @@ class VectorBackedSelectKBest(SelectKBest):
         for feature, index in self.vocabulary_.iteritems():
             if feature not in self.vector_source:
                 mask[index] = False
-        if sum(mask) == len(mask):
+        if np.count_nonzero(mask) == 0:
             logging.error('Feature selector removed all features')
             raise ValueError('Empty vocabulary')
         return mask
@@ -149,19 +144,6 @@ class MetadataStripper(BaseEstimator, TransformerMixin):
     def fit(self, X, y, vector_source=None):
         matrix, self.voc = X  # store voc, may be handy for for debugging
         self.vector_source = vector_source
-        logging.debug('Identity of vector source is %d', id(vector_source))
-        if self.vector_source:
-            logging.info('Populating vector source %s prior to transform', self.vector_source)
-            logging.info('Using %d vocabulary entries ', len(self.voc))
-            if not isinstance(self.vector_source, str):
-                # the vector source may be a shelve file name
-                self.vector_source.populate_vector_space(self.voc.keys(),
-                                                         algorithm=self.nn_algorithm,
-                                                         build_tree=self.build_tree)
-            try:
-                logging.debug('The BallTree is %s', vector_source.nbrs)
-            except AttributeError:
-                logging.debug('The vector source is %s', vector_source)
         return self
 
     def transform(self, X):

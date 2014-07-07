@@ -14,7 +14,6 @@ from joblib import Memory, Parallel, delayed
 from discoutils.misc import ContainsEverything
 from sklearn.datasets import load_files
 from thesisgenerator.classifiers import NoopTransformer
-from thesisgenerator.composers.vectorstore import UnigramVectorSource, CompositeVectorSource, DummyNeighbourVectorSource
 from thesisgenerator.plugins import tokenizers
 from thesisgenerator.utils.conf_file_utils import parse_config_file
 from thesisgenerator.utils.reflection_utils import get_named_object, get_intersection_of_parameters

@@ -4,7 +4,7 @@ import logging
 import os
 from unittest import TestCase, skip
 from glob import glob
-from thesisgenerator.composers.vectorstore import PrecomputedSimilaritiesVectorSource
+from discoutils.thesaurus_loader import Thesaurus
 from thesisgenerator.plugins.dumpers import consolidate_single_experiment
 
 from thesisgenerator.plugins.experimental_utils import run_experiment
@@ -17,8 +17,7 @@ class TestConsolidator(TestCase):
     def setUp(cls):
         prefix = 'thesisgenerator/resources'
         # load a mock unigram thesaurus, bypassing the similarity calculation provided by CompositeVectorSource
-        vector_source = PrecomputedSimilaritiesVectorSource.from_file(
-            tsv_files=['thesisgenerator/resources/exp0-0a.strings'])
+        vector_source = Thesaurus.from_tsv(tsv_files=['thesisgenerator/resources/exp0-0a.strings'])
         print 'RES:', run_experiment(0, num_workers=1, predefined_sized=[3, 3, 3],
                                      prefix=prefix, vector_source=vector_source)
         consolidate_single_experiment(prefix, 0)

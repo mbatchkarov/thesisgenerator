@@ -15,34 +15,42 @@ from thesisgenerator.composers.feature_selectors import VectorBackedSelectKBest,
 from thesisgenerator.composers.vectorstore import *
 from thesisgenerator.plugins.bov import ThesaurusVectorizer
 from thesisgenerator.utils.data_utils import load_tokenizer, tokenize_data, load_text_data_into_memory
+from discoutils.io_utils import write_vectors_to_disk
 
 
 def _loop_body(composer_class, output_dir, pipeline, pretrained_Baroni_composer_file, short_vector_dataset_name,
-               unigram_source, x_ev, x_tr, y_ev, y_tr):
+               vectors, x_ev, x_tr, y_ev, y_tr):
     # whatever files we need to (entries index, as composition creates new entries)
     if composer_class == BaroniComposer:
-        composers = [BaroniComposer(unigram_source, pretrained_Baroni_composer_file)]
+        composer = BaroniComposer(vectors, pretrained_Baroni_composer_file)
     else:
-        composers = [composer_class(unigram_source)]
+        composer = composer_class(vectors)
 
     # the next 2 lines ensure 1-GRAMs are contained in the composer and returned as neighbours of phrases
-    s1 = UnigramDummyComposer(unigram_source)
-    composers.append(s1)
+    # s1 = UnigramOnlyNoopComposer(vectors)
+    # composer.append(s1)
 
-    vector_source = CompositeVectorSource(composers, sim_threshold=0, include_self=False)
     fit_args = {
-        'stripper__vector_source': vector_source,
-        'vect__vector_source': vector_source,
-        'fs__vector_source': vector_source,
+        'stripper__vector_source': composer,
+        'vect__vector_source': composer,
+        'fs__vector_source': composer,
     }
-    _ = pipeline.fit_transform(x_tr + x_ev, y=hstack([y_tr, y_ev]), **fit_args)
+    _, vocabulary = pipeline.fit_transform(x_tr + x_ev, y=hstack([y_tr, y_ev]), **fit_args)
+    mat, cols, rows = composer.compose_all(vocabulary.keys())
 
-    output_files = ('AN_NN_%s_%s.events.filtered.strings' % (short_vector_dataset_name, composers[0].name),
-                    'AN_NN_%s_%s.entries.filtered.strings' % (short_vector_dataset_name, composers[0].name),
-                    'AN_NN_%s_%s.features.filtered.strings' % (short_vector_dataset_name, composers[0].name))
-    output_files = [os.path.join(output_dir, x) for x in output_files]
+    events_path = os.path.join(output_dir,
+                               'AN_NN_%s_%s.events.filtered.strings' % (short_vector_dataset_name, composer.name))
+    entries_path = os.path.join(output_dir,
+                                'AN_NN_%s_%s.entries.filtered.strings' % (short_vector_dataset_name, composer.name))
+    features_path = os.path.join(output_dir,
+                                 'AN_NN_%s_%s.features.filtered.strings' % (short_vector_dataset_name, composer.name))
 
-    pipeline.steps[2][1].vector_source.write_vectors_to_disk({'AN', 'NN', '1-GRAM'}, *output_files)
+    # mat, cols, rows = composer.to_sparse_matrix(row_transform=row_transform)
+    rows = [DocumentFeature.from_string(x) for x in rows]
+    write_vectors_to_disk(mat.tocoo(), rows, cols, events_path,
+                          features_path=features_path, entries_path=entries_path,
+                          entry_filter=lambda x: x.type in {'AN', 'NN', '1-GRAM'})
+    # composer.to_tsv(events_path, entries_path, features_path, )
 
 
 def compose_and_write_vectors(unigram_vector_paths, short_vector_dataset_name, classification_data_paths,
@@ -86,17 +94,17 @@ def compose_and_write_vectors(unigram_vector_paths, short_vector_dataset_name, c
                                      extract_VO_features=False, extract_SVO_features=False,
                                      unigram_feature_pos_tags=['N', 'J'])),
         ('fs', VectorBackedSelectKBest(must_be_in_thesaurus=True)),
-        ('stripper', MetadataStripper(nn_algorithm='brute', build_tree=False))
+        # ('stripper', MetadataStripper(nn_algorithm='brute', build_tree=False))
     ])
 
     x_tr, y_tr, x_ev, y_ev = tokenized_data
-    unigram_source = UnigramVectorSource(unigram_vector_paths, reduce_dimensionality=False)
+    vectors = Vectors.from_tsv(unigram_vector_paths)
     Parallel(n_jobs=1)(delayed(_loop_body)(composer_class,
                                            output_dir,
                                            pipeline,
                                            pretrained_Baroni_composer_file,
                                            short_vector_dataset_name,
-                                           unigram_source,
+                                           vectors,
                                            x_ev, x_tr,
                                            y_ev, y_tr) for composer_class in composer_classes)
 

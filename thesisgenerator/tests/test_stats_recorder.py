@@ -1,13 +1,13 @@
 from collections import Counter
 import pytest
-from thesisgenerator.composers.vectorstore import PrecomputedSimilaritiesVectorSource
-from thesisgenerator.plugins.experimental_utils import run_experiment
 import os
-from glob import glob
-from discoutils.tokens import DocumentFeature
 import pandas as pd
 import numpy as np
+from glob import glob
+from discoutils.thesaurus_loader import Thesaurus
+from discoutils.tokens import DocumentFeature
 from thesisgenerator.plugins.stats import sum_up_token_counts
+from thesisgenerator.plugins.experimental_utils import run_experiment
 
 
 def _get_counter_ignoring_negatives(df, column_list):
@@ -19,8 +19,7 @@ def _get_counter_ignoring_negatives(df, column_list):
 def stats_file(request):
     prefix = 'thesisgenerator/resources'
     # load a mock unigram thesaurus, bypassing the similarity calculation provided by CompositeVectorSource
-    vector_source = PrecomputedSimilaritiesVectorSource.from_file(
-        tsv_files=['thesisgenerator/resources/exp0-0a.strings'])
+    vector_source = Thesaurus.from_tsv(tsv_files=['thesisgenerator/resources/exp0-0a.strings'])
     # exp1 is like exp0, but using Signified encoding
     run_experiment(1, num_workers=1, predefined_sized=[3],
                    prefix=prefix, vector_source=vector_source)
