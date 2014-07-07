@@ -143,7 +143,7 @@ def load_and_shelve_thesaurus(files, sim_threshold, include_self,
     if os.path.exists(filename):
         logging.info('Returning pre-shelved object %s for %s', filename, files)
     else:
-        th = Thesaurus.from_tsv(thesaurus_files=files,
+        th = Thesaurus.from_tsv(tsv_files=files,
                                 sim_threshold=sim_threshold,
                                 include_self=include_self,
                                 allow_lexical_overlap=allow_lexical_overlap,

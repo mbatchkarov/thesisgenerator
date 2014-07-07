@@ -20,7 +20,7 @@ def stats_file(request):
     prefix = 'thesisgenerator/resources'
     # load a mock unigram thesaurus, bypassing the similarity calculation provided by CompositeVectorSource
     vector_source = PrecomputedSimilaritiesVectorSource.from_file(
-        thesaurus_files=['thesisgenerator/resources/exp0-0a.strings'])
+        tsv_files=['thesisgenerator/resources/exp0-0a.strings'])
     # exp1 is like exp0, but using Signified encoding
     run_experiment(1, num_workers=1, predefined_sized=[3],
                    prefix=prefix, vector_source=vector_source)

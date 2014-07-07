@@ -23,9 +23,8 @@ class TestThesaurusVectorizer(TestCase):
         Initialises the state of helper modules to sensible defaults
         """
         self._thesaurus_opts = {
-            'thesaurus_files': ['thesisgenerator/resources/exp0-0a.strings'],
-            'sim_threshold': 0,
-            'include_self': False
+            'tsv_files': ['thesisgenerator/resources/exp0-0a.strings'],
+            'sim_threshold': 0
         }
         self.vector_source = PrecomputedSimilaritiesVectorSource.from_file(**self._thesaurus_opts)
 
@@ -48,7 +47,7 @@ class TestThesaurusVectorizer(TestCase):
             'min_df': 1,
             'lowercase': False,
             'record_stats': True,
-            'k': 10, # use all thesaurus entries
+            'k': 10,  # use all thesaurus entries
             'train_token_handler': 'thesisgenerator.plugins.bov_feature_handlers.BaseFeatureHandler',
             'decode_token_handler': 'thesisgenerator.plugins.bov_feature_handlers.BaseFeatureHandler'
         }
@@ -112,16 +111,16 @@ class TestThesaurusVectorizer(TestCase):
             self.vector_source = vector_source
 
         pipeline, fit_params = __main__._build_pipeline(
-            12345, #id for naming debug files
+            12345,  # id for naming debug files
             self.vector_source,
             # None, # classifier
             self.feature_extraction_conf,
             self.feature_selection_conf,
-            {'run': False}, # dim re. conf
+            {'run': False},  # dim re. conf
             # None, # classifier options
-            '.', # temp files dir
-            True, # debug mode
-            'test_main' # name of experiments
+            '.',  # temp files dir
+            True,  # debug mode
+            'test_main'  # name of experiments
         )
 
         raw_data = (self.x_tr, self.y_tr, self.x_ev, self.y_ev)
@@ -152,12 +151,10 @@ class TestThesaurusVectorizer(TestCase):
 
     def test_baseline_use_all_features_signifier_only_23(self):
         self.feature_extraction_conf['vocab_from_thes'] = False
-        self._thesaurus_opts['thesaurus_files'] = \
-            ['thesisgenerator/resources/exp0-0b.strings']
+        self._thesaurus_opts['tsv_files'] = ['thesisgenerator/resources/exp0-0b.strings']
         self._reload_thesaurus_and_tokenizer()
 
-        self.x_tr, self.y_tr, self.x_ev, self.y_ev = self. \
-            _load_data('thesisgenerator/resources/test-baseline')
+        self.x_tr, self.y_tr, self.x_ev, self.y_ev = self._load_data('thesisgenerator/resources/test-baseline')
 
         x1, x2, voc = self._vectorize_data()
         self.assertDictEqual(self.full_vocab, strip(voc))
@@ -179,7 +176,7 @@ class TestThesaurusVectorizer(TestCase):
 
     def test_baseline_ignore_nonthesaurus_features_signifier_only_22(self):
         self.feature_selection_conf['must_be_in_thesaurus'] = True
-        self._thesaurus_opts['thesaurus_files'] = ['thesisgenerator/resources/exp0-0b.strings']
+        self._thesaurus_opts['tsv_files'] = ['thesisgenerator/resources/exp0-0b.strings']
         self._reload_thesaurus_and_tokenizer()
 
         self.x_tr, self.y_tr, self.x_ev, self.y_ev = self._load_data('thesisgenerator/resources/test-baseline')
@@ -188,7 +185,7 @@ class TestThesaurusVectorizer(TestCase):
 
         self.assertDictEqual(self.pruned_vocab, strip(voc))
 
-        #self.assertIsInstance(x1, sp.spmatrix)
+        # self.assertIsInstance(x1, sp.spmatrix)
         t.assert_array_equal(
             x1.toarray(),
             self.pruned_training_matrix
@@ -207,13 +204,11 @@ class TestThesaurusVectorizer(TestCase):
         self.feature_selection_conf['must_be_in_thesaurus'] = False
         self.feature_extraction_conf['decode_token_handler'] = \
             'thesisgenerator.plugins.bov_feature_handlers.SignifierSignifiedFeatureHandler'
-        self.feature_extraction_conf['k'] = 1 # equivalent to max
-        self._thesaurus_opts['thesaurus_files'] = \
-            ['thesisgenerator/resources/exp0-0b.strings']
+        self.feature_extraction_conf['k'] = 1  # equivalent to max
+        self._thesaurus_opts['tsv_files'] = ['thesisgenerator/resources/exp0-0b.strings']
         self._reload_thesaurus_and_tokenizer()
 
-        self.x_tr, self.y_tr, self.x_ev, self.y_ev = self. \
-            _load_data('thesisgenerator/resources/test-baseline')
+        self.x_tr, self.y_tr, self.x_ev, self.y_ev = self._load_data('thesisgenerator/resources/test-baseline')
 
         x1, x2, voc = self._vectorize_data()
 
@@ -239,8 +234,8 @@ class TestThesaurusVectorizer(TestCase):
         self.feature_selection_conf['must_be_in_thesaurus'] = True
         self.feature_extraction_conf['decode_token_handler'] = \
             'thesisgenerator.plugins.bov_feature_handlers.SignifierSignifiedFeatureHandler'
-        self.feature_extraction_conf['k'] = 1 # equivalent to max
-        self._thesaurus_opts['thesaurus_files'] = ['thesisgenerator/resources/exp0-0b.strings']
+        self.feature_extraction_conf['k'] = 1  # equivalent to max
+        self._thesaurus_opts['tsv_files'] = ['thesisgenerator/resources/exp0-0b.strings']
         self._reload_thesaurus_and_tokenizer()
 
         self.x_tr, self.y_tr, self.x_ev, self.y_ev = self._load_data('thesisgenerator/resources/test-baseline')
@@ -268,9 +263,8 @@ class TestThesaurusVectorizer(TestCase):
         self.feature_selection_conf['must_be_in_thesaurus'] = False
         self.feature_extraction_conf['decode_token_handler'] = \
             'thesisgenerator.plugins.bov_feature_handlers.SignifiedOnlyFeatureHandler'
-        self.feature_extraction_conf['k'] = 1 # equivalent to max
-        self._thesaurus_opts['thesaurus_files'] = \
-            ['thesisgenerator/resources/exp0-0b.strings']
+        self.feature_extraction_conf['k'] = 1  # equivalent to max
+        self._thesaurus_opts['tsv_files'] = ['thesisgenerator/resources/exp0-0b.strings']
         self._reload_thesaurus_and_tokenizer()
 
         self.x_tr, self.y_tr, self.x_ev, self.y_ev = self. \
@@ -299,9 +293,8 @@ class TestThesaurusVectorizer(TestCase):
         self.feature_selection_conf['must_be_in_thesaurus'] = True
         self.feature_extraction_conf['decode_token_handler'] = \
             'thesisgenerator.plugins.bov_feature_handlers.SignifiedOnlyFeatureHandler'
-        self.feature_extraction_conf['k'] = 1 # equivalent to max
-        self._thesaurus_opts['thesaurus_files'] = \
-            ['thesisgenerator/resources/exp0-0b.strings']
+        self.feature_extraction_conf['k'] = 1  # equivalent to max
+        self._thesaurus_opts['tsv_files'] = ['thesisgenerator/resources/exp0-0b.strings']
         self._reload_thesaurus_and_tokenizer()
 
         self.x_tr, self.y_tr, self.x_ev, self.y_ev = self. \
@@ -330,7 +323,7 @@ class TestThesaurusVectorizer(TestCase):
         self.feature_selection_conf['must_be_in_thesaurus'] = False
         self.feature_extraction_conf['decode_token_handler'] = \
             'thesisgenerator.plugins.bov_feature_handlers.SignifierRandomBaselineFeatureHandler'
-        self.feature_extraction_conf['k'] = 1    # equivalent to max
+        self.feature_extraction_conf['k'] = 1  # equivalent to max
         self.feature_extraction_conf['neighbour_source'] = \
             'thesisgenerator.tests.test_main._get_constant_thesaurus'
         self._reload_thesaurus_and_tokenizer()
@@ -357,7 +350,7 @@ class TestThesaurusVectorizer(TestCase):
             )
         )
         # the thesaurus will always say the neighbour for something is
-        #  b/N with a similarity of 1, and we look up 11 tokens overall in
+        # b/N with a similarity of 1, and we look up 11 tokens overall in
         #  the test document
         source.vocab = voc
         x1, x2, voc = self._vectorize_data(source)

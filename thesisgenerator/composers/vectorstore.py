@@ -12,10 +12,10 @@ from scipy.sparse import vstack
 from sklearn.random_projection import SparseRandomProjection
 
 import discoutils.io_utils as utils
-from discoutils.thesaurus_loader import Thesaurus
+from discoutils.thesaurus_loader import Thesaurus, Vectors
 
 from discoutils.tokens import DocumentFeature, Token
-from thesisgenerator.utils.misc import memoize
+
 
 class VectorSource(object):
     __metaclass__ = ABCMeta
@@ -47,23 +47,19 @@ class UnigramVectorSource(VectorSource):
         if not unigram_paths:
             raise ValueError('You must provide a unigram vector file')
 
-        thesaurus = Thesaurus.from_tsv(
-            thesaurus_files=unigram_paths,
-            sim_threshold=0,
-            include_self=False,
-            lowercasing=False)
+        vectors = Vectors.from_tsv(tsv_files=unigram_paths, lowercasing=False)
 
         # distributional features of each unigram in the loaded file
-        self.feature_matrix, self.distrib_features_vocab, _ = thesaurus.to_sparse_matrix()
+        self.feature_matrix, self.distrib_features_vocab, _ = vectors.to_sparse_matrix()
         # todo optimise- call below will invoke to_sparse_matrix again. to_core_space should be a classmethod
 
         # todo it's a bit silly to hold a dissect space as well as a Thesaurus object
-        self.dissect_core_space = thesaurus.to_dissect_core_space()
+        self.dissect_core_space = vectors.to_dissect_core_space()
 
         # Token -> row number in self.feature_matrix that holds corresponding vector
-        self.entry_index = {DocumentFeature.from_string(feature): i for (i, feature) in enumerate(thesaurus.keys())}
+        self.entry_index = {DocumentFeature.from_string(feature): i for (i, feature) in enumerate(vectors.keys())}
 
-        #  This may fail sometimes. Features that cannon be parsed will be included in the
+        # This may fail sometimes. Features that cannon be parsed will be included in the
         # dissect space but not in self.entry_index. However, such features should have been filtered out
         # by the tokenizer, so the problem is probably there
         assert len(self.entry_index) == len(self.dissect_core_space.id2row)
@@ -139,8 +135,8 @@ class UnigramDummyComposer(Composer):
         return '[UnigramDummyComposer wrapping %s]' % self.unigram_source
 
 
-#class OxfordSvoComposer(Composer):
-#    name = 'DummySVO'
+# class OxfordSvoComposer(Composer):
+# name = 'DummySVO'
 #    feature_pattern = {'SVO'}
 #
 #    def __init__(self, unigram_source=None):

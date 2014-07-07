@@ -247,10 +247,10 @@ class TestSimpleComposers(TestCase):
 class TestPrecomputedSimSource(TestCase):
     def setUp(self):
         self.source = PrecomputedSimilaritiesVectorSource.from_file(
-            thesaurus_files=['thesisgenerator/resources/exp0-0a.strings'],
+            tsv_files=['thesisgenerator/resources/exp0-0a.strings'],
             sim_threshold=0, include_self=False)
         self.source2 = PrecomputedSimilaritiesVectorSource.from_file(
-            thesaurus_files=['thesisgenerator/resources/exp0-0c.strings'],
+            tsv_files=['thesisgenerator/resources/exp0-0c.strings'],
             sim_threshold=0, include_self=False)
 
 
