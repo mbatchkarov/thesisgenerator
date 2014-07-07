@@ -71,6 +71,10 @@ class AdditiveComposer(Vectors, ComposerMixin):
     def __str__(self):
         return '[%s with %d unigram entries]' % (self.__class__.__name__, len(self.unigram_source))
 
+    def __len__(self):
+        # this will also get call when __nonzero__ is called
+        return len(self.unigram_source)
+
 
 class MultiplicativeComposer(AdditiveComposer):
     name = 'Mult'

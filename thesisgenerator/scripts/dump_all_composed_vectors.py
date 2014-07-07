@@ -31,7 +31,7 @@ def _loop_body(composer_class, output_dir, pipeline, pretrained_Baroni_composer_
     # composer.append(s1)
 
     fit_args = {
-        'stripper__vector_source': composer,
+        # 'stripper__vector_source': composer,
         'vect__vector_source': composer,
         'fs__vector_source': composer,
     }
