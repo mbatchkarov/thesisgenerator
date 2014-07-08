@@ -183,8 +183,8 @@ class TestHeadAndTailWordComposers(object):
         assert_array_equal(original_matrix.A, matrix.A[:7, :])
         # two new rows should appear, one for each composed feature
         # this should be reflected in both the index and the matrix
-        assert composer.unigram_source.rows['cat/N_game/N'] == 7
-        assert composer.unigram_source.rows['dog/N_game/N'] == 8
+        assert rows['cat/N_game/N'] == 7
+        assert rows['dog/N_game/N'] == 8
         assert matrix.shape == (9, 7) == (len(rows), len(cols))
         assert_array_equal(matrix.A[7, :], composer.unigram_source.get_vector('cat/N').A.ravel())
         assert_array_equal(matrix.A[8, :], composer.unigram_source.get_vector('dog/N').A.ravel())
