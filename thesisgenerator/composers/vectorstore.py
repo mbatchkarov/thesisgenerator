@@ -28,12 +28,14 @@ class ComposerMixin(object):
         # todo store vectors of composed items in composer, not in unigram source?
         # otherwise each composition over the same source will grow the data
         new_matrix = sp.vstack(self.get_vector(foo) for foo in things if foo in self)
-        self.unigram_source.matrix = sp.vstack([self.unigram_source.matrix, new_matrix], format='csr')
         old_len = len(self.unigram_source.rows)
+        new_rows = dict(self.unigram_source.rows)
         for i, foo in enumerate(things):
             key = foo if isinstance(foo, str) else foo.tokens_as_str()
-            self.unigram_source.rows[key] = i + old_len
-        return self.unigram_source.matrix, self.unigram_source.columns, self.unigram_source.rows
+            new_rows[key] = i + old_len
+        return sp.vstack([self.unigram_source.matrix, new_matrix], format='csr'),\
+               self.unigram_source.columns,\
+               new_rows
 
 
 class AdditiveComposer(Vectors, ComposerMixin):
