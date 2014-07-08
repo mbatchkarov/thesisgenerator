@@ -1,15 +1,16 @@
 # -*- coding: utf-8 -*-
 import argparse
+from operator import itemgetter
 import os, sys
 import random
-from discoutils.tokens import DocumentFeature
+import gensim, logging, errno
 
 sys.path.append('.')
 sys.path.append('..')
 sys.path.append('../..')
 
-import gensim, logging, errno
 
+from discoutils.tokens import DocumentFeature
 from discoutils.thesaurus_loader import Thesaurus, Vectors
 from thesisgenerator.plugins.tokenizers import XmlTokenizer
 
@@ -28,7 +29,7 @@ WORKERS = 4
 pos_map = XmlTokenizer.pos_coarsification_map
 
 
-def go(stages):
+def compute_and_write_vectors(stages):
     # <markdowncell>
 
     # Data formatting
@@ -90,8 +91,9 @@ def go(stages):
         model = gensim.models.Word2Vec(sentences, workers=WORKERS, min_count=MIN_COUNT)
 
         logging.info(model.most_similar('computer/N', topn=20))
-        logging.info(model['computer/N'].shape)
         logging.info(model.similarity('computer/N', 'software/N'))
+
+        entry_sample = select_entries(model.vocab.keys())
 
 
         # get word2vec vectors for each word, write to TSV
@@ -107,6 +109,20 @@ def go(stages):
         th1 = Vectors(vectors)
         th1.to_tsv(unigram_events_file)
 
+    if 'eval' in stages:
+        disk_vectors = Vectors.from_tsv([unigram_events_file])
+        for word in entry_sample:
+            sorted_vector = sorted(disk_vectors[word], key=itemgetter(0))
+            logging.info('Read from disk %s', word)
+            logging.info('sorted vector %r', sorted_vector[:5])
+            logging.info('matrix %r', disk_vectors.get_vector(word).A.ravel()[:5])
+            logging.info('In memory')
+            logging.info('word2vec value : %r', model[word][:5])
+            logging.info('thes matrix value: %r', th1.get_vector(word).A.ravel()[:5])
+            logging.info('thes value %r\n\n', vectors[word][:5])
+
+
+
     if 'thesaurus' in stages:
         # build a thesaurus out of the nearest neighbours of each unigram and save it to TSV
         # this is a little incompatible with the rest of my thesauri as it uses
@@ -114,15 +130,20 @@ def go(stages):
         # nevertheless, it's useful to compare these neighbours to Byblo's neighbours as a sanity check
         logging.info('Building mini thesaurus')
         mythes = dict()
-        for word in random.sample(model.vocab.keys(), 100):
-            if DocumentFeature.from_string(word).type == 'EMPTY' or has_non_ascii(word):
-                continue
+        for word in entry_sample:
             neighours = model.most_similar(word, topn=10)
             if any(has_non_ascii(foo[0]) for foo in neighours):
                 continue
             mythes[word] = neighours
         Thesaurus(mythes).to_tsv(unigram_thes_file)
 
+def select_entries(mylist):
+    result = []
+    for word in random.sample(mylist, 10):
+        if DocumentFeature.from_string(word).type == 'EMPTY' or has_non_ascii(word):
+            continue
+        result.append(word)
+    return result
 
 def has_non_ascii(word):
     try:
@@ -137,7 +158,7 @@ if __name__ == '__main__':
     assert not has_non_ascii('a')
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--stages', choices=('reformat', 'vectors', 'thesaurus'),
+    parser.add_argument('--stages', choices=('reformat', 'vectors', 'eval', 'thesaurus'),
                         required=True, nargs='+')
-    go(parser.parse_args().stages)
+    compute_and_write_vectors(parser.parse_args().stages)
 
