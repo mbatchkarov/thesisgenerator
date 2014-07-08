@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import argparse
 import os, sys
 import random
@@ -97,9 +98,12 @@ def go(stages):
         vectors = dict()
         dimension_names = ['word2vec_feat%02d' % i for i in range(100)]  # word2vec produces 100-dim vectors
         for word in model.vocab.keys():
-            if DocumentFeature.from_string(word).type != 'EMPTY':
-                # watch for non-DocumentFeatures, these break to_tsv
-                vectors[word] = zip(dimension_names, model[word])
+            # watch for non-DocumentFeatures, these break to_tsv
+            # also ignore words with non-ascii characters
+            if DocumentFeature.from_string(word).type == 'EMPTY' or has_non_ascii(word):
+                logging.info('Ignoring vector for %s', word)
+                continue
+            vectors[word] = zip(dimension_names, model[word])
         th1 = Vectors(vectors)
         th1.to_tsv(unigram_events_file)
 
@@ -108,14 +112,30 @@ def go(stages):
         # this is a little incompatible with the rest of my thesauri as it uses
         # the first PoS-augmented form for each word2vec word is used
         # nevertheless, it's useful to compare these neighbours to Byblo's neighbours as a sanity check
+        logging.info('Building mini thesaurus')
         mythes = dict()
         for word in random.sample(model.vocab.keys(), 100):
-            if DocumentFeature.from_string(word).type != 'EMPTY':
-                mythes[word] = model.most_similar(word, topn=10)
+            if DocumentFeature.from_string(word).type == 'EMPTY' or has_non_ascii(word):
+                continue
+            neighours = model.most_similar(word, topn=10)
+            if any(has_non_ascii(foo[0]) for foo in neighours):
+                continue
+            mythes[word] = neighours
         Thesaurus(mythes).to_tsv(unigram_thes_file)
 
 
+def has_non_ascii(word):
+    try:
+        word.decode('ascii')
+    except (UnicodeEncodeError, UnicodeDecodeError) as e:
+        return True
+    return False
+
 if __name__ == '__main__':
+
+    assert has_non_ascii('å')
+    assert not has_non_ascii('a')
+
     parser = argparse.ArgumentParser()
     parser.add_argument('--stages', choices=('reformat', 'vectors', 'thesaurus'),
                         required=True, nargs='+')
