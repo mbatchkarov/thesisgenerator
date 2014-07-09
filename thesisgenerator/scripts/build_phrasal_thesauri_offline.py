@@ -256,7 +256,7 @@ def build_unreduced_AN_NN_thesauri(corpus, corpus_name, features,
         os.chdir(thesisgenerator_base_dir)
         unigram_vectors_file = external_events_file if external_embeddings \
             else _find_events_file(unigram_thesaurus_dir)
-        dump.compose_and_write_vectors([unigram_vectors_file],  # I think it is OK for this to contain phrase vectors
+        dump.compose_and_write_vectors(unigram_vectors_file,  # I think it is OK for this to contain phrase vectors
                                        corpus_name,
                                        [dump.classification_data_path_mr, dump.classification_data_path],  # input 2
                                        None,
@@ -404,7 +404,7 @@ def build_full_composed_thesauri_with_baroni_and_svd(corpus, features, stages, u
         os.chdir(thesisgenerator_base_dir)
         for svd_dims, all_reduced_vectors, trained_composer_file \
                 in zip(target_dimensionality, baroni_training_data, trained_composer_files):
-            dump.compose_and_write_vectors([all_reduced_vectors],
+            dump.compose_and_write_vectors(all_reduced_vectors,
                                            '%s-%s' % (dataset_name, svd_dims),
                                            [dump.classification_data_path_mr, dump.classification_data_path],
                                            trained_composer_file,

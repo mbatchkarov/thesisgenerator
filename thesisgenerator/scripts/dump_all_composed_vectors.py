@@ -17,13 +17,13 @@ from thesisgenerator.utils.data_utils import load_tokenizer, tokenize_data, load
 from discoutils.io_utils import write_vectors_to_disk
 
 
-def compose_and_write_vectors(unigram_vector_paths, short_vector_dataset_name, classification_data_paths,
+def compose_and_write_vectors(unigram_vectors_path, short_vector_dataset_name, classification_data_paths,
                               pretrained_Baroni_composer_file,
                               output_dir='.', composer_classes='bar'):
     """
     Extracts all composable features from a labelled classification corpus and dumps a composed vector for each of them
     to disk
-    :param unigram_vector_paths: a list of files in Byblo events format that contain vectors for all unigrams. This
+    :param unigram_vectors_path: a file in Byblo events format that contain vectors for all unigrams. This
     will be used in the composition process
     :param classification_data_paths: Corpora to extract features from. Type: [ [train1, test1], [train2, test2] ]
     :param pretrained_Baroni_composer_file: path to pre-trained Baroni AN/NN composer file
@@ -61,7 +61,7 @@ def compose_and_write_vectors(unigram_vector_paths, short_vector_dataset_name, c
     ])
 
     x_tr, y_tr, x_ev, y_ev = tokenized_data
-    vectors = Vectors.from_tsv(unigram_vector_paths,
+    vectors = Vectors.from_tsv(unigram_vectors_path,
                                row_filter=lambda x, y: y.tokens[0].pos in {'N', 'J'})
 
     # doing this loop in parallel isn't worth it as pickling or shelving `vectors` is so slow
