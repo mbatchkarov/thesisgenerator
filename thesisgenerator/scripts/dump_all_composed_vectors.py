@@ -46,8 +46,8 @@ def _loop_body(composer_class, output_dir, pipeline, pretrained_Baroni_composer_
                                  'AN_NN_%s_%s.features.filtered.strings' % (short_vector_dataset_name, composer.name))
 
     # mat, cols, rows = composer.to_sparse_matrix(row_transform=row_transform)
-    rows = [DocumentFeature.from_string(x) for x in rows]
-    write_vectors_to_disk(mat.tocoo(), rows, cols, events_path,
+    rows2idx = {i: DocumentFeature.from_string(x) for (x, i) in rows.iteritems()}
+    write_vectors_to_disk(mat.tocoo(), rows2idx, cols, events_path,
                           features_path=features_path, entries_path=entries_path,
                           entry_filter=lambda x: x.type in {'AN', 'NN', '1-GRAM'})
     # composer.to_tsv(events_path, entries_path, features_path, )
@@ -90,7 +90,7 @@ def compose_and_write_vectors(unigram_vector_paths, short_vector_dataset_name, c
             x.extend(y)
 
     pipeline = Pipeline([
-        ('vect', ThesaurusVectorizer(ngram_range=(1, 1), min_df=1, use_tfidf=False,
+        ('vect', ThesaurusVectorizer(ngram_range=(0, 0), min_df=1, use_tfidf=False,
                                      extract_VO_features=False, extract_SVO_features=False,
                                      unigram_feature_pos_tags=['N', 'J'])),
         ('fs', VectorBackedSelectKBest(must_be_in_thesaurus=True)),
@@ -99,7 +99,7 @@ def compose_and_write_vectors(unigram_vector_paths, short_vector_dataset_name, c
 
     x_tr, y_tr, x_ev, y_ev = tokenized_data
     vectors = Vectors.from_tsv(unigram_vector_paths)
-    Parallel(n_jobs=1)(delayed(_loop_body)(composer_class, # todo enable concurrency
+    Parallel(n_jobs=1)(delayed(_loop_body)(composer_class,  # todo enable concurrency
                                            output_dir,
                                            pipeline,
                                            pretrained_Baroni_composer_file,
