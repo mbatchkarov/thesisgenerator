@@ -17,25 +17,24 @@ def check_vectors(unigram_source):
 
 
 class ComposerMixin(object):
-    def compose_all(self, things):
+    def compose_all(self, phrases):
         """
-        Returns all unigrams and all composed `things` as a matrix, like
-        :param things:
-        :type things:
-        :return:
-        :rtype:
+        Composes all `phrases` and returns all unigrams and `phrases` as a matrix. Does NOT store the composed vectors.
+        :param phrases: iterable of `str` or `DocumentFeature`
+        :return: a tuple of :
+            1) `csr_matrix` containing all vectors, unigram and composed
+            2) the columns (features) of the unigram space that was used for composition
+            3) a row index- dict {Feature: Row}. Maps from a feature to the row in 1) where the vector for that
+               feature is. Note: This is the opposite of what IO functions in discoutils expect
         """
-        # todo store vectors of composed items in composer, not in unigram source?
-        # otherwise each composition over the same source will grow the data
-        new_matrix = sp.vstack(self.get_vector(foo) for foo in things if foo in self)
+        new_matrix = sp.vstack(self.get_vector(foo) for foo in phrases if foo in self)
         old_len = len(self.unigram_source.rows)
-        new_rows = dict(self.unigram_source.rows)
-        for i, foo in enumerate(things):
+        all_rows = dict(self.unigram_source.rows)
+        for i, foo in enumerate(phrases):
             key = foo if isinstance(foo, str) else foo.tokens_as_str()
-            new_rows[key] = i + old_len
-        return sp.vstack([self.unigram_source.matrix, new_matrix], format='csr'),\
-               self.unigram_source.columns,\
-               new_rows
+            all_rows[key] = i + old_len
+        all_vectors = sp.vstack([self.unigram_source.matrix, new_matrix], format='csr')
+        return all_vectors, self.unigram_source.columns, all_rows
 
 
 class AdditiveComposer(Vectors, ComposerMixin):

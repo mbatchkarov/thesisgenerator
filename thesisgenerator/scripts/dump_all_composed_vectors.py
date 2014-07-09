@@ -8,49 +8,13 @@ sys.path.append('.')
 sys.path.append('..')
 sys.path.append('../..')
 
-from joblib import Parallel, delayed
 from numpy import hstack
 from sklearn.pipeline import Pipeline
-from thesisgenerator.composers.feature_selectors import VectorBackedSelectKBest, MetadataStripper
+from thesisgenerator.composers.feature_selectors import VectorBackedSelectKBest
 from thesisgenerator.composers.vectorstore import *
 from thesisgenerator.plugins.bov import ThesaurusVectorizer
 from thesisgenerator.utils.data_utils import load_tokenizer, tokenize_data, load_text_data_into_memory
 from discoutils.io_utils import write_vectors_to_disk
-
-
-def _loop_body(composer_class, output_dir, pipeline, pretrained_Baroni_composer_file, short_vector_dataset_name,
-               vectors, x_ev, x_tr, y_ev, y_tr):
-    # whatever files we need to (entries index, as composition creates new entries)
-    if composer_class == BaroniComposer:
-        composer = BaroniComposer(vectors, pretrained_Baroni_composer_file)
-    else:
-        composer = composer_class(vectors)
-
-    # the next 2 lines ensure 1-GRAMs are contained in the composer and returned as neighbours of phrases
-    # s1 = UnigramOnlyNoopComposer(vectors)
-    # composer.append(s1)
-
-    fit_args = {
-        # 'stripper__vector_source': composer,
-        'vect__vector_source': composer,
-        'fs__vector_source': composer,
-    }
-    _, vocabulary = pipeline.fit_transform(x_tr + x_ev, y=hstack([y_tr, y_ev]), **fit_args)
-    mat, cols, rows = composer.compose_all(vocabulary.keys())
-
-    events_path = os.path.join(output_dir,
-                               'AN_NN_%s_%s.events.filtered.strings' % (short_vector_dataset_name, composer.name))
-    entries_path = os.path.join(output_dir,
-                                'AN_NN_%s_%s.entries.filtered.strings' % (short_vector_dataset_name, composer.name))
-    features_path = os.path.join(output_dir,
-                                 'AN_NN_%s_%s.features.filtered.strings' % (short_vector_dataset_name, composer.name))
-
-    # mat, cols, rows = composer.to_sparse_matrix(row_transform=row_transform)
-    rows2idx = {i: DocumentFeature.from_string(x) for (x, i) in rows.iteritems()}
-    write_vectors_to_disk(mat.tocoo(), rows2idx, cols, events_path,
-                          features_path=features_path, entries_path=entries_path,
-                          entry_filter=lambda x: x.type in {'AN', 'NN', '1-GRAM'})
-    # composer.to_tsv(events_path, entries_path, features_path, )
 
 
 def compose_and_write_vectors(unigram_vector_paths, short_vector_dataset_name, classification_data_paths,
@@ -94,23 +58,40 @@ def compose_and_write_vectors(unigram_vector_paths, short_vector_dataset_name, c
                                      extract_VO_features=False, extract_SVO_features=False,
                                      unigram_feature_pos_tags=['N', 'J'])),
         ('fs', VectorBackedSelectKBest(must_be_in_thesaurus=True)),
-        # ('stripper', MetadataStripper(nn_algorithm='brute', build_tree=False))
     ])
 
     x_tr, y_tr, x_ev, y_ev = tokenized_data
     vectors = Vectors.from_tsv(unigram_vector_paths,
                                row_filter=lambda x, y: y.tokens[0].pos in {'N', 'J'})
-    Parallel(n_jobs=1)(delayed(_loop_body)(composer_class,  # todo enable concurrency
-                                           output_dir,
-                                           pipeline,
-                                           pretrained_Baroni_composer_file,
-                                           short_vector_dataset_name,
-                                           vectors,
-                                           x_ev, x_tr,
-                                           y_ev, y_tr) for composer_class in composer_classes)
+
+    # doing this loop in parallel isn't worth it as pickling or shelving `vectors` is so slow
+    # it negates any gains from using multiple cores
+    for composer_class in composer_classes:
+        if composer_class == BaroniComposer:
+            composer = BaroniComposer(vectors, pretrained_Baroni_composer_file)
+        else:
+            composer = composer_class(vectors)
+
+        fit_args = {
+            'vect__vector_source': composer,
+            'fs__vector_source': composer,
+        }
+        _, vocabulary = pipeline.fit_transform(x_tr + x_ev, y=hstack([y_tr, y_ev]), **fit_args)
+        mat, cols, rows = composer.compose_all(vocabulary.keys())
+
+        events_path = os.path.join(output_dir,
+                                   'AN_NN_%s_%s.events.filtered.strings' % (short_vector_dataset_name, composer.name))
+        entries_path = os.path.join(output_dir,
+                                    'AN_NN_%s_%s.entries.filtered.strings' % (short_vector_dataset_name, composer.name))
+        features_path = os.path.join(output_dir,
+                                     'AN_NN_%s_%s.features.filtered.strings' % (short_vector_dataset_name, composer.name))
+
+        rows2idx = {i: DocumentFeature.from_string(x) for (x, i) in rows.iteritems()}
+        write_vectors_to_disk(mat.tocoo(), rows2idx, cols, events_path,
+                              features_path=features_path, entries_path=entries_path,
+                              entry_filter=lambda x: x.type in {'AN', 'NN', '1-GRAM'})
 
 
-n_jobs = 4
 classification_data_path = (
     '/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data/reuters21578/r8train-tagged-grouped',
     '/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data/reuters21578/r8test-tagged-grouped')
