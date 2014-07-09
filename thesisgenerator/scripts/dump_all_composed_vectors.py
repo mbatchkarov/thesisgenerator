@@ -98,7 +98,8 @@ def compose_and_write_vectors(unigram_vector_paths, short_vector_dataset_name, c
     ])
 
     x_tr, y_tr, x_ev, y_ev = tokenized_data
-    vectors = Vectors.from_tsv(unigram_vector_paths)
+    vectors = Vectors.from_tsv(unigram_vector_paths,
+                               row_filter=lambda x, y: y.tokens[0].pos in {'N', 'J'})
     Parallel(n_jobs=1)(delayed(_loop_body)(composer_class,  # todo enable concurrency
                                            output_dir,
                                            pipeline,
