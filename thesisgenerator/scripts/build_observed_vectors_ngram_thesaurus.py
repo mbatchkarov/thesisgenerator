@@ -53,10 +53,8 @@ def do_work(corpus, features, svd_dims):
     else:
         outdir = '%s/exp%d-%dbAN_NN_%s-%d_Observed' % (prefix, corpus, features, name, svd_dims)
 
-
-
     # CREATE BYBLO EVENTS/FEATURES/ENTRIES FILE FROM INPUT
-    #  where should these be written
+    # where should these be written
     svd_appendage = '' if svd_dims == 0 else '-SVD%d' % svd_dims
     observed_vector_dir = os.path.dirname(observed_ngram_vectors_file)
     vectors_file = os.path.join(observed_vector_dir, 'exp%d%s.events.filtered.strings' % (corpus, svd_appendage))
@@ -65,12 +63,16 @@ def do_work(corpus, features, svd_dims):
 
     # do the actual writing
     if svd_dims:
-        th = Vectors.from_tsv([observed_ngram_vectors_file], lowercasing=False)
+        th = Vectors.from_tsv(observed_ngram_vectors_file, lowercasing=False)
     else:
-        # th0 = Thesaurus.from_tsv([observed_unigram_vectors_file], aggressive_lowercasing=False)
-        # th1 = Thesaurus.from_tsv([observed_ngram_vectors_file], aggressive_lowercasing=False)
-        th = Vectors.from_tsv([observed_ngram_vectors_file, observed_unigram_vectors_file],
-                                lowercasing=False)
+        # th = Vectors.from_tsv([observed_ngram_vectors_file, observed_unigram_vectors_file])
+        # read and merge unigram and n-gram vectors files
+        th0 = Vectors.from_tsv(observed_unigram_vectors_file)
+        th1 = Vectors.from_tsv(observed_ngram_vectors_file)
+        data0 = th0._obj
+        data0.update(th1._obj)
+        th = Vectors(data0)
+        del th0, th1
 
     desired_counts_per_feature_type = [('N', 20000), ('V', 0), ('J', 10000), ('RB', 0), ('AN', 1e10), ('NN', 1e10)]
     mat, pos_tags, rows, cols = filter_out_infrequent_entries(desired_counts_per_feature_type, th)
@@ -97,7 +99,7 @@ def do_work_socher(baronify):
     # must also contain 'socher.bybloconf.txt' and a 'thesaurus' subdirectory
     prefix = '/mnt/lustre/scratch/inf/mmb28/FeatureExtractionToolkit'
 
-    socher_base_dir = os.path.join(prefix, 'socher_vectors') # copy downloaded content here
+    socher_base_dir = os.path.join(prefix, 'socher_vectors')  # copy downloaded content here
     socher_phrases_file = os.path.join(socher_base_dir, 'phrases.txt')
     socher_parsed_file = os.path.join(socher_base_dir, 'parsed.txt')
     socher_vectors_file = os.path.join(socher_base_dir, 'outVectors.txt')
@@ -159,7 +161,7 @@ def do_work_socher(baronify):
     write_vectors_to_disk(
         sp.coo_matrix(mat),
         composed_phrases,
-        ['RAE-feat%d' % i for i in range(100)], # Socher provides 100-dimensional vectors
+        ['RAE-feat%d' % i for i in range(100)],  # Socher provides 100-dimensional vectors
         vectors_file,
         features_file,
         entries_file
