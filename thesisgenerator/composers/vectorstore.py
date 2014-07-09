@@ -1,6 +1,7 @@
 import logging
 from random import choice
 from pickle import load
+from copy import deepcopy
 
 import numpy as np
 import scipy.sparse as sp
@@ -27,11 +28,14 @@ class ComposerMixin(object):
             3) a row index- dict {Feature: Row}. Maps from a feature to the row in 1) where the vector for that
                feature is. Note: This is the opposite of what IO functions in discoutils expect
         """
-        new_matrix = sp.vstack(self.get_vector(foo) for foo in phrases if foo in self)
+        composable_phrases = [foo for foo in phrases  if foo in self]
+        logging.info('Able to compose %d/%d phrases', len(composable_phrases), len(phrases))
+        new_matrix = sp.vstack(self.get_vector(foo) for foo in composable_phrases)
         old_len = len(self.unigram_source.rows)
-        all_rows = dict(self.unigram_source.rows)
-        for i, foo in enumerate(phrases):
+        all_rows = deepcopy(self.unigram_source.rows) # can't mutate the unigram datastructure
+        for i, foo in enumerate(composable_phrases):
             key = foo if isinstance(foo, str) else foo.tokens_as_str()
+            assert key not in all_rows
             all_rows[key] = i + old_len
         all_vectors = sp.vstack([self.unigram_source.matrix, new_matrix], format='csr')
         return all_vectors, self.unigram_source.columns, all_rows
@@ -150,20 +154,14 @@ class BaroniComposer(Vectors, ComposerMixin):
 
         # verify the composer's internal structure matches the unigram source
         self.available_modifiers = set(self._composer.function_space.id2row)
-        features = self._composer.composed_id2column
-        dimensionality = len(self.composer.composed_id2column)
 
-        assert unigram_source.distrib_features_vocab == self._composer.composed_id2column
-        self.dissect_core_space = unigram_source.dissect_core_space
+        core_space = self.unigram_source.to_dissect_core_space()
+        assert unigram_source.columns == self._composer.composed_id2column
+        self.dissect_core_space = core_space
 
-        # check composed space's columns matche core space's (=unigram source)'s columns
-        assert self.dissect_core_space.id2column == self.composer.composed_id2column
+        # check composed space's columns matches core space's (=unigram source)'s columns
+        assert core_space.id2column == self._composer.composed_id2column
 
-        if 'N' not in unigram_source.available_pos:
-            raise ValueError('This composer requires a noun unigram vector source')
-
-            # vector = self._get_vector(DocumentFeature.from_string('african/J_police/N'))
-            # logging.info(vector)
 
     def __contains__(self, feature):
         """
@@ -193,6 +191,11 @@ class BaroniComposer(Vectors, ComposerMixin):
 
     def __repr__(self):
         return str(self)
+
+    def __len__(self):
+        # this will also get call when __nonzero__ is called
+        return len(self.available_modifiers)
+
 
     def get_vector(self, feature):
         # todo test properly

@@ -62,7 +62,8 @@ def compose_and_write_vectors(unigram_vectors_path, short_vector_dataset_name, c
 
     x_tr, y_tr, x_ev, y_ev = tokenized_data
     vectors = Vectors.from_tsv(unigram_vectors_path,
-                               row_filter=lambda x, y: y.tokens[0].pos in {'N', 'J'})
+                               # ensure there's only unigrams in the set of unigram vectors
+                               row_filter=lambda x, y: y.tokens[0].pos in {'N', 'J'} and y.type == '1-GRAM')
 
     # doing this loop in parallel isn't worth it as pickling or shelving `vectors` is so slow
     # it negates any gains from using multiple cores
