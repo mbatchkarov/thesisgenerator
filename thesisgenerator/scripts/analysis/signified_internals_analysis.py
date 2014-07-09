@@ -476,7 +476,7 @@ def do_work(params, exp, subexp, folds=20, workers=4, cursor=None):
     conf, configspec_file = parse_config_file('conf/exp{0}/exp{0}_base.conf'.format(exp))
 
     logging.info('Preparing thesaurus')
-    filename = load_and_shelve_thesaurus(conf['vector_sources']['unigram_paths'],
+    filename = load_and_shelve_thesaurus(conf['vector_sources']['neighbours_file'],
                                          conf['vector_sources']['sim_threshold'],
                                          conf['vector_sources']['include_self'],
                                          conf['vector_sources']['allow_lexical_overlap'],

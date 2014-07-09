@@ -137,10 +137,6 @@ class MetadataStripper(BaseEstimator, TransformerMixin):
      defensive checks
     """
 
-    def __init__(self, nn_algorithm='ball_tree', build_tree=True):
-        self.nn_algorithm = nn_algorithm
-        self.build_tree = build_tree
-
     def fit(self, X, y, vector_source=None):
         matrix, self.voc = X  # store voc, may be handy for for debugging
         self.vector_source = vector_source

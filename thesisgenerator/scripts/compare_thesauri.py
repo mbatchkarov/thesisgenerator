@@ -12,7 +12,7 @@ conf_files = ['conf/exp%d/exp%d_base.conf' % (x, x) for x in [6, 7, 8, 9, 10, 11
 thes_files = []
 for t in conf_files:
     conf, _ = parse_config_file(t)
-    thes_files.append(conf['vector_sources']['unigram_paths'][0])
+    thes_files.append(conf['vector_sources']['neighbours_file'][0])
 print thes_files
 thesauri = [Thesaurus.from_tsv([t]) for t in thes_files]
 entries = [set(t.keys()) for t in thesauri]

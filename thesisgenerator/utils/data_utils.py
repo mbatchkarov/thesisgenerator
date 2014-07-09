@@ -16,7 +16,7 @@ from sklearn.datasets import load_files
 from thesisgenerator.classifiers import NoopTransformer
 from thesisgenerator.plugins import tokenizers
 from thesisgenerator.utils.conf_file_utils import parse_config_file
-from thesisgenerator.utils.reflection_utils import get_named_object, get_intersection_of_parameters
+from thesisgenerator.composers.vectorstore import DummyThesaurus
 
 
 def tokenize_data(data, tokenizer, corpus_ids):
@@ -96,19 +96,20 @@ def _get_data_iterators(path, shuffle_targets=False):
     return data_iterable, np.array(dataset.target_names)[dataset.target]
 
 
-def get_vector_source(conf, vector_source=None):
+def get_thesaurus(conf):
     vectors_exist_ = conf['feature_selection']['must_be_in_thesaurus']
     handler_ = conf['feature_extraction']['decode_token_handler']
     random_thes = conf['feature_extraction']['random_neighbour_thesaurus']
-    paths = conf['vector_sources']['unigram_paths']
+    path = conf['vector_sources']['neighbours_file']
 
+    thesaurus = None
     if random_thes:
-        return DummyNeighbourVectorSource(k=conf['feature_extraction']['k'], constant=False)
+        return DummyThesaurus(k=conf['feature_extraction']['k'], constant=False)
 
     if 'signified' in handler_.lower() or vectors_exist_:
         # vectors are needed either at decode time (signified handler) or during feature selection
 
-        if not paths and not random_thes:
+        if not path and not random_thes:
             raise ValueError('You must provide at least one neighbour source because you requested %s '
                              ' and must_be_in_thesaurus=%s' % (handler_, vectors_exist_))
 
@@ -117,38 +118,37 @@ def get_vector_source(conf, vector_source=None):
         if not entry_types_to_load:
             entry_types_to_load = ContainsEverything()
 
-        vector_source = load_and_shelve_thesaurus(paths,
-                                                  conf['vector_sources']['sim_threshold'],
-                                                  conf['vector_sources']['include_self'],
-                                                  conf['vector_sources']['allow_lexical_overlap'],
-                                                  conf['vector_sources']['max_neighbours'],
-                                                  entry_types_to_load)
-    else:
-        if not vector_source:
-            # if a vector source has not been passed in and has not been initialised, then init it to avoid
-            # accessing empty things
-            logging.warn('RETURNING AN EMPTY VECTOR SOURCE')
-            vector_source = []
-    return vector_source
+        thesaurus = load_and_shelve_thesaurus(path,
+                                              conf['vector_sources']['sim_threshold'],
+                                              conf['vector_sources']['include_self'],
+                                              conf['vector_sources']['allow_lexical_overlap'],
+                                              conf['vector_sources']['max_neighbours'],
+                                              entry_types_to_load)
+    if not thesaurus:
+        # if a vector source has not been passed in and has not been initialised, then init it to avoid
+        # accessing empty things
+        logging.warn('RETURNING AN EMPTY THESAURUS')
+        thesaurus = []
+    return thesaurus
 
 
-def load_and_shelve_thesaurus(files, sim_threshold, include_self,
+def load_and_shelve_thesaurus(path, sim_threshold, include_self,
                               allow_lexical_overlap, max_neighbours, entry_types_to_load):
     """
     Parses and then shelves a thesaurus file. Reading from it is much faster and memory efficient than
     keeping it in memory. Returns the path to the shelf file
     """
-    filename = 'shelf%d' % hash(tuple(files))
+    filename = 'shelf%d' % hash(path)
     if os.path.exists(filename):
-        logging.info('Returning pre-shelved object %s for %s', filename, files)
+        logging.info('Returning pre-shelved object %s for %s', filename, path)
     else:
-        th = Thesaurus.from_tsv(tsv_files=files,
+        th = Thesaurus.from_tsv(path,
                                 sim_threshold=sim_threshold,
                                 include_self=include_self,
                                 allow_lexical_overlap=allow_lexical_overlap,
                                 max_neighbours=max_neighbours,
                                 row_filter=lambda x, y: y.type in entry_types_to_load)
-        logging.info('Shelving %s to %s', files, filename)
+        logging.info('Shelving %s to %s', path, filename)
         if len(th) > 0:  # don't bother with empty thesauri
             th.to_shelf(filename)
     return filename
@@ -157,12 +157,12 @@ def load_and_shelve_thesaurus(files, sim_threshold, include_self,
 def shelve_single_thesaurus(conf_file):
     conf, _ = parse_config_file(conf_file)
     entry_types_to_load = conf['vector_sources']['entry_types_to_load']
-    th = conf['vector_sources']['unigram_paths'][0]
+    th = conf['vector_sources']['neighbours_file']
     if not entry_types_to_load:
         entry_types_to_load = ContainsEverything()
 
     if os.path.exists(th):
-        load_and_shelve_thesaurus([th],
+        load_and_shelve_thesaurus(th,
                                   conf['vector_sources']['sim_threshold'],
                                   conf['vector_sources']['include_self'],
                                   conf['vector_sources']['allow_lexical_overlap'],

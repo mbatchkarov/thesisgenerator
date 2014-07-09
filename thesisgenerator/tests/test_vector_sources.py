@@ -12,7 +12,7 @@ from discoutils.tokens import DocumentFeature, Token
 
 DIM = 10
 
-path = ['thesisgenerator/resources/thesauri/small.txt.events.strings']
+path = 'thesisgenerator/resources/thesauri/small.txt.events.strings'
 unigram_feature = DocumentFeature('1-GRAM', (Token('a', 'N'),))
 unk_unigram_feature = DocumentFeature('1-GRAM', ((Token('unk', 'UNK')),))
 bigram_feature = DocumentFeature('2-GRAM', (Token('a', 'N'), Token('b', 'V')))
@@ -116,7 +116,7 @@ class TestSimpleComposers(TestCase):
 
 class TestMinMaxComposer(TestCase):
     def setUp(self):
-        self.unigrams_vectors = Vectors.from_tsv(['thesisgenerator/resources/ones.vectors.txt'])
+        self.unigrams_vectors = Vectors.from_tsv('thesisgenerator/resources/ones.vectors.txt')
         print self.unigrams_vectors
         self.min_composer = MinComposer(self.unigrams_vectors)
         self.max_composer = MaxComposer(self.unigrams_vectors)
@@ -149,7 +149,7 @@ class TestMinMaxComposer(TestCase):
 class TestHeadAndTailWordComposers(object):
     @pytest.fixture
     def composers(self):
-        unigram_vectors = Vectors.from_tsv(['thesisgenerator/resources/exp0-0a.strings'])
+        unigram_vectors = Vectors.from_tsv('thesisgenerator/resources/exp0-0a.strings')
 
         return LeftmostWordComposer(unigram_vectors), RightmostWordComposer(unigram_vectors)
 

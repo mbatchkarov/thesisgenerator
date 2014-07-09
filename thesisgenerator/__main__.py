@@ -39,7 +39,7 @@ from thesisgenerator.classifiers import LeaveNothingOut, PredefinedIndicesIterat
     SubsamplingPredefinedIndicesIterator, PicklingPipeline
 from thesisgenerator.utils.conf_file_utils import set_in_conf_file, parse_config_file
 from thesisgenerator.utils.data_utils import tokenize_data, load_text_data_into_memory, \
-    load_tokenizer, get_vector_source
+    load_tokenizer, get_thesaurus
 from thesisgenerator import config
 from thesisgenerator.plugins.dumpers import FeatureVectorsCsvDumper
 
@@ -490,5 +490,5 @@ if __name__ == '__main__':
         remove_stopwords=conf['tokenizer']['remove_stopwords'],
         remove_short_words=conf['tokenizer']['remove_short_words'])
     data = tokenize_data(data, tokenizer, data_id)
-    vector_store = get_vector_source(conf)
+    vector_store = get_thesaurus(conf)
     go(conf_file, log_dir, data, vector_store, classpath=classpath, clean=clean, n_jobs=1)

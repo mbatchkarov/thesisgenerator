@@ -9,11 +9,10 @@ sys.path.append('.')
 sys.path.append('..')
 sys.path.append('../..')
 
-import platform
 import glob
-from itertools import chain
+import platform
 from thesisgenerator.utils.data_utils import tokenize_data, load_text_data_into_memory, \
-    load_tokenizer, get_vector_source
+    load_tokenizer, get_thesaurus
 from thesisgenerator.utils.conf_file_utils import parse_config_file
 from thesisgenerator.plugins.file_generators import _vary_training_size_file_iterator
 from thesisgenerator.__main__ import go
@@ -32,20 +31,29 @@ def _clear_old_files(i, prefix):
         os.remove(f)
 
 
-def run_experiment(expid, subexpid=None, num_workers=4,
+def run_experiment(expid, num_workers=4,
                    predefined_sized=[],
                    prefix='/mnt/lustre/scratch/inf/mmb28/thesisgenerator',
-                   vector_source=None):
+                   thesaurus=None):
+    """
+
+    :param expid: int experiment identified. exp 0 reserved for development purpose and many of the values
+      below will be overwriten to ensure the experiment runs (and fails) quickly
+    :param num_workers: how many cross-validation runs to do at a time
+    :param predefined_sized: how large a sample to take from the data for training
+    :param prefix: all output will be written relative to this directory
+    :param thesaurus: provide a parsed thesaurus instead of a path to one (useful for unit testing)
+    :return:
+    """
     print('RUNNING EXPERIMENT %d' % expid)
     hostname = platform.node()
     if 'apollo' in hostname or 'node' in hostname:
         num_workers = 30
 
-    # sizes = chain([10,50, 100], range(200, 501, 150))
     sizes = [500]
     if expid == 0:
         # exp0 is for debugging only, we don't have to do much
-        sizes = [180]  #range(10, 31, 10)
+        sizes = [180]
         num_workers = 1
 
     if predefined_sized:
@@ -62,7 +70,8 @@ def run_experiment(expid, subexpid=None, num_workers=4,
         shuffle_targets=conf['shuffle_targets']
     )
 
-    vector_source = get_vector_source(conf, vector_source=vector_source)
+    if not thesaurus:
+        thesaurus = get_thesaurus(conf)
 
     tokenizer = load_tokenizer(
         joblib_caching=conf['joblib_caching'],
@@ -78,7 +87,7 @@ def run_experiment(expid, subexpid=None, num_workers=4,
     tokenised_data = tokenize_data(raw_data, tokenizer, data_ids)
 
     # run data through the pipeline
-    return [go(new_conf_file, log_dir, tokenised_data, vector_source, n_jobs=num_workers)
+    return [go(new_conf_file, log_dir, tokenised_data, thesaurus, n_jobs=num_workers)
             for new_conf_file, log_dir in conf_file_iterator]
 
 

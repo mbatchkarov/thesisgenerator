@@ -265,8 +265,8 @@ for exp in experiments:
                      'thesisgenerator.plugins.bov_feature_handlers.%s' % exp.decode_token_handler)
     set_in_conf_file(base_conf_file, ['feature_extraction', 'random_neighbour_thesaurus'],
                      exp.random_neighbour_thesaurus)
-    set_in_conf_file(base_conf_file, ['vector_sources', 'unigram_paths'],
-                     [exp.thesaurus_file] if exp.thesaurus_file else [])
+    set_in_conf_file(base_conf_file, ['vector_sources', 'neighbours_file'],
+                     exp.thesaurus_file if exp.thesaurus_file else '')
     set_in_conf_file(base_conf_file, ['output_dir'], './conf/exp%d/output' % exp.number)
     set_in_conf_file(base_conf_file, ['name'], 'exp%d' % exp.number)
 

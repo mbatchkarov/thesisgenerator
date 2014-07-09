@@ -39,9 +39,9 @@ def score_equals_prediction(true, predicted):
 
 
 class PicklingPipeline(Pipeline):
-    '''
+    """
     A pipeline extension that saves itself when it is trained
-    '''
+    """
 
     def __init__(self, steps, exp_name):
         super(PicklingPipeline, self).__init__(steps)
@@ -67,11 +67,11 @@ class DataHashingClassifierMixin(object):
     being passed in by crossvalidation iterators with a random element
     """
 
-    def fit(self, X, y, sample_weight=None, class_prior=None):
+    def fit(self, X, y, *args, **kwargs):
         self.train_data = X
         return self
 
-    def fit_transform(self, X, y, sample_weight=None, class_prior=None):
+    def fit_transform(self, X, y, *args, **kwargs):
         self.train_data = X
         return self
 
@@ -220,7 +220,7 @@ class SubsamplingPredefinedIndicesIterator(object):
 
 class NoopTransformer(BaseEstimator, TransformerMixin):
     """
-    A no-op base estimator, which does nothing to its input data
+    A no-op BaseEstimator, which does nothing to its input data
     Also functions as a joblib cache object that does nothing
     """
 

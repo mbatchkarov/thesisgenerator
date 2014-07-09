@@ -23,11 +23,8 @@ class TestThesaurusVectorizer(TestCase):
         """
         Initialises the state of helper modules to sensible defaults
         """
-        self._thesaurus_opts = {
-            'tsv_files': ['thesisgenerator/resources/exp0-0a.strings'],
-            'sim_threshold': 0
-        }
-        self.vector_source = Thesaurus.from_tsv(**self._thesaurus_opts)
+        self.tsv_file = 'thesisgenerator/resources/exp0-0a.strings'
+        self.vector_source = Thesaurus.from_tsv(self.tsv_file)
 
         self.tokenizer_opts = {
             'normalise_entities': False,
@@ -138,7 +135,7 @@ class TestThesaurusVectorizer(TestCase):
         return x1, x2, voc
 
     def _reload_thesaurus_and_tokenizer(self):
-        self.vector_source = Thesaurus.from_tsv(**self._thesaurus_opts)
+        self.vector_source = Thesaurus.from_tsv(self.tsv_file)
         self.feature_selection_conf['thesaurus'] = self.vector_source
         self.tokenizer = tokenizers.XmlTokenizer(**self.tokenizer_opts)
 
@@ -152,7 +149,7 @@ class TestThesaurusVectorizer(TestCase):
 
     def test_baseline_use_all_features_signifier_only_23(self):
         self.feature_extraction_conf['vocab_from_thes'] = False
-        self._thesaurus_opts['tsv_files'] = ['thesisgenerator/resources/exp0-0b.strings']
+        self.tsv_file = 'thesisgenerator/resources/exp0-0b.strings'
         self._reload_thesaurus_and_tokenizer()
 
         self.x_tr, self.y_tr, self.x_ev, self.y_ev = self._load_data('thesisgenerator/resources/test-baseline')
@@ -177,7 +174,7 @@ class TestThesaurusVectorizer(TestCase):
 
     def test_baseline_ignore_nonthesaurus_features_signifier_only_22(self):
         self.feature_selection_conf['must_be_in_thesaurus'] = True
-        self._thesaurus_opts['tsv_files'] = ['thesisgenerator/resources/exp0-0b.strings']
+        self.tsv_file = 'thesisgenerator/resources/exp0-0b.strings'
         self._reload_thesaurus_and_tokenizer()
 
         self.x_tr, self.y_tr, self.x_ev, self.y_ev = self._load_data('thesisgenerator/resources/test-baseline')
@@ -206,7 +203,7 @@ class TestThesaurusVectorizer(TestCase):
         self.feature_extraction_conf['decode_token_handler'] = \
             'thesisgenerator.plugins.bov_feature_handlers.SignifierSignifiedFeatureHandler'
         self.feature_extraction_conf['k'] = 1  # equivalent to max
-        self._thesaurus_opts['tsv_files'] = ['thesisgenerator/resources/exp0-0b.strings']
+        self.tsv_file = 'thesisgenerator/resources/exp0-0b.strings'
         self._reload_thesaurus_and_tokenizer()
 
         self.x_tr, self.y_tr, self.x_ev, self.y_ev = self._load_data('thesisgenerator/resources/test-baseline')
@@ -236,7 +233,7 @@ class TestThesaurusVectorizer(TestCase):
         self.feature_extraction_conf['decode_token_handler'] = \
             'thesisgenerator.plugins.bov_feature_handlers.SignifierSignifiedFeatureHandler'
         self.feature_extraction_conf['k'] = 1  # equivalent to max
-        self._thesaurus_opts['tsv_files'] = ['thesisgenerator/resources/exp0-0b.strings']
+        self.tsv_file = 'thesisgenerator/resources/exp0-0b.strings'
         self._reload_thesaurus_and_tokenizer()
 
         self.x_tr, self.y_tr, self.x_ev, self.y_ev = self._load_data('thesisgenerator/resources/test-baseline')
@@ -265,7 +262,7 @@ class TestThesaurusVectorizer(TestCase):
         self.feature_extraction_conf['decode_token_handler'] = \
             'thesisgenerator.plugins.bov_feature_handlers.SignifiedOnlyFeatureHandler'
         self.feature_extraction_conf['k'] = 1  # equivalent to max
-        self._thesaurus_opts['tsv_files'] = ['thesisgenerator/resources/exp0-0b.strings']
+        self.tsv_file = 'thesisgenerator/resources/exp0-0b.strings'
         self._reload_thesaurus_and_tokenizer()
 
         self.x_tr, self.y_tr, self.x_ev, self.y_ev = self. \
@@ -295,7 +292,7 @@ class TestThesaurusVectorizer(TestCase):
         self.feature_extraction_conf['decode_token_handler'] = \
             'thesisgenerator.plugins.bov_feature_handlers.SignifiedOnlyFeatureHandler'
         self.feature_extraction_conf['k'] = 1  # equivalent to max
-        self._thesaurus_opts['tsv_files'] = ['thesisgenerator/resources/exp0-0b.strings']
+        self.tsv_file = 'thesisgenerator/resources/exp0-0b.strings'
         self._reload_thesaurus_and_tokenizer()
 
         self.x_tr, self.y_tr, self.x_ev, self.y_ev = self. \

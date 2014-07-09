@@ -19,10 +19,10 @@ def _get_counter_ignoring_negatives(df, column_list):
 def stats_file(request):
     prefix = 'thesisgenerator/resources'
     # load a mock unigram thesaurus, bypassing the similarity calculation provided by CompositeVectorSource
-    vector_source = Thesaurus.from_tsv(tsv_files=['thesisgenerator/resources/exp0-0a.strings'])
+    vector_source = Thesaurus.from_tsv('thesisgenerator/resources/exp0-0a.strings')
     # exp1 is like exp0, but using Signified encoding
     run_experiment(1, num_workers=1, predefined_sized=[3],
-                   prefix=prefix, vector_source=vector_source)
+                   prefix=prefix, thesaurus=vector_source)
 
     # setup goes like this:
     #   for each sample size K (here set to [3])

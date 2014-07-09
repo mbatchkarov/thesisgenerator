@@ -16,10 +16,10 @@ __author__ = 'mmb28'
 class TestConsolidator(TestCase):
     def setUp(cls):
         prefix = 'thesisgenerator/resources'
-        # load a mock unigram thesaurus, bypassing the similarity calculation provided by CompositeVectorSource
-        vector_source = Thesaurus.from_tsv(tsv_files=['thesisgenerator/resources/exp0-0a.strings'])
+        # load a unigram thesaurus
+        thes = Thesaurus.from_tsv('thesisgenerator/resources/exp0-0a.strings')
         print 'RES:', run_experiment(0, num_workers=1, predefined_sized=[3, 3, 3],
-                                     prefix=prefix, vector_source=vector_source)
+                                     prefix=prefix, thesaurus=thes)
         consolidate_single_experiment(prefix, 0)
 
     def tearDown(self):
@@ -30,7 +30,6 @@ class TestConsolidator(TestCase):
         for f in files:
             os.remove(f)
 
-    # @skip("""
     # The current concurrency model is:
     #
     # for each training data size (now run serially, previously in parallel):
@@ -45,7 +44,6 @@ class TestConsolidator(TestCase):
     # Information about the IV/IT token/type counts of each fold is intertwined in the log files and cannot be extracted
     # reliably. Previously, that used to be possible because all log-producing stages that share a log file were run
     # serially.
-    # """)
     def test_extract_thesausus_coverage_info(self):
         cursor = get_susx_mysql_conn().cursor()
 
@@ -54,7 +52,7 @@ class TestConsolidator(TestCase):
         self.assertEqual(len(res), 2)
 
         # values below copied from output file before consolidation, Naive Bayes
-        # is not the ubject under test here
+        # is not the object under test here
 
         # true labels = [0 0 1]
         # predicted labels = [0 0 0]

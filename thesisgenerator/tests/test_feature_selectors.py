@@ -45,7 +45,7 @@ def _do_feature_selection(must_be_in_thesaurus, k, handler='Base', vector_source
     x_train, y_train, x_test, y_test = tokenize_data(raw_data, tokenizer, data_ids)
 
     if vector_source == 'default':
-        unigrams_vect = Vectors.from_tsv(['thesisgenerator/resources/thesauri/exp0-0a.txt.events-unfiltered.strings'])
+        unigrams_vect = Vectors.from_tsv('thesisgenerator/resources/thesauri/exp0-0a.txt.events-unfiltered.strings')
         vector_source = unigrams_vect
 
     if delete_kid:
@@ -254,7 +254,7 @@ def test_bigram_features_with_composer_without_fs():
     """
 
     # load a mock unigram thesaurus, bypassing the similarity calculation provided by CompositeVectorSource
-    unigrams = Thesaurus.from_tsv(tsv_files=['thesisgenerator/resources/exp0-0a.strings'])
+    unigrams = Thesaurus.from_tsv('thesisgenerator/resources/exp0-0a.strings')
 
     # patch it to ensure it contains some bigram entries, as if they were calculated on the fly
     unigrams['like/V_fruit/N'] = [('like/V', 0.8)]

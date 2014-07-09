@@ -147,8 +147,8 @@ def get_changed_entries(before, after):
         before, after, outfile
     ))
 
-    th1 = read_thesaurus_with_caching(tsv_files=[before])
-    th2 = read_thesaurus_with_caching(tsv_files=[after])
+    th1 = read_thesaurus_with_caching(before)
+    th2 = read_thesaurus_with_caching(after)
     entry_map = defaultdict(list)
 
     old_keys = set(th1.keys())
