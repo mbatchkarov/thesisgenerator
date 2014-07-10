@@ -175,10 +175,16 @@ def shelve_single_thesaurus(conf_file):
 def shelve_all_thesauri(n_jobs):
     """
     Loads, parses and shelves all thesauri used in experiments.
-    :return:
     """
-    conf_files = glob('conf/exp*/exp*_base.conf')
-    Parallel(n_jobs=n_jobs)(delayed(shelve_single_thesaurus)(conf) for conf in conf_files)
+    # make sure thesauri that are used in multiple experiments are only shelved once
+    all_conf_files = glob('conf/exp*/exp*_base.conf')
+    thesauri = dict()
+    for conf_file in all_conf_files:
+        conf, _ = parse_config_file(conf_file)
+        thes_file = conf['vector_sources']['neighbours_file']
+        thesauri[thes_file] = conf_file
+
+    Parallel(n_jobs=n_jobs)(delayed(shelve_single_thesaurus)(conf) for conf in thesauri.values())
 
 
 if __name__ == '__main__':
