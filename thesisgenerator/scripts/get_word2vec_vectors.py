@@ -110,7 +110,7 @@ def compute_and_write_vectors(stages):
         th1.to_tsv(unigram_events_file)
 
     if 'eval' in stages:
-        disk_vectors = Vectors.from_tsv([unigram_events_file])
+        disk_vectors = Vectors.from_tsv(unigram_events_file)
         for word in entry_sample:
             sorted_vector = sorted(disk_vectors[word], key=itemgetter(0))
             logging.info('Read from disk %s', word)

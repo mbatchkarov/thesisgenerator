@@ -64,7 +64,7 @@ class Experiment():
                                   str(int(self.use_similarity)),
                                   str(int(self.random_neighbour_thesaurus)),
                                   self.decode_token_handler,
-                                  ])
+        ])
 
     def __repr__(self):
         return str(self)
@@ -167,9 +167,15 @@ def baronified_experiments(exp_number, prefix):
             print e, ','
     return exp_number
 
-def socher_unigram_vector_experiments(exp_number, prefix, use_similarity=True):
-    thesf_num, thesf_name = 14, 'neuro'
-    unlab_num, unlab_name =  12,  'neuro'
+
+def external_unigram_vector_experiments(exp_number, prefix, use_socher_embeddings=True, use_similarity=True):
+    if use_socher_embeddings:
+        thesf_num, thesf_name = 14, 'neuro'
+        unlab_num, unlab_name = 12, 'neuro'
+    else:
+        thesf_num, thesf_name = 15, 'word2vec'
+        unlab_num, unlab_name = 13, 'word2vec'
+
     svd_dims = 100
     composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer, RightmostWordComposer]
 
@@ -183,6 +189,8 @@ def socher_unigram_vector_experiments(exp_number, prefix, use_similarity=True):
                            use_similarity=use_similarity)
             experiments.append(e)
             exp_number += 1
+
+    return exp_number
 
 
 def baselines(exp_number):
@@ -208,8 +216,8 @@ composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer
                   Bunch(name='Observed'), Bunch(name='APDT'), Bunch(name='Socher')]
 
 # e.g. exp10-13bAN_NN_gigaw_Left/AN_NN_gigaw_Left.sims.neighbours.strings
-unred_pattern = '{prefix}/exp{unlab_num}-{thesf_num}bAN_NN_{unlab_name}_{composer_name}/' \
-                'AN_NN_{unlab_name}_{composer_name}.sims.neighbours.strings'
+unred_pattern = '{prefix}/exp{unlab_num}-{thesf_num}bAN_NN_{unlab_name:.5}_{composer_name}/' \
+                'AN_NN_{unlab_name:.5}_{composer_name}.sims.neighbours.strings'
 
 # e.g. exp10-13bAN_NN_gigaw_Observed/exp10.sims.neighbours.strings
 unred_obs_pattern = '{prefix}/exp{unlab_num}-{thesf_num}bAN_NN_{unlab_name}_{composer_name}/' \
@@ -230,7 +238,8 @@ exp_number = baselines(1)
 exp_number = basic_experiments(exp_number, prefix, composer_algos, use_similarity=True)
 exp_number = basic_experiments(exp_number, prefix, composer_algos, use_similarity=False)
 exp_number = an_only_nn_only_experiments(exp_number, prefix, composer_algos)
-exp_number = socher_unigram_vector_experiments(exp_number, prefix)
+exp_number = external_unigram_vector_experiments(exp_number, prefix)  # socher embeddings + Add/Mult composition
+exp_number = external_unigram_vector_experiments(exp_number, prefix, use_socher_embeddings=False)  # word2vec embeddings
 # exp_number = baronified_experiments(exp_number, prefix)
 
 
