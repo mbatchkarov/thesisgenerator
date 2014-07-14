@@ -104,12 +104,6 @@ min_train_features = integer()
     percentile=int
     min_log_odds_score=float() # features with a log odds score outside the range [-min_log_odds_score, min_log_odds_score] will be removed
 
-[dimensionality_reduction]
-    run=boolean(default=False)
-    method=string(default=sklearn.decomposition.ProjectedGradientNMF)
-    n_components=integer(min=0)
-    whiten=boolean
-
 [classifiers]
     [[sklearn.naive_bayes.MultinomialNB]]
     	run=boolean(default=False)

@@ -168,24 +168,7 @@ def _build_feature_selector(vector_source, init_args, fit_args, feature_selectio
         pipeline_list.append(('fs', method(scoring_func)))
 
 
-def _build_dimensionality_reducer(call_args, dimensionality_reduction_conf,
-                                  pipeline_list):
-    """
-      If dimensionality reduction is required, this function appends a reducer
-      object to pipeline_list and its configuration to configuration. Note this
-       function modifies (appends to) its input arguments
-      """
-    #  todo this isn't really needed and should probably be removed
-
-    if dimensionality_reduction_conf['run']:
-        dr_method = get_named_object(dimensionality_reduction_conf['method'])
-        call_args.update(get_intersection_of_parameters(dr_method, dimensionality_reduction_conf, 'dr'))
-        pipeline_list.append(('dr', dr_method()))
-
-
-def _build_pipeline(cv_i, vector_source, feature_extr_conf, feature_sel_conf,
-                    dim_red_conf, output_dir, debug,
-                    exp_name=''):
+def _build_pipeline(cv_i, vector_source, feature_extr_conf, feature_sel_conf, output_dir, debug, exp_name=''):
     """
     Builds a pipeline consisting of
         - feature extractor
@@ -205,7 +188,6 @@ def _build_pipeline(cv_i, vector_source, feature_extr_conf, feature_sel_conf,
                       pipeline_list, output_dir, exp_name=exp_name)
 
     _build_feature_selector(vector_source, init_args, fit_args, feature_sel_conf, pipeline_list)
-    _build_dimensionality_reducer(init_args, dim_red_conf, pipeline_list)
 
     # put the optional dumper after feature selection/dim. reduction
     if debug:
@@ -247,7 +229,6 @@ def _cv_loop(configuration, cv_i, score_func, test_idx, train_idx, vector_source
     pipeline, fit_params = _build_pipeline(cv_i, vector_source,
                                            configuration['feature_extraction'],
                                            configuration['feature_selection'],
-                                           configuration['dimensionality_reduction'],
                                            configuration['output_dir'],
                                            configuration['debug'],
                                            exp_name=configuration['name'])

@@ -254,7 +254,7 @@ def test_bigram_features_with_composer_without_fs():
     """
 
     # load a mock unigram thesaurus, bypassing the similarity calculation provided by CompositeVectorSource
-    unigrams = Thesaurus.from_tsv('thesisgenerator/resources/exp0-0a.strings')
+    unigrams = Thesaurus.from_tsv('thesisgenerator/resources/exp0-0a.strings', immutable=False)
 
     # patch it to ensure it contains some bigram entries, as if they were calculated on the fly
     unigrams['like/V_fruit/N'] = [('like/V', 0.8)]

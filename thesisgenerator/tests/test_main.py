@@ -114,7 +114,6 @@ class TestThesaurusVectorizer(TestCase):
             # None, # classifier
             self.feature_extraction_conf,
             self.feature_selection_conf,
-            {'run': False},  # dim re. conf
             # None, # classifier options
             '.',  # temp files dir
             True,  # debug mode
