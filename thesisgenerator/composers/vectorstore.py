@@ -1,5 +1,5 @@
 import logging
-from random import choice
+from random import sample
 from pickle import load
 from copy import deepcopy
 
@@ -28,11 +28,11 @@ class ComposerMixin(object):
             3) a row index- dict {Feature: Row}. Maps from a feature to the row in 1) where the vector for that
                feature is. Note: This is the opposite of what IO functions in discoutils expect
         """
-        composable_phrases = [foo for foo in phrases  if foo in self]
+        composable_phrases = [foo for foo in phrases if foo in self]
         logging.info('Able to compose %d/%d phrases', len(composable_phrases), len(phrases))
         new_matrix = sp.vstack(self.get_vector(foo) for foo in composable_phrases)
         old_len = len(self.unigram_source.rows)
-        all_rows = deepcopy(self.unigram_source.rows) # can't mutate the unigram datastructure
+        all_rows = deepcopy(self.unigram_source.rows)  # can't mutate the unigram datastructure
         for i, foo in enumerate(composable_phrases):
             key = foo if isinstance(foo, str) else foo.tokens_as_str()
             assert key not in all_rows
@@ -235,7 +235,7 @@ class DummyThesaurus(Thesaurus):
         else:
             if not self.vocab:
                 raise ValueError('You need to provide a set of value to choose from first.')
-            return [(choice(self.vocab.keys()), 1.0) for _ in range(self.k)]
+            return [(foo.tokens_as_str(), 1.) for foo in sample(self.vocab, self.k)]
 
 
     def get_vector(self):
