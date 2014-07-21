@@ -161,7 +161,7 @@ def get_changed_entries(before, after):
     logging.debug('After splitting:\t %d entries IT' % len(th2))
 
     # ignore unsplit tokens
-    entry_map = {k: v for k, v in entry_map.iteritems() if len(v) > 1}
+    entry_map = {k: v for k, v in entry_map.items() if len(v) > 1}
 
     def _sum(it):
         return sum(map(itemgetter(1), it))
@@ -171,7 +171,7 @@ def get_changed_entries(before, after):
     # are of the classes captured by specialise_token_occurences
     unsplit = 0
     with open(outfile, 'w') as outfh:
-        for old_entry, new_entries in entry_map.iteritems():
+        for old_entry, new_entries in entry_map.items():
             outfh.write('before:\t{} --> {}\n'.format(old_entry,
                                                       th1[old_entry]))
             old_num_features = _sum(th1[old_entry])

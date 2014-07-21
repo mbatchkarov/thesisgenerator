@@ -87,7 +87,7 @@ def compose_and_write_vectors(unigram_vectors_path, short_vector_dataset_name, c
         features_path = os.path.join(output_dir,
                                      'AN_NN_%s_%s.features.filtered.strings' % (short_vector_dataset_name, composer.name))
 
-        rows2idx = {i: DocumentFeature.from_string(x) for (x, i) in rows.iteritems()}
+        rows2idx = {i: DocumentFeature.from_string(x) for (x, i) in rows.items()}
         write_vectors_to_disk(mat.tocoo(), rows2idx, cols, events_path,
                               features_path=features_path, entries_path=entries_path,
                               entry_filter=lambda x: x.type in {'AN', 'NN', '1-GRAM'})

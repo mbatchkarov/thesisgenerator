@@ -2,7 +2,10 @@
 from collections import Counter
 from itertools import combinations
 import logging
-import cPickle as pickle
+try:
+    import cPickle as pickle
+except ImportError:
+    import pickle
 from joblib import hashing
 from numpy import array
 import numpy as np

@@ -6,8 +6,8 @@ shuffle_targets=boolean(default=False) # randomly change the labels of all docum
 training_data=string(default='')
 test_data=string(default='')
 
-min_test_features = integer() # minimum number of features in a document at train/decode time. Documents failing this test are removed from the data set.
-min_train_features = integer() 
+min_test_features = float() # minimum number of features in a document at train/decode time. Documents failing this test are removed from the data set.
+min_train_features = float() # these need to be a float when using similarity scores as term frequency 
 
 [feature_extraction]
     run=boolean(default=True)

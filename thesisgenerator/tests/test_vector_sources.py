@@ -97,7 +97,7 @@ class TestSimpleComposers(TestCase):
         mult = MultiplicativeComposer(self.m)
 
         for i in range(1, 4):
-            print i
+            print(i)
             df = '_'.join(['a/N'] * i)
             result = add.get_vector(df)
             self.assertTrue(issparse(result))
@@ -117,8 +117,8 @@ class TestSimpleComposers(TestCase):
 class TestMinMaxComposer(TestCase):
     def setUp(self):
         self.unigrams_vectors = Vectors.from_tsv('thesisgenerator/resources/ones.vectors.txt')
-        print self.unigrams_vectors
         self.min_composer = MinComposer(self.unigrams_vectors)
+        print(self.unigrams_vectors)
         self.max_composer = MaxComposer(self.unigrams_vectors)
 
     def test_compose(self):

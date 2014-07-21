@@ -37,7 +37,7 @@ def parse_config_file(conf_file):
     # todo add a more helpful guide to what exactly went wrong with the conf
     # object
     if not result:
-        print 'Invalid configuration'
+        print('Invalid configuration')
         sys.exit(1)
     return config, configspec_file
 

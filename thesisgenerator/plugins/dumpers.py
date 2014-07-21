@@ -52,7 +52,7 @@ class FeatureVectorsCsvDumper(TransformerMixin):
 
         new_file = os.path.join(self.prefix, file_name)
         c = csv.writer(open(new_file, "w"))
-        inverse_vocab = {index: word for (word, index) in vocabulary_.iteritems()}
+        inverse_vocab = {index: word for (word, index) in vocabulary_.items()}
         v = [inverse_vocab[i] for i in range(len(inverse_vocab))]
         c.writerow(['id'] + ['target'] + ['total_feat_weight'] + ['nonzero_feats'] + v)
         for i in range(matrix.shape[0]):

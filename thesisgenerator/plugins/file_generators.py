@@ -11,7 +11,7 @@ def _exp15_file_iterator(conf_file):
     for id, shuffle in enumerate([True, False]):
         new_conf_file, log_file = _write_exp15_conf_file(conf_file, 15,
                                                          id, shuffle)
-        print 'Yielding %s, %s' % (new_conf_file, log_file)
+        print('Yielding %s, %s' % (new_conf_file, log_file))
         yield new_conf_file, log_file
     raise StopIteration
 
@@ -26,7 +26,7 @@ def _exp16_file_iterator(conf_file):
         new_conf_file, log_file = _write_exp16_conf_file(conf_file,
                                                          16, id,
                                                          thesauri, normalize)
-        print 'Yielding %s, %s' % (new_conf_file, log_file)
+        print('Yielding %s, %s' % (new_conf_file, log_file))
         yield new_conf_file, log_file
     raise StopIteration
 
@@ -50,7 +50,7 @@ def _vary_training_size_file_iterator(sizes, exp_id, base_conf_file):
                                                               exp_id,
                                                               sub_id,
                                                               size)
-        print 'Yielding %s, %s' % (new_conf_file, log_file)
+        print('Yielding %s, %s' % (new_conf_file, log_file))
         yield new_conf_file, log_file
     raise StopIteration
 

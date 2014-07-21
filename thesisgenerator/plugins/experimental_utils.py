@@ -102,6 +102,6 @@ if __name__ == '__main__':
         i, j = map(int(sys.argv))
         run_experiment(i, subexpid=j)
     else:
-        print 'Expected one or two int parameters, got %s' % (sys.argv)
+        print('Expected one or two int parameters, got %s' % (sys.argv))
 
 

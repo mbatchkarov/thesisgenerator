@@ -21,7 +21,7 @@ def class_pull_results_as_list(replacement_scores):
     x = []
     y = []
     z = []
-    for (orig_value, repl_value), repl_count in replacement_scores.iteritems():
+    for (orig_value, repl_value), repl_count in replacement_scores.items():
         y.append(repl_value)
         x.append(orig_value)
         z.append(repl_count)

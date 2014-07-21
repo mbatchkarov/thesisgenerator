@@ -21,7 +21,7 @@ training_matrix_signifier_bigrams = np.array(
 
 def strip(mydict):
     """{ DocumentFeature('1-GRAM', ('X', 'Y',)) : int} -> {'X Y' : int}"""
-    return {feature.tokens_as_str(): count for feature, count in mydict.iteritems()}
+    return {feature.tokens_as_str(): count for feature, count in mydict.items()}
 
 
 def _do_feature_selection(must_be_in_thesaurus, k, handler='Base', vector_source='default', max_feature_len=1,

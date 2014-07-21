@@ -18,8 +18,8 @@ class TestConsolidator(TestCase):
         prefix = 'thesisgenerator/resources'
         # load a unigram thesaurus
         thes = Thesaurus.from_tsv('thesisgenerator/resources/exp0-0a.strings')
-        print 'RES:', run_experiment(0, num_workers=1, predefined_sized=[3, 3, 3],
-                                     prefix=prefix, thesaurus=thes)
+        print('RES:', run_experiment(0, num_workers=1, predefined_sized=[3, 3, 3],
+                                     prefix=prefix, thesaurus=thes))
         consolidate_single_experiment(prefix, 0)
 
     def tearDown(self):

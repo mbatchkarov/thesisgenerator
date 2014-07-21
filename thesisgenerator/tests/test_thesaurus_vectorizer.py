@@ -76,7 +76,6 @@ def test_remove_features_containing_named_entities(vectorizer, black_cat_parse_t
     features[0].tokens[1].ner = 'PERSON'
     cleaned_features = vectorizer._remove_features_containing_named_entities(features)
     assert len(cleaned_features) == len(features) - 4 # 4 features contain the Token 'cat/N'
-    print 1
 
 # @pytest.skip('Some dependency features manually disabled for performance reasons')
 @pytest.mark.parametrize(
@@ -100,7 +99,7 @@ def test_extract_features_from_dependency_tree_with_wrong_relation_types(black_c
             data['type'] = change_to
 
     for source, target, data in parse_tree.edges(data=True):
-        print data
+        print(data)
 
     features = vectorizer.extract_features_from_dependency_tree(parse_tree, token_index)
     # if all relations are changed to AMOD, we should get two adjective per noun

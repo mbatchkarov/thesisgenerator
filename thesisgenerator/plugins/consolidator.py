@@ -23,11 +23,11 @@ def consolidate_results(writer, conf_dir, output_dir):
     writer
     A single thesaurus must be used in each experiment
     """
-    print 'Consolidating results from %s' % conf_dir
+    print('Consolidating results from %s' % conf_dir)
 
     experiments = glob.glob(os.path.join(conf_dir, '*.conf'))
     for conf_file in experiments:
-        print 'Processing file %s' % conf_file
+        print('Processing file %s' % conf_file)
 
         config_obj, configspec_file = parse_config_file(conf_file)
 
@@ -64,5 +64,5 @@ def consolidate_results(writer, conf_dir, output_dir):
                     score_my_mean,
                     score_my_std])
         except IOError:
-            print 'WARNING: %s is missing' % output_file
+            print('WARNING: %s is missing' % output_file)
             continue  # file is missing

@@ -37,9 +37,9 @@ def stats_file(request):
 
     def fin():
         # remove the temp files produced by this test
-        print 'finalizing test'
+        print('finalizing test')
         for f in glob('statistics/stats-tests-exp*'):
-            print f
+            print(f)
             os.unlink(f)
 
     request.addfinalizer(fin)

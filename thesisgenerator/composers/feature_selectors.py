@@ -73,7 +73,7 @@ class VectorBackedSelectKBest(SelectKBest):
 
     def _zero_score_of_oot_feats(self):
         mask = np.ones(self.scores_.shape, dtype=bool)
-        for feature, index in self.vocabulary_.iteritems():
+        for feature, index in self.vocabulary_.items():
             if feature not in self.vector_source:
                 mask[index] = False
         if np.count_nonzero(mask) == 0:
@@ -94,11 +94,11 @@ class VectorBackedSelectKBest(SelectKBest):
             return
 
         # see which features are left
-        v = {feature: index for feature, index in v.iteritems() if mask[index]}
+        v = {feature: index for feature, index in v.items() if mask[index]}
         # assign new indices for each remaining feature in order, map: old_index -> new_index
         new_indices = {old_index: new_index for new_index, old_index in enumerate(sorted(v.values()))}
         # update indices in vocabulary
-        self.vocabulary_ = {feature: new_indices[index] for feature, index in v.iteritems()}
+        self.vocabulary_ = {feature: new_indices[index] for feature, index in v.items()}
 
     def _get_support_mask(self):
         k = self.k

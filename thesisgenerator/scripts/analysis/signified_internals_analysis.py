@@ -219,7 +219,7 @@ def analyse_replacements_class_pull(scores, full_voc, thes):
     it_iv_replacement_scores = []
     no_IV_replacements, has_IV_replacements, good_neighbour_count, = 0, 0, 0
 
-    for doc_feat, orig_score in scores.iteritems():  # this contains all good features in the training set (=IV, IT
+    for doc_feat, orig_score in scores.items():  # this contains all good features in the training set (=IV, IT
         # features with a "high" frequency). Their neighbours may or may not be contained in the given thesaurus.
         neighbours = _get_neighbours(doc_feat, thes, full_voc, 3)
         if neighbours:
@@ -378,9 +378,9 @@ def get_stats_for_a_single_fold(params, exp, subexp, cv_fold, thes_shelf):
                                                    thes)
 
     all_feature_counts = {v.tokens_as_str(): all_feature_counts[k] for k, v in full_inv_voc.items()}
-    good_inv_voc = {k: v.tokens_as_str() for k, v in good_inv_voc.iteritems()}
-    good_voc = {v: k for k, v in good_inv_voc.iteritems()}
-    full_inv_voc = {k: v.tokens_as_str() for k, v in full_inv_voc.iteritems()}
+    good_inv_voc = {k: v.tokens_as_str() for k, v in good_inv_voc.items()}
+    good_voc = {v: k for k, v in good_inv_voc.items()}
+    full_inv_voc = {k: v.tokens_as_str() for k, v in full_inv_voc.items()}
     full_voc = set(full_inv_voc.values())
 
     paraphrases_file = 'statistics/stats-%s-cv%d-ev.par.csv' % (name, cv_fold)
@@ -597,7 +597,6 @@ def get_cmd_parser():
 
 
 if __name__ == '__main__':
-    print os.getpid()
     parameters = get_cmd_parser().parse_args()
     logging.basicConfig(level=logging.INFO,
                         filename='figures/stats_output%d.txt' % parameters.experiment,

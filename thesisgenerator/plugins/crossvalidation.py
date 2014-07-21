@@ -24,7 +24,7 @@ def _cross_val_score(cv_number, estimator, X, y,
     # if the estimator is a pipeline, set cv_number on all of its components
 
     if hasattr(estimator, 'named_steps'):
-        for _, est in estimator.named_steps.iteritems():
+        for _, est in estimator.named_steps.items():
             est.cv_number = cv_number
 
     n_samples = X.shape[0] if sp.issparse(X) else len(X)

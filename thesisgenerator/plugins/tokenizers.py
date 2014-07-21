@@ -156,9 +156,9 @@ class XmlTokenizer(object):
             try:
                 iob_tag = element.find('NER').text.upper()
             except AttributeError:
-                logging.error('You have requested named entity '
-                              'normalisation, but the input data are '
-                              'not annotated for entities')
+                # logging.error('You have requested named entity '
+                #               'normalisation, but the input data are '
+                #               'not annotated for entities')
                 iob_tag = 'MISSING'
                 # raise ValueError('Data not annotated for named entities')
 
@@ -220,7 +220,8 @@ class XmlTokenizer(object):
         # decode document
         doc = doc.decode(self.charset, self.charset_error)
         try:
-            tree = ET.fromstring(doc.encode("utf8"))
+            # tree = ET.fromstring(doc.encode("utf8"))
+            tree = ET.fromstring(doc.encode('ascii',errors='ignore'))
             sentences = []
             for sent_element in tree.findall('.//sentence'):
                 sentences.append(self._process_sentence(sent_element))

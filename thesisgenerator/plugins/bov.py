@@ -27,7 +27,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
                  input='content', encoding='utf-8', decode_error='strict',
                  strip_accents=None,
                  preprocessor=None, tokenizer=None, analyzer='ngram',
-                 stop_words=None, token_pattern=ur"(?u)\b\w\w+\b", min_n=None,
+                 stop_words=None, token_pattern=r"(?u)\b\w\w+\b", min_n=None,
                  max_n=None, ngram_range=(1, 1),
                  ngram_range_decode=None,
                  max_df=1.0, min_df=2,
@@ -268,8 +268,8 @@ class ThesaurusVectorizer(TfidfVectorizer):
             # extract sentence-internal n-grams
             if max_n > 0:
                 n_tokens = len(sentence)
-                for n in xrange(min_n, min(max_n + 1, n_tokens + 1)):
-                    for i in xrange(n_tokens - n + 1):
+                for n in range(min_n, min(max_n + 1, n_tokens + 1)):
+                    for i in range(n_tokens - n + 1):
                         feature = DocumentFeature('%d-GRAM' % n, tuple(sentence[i: i + n]))
                         if n == 1 and feature.tokens[0].pos not in self.unigram_feature_pos_tags:
                             continue
