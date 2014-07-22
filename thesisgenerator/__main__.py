@@ -67,7 +67,7 @@ def _build_crossvalidation_iterator(config, x_vals, y_vals, x_test=None,
     k = config['k']
 
     if x_test is not None and y_test is not None:
-        logging.warn('You have requested test set to be used for evaluation.')
+        logging.warning('You have requested test set to be used for evaluation.')
         if cv_type != 'test_set' and cv_type != 'subsampled_test_set':
             logging.error('Wrong crossvalidation type. Only test_set '
                           'or subsampled_test_set are permitted with a test set')
@@ -81,7 +81,7 @@ def _build_crossvalidation_iterator(config, x_vals, y_vals, x_test=None,
 
     dataset_size = len(x_vals)
     if k < 0:
-        logging.warn('crossvalidation.k not specified, defaulting to 1')
+        logging.warning('crossvalidation.k not specified, defaulting to 1')
         k = 1
     if cv_type == 'kfold':
         iterator = cross_validation.KFold(dataset_size, int(k))
@@ -92,7 +92,7 @@ def _build_crossvalidation_iterator(config, x_vals, y_vals, x_test=None,
     elif cv_type == 'bootstrap':
         ratio = config['ratio']
         if k < 0:
-            logging.warn('crossvalidation.ratio not specified,defaulting to 0.8')
+            logging.warning('crossvalidation.ratio not specified,defaulting to 0.8')
             ratio = 0.8
         iterator = cross_validation.Bootstrap(dataset_size, n_iter=int(k), train_size=ratio)
     elif cv_type == 'oracle':

@@ -14,12 +14,12 @@ def get_susx_mysql_conn():
     try:
         import pymysql as mdb
     except ImportError:
-        logging.warn('MySQLdb not installed')
+        logging.warning('pymysql not installed')
         return None
 
     config = ConfigObj('thesisgenerator/db-credentials')
     if not config:
-        logging.warn('File thesisgenerator/db-credentials file not found. This is '
+        logging.warning('File thesisgenerator/db-credentials file not found. This is '
                      'needed for a MySQL connection. Check your working directory.')
         return None
 

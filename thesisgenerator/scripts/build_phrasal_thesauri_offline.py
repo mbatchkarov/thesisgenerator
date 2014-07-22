@@ -246,9 +246,9 @@ def build_unreduced_AN_NN_thesauri(corpus, corpus_name, features,
         calculate_unigram_vectors(unigram_thesaurus_dir)
     else:
         if external_embeddings:
-            logging.warn('Skipping unigrams stage. Assuming output is at %s', external_events_file)
+            logging.warning('Skipping unigrams stage. Assuming output is at %s', external_events_file)
         else:
-            logging.warn('Skipping unigrams stage. Assuming output is at %s', _find_events_file(unigram_thesaurus_dir))
+            logging.warning('Skipping unigrams stage. Assuming output is at %s', _find_events_file(unigram_thesaurus_dir))
 
     # COMPOSE ALL AN/NN VECTORS IN LABELLED SET
     if 'compose' in stages:
@@ -262,7 +262,7 @@ def build_unreduced_AN_NN_thesauri(corpus, corpus_name, features,
                                        output_dir=ngram_vectors_dir,
                                        composer_classes=composer_algos)
     else:
-        logging.warn('Skipping composition stage. Assuming output is at %s', ngram_vectors_dir)
+        logging.warning('Skipping composition stage. Assuming output is at %s', ngram_vectors_dir)
 
     # BUILD THESAURI OUT OF COMPOSED VECTORS ONLY
     if 'thesauri' in stages:
@@ -307,7 +307,7 @@ def build_unreduced_AN_NN_thesauri(corpus, corpus_name, features,
         build_thesauri_out_of_composed_vectors(composer_algos, corpus_name, ngram_vectors_dir,
                                                unigram_thesaurus_dir, False)  # can't baronify non-reduced thesauri
     else:
-        logging.warn('Skipping thesaurus construction stage.')
+        logging.warning('Skipping thesaurus construction stage.')
 
 
 def build_full_composed_thesauri_with_baroni_and_svd(corpus, features, stages, use_apdt, baronify):
@@ -341,7 +341,7 @@ def build_full_composed_thesauri_with_baroni_and_svd(corpus, features, stages, u
         os.chdir(byblo_base_dir)
         calculate_unigram_vectors(unigram_thesaurus_dir)
     else:
-        logging.warn('Skipping unigrams stage. Assuming output is at %s', _find_events_file(unigram_thesaurus_dir))
+        logging.warning('Skipping unigrams stage. Assuming output is at %s', _find_events_file(unigram_thesaurus_dir))
 
     # REDUCE DIMENSIONALITY
     # add in observed AN/NN vectors for SVD processing. Reduce both unigram vectors and observed phrase vectors
@@ -362,7 +362,7 @@ def build_full_composed_thesauri_with_baroni_and_svd(corpus, features, stages, u
                    desired_counts_per_feature_type=counts, reduce_to=target_dimensionality,
                    apply_to=baroni_training_phrases)
     else:
-        logging.warn('Skipping SVD stage. Assuming output is at %s-SVD*', reduced_file_prefix)
+        logging.warning('Skipping SVD stage. Assuming output is at %s-SVD*', reduced_file_prefix)
 
     # construct the names of files output by do_svd
     baroni_training_data = ['%s-SVD%d.events.filtered.strings' % (reduced_file_prefix, dim)
@@ -396,7 +396,7 @@ def build_full_composed_thesauri_with_baroni_and_svd(corpus, features, stages, u
 
 
         else:
-            logging.warn('Skipping Baroni training stage. Assuming trained models are at %s', trained_composer_files)
+            logging.warning('Skipping Baroni training stage. Assuming trained models are at %s', trained_composer_files)
 
     if 'compose' in stages and not use_apdt:
         # not point in composing with APTD, composed vectors are already there for me
@@ -410,7 +410,7 @@ def build_full_composed_thesauri_with_baroni_and_svd(corpus, features, stages, u
                                            output_dir=ngram_vectors_dir,
                                            composer_classes=composer_algos)
     else:
-        logging.warn('Skipping composition stage. Assuming output is at %s', ngram_vectors_dir)
+        logging.warning('Skipping composition stage. Assuming output is at %s', ngram_vectors_dir)
 
     # BUILD THESAURI OUT OF COMPOSED VECTORS ONLY
     for dims in target_dimensionality:
@@ -442,7 +442,7 @@ def build_full_composed_thesauri_with_baroni_and_svd(corpus, features, stages, u
             build_thesauri_out_of_composed_vectors(composer_algos, tmp_dataset_name,
                                                    ngram_vectors_dir, unigram_thesaurus_dir, baronify)
         else:
-            logging.warn('Skipping thesaurus construction stage. Assuming output is at %s', ngram_vectors_dir)
+            logging.warning('Skipping thesaurus construction stage. Assuming output is at %s', ngram_vectors_dir)
 
 
 def get_corpus_features_cmd_parser():

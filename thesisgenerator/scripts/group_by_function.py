@@ -187,7 +187,7 @@ def get_changed_entries(before, after):
 
             # check that features are not lost or added in the splitting
             if old_num_features != new_num_features:
-                logging.warn('Features removed for %s' % old_entry)
+                logging.warning('Features removed for %s' % old_entry)
                 # can't assert that because some features might have been removed
 
         logging.debug('Un-split: %d/%d matching entries' % (unsplit,

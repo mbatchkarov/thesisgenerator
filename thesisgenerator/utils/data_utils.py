@@ -90,7 +90,7 @@ def _get_data_iterators(path, shuffle_targets=False):
     logging.info('Targets are: %s', dataset.target_names)
     data_iterable = dataset.data
     if shuffle_targets:
-        logging.warn('RANDOMIZING TARGETS')
+        logging.warning('RANDOMIZING TARGETS')
         random.shuffle(dataset.target)
 
     return data_iterable, np.array(dataset.target_names)[dataset.target]
@@ -127,7 +127,7 @@ def get_thesaurus(conf):
     if not thesaurus:
         # if a vector source has not been passed in and has not been initialised, then init it to avoid
         # accessing empty things
-        logging.warn('RETURNING AN EMPTY THESAURUS')
+        logging.warning('RETURNING AN EMPTY THESAURUS')
         thesaurus = []
     return thesaurus
 
@@ -169,7 +169,7 @@ def shelve_single_thesaurus(conf_file):
                                   conf['vector_sources']['max_neighbours'],
                                   entry_types_to_load)
     else:
-        logging.warn('Thesaurus does not exist: %s', th)
+        logging.warning('Thesaurus does not exist: %s', th)
 
 
 def shelve_all_thesauri(n_jobs):

@@ -164,7 +164,7 @@ class ConsolidatedResultsSqlAndCsvWriter(object):
             self.sql_conn = ConsolidatedResultsSqlWriter(table_number,
                                                          output_db_conn)
         else:
-            logging.warn("Database connection impossible")
+            logging.warning("Database connection impossible")
             self.sql_conn = DummySqlWriter()
 
     def writerow(self, row):

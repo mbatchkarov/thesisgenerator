@@ -263,7 +263,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
             else:
                 # sometimes an input document will have a sentence of one word, which has no dependencies
                 # just ignore that and extract all the features that can be extracted without it
-                logging.warn('Dependency tree not available')
+                logging.warning('Dependency tree not available')
 
             # extract sentence-internal n-grams
             if max_n > 0:

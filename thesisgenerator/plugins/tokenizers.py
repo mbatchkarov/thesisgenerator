@@ -13,7 +13,7 @@ from discoutils.tokens import Token
 try:
     import xml.etree.cElementTree as ET
 except ImportError:
-    logging.warn('cElementTree not available')
+    logging.warning('cElementTree not available')
     import xml.etree.ElementTree as ET
 
 

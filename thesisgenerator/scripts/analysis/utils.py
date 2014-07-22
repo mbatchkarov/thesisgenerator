@@ -97,7 +97,7 @@ def get_experiment_info_string(cursor, exp_num, subexp_name):
     settings_data = cursor.fetchone()
     desc = cursor.description
     if not settings_data:
-        logging.warn('Description of Experiment %d not found in database, using dummy values')
+        logging.warning('Description of Experiment %d not found in database, using dummy values')
         settings_data = '-' * len(desc)
     settings = {}
     for (key, value) in zip(desc, settings_data):
