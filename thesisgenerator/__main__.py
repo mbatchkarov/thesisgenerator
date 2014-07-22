@@ -181,7 +181,7 @@ def _build_pipeline(cv_i, vector_source, feature_extr_conf, feature_sel_conf, ou
     init_args, fit_args = {}, {}
     pipeline_list = []
 
-    if isinstance(vector_source, six.text_type):
+    if isinstance(vector_source, six.string_types):
             # it's probably a path to a shelved vector source
             # this is an ugly hack- I can't be sure it's really a PrecomputedSimilaritiesVectorSource
             vector_source = Thesaurus.from_shelf_readonly(vector_source)
@@ -327,7 +327,8 @@ def _analyze(scores, output_dir, name, class_names):
     grouped = df.groupby(['classifier', 'metric'])
     from numpy import mean, std
 
-    res = grouped['score'].aggregate({'score_mean': mean, 'score_std': std})
+    # the mean and std columns may be appended in any order, put them in the desired order
+    res = grouped['score'].aggregate({'score_mean': mean, 'score_std': std})[['score_mean', 'score_std']]
 
     # store csv for futher processing
     csv = os.path.join(output_dir, '%s.out.csv' % name)

@@ -107,5 +107,5 @@ def test_get_decode_time_paraphrase_statistics(stats_file):
     column_list = ['replacement%d' % (i + 1) for i in range(3)]
     # x>0 check filters out NaN-s
     types = [DocumentFeature.from_string(x).type for x in np.ravel(df.ix[:, column_list].values)
-             if isinstance(x, six.text_type)]
+             if isinstance(x, six.string_types)]
     assert Counter(types) == Counter({'1-GRAM': 8})  # 8 total replacements, all of them unigrams
