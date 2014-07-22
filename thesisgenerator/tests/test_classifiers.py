@@ -33,9 +33,9 @@ def test_SubsamplingPredefinedIndicesIterator():
                 # equal number of positives and negatives in sample
                 assert counts[0] == counts[1]
 
-    it = SubsamplingPredefinedIndicesIterator(y_vals, train_indices, test_indices, 2, 5)
+    it = SubsamplingPredefinedIndicesIterator(y_vals, train_indices, test_indices, 2, 6)
     for train, test in it:
         assert test == test_indices
-        # one extra point needed to maintain 1:1 ratio of positives and negatives
         assert len(train) == 6
         assert all(x in train_indices for x in train)
+        assert Counter(y_vals[train]) == Counter({0: 3, 1: 3}) # 1:1 ratio of positives and negatives is preserved

@@ -72,7 +72,7 @@ class Experiment():
     def __eq__(self, other):
         d1 = deepcopy(self.__dict__)
         d2 = deepcopy(other.__dict__)
-        return set(d1.keys()) == set(d2.keys()) and all(d1[x] == d2[x] for x in d1.keys() if x != 'number')
+        return set(d1.keys()) == set(d2.keys()) and all(d1[x] == d2[x] for x in list(d1.keys()) if x != 'number')
 
 
 def basic_experiments(exp_number, prefix, composer_algos, use_similarity=True):
@@ -164,7 +164,7 @@ def baronified_experiments(exp_number, prefix):
                            thesf_name, thesf_num, 'AN_NN', svd_dims, baronified=True)
             experiments.append(e)
             exp_number += 1
-            print e, ','
+            print(e, ',')
     return exp_number
 
 
@@ -244,19 +244,19 @@ exp_number = external_unigram_vector_experiments(exp_number, prefix, use_socher_
 
 
 for e in experiments:
-    print e, ','
+    print(e, ',')
 
 # sys.exit(0)
-print 'Writing conf files'
+print('Writing conf files')
 megasuperbase_conf_file = 'conf/exp1-superbase.conf'
 for exp in experiments:
     # sanity check
     if exp.thesaurus_file and os.path.exists(exp.thesaurus_file):
-        print "last modified: %s" % time.ctime(os.path.getmtime(exp.thesaurus_file)), \
+        print("last modified: %s" % time.ctime(os.path.getmtime(exp.thesaurus_file)), \
             os.stat(exp.thesaurus_file).st_size >> 20, \
-            exp.thesaurus_file  # size in MB
+            exp.thesaurus_file)  # size in MB
     else:
-        print 'MISSING THESAURUS:', exp.thesaurus_file
+        print('MISSING THESAURUS:', exp.thesaurus_file)
 
     experiment_dir = 'conf/exp%d' % exp.number
     if not os.path.exists(experiment_dir):

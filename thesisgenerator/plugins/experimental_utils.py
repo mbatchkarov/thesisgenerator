@@ -45,7 +45,7 @@ def run_experiment(expid, num_workers=4,
     :param thesaurus: provide a parsed thesaurus instead of a path to one (useful for unit testing)
     :return:
     """
-    print('RUNNING EXPERIMENT %d' % expid)
+    print(('RUNNING EXPERIMENT %d' % expid))
     hostname = platform.node()
     if 'apollo' in hostname or 'node' in hostname:
         num_workers = 30
@@ -99,9 +99,9 @@ if __name__ == '__main__':
         i = int(sys.argv[1])  # full experiment id
         run_experiment(i)
     elif len(sys.argv) == 3:
-        i, j = map(int(sys.argv))
+        i, j = list(map(int(sys.argv)))
         run_experiment(i, subexpid=j)
     else:
-        print('Expected one or two int parameters, got %s' % (sys.argv))
+        print(('Expected one or two int parameters, got %s' % (sys.argv)))
 
 

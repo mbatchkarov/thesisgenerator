@@ -12,7 +12,7 @@ def get_susx_mysql_conn():
     :return:
     """
     try:
-        import MySQLdb as mdb
+        import pymysql as mdb
     except ImportError:
         logging.warn('MySQLdb not installed')
         return None

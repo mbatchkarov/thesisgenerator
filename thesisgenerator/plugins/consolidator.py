@@ -1,12 +1,9 @@
 # coding=utf-8
-import ast
 import csv
 import glob
 import os
-import re
 import datetime
-import git
-import numpy
+from discoutils.cmd_utils import get_git_hash
 from thesisgenerator.utils.conf_file_utils import parse_config_file
 
 
@@ -37,11 +34,11 @@ def consolidate_results(writer, conf_dir, output_dir):
 
         # find out the classifier score from the final csv file
         output_file = os.path.join(output_dir, '%s.out.csv' % exp_name)
-        git_hash = git.Repo('.').head.commit.hexsha[:10]
+        git_hash = get_git_hash()
 
         try:
             reader = csv.reader(open(output_file, 'r'))
-            _ = reader.next()  # skip over header
+            _ = next(reader)  # skip over header
             for row in reader:
                 classifier, metric, score_my_mean, score_my_std = row
 

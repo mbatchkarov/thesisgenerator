@@ -25,8 +25,7 @@ def set_in_conf_file(conf_file, keys, new_value):
 
     config_obj, configspec_file = parse_config_file(conf_file)
     set_nested(config_obj, keys, new_value)
-    with open(conf_file, 'w') as outfile:
-        config_obj.write(outfile)
+    config_obj.write()
 
 
 def parse_config_file(conf_file):

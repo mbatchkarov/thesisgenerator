@@ -83,7 +83,7 @@ class TestUtils(TestCase):
                                                         x_test=self.x_test,
                                                         y_test=self.y_test)
 
-                for id, (train, test) in enumerate(it):
+                for fold_num, (train, test) in enumerate(it):
                     tr = array(all_x)[train]
                     ev = array(all_x)[test]
 
@@ -101,21 +101,19 @@ class TestUtils(TestCase):
                                         set(self.x_test).intersection(set(tr)))
 
                     # must yield the same sets in the same order
-                    if train_sets.get((seed, id)) is None:
+                    if train_sets.get((seed, fold_num)) is None:
                         # first time, just save it
-                        train_sets[(seed, id)] = tr
-                        test_sets[(seed, id)] = ev
+                        train_sets[(seed, fold_num)] = tr
+                        test_sets[(seed, fold_num)] = ev
                     else:
                         # after that, check for equality
-                        assert_array_equal(train_sets[(seed, id)], tr)
+                        assert_array_equal(train_sets[(seed, fold_num)], tr)
 
             if not subsampling:
-                # for a given seed, all fold produces must be distinct
-                for seed, train_lists_keys in groupby(train_sets.keys(),
-                                                      itemgetter(0)):
-                    my_keys = [x for x in train_lists_keys]
-                    inters = set.intersection(*[set(train_sets[x])
-                                                for x in my_keys])
+                # for a given seed, all fold produced must be distinct
+                for seed in [foo[0] for foo in train_sets]:
+                    inters = set.intersection(*[set(train_sets[(seed, fold_num)])
+                                                for fold_num in range(self.conf['k'])])
                     self.assertSetEqual(set(), inters)
             else:
                 for x in train_sets.values():
@@ -126,8 +124,8 @@ class TestUtils(TestCase):
                     # the ratios between the different classes must be
                     # approx. preserved. in our case, this means 1:1:1:1
                     c = Counter(list(x))
-                    range = max(c.values()) - min(c.values())
-                    self.assertLess(range, 5)
+                    data_range = max(c.values()) - min(c.values())
+                    self.assertLess(data_range, 5)
 
         self.conf['type'] = 'kfold'
         self.conf['k'] = 2

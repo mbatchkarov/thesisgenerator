@@ -31,7 +31,7 @@ for train, test in [[r8_train, r8_test], [mr_train, mr_test]]:
     x_tr, _, x_ev, _ = tokenize_data(raw_data, tokenizer, data_ids)
     all_text.extend(x_tr)
     all_text.extend(x_ev)
-    print 'Documents so far', len(all_text)
+    print('Documents so far', len(all_text))
 
 vect = ThesaurusVectorizer(min_df=1, ngram_range=(1, 1), extract_SVO_features=False, extract_VO_features=False,
                            unigram_feature_pos_tags=set('NJ'))
@@ -50,10 +50,10 @@ stanford_NP_pattern = '(ROOT\n (NP ({} {}) ({} {})))\n\n'
 stanford_unigram_pattern = '(ROOT\n (NP ({} {})))\n\n'
 
 seen_modifiers = set()
-with open('r2-mr-ANs-NNs-julie.txt', 'wb') as outf_julie, \
-        open('r2-mr-ANs-NNs-socher.txt', 'wb') as outf_socher, \
-        open('r2-mr-modifiers.txt', 'wb') as outf_mods:
-    for item in voc.keys():
+with open('r2-mr-ANs-NNs-julie.txt', 'w') as outf_julie, \
+        open('r2-mr-ANs-NNs-socher.txt', 'w') as outf_socher, \
+        open('r2-mr-modifiers.txt', 'w') as outf_mods:
+    for item in list(voc.keys()):
         if item.type in {'AN', 'NN'}:
             first = str(item.tokens[0])
             second = str(item.tokens[1])

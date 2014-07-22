@@ -162,7 +162,7 @@ class PredefinedIndicesIterator(object):
         logging.info('Yielding a training set of size %d and a test set of '
                      'size %d', len(self.train), len(self.test))
 
-        yield self.train, self.test
+        yield list(self.train), list(self.test)
         raise StopIteration
 
 
@@ -208,13 +208,13 @@ class SubsamplingPredefinedIndicesIterator(object):
             for label, proportion in self.counts.items():
                 train_size = int(round(proportion * self.sample_size))
 
-                ind = np.nonzero(self.y_vals[self.train] == label)[0]
+                ind = np.nonzero(self.y_vals[list(self.train)] == label)[0]
                 ind = self.rng.choice(ind, size=train_size, replace=False)
 
                 logging.debug('Selected %r for class %r', ind, label)
                 ind_train = np.concatenate((ind_train, ind), axis=0)
             logging.info('Will train on collection of len %r - %r', len(ind_train), sorted(ind_train))
-            yield ind_train, self.test
+            yield list(ind_train), list(self.test)
         raise StopIteration
 
     def __len__(self):

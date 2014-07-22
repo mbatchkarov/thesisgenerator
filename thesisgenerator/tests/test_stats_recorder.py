@@ -4,6 +4,7 @@ import os
 import pandas as pd
 import numpy as np
 from glob import glob
+import six
 from discoutils.thesaurus_loader import Thesaurus
 from discoutils.tokens import DocumentFeature
 from thesisgenerator.plugins.stats import sum_up_token_counts
@@ -105,5 +106,6 @@ def test_get_decode_time_paraphrase_statistics(stats_file):
 
     column_list = ['replacement%d' % (i + 1) for i in range(3)]
     # x>0 check filters out NaN-s
-    types = [DocumentFeature.from_string(x).type for x in np.ravel(df.ix[:, column_list].values) if x > 0]
+    types = [DocumentFeature.from_string(x).type for x in np.ravel(df.ix[:, column_list].values)
+             if isinstance(x, six.text_type)]
     assert Counter(types) == Counter({'1-GRAM': 8})  # 8 total replacements, all of them unigrams

@@ -122,7 +122,7 @@ class ConsolidatedResultsSqlWriter(object):
         c.execute('DROP TABLE IF EXISTS %s' % self.table_name)
         params = [item for col in columns for item in col]
         template = 'CREATE TABLE %s(' + \
-                   ', '.join(['%s %s'] * (len(params) / 2)) + \
+                   ', '.join(['%s %s'] * (len(params) // 2)) + \
                    ', PRIMARY KEY(id))'
         q = template % tuple(itertools.chain([self.table_name], params))
         c.execute(q)
@@ -177,7 +177,6 @@ class ConsolidatedResultsSqlAndCsvWriter(object):
 
 
 def consolidate_single_experiment(prefix, expid):
-    hostname = platform.node()
     output_dir = '%s/conf/exp%d/output/' % (prefix, expid)
     csv_out_fh = open(os.path.join(output_dir, "summary%d.csv" % expid), "w")
     conf_dir = '%s/conf/exp%d/exp%d_base-variants' % (prefix, expid, expid)

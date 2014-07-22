@@ -12,6 +12,7 @@ import pickle
 import sys
 
 from joblib import Parallel, delayed
+import six
 
 sys.path.append('.')
 sys.path.append('..')
@@ -60,6 +61,7 @@ def _build_crossvalidation_iterator(config, x_vals, y_vals, x_test=None,
     The full text is provided as a parameter so that joblib can cache the
     call to this function.
     """
+    # todo document parameters and check all caller comply to the intended usage pattern
     logging.info('Building crossvalidation iterator')
     cv_type = config['type']
     k = config['k']
@@ -179,7 +181,7 @@ def _build_pipeline(cv_i, vector_source, feature_extr_conf, feature_sel_conf, ou
     init_args, fit_args = {}, {}
     pipeline_list = []
 
-    if isinstance(vector_source, str):
+    if isinstance(vector_source, six.text_type):
             # it's probably a path to a shelved vector source
             # this is an ugly hack- I can't be sure it's really a PrecomputedSimilaritiesVectorSource
             vector_source = Thesaurus.from_shelf_readonly(vector_source)
@@ -275,7 +277,8 @@ def _cv_loop(configuration, cv_i, score_func, test_idx, train_idx, vector_source
             # if a feature selectors exist, use its vocabulary
             # step_name = 'fs' if 'fs' in pipeline.named_steps else 'vect'
             inv_voc = {index: feature for (feature, index) in pipeline.named_steps['vect'].vocabulary_.items()}
-            with open('%s.%s.pkl' % (stats.prefix, clf.__class__.__name__.split('.')[-1]), 'w') as outf:
+            with open('%s.%s.pkl' % (stats.prefix, clf.__class__.__name__.split('.')[-1]), 'wb') as outf:
+                # pickle files needs to open in 'wb' mode
                 logging.info('Pickling trained classifier to %s', outf.name)
                 b = Bunch(clf=clf, inv_voc=inv_voc, tr_matrix=tr_matrix,
                           test_matrix=test_matrix, predictions=predictions,

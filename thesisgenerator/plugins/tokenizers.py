@@ -215,13 +215,9 @@ class XmlTokenizer(object):
                                                 (dependency_graph, {token index in sentence -> token object})
                                                 )
         """
-
-
-        # decode document
-        doc = doc.decode(self.charset, self.charset_error)
         try:
             # tree = ET.fromstring(doc.encode("utf8"))
-            tree = ET.fromstring(doc.encode('ascii',errors='ignore'))
+            tree = ET.fromstring(doc)
             sentences = []
             for sent_element in tree.findall('.//sentence'):
                 sentences.append(self._process_sentence(sent_element))

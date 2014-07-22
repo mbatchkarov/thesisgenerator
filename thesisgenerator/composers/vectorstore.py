@@ -1,3 +1,4 @@
+from functools import reduce
 import logging
 from random import sample
 from pickle import load
@@ -5,6 +6,7 @@ from copy import deepcopy
 
 import numpy as np
 import scipy.sparse as sp
+import six
 from discoutils.thesaurus_loader import Thesaurus, Vectors
 from discoutils.tokens import DocumentFeature
 
@@ -55,7 +57,7 @@ class AdditiveComposer(Vectors, ComposerMixin):
         :type feature: DocumentFeature
         :rtype: scipy.sparse.csr_matrix
         """
-        if isinstance(feature, str):
+        if isinstance(feature, six.text_type):
             feature = DocumentFeature.from_string(feature)
         return sp.csr_matrix(reduce(self.function,
                                     [self.unigram_source.get_vector(t.tokens_as_str()).A for t in feature[:]]))
@@ -66,7 +68,7 @@ class AdditiveComposer(Vectors, ComposerMixin):
         Contains all sequences of words where we have a distrib vector for each unigram
         they contain. Rejects unigrams.
         """
-        if isinstance(feature, str):
+        if isinstance(feature, six.text_type):
             feature = DocumentFeature.from_string(feature)
 
         if feature.type not in self.entry_types:
@@ -118,12 +120,12 @@ class LeftmostWordComposer(AdditiveComposer):
         self.entry_types = {'2-GRAM', '3-GRAM', 'AN', 'NN', 'VO', 'SVO'}
 
     def get_vector(self, feature):
-        if isinstance(feature, str):
+        if isinstance(feature, six.text_type):
             feature = DocumentFeature.from_string(feature)
         return self.unigram_source.get_vector(feature[self.hardcoded_index].tokens_as_str())
 
     def contains_impl(self, feature):
-        if isinstance(feature, str):
+        if isinstance(feature, six.text_type):
             feature = DocumentFeature.from_string(feature)
         if feature.type not in self.entry_types:
             # no point in composing single-word document features

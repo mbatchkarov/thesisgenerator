@@ -1,6 +1,9 @@
 # coding=utf-8
 from unittest import TestCase
-import cStringIO
+try:
+    from cStringIO import StringIO
+except ImportError:
+    from io import StringIO
 from thesisgenerator.plugins.dumpers import ConsolidatedResultsCsvWriter, ConsolidatedResultsSqlWriter
 import thesisgenerator.plugins.dumpers as d
 from thesisgenerator.utils.misc import get_susx_mysql_conn
@@ -11,7 +14,7 @@ header_str = ','.join(header_list)
 
 class TestConsolidatedResultsCsvWriter(TestCase):
     def setUp(self):
-        self.fh = cStringIO.StringIO()
+        self.fh = StringIO()
 
         # create a writer and write header
         self.writer = ConsolidatedResultsCsvWriter(self.fh)
@@ -68,4 +71,4 @@ class TestConsolidatedResultsSqlWriter(TestCase):
             cur.execute("SELECT * FROM data0")
             rows = cur.fetchall()
             for row in rows:
-                print row
+                print(row)

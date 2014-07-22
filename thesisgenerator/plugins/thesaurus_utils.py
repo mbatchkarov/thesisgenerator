@@ -25,12 +25,12 @@ def compare_thesauri(prefix, names):
         thesauri.append(vect.load_thesauri())
     sizes = [len(x) for x in thesauri]
     smallest_th = thesauri[sizes.index(min(sizes))]
-    print 'sizes: ', sizes
+    print('sizes: ', sizes)
 
     done = 0
-    entries = {x for x in smallest_th.keys()}
+    entries = {x for x in list(smallest_th.keys())}
     for th in thesauri:
-        entries = entries.intersection(th.keys())
+        entries = entries.intersection(list(th.keys()))
 
     #    # compute agreement between thesauri
     #    agg = numpy.zeros((len(thesauri), len(thesauri)))
@@ -58,7 +58,7 @@ def compare_thesauri(prefix, names):
             word = random.choice(entries)
             if word.lower().split('/')[0] not in words:
                 continue
-            print 'Selecting ', word
+            print('Selecting ', word)
             for th, name in zip(thesauri, names):
                 neigh = th[word]
                 outfile.write(
@@ -105,9 +105,9 @@ def unindex_thesauri(byblo_path, thesauri_paths):
 
         for cmd in commands:
             out = run(cmd)
-            print "***Byblo deindex output***"
-            print [x for x in out]
-            print "***End Byblo output***"
+            print("***Byblo deindex output***")
+            print([x for x in out])
+            print("***End Byblo output***")
 
 #def inspect_entry_features():
 #        features = {}
@@ -136,10 +136,10 @@ def most_likely_experiment_name(path):
     files = glob.glob(os.path.join(path, '*'))
 
     samples = [random.sample(files, 3) for i in range(100)]
-    prefixes = map(os.path.commonprefix, samples)
+    prefixes = list(map(os.path.commonprefix, samples))
     exp_name = Counter(prefixes).most_common(1)[0][0]
     # glob with ignore the .DS_Store file on OSX
-    print 'Thesaurus name is ', exp_name
+    print('Thesaurus name is ', exp_name)
     return exp_name
 
 
@@ -163,7 +163,7 @@ def postfilter_thesauri(thesauri_paths, lower, upper=None):
     import sys
 
     if lower and not upper:
-        upper = [sys.maxint] * len(lower)
+        upper = [sys.maxsize] * len(lower)
     if len(lower) != len(upper):
         raise ValueError("Provide the same number of lower and upper bounds")
 
@@ -176,7 +176,7 @@ def postfilter_thesauri(thesauri_paths, lower, upper=None):
             frequency = {key: int(value) for key, value in tokens}
 
         for low, high in zip(lower, upper):
-            print 'range %d-%d' % (low, high)
+            print('range %d-%d' % (low, high))
             with open('%sfef%dsims.neighbours.strings' % (exp_name, low),
                       'w') as outfile:
                 with open(exp_name + 'sims.neighbours.strings', 'r') as infile:
@@ -215,7 +215,7 @@ def convert_old_byblo_format_to_new(filename):
 
 if __name__ == '__main__':
 #    pass
-    print 'hi'
+    print('hi')
     #    compare_thesauri('/Volumes/LocalScratchHD/LocalHome/Desktop/bov', [
     #        'exp6-11a.strings',
     #        'exp6-12a.strings',
@@ -238,4 +238,4 @@ if __name__ == '__main__':
             '/Volumes/LocalScratchHD/LocalHome/NetBeansProjects/Byblo-2.1.0',
             [x])
 
-        postfilter_thesauri([x], range(10, 100, 10))
+        postfilter_thesauri([x], list(range(10, 100, 10)))
