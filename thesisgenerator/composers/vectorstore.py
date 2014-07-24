@@ -151,7 +151,7 @@ class BaroniComposer(Vectors, ComposerMixin):
         if not pretrained_model_file:
             logging.error('Expected filename, got %s', pretrained_model_file)
             raise ValueError('Model file required to perform composition.')
-        with open(pretrained_model_file) as infile:
+        with open(pretrained_model_file, 'rb') as infile:
             self._composer = load(infile)
 
         # verify the composer's internal structure matches the unigram source

@@ -11,8 +11,9 @@ import shutil
 import argparse
 from discoutils.io_utils import write_vectors_to_disk
 from discoutils.misc import Bunch
-from discoutils.cmd_utils import set_stage_in_byblo_conf_file, run_byblo, parse_byblo_conf_file, \
-    reindex_all_byblo_vectors, run_and_log_output, unindex_all_byblo_vectors, set_output_in_byblo_conf_file
+from discoutils.cmd_utils import (set_stage_in_byblo_conf_file, run_byblo, parse_byblo_conf_file,
+                                  reindex_all_byblo_vectors, run_and_log_output,
+                                  unindex_all_byblo_vectors, set_output_in_byblo_conf_file)
 from discoutils.reduce_dimensionality import do_svd
 from thesisgenerator.scripts import dump_all_composed_vectors as dump
 from thesisgenerator.composers.vectorstore import *
@@ -248,7 +249,8 @@ def build_unreduced_AN_NN_thesauri(corpus, corpus_name, features,
         if external_embeddings:
             logging.warning('Skipping unigrams stage. Assuming output is at %s', external_events_file)
         else:
-            logging.warning('Skipping unigrams stage. Assuming output is at %s', _find_events_file(unigram_thesaurus_dir))
+            logging.warning('Skipping unigrams stage. Assuming output is at %s',
+                            _find_events_file(unigram_thesaurus_dir))
 
     # COMPOSE ALL AN/NN VECTORS IN LABELLED SET
     if 'compose' in stages:
@@ -257,7 +259,7 @@ def build_unreduced_AN_NN_thesauri(corpus, corpus_name, features,
             else _find_events_file(unigram_thesaurus_dir)
         dump.compose_and_write_vectors(unigram_vectors_file,  # I think it is OK for this to contain phrase vectors
                                        corpus_name,
-                                       [dump.classification_data_path_mr, dump.classification_data_path],  # input 2
+                                       dump.all_classification_corpora,  # input 2
                                        None,
                                        output_dir=ngram_vectors_dir,
                                        composer_classes=composer_algos)
@@ -405,7 +407,7 @@ def build_full_composed_thesauri_with_baroni_and_svd(corpus, features, stages, u
                 in zip(target_dimensionality, baroni_training_data, trained_composer_files):
             dump.compose_and_write_vectors(all_reduced_vectors,
                                            '%s-%s' % (dataset_name, svd_dims),
-                                           [dump.classification_data_path_mr, dump.classification_data_path],
+                                           dump.all_classification_corpora,
                                            trained_composer_file,
                                            output_dir=ngram_vectors_dir,
                                            composer_classes=composer_algos)

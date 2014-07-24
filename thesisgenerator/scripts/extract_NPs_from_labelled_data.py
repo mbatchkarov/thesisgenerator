@@ -1,3 +1,4 @@
+from thesisgenerator.scripts import dump_all_composed_vectors as dump
 from thesisgenerator.plugins.bov import ThesaurusVectorizer
 from thesisgenerator.utils.data_utils import load_text_data_into_memory, load_tokenizer, tokenize_data
 import logging
@@ -6,17 +7,9 @@ import numpy as np
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s\t%(module)s.%(funcName)s ""(line %(lineno)d)\t%(levelname)s : %(""message)s")
 
-r8_train = 'sample-data/reuters21578/r8train-tagged-grouped'
-r8_test = 'sample-data/reuters21578/r8test-tagged-grouped'
-mr_train = 'sample-data/movie-reviews-train-tagged'
-mr_test = 'sample-data/movie-reviews-test-tagged'
-
 all_text = []
-for train, test in [[r8_train, r8_test], [mr_train, mr_test]]:
-    raw_data, data_ids = load_text_data_into_memory(
-        training_path=train,
-        test_path=test,
-        shuffle_targets=False)
+for path in dump.all_classification_corpora:
+    raw_data, data_ids = load_text_data_into_memory(path)
 
     tokenizer = load_tokenizer(
         joblib_caching=True,
@@ -29,8 +22,10 @@ for train, test in [[r8_train, r8_test], [mr_train, mr_test]]:
         remove_short_words=False)
 
     x_tr, _, x_ev, _ = tokenize_data(raw_data, tokenizer, data_ids)
-    all_text.extend(x_tr)
-    all_text.extend(x_ev)
+    if x_tr:
+        all_text.extend(x_tr)
+    if x_ev:
+        all_text.extend(x_ev)
     print('Documents so far', len(all_text))
 
 vect = ThesaurusVectorizer(min_df=1, ngram_range=(1, 1), extract_SVO_features=False, extract_VO_features=False,

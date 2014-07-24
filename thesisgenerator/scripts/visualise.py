@@ -117,7 +117,7 @@ def performance_bar_chart(prefix_tables, classifiers, width=0.1, cv=25, wheres=[
             }
             sql = Template(perf_sql).render(values)
 
-            print sql
+            print(sql)
             df = query_to_data_frame(sql)
             data_frames.append(('%.2d-%s' % (table, classifier),
                                 df))
@@ -172,8 +172,8 @@ def coverage_bar_chart(experiments, width=0.13, cv=25,
                 'number': experiment,
                 'wheres': wheres
             }
-            sql = Template(coverage_sql).render(values)
-            print sql
+            sql = coverage_sql.format(values)
+            print(sql)
             df = query_to_data_frame(sql)
             # normalise coverage stats by total types/tokens
             df[stat[0]] /= map(float, df['total_%s' % stat[0][-8:-5]])
@@ -528,4 +528,4 @@ for clf in classifiers: # joblib doesn't work here, forked processes can't query
     for experiments in experiment_sets:
         performance_bar_chart(experiments, [clf])
 
-print 'done'
+print('done')

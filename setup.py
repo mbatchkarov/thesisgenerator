@@ -10,6 +10,6 @@ setup(
     author_email=['M.Batchkarov@sussex.ac.uk'],
     install_requires=['iterpipes3', 'pandas', 'matplotlib', 'numpy', 'scipy',
                       'scikit-learn', 'joblib', 'configobj', 'pymysql',
-                      'jinja2', 'networkx', 'Cython', 'six'],
+                      'networkx', 'Cython', 'six', 'pandas'],
 )
 

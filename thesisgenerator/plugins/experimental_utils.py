@@ -10,9 +10,9 @@ sys.path.append('..')
 sys.path.append('../..')
 
 import glob
-import platform
-from thesisgenerator.utils.data_utils import tokenize_data, load_text_data_into_memory, \
-    load_tokenizer, get_thesaurus
+from thesisgenerator.utils.data_utils import (load_text_data_into_memory,
+                                              load_tokenizer, get_thesaurus,
+                                              tokenize_data)
 from thesisgenerator.utils.conf_file_utils import parse_config_file
 from thesisgenerator.plugins.file_generators import _vary_training_size_file_iterator
 from thesisgenerator.__main__ import go

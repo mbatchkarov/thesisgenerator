@@ -48,7 +48,7 @@ def round_class_pull_to_given_precision(scores, xprecision=0, yprecision=0):
 
 
 def load_classificational_vectors(pickle_file):
-    with open(pickle_file) as infile:
+    with open(pickle_file, 'rb') as infile:
         b = pickle.load(infile)
 
     feature_counts_in_tr_set = np.array(b.tr_matrix.sum(axis=0)).ravel()

@@ -1,3 +1,4 @@
+from glob import glob
 from itertools import chain
 import logging
 import os
@@ -13,7 +14,7 @@ from sklearn.pipeline import Pipeline
 from thesisgenerator.composers.feature_selectors import VectorBackedSelectKBest
 from thesisgenerator.composers.vectorstore import *
 from thesisgenerator.plugins.bov import ThesaurusVectorizer
-from thesisgenerator.utils.data_utils import load_tokenizer, tokenize_data, load_text_data_into_memory
+from thesisgenerator.utils.data_utils import load_tokenizer, load_text_data_into_memory, tokenize_data
 from discoutils.io_utils import write_vectors_to_disk
 
 
@@ -33,13 +34,9 @@ def compose_and_write_vectors(unigram_vectors_path, short_vector_dataset_name, c
     :rtype: list of strings
     """
     tokenized_data = ([], [], [], [])
-    for train, test in classification_data_paths:
-        raw_data, data_ids = load_text_data_into_memory(
-            training_path=train,
-            test_path=test,
-            shuffle_targets=False
-        )
+    for dataset in classification_data_paths:
 
+        raw_data, data_ids = load_text_data_into_memory(dataset)
         tokenizer = load_tokenizer(
             joblib_caching=False,
             normalise_entities=False,
@@ -51,10 +48,11 @@ def compose_and_write_vectors(unigram_vectors_path, short_vector_dataset_name, c
             remove_short_words=False)
         data_in_this_dir = tokenize_data(raw_data, tokenizer, data_ids)
         for x, y in zip(tokenized_data, data_in_this_dir):
-            x.extend(y)
+            if y is not None:
+                x.extend(y)
 
     pipeline = Pipeline([
-        ('vect', ThesaurusVectorizer(ngram_range=(0, 0), min_df=1, use_tfidf=False,
+        ('vect', ThesaurusVectorizer(ngram_range=(0, 0), min_df=5, use_tfidf=False, # only compose frequent phrases
                                      extract_VO_features=False, extract_SVO_features=False,
                                      unigram_feature_pos_tags=['N', 'J'])),
         ('fs', VectorBackedSelectKBest(must_be_in_thesaurus=True)),
@@ -85,7 +83,8 @@ def compose_and_write_vectors(unigram_vectors_path, short_vector_dataset_name, c
         entries_path = os.path.join(output_dir,
                                     'AN_NN_%s_%s.entries.filtered.strings' % (short_vector_dataset_name, composer.name))
         features_path = os.path.join(output_dir,
-                                     'AN_NN_%s_%s.features.filtered.strings' % (short_vector_dataset_name, composer.name))
+                                     'AN_NN_%s_%s.features.filtered.strings' % (
+                                         short_vector_dataset_name, composer.name))
 
         rows2idx = {i: DocumentFeature.from_string(x) for (x, i) in rows.items()}
         write_vectors_to_disk(mat.tocoo(), rows2idx, cols, events_path,
@@ -93,12 +92,10 @@ def compose_and_write_vectors(unigram_vectors_path, short_vector_dataset_name, c
                               entry_filter=lambda x: x.type in {'AN', 'NN', '1-GRAM'})
 
 
-classification_data_path = (
-    '/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data/reuters21578/r8train-tagged-grouped',
-    '/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data/reuters21578/r8test-tagged-grouped')
+classification_data_path = ['/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data/reuters21578/r8-tagged-grouped']
 
-classification_data_path_mr = (
-    '/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data/movie-reviews-train-tagged',
-    '/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data/movie-reviews-test-tagged')
+classification_data_path_mr = ['/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data/movie-reviews-tagged']
 
+technion_data_paths = glob('/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data/techtc100-clean/*')
 
+all_classification_corpora = classification_data_path + classification_data_path_mr + technion_data_paths
