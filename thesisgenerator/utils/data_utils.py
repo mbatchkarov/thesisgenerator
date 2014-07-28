@@ -1,5 +1,6 @@
 import argparse
 from glob import glob
+from hashlib import md5
 import logging
 import os
 import random
@@ -23,7 +24,7 @@ def tokenize_data(data, tokenizer, corpus_ids):
     # param corpus_ids - list-like, names of the training corpus (and optional testing corpus), used for
     # retrieving pre-tokenized data from joblib cache
     x_tr, y_tr, x_test, y_test = data
-    #todo this logic needs to be moved to feature extractor
+    # todo this logic needs to be moved to feature extractor
     x_tr = tokenizer.tokenize_corpus(x_tr, corpus_ids[0])
     if x_test is not None and y_test is not None and corpus_ids[1] is not None:
         x_test = tokenizer.tokenize_corpus(x_test, corpus_ids[1])
@@ -138,8 +139,10 @@ def load_and_shelve_thesaurus(path, sim_threshold, include_self,
     Parses and then shelves a thesaurus file. Reading from it is much faster and memory efficient than
     keeping it in memory. Returns the path to the shelf file
     """
-    filename = 'shelf%d' % hash(path)
-    if os.path.exists(filename):
+    # built-in hash has randomisation enabled by default on py>=3.3
+    filename = 'shelf_%s' % md5(path.encode('utf8')).hexdigest()
+    search_paths = glob('%s*' % filename)  # shelve may add an extension
+    if len(search_paths) == 1:  # there is exactly one file that matches that name
         logging.info('Returning pre-shelved object %s for %s', filename, path)
     else:
         th = Thesaurus.from_tsv(path,
