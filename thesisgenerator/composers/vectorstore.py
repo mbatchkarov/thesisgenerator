@@ -239,6 +239,7 @@ class DummyThesaurus(Thesaurus):
                 raise ValueError('You need to provide a set of value to choose from first.')
             return [(foo.tokens_as_str(), 1.) for foo in sample(self.vocab, self.k)]
 
+    get_nearest_neighbours = __getitem__
 
     def get_vector(self):
         pass

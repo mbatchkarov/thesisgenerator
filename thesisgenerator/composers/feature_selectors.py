@@ -140,6 +140,7 @@ class MetadataStripper(BaseEstimator, TransformerMixin):
     def fit(self, X, y, vector_source=None):
         matrix, self.voc = X  # store voc, may be handy for for debugging
         self.vector_source = vector_source
+        self.vector_source.init_sims([foo.tokens_as_str() for foo in self.voc.keys()])
         return self
 
     def transform(self, X):

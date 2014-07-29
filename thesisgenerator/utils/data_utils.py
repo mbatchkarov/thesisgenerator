@@ -9,7 +9,7 @@ import sys
 sys.path.append('.')
 sys.path.append('..')
 sys.path.append('../..')
-from discoutils.thesaurus_loader import Thesaurus
+from discoutils.thesaurus_loader import Vectors
 import numpy as np
 from joblib import Memory, Parallel, delayed
 from discoutils.misc import ContainsEverything
@@ -145,12 +145,12 @@ def load_and_shelve_thesaurus(path, sim_threshold, include_self,
     if len(search_paths) == 1:  # there is exactly one file that matches that name
         logging.info('Returning pre-shelved object %s for %s', filename, path)
     else:
-        th = Thesaurus.from_tsv(path,
-                                sim_threshold=sim_threshold,
-                                include_self=include_self,
-                                allow_lexical_overlap=allow_lexical_overlap,
-                                max_neighbours=max_neighbours,
-                                row_filter=lambda x, y: y.type in entry_types_to_load)
+        th = Vectors.from_tsv(path,
+                              sim_threshold=sim_threshold,
+                              # include_self=include_self,
+                              # allow_lexical_overlap=allow_lexical_overlap,
+                              max_neighbours=max_neighbours,
+                              row_filter=lambda x, y: y.type in entry_types_to_load)
         logging.info('Shelving %s to %s', path, filename)
         if len(th) > 0:  # don't bother with empty thesauri
             th.to_shelf(filename)

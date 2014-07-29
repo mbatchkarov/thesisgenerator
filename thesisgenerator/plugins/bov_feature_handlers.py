@@ -62,7 +62,7 @@ class BaseFeatureHandler():
         """
 
         #logging.debug('Paraphrasing %r in doc %d', feature, doc_id)
-        neighbours = self.thesaurus[feature]
+        neighbours = self.thesaurus.get_nearest_neighbours(feature)
 
         # if there are any neighbours filter the list of
         # neighbours so that it contains only pairs where
