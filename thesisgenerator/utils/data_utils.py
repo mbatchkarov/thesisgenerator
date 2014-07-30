@@ -1,4 +1,5 @@
 import argparse
+from collections import ChainMap
 from glob import glob
 from hashlib import md5
 import logging
@@ -10,6 +11,7 @@ sys.path.append('.')
 sys.path.append('..')
 sys.path.append('../..')
 from discoutils.thesaurus_loader import Vectors
+from discoutils.misc import Delayed
 import numpy as np
 from joblib import Memory, Parallel, delayed
 from discoutils.misc import ContainsEverything
@@ -102,6 +104,7 @@ def get_thesaurus(conf):
     handler_ = conf['feature_extraction']['decode_token_handler']
     random_thes = conf['feature_extraction']['random_neighbour_thesaurus']
     path = conf['vector_sources']['neighbours_file']
+    use_shelf = conf['vector_sources']['use_shelf']
 
     thesaurus = None
     if random_thes:
@@ -114,17 +117,19 @@ def get_thesaurus(conf):
             raise ValueError('You must provide at least one neighbour source because you requested %s '
                              ' and must_be_in_thesaurus=%s' % (handler_, vectors_exist_))
 
-        logging.info('Loading precomputed neighbour source')
         entry_types_to_load = conf['vector_sources']['entry_types_to_load']
         if not entry_types_to_load:
             entry_types_to_load = ContainsEverything()
+        params = ChainMap({'row_filter': lambda x, y: y.type in entry_types_to_load},
+                          conf['vector_sources'])
 
-        thesaurus = load_and_shelve_thesaurus(path,
-                                              conf['vector_sources']['sim_threshold'],
-                                              conf['vector_sources']['include_self'],
-                                              conf['vector_sources']['allow_lexical_overlap'],
-                                              conf['vector_sources']['max_neighbours'],
-                                              entry_types_to_load)
+        # delays the loading from disk/de-shelving until the resource is needed. The Delayed object also makes it
+        # possible to get either Vectors or Thesaurus into the pipeline, and there is no need to pass any parameters
+        # that relate to IO further down the pipeline
+        if use_shelf:
+            thesaurus = load_and_shelve_thesaurus(path, **params)
+        else:
+            thesaurus = Delayed(Vectors.from_tsv, path, **params)
     if not thesaurus:
         # if a vector source has not been passed in and has not been initialised, then init it to avoid
         # accessing empty things
@@ -133,11 +138,11 @@ def get_thesaurus(conf):
     return thesaurus
 
 
-def load_and_shelve_thesaurus(path, sim_threshold, include_self,
-                              allow_lexical_overlap, max_neighbours, entry_types_to_load):
+def load_and_shelve_thesaurus(path, entry_types_to_load, **kwargs):
     """
     Parses and then shelves a thesaurus file. Reading from it is much faster and memory efficient than
-    keeping it in memory. Returns the path to the shelf file
+    keeping it in memory. Returns a callable that returns the thesaurus
+    :rtype: Delayed
     """
     # built-in hash has randomisation enabled by default on py>=3.3
     filename = 'shelf_%s' % md5(path.encode('utf8')).hexdigest()
@@ -145,16 +150,12 @@ def load_and_shelve_thesaurus(path, sim_threshold, include_self,
     if len(search_paths) == 1:  # there is exactly one file that matches that name
         logging.info('Returning pre-shelved object %s for %s', filename, path)
     else:
-        th = Vectors.from_tsv(path,
-                              sim_threshold=sim_threshold,
-                              # include_self=include_self,
-                              # allow_lexical_overlap=allow_lexical_overlap,
-                              max_neighbours=max_neighbours,
-                              row_filter=lambda x, y: y.type in entry_types_to_load)
+        # that shelf does not exist, create it
+        th = Vectors.from_tsv(path, row_filter=lambda x, y: y.type in entry_types_to_load, **kwargs)
         logging.info('Shelving %s to %s', path, filename)
         if len(th) > 0:  # don't bother with empty thesauri
             th.to_shelf(filename)
-    return filename
+    return Delayed(Vectors.from_shelf_readonly, filename)
 
 
 def shelve_single_thesaurus(conf_file):
@@ -165,12 +166,7 @@ def shelve_single_thesaurus(conf_file):
         entry_types_to_load = ContainsEverything()
 
     if os.path.exists(th):
-        load_and_shelve_thesaurus(th,
-                                  conf['vector_sources']['sim_threshold'],
-                                  conf['vector_sources']['include_self'],
-                                  conf['vector_sources']['allow_lexical_overlap'],
-                                  conf['vector_sources']['max_neighbours'],
-                                  entry_types_to_load)
+        load_and_shelve_thesaurus(th, entry_types_to_load, **conf['vector_sources'])
     else:
         logging.warning('Thesaurus does not exist: %s', th)
 
@@ -187,7 +183,7 @@ def shelve_all_thesauri(n_jobs):
         thes_file = conf['vector_sources']['neighbours_file']
         thesauri[thes_file] = conf_file
 
-    Parallel(n_jobs=n_jobs)(delayed(shelve_single_thesaurus)(conf) for conf in thesauri.values())
+    Parallel(n_jobs=n_jobs)(delayed(shelve_single_thesaurus)(conf_file) for conf_file in thesauri.values())
 
 
 if __name__ == '__main__':

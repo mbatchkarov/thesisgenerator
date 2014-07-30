@@ -8,6 +8,7 @@ Created on Oct 18, 2012
 
 # if one tries to run this script from the main project directory the
 # thesisgenerator package would not be on the path, add it and try again
+import dbm
 import pickle
 import sys
 
@@ -31,7 +32,7 @@ from numpy.ma import hstack
 from sklearn import cross_validation
 from sklearn.pipeline import Pipeline
 
-from discoutils.misc import Bunch
+from discoutils.misc import Bunch, Delayed
 from discoutils.thesaurus_loader import Vectors
 from thesisgenerator.composers.feature_selectors import MetadataStripper
 from thesisgenerator.utils.reflection_utils import get_named_object, get_intersection_of_parameters
@@ -181,10 +182,9 @@ def _build_pipeline(cv_i, vector_source, feature_extr_conf, feature_sel_conf, ou
     init_args, fit_args = {}, {}
     pipeline_list = []
 
-    if isinstance(vector_source, six.string_types):
-            # it's probably a path to a shelved vector source
-            # this is an ugly hack- I can't be sure it's really a PrecomputedSimilaritiesVectorSource
-            vector_source = Vectors.from_shelf_readonly(vector_source)
+    if isinstance(vector_source, Delayed):
+        # build the actual object now (in the worker sub-process)
+        vector_source = vector_source()
 
     _build_vectorizer(cv_i, vector_source, init_args, fit_args, feature_extr_conf,
                       pipeline_list, output_dir, exp_name=exp_name)

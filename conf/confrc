@@ -66,21 +66,12 @@ min_train_features = float() # these need to be a float when using similarity sc
 
 [vector_sources] # this section will eventually replace all thesaurus-related options. There will not be a pre-computed sim matrix, just vectors in a suitable datastructure that allows fast online sim calculation
 	neighbours_file = str(default='') # path to either a Byblo neighbours.strings file.
-	include_self=boolean(default=False) # whether the thesaurus loader includes an entry as its own nearest neighbour
 	sim_threshold=float(default=0.0) # exclude neighbours from thesaurus if sim is less than threshold
-	reduce_dimensionality=boolean(default=False) # whether the dimensionality of the lexical unigram vectors should be reduced. This greatly speeds up later operations on these vectors.
-	dimensions = integer(default=1000) # if reduce_dimensionality, how many dimensions should the resultant vectors have
 	allow_lexical_overlap = boolean(default=True) # when a thesaurus is loaded from disk and this is set to true, neighbours that overlap lexically with the base entry will be removed. See unit test for spec.
     entry_types_to_load = list(default=list()) # when a thesaurus contain many types of entries, e.g. 1-GRAM, AN, NN, etc, which ones should be loaded. This can be used to reduce memory usage. If empty, all entries will be loaded.
     max_neighbours = integer(default=99999999999999) # how many neighbours of each entry to keep in memory
+    use_shelf = boolean(default=False) # whether to use the shelve module to persist thesauri/vectors to disk in an attempt to reduce memory usage
     
-	[[thesisgenerator.composers.vectorstore.AdditiveComposer]]
-		run=boolean(default=False)
-	[[thesisgenerator.composers.vectorstore.MultiplicativeComposer]]
-		run=boolean(default=False)
-	[[thesisgenerator.composers.vectorstore.BaroniComposer]]
-		run=boolean(default=False)
-		file_path=list(default=list())
 		
 [crossvalidation]
 	run=boolean()
@@ -89,10 +80,6 @@ min_train_features = float() # these need to be a float when using similarity sc
 	ratio=float()
     sample_size=integer()
     random_state=integer(default=0)
-
-[split_data]
-    run=boolean()
-    stream_data=boolean()
 
 [feature_selection]
     run=boolean()
