@@ -117,12 +117,7 @@ def get_thesaurus(conf):
             raise ValueError('You must provide at least one neighbour source because you requested %s '
                              ' and must_be_in_thesaurus=%s' % (handler_, vectors_exist_))
 
-        entry_types_to_load = conf['vector_sources']['entry_types_to_load']
-        if not entry_types_to_load:
-            entry_types_to_load = ContainsEverything()
-        params = ChainMap({'row_filter': lambda x, y: y.type in entry_types_to_load},
-                          conf['vector_sources'])
-
+        params = conf['vector_sources']
         # delays the loading from disk/de-shelving until the resource is needed. The Delayed object also makes it
         # possible to get either Vectors or Thesaurus into the pipeline, and there is no need to pass any parameters
         # that relate to IO further down the pipeline
@@ -138,7 +133,7 @@ def get_thesaurus(conf):
     return thesaurus
 
 
-def load_and_shelve_thesaurus(path, entry_types_to_load, **kwargs):
+def load_and_shelve_thesaurus(path, **kwargs):
     """
     Parses and then shelves a thesaurus file. Reading from it is much faster and memory efficient than
     keeping it in memory. Returns a callable that returns the thesaurus
@@ -151,7 +146,7 @@ def load_and_shelve_thesaurus(path, entry_types_to_load, **kwargs):
         logging.info('Returning pre-shelved object %s for %s', filename, path)
     else:
         # that shelf does not exist, create it
-        th = Vectors.from_tsv(path, row_filter=lambda x, y: y.type in entry_types_to_load, **kwargs)
+        th = Vectors.from_tsv(path, **kwargs)
         logging.info('Shelving %s to %s', path, filename)
         if len(th) > 0:  # don't bother with empty thesauri
             th.to_shelf(filename)
@@ -160,13 +155,10 @@ def load_and_shelve_thesaurus(path, entry_types_to_load, **kwargs):
 
 def shelve_single_thesaurus(conf_file):
     conf, _ = parse_config_file(conf_file)
-    entry_types_to_load = conf['vector_sources']['entry_types_to_load']
     th = conf['vector_sources']['neighbours_file']
-    if not entry_types_to_load:
-        entry_types_to_load = ContainsEverything()
 
     if os.path.exists(th):
-        load_and_shelve_thesaurus(th, entry_types_to_load, **conf['vector_sources'])
+        load_and_shelve_thesaurus(th, **conf['vector_sources'])
     else:
         logging.warning('Thesaurus does not exist: %s', th)
 
