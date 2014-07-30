@@ -33,8 +33,8 @@ class ComposerMixin(object):
         composable_phrases = [foo for foo in phrases if foo in self]
         logging.info('Able to compose %d/%d phrases', len(composable_phrases), len(phrases))
         new_matrix = sp.vstack(self.get_vector(foo) for foo in composable_phrases)
-        old_len = len(self.unigram_source.rows)
-        all_rows = deepcopy(self.unigram_source.rows)  # can't mutate the unigram datastructure
+        old_len = len(self.unigram_source.name2row)
+        all_rows = deepcopy(self.unigram_source.name2row)  # can't mutate the unigram datastructure
         for i, foo in enumerate(composable_phrases):
             key = foo if isinstance(foo, str) else foo.tokens_as_str()
             assert key not in all_rows

@@ -3,6 +3,7 @@ from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.feature_selection import SelectKBest, chi2
 import numpy as np
 from sklearn.feature_selection.univariate_selection import _clean_nans
+from discoutils.thesaurus_loader import Vectors
 from thesisgenerator.utils.misc import calculate_log_odds
 
 __author__ = 'mmb28'
@@ -140,7 +141,10 @@ class MetadataStripper(BaseEstimator, TransformerMixin):
     def fit(self, X, y, vector_source=None):
         matrix, self.voc = X  # store voc, may be handy for for debugging
         self.vector_source = vector_source
-        self.vector_source.init_sims([foo.tokens_as_str() for foo in self.voc.keys()])
+        if isinstance(self.vector_source, Vectors):
+            # the vector source can be either a Thesaurus or Vectors. Both can provide nearest neighbours,
+            # but the latter needs this method to be called first
+            self.vector_source.init_sims([foo.tokens_as_str() for foo in self.voc.keys()])
         return self
 
     def transform(self, X):
