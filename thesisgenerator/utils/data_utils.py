@@ -124,7 +124,7 @@ def get_thesaurus(conf):
         if use_shelf:
             thesaurus = load_and_shelve_thesaurus(path, **params)
         else:
-            thesaurus = Delayed(Vectors.from_tsv, path, **params)
+            thesaurus = Delayed(Vectors, Vectors.from_tsv, path, **params)
     if not thesaurus:
         # if a vector source has not been passed in and has not been initialised, then init it to avoid
         # accessing empty things
@@ -150,7 +150,7 @@ def load_and_shelve_thesaurus(path, **kwargs):
         logging.info('Shelving %s to %s', path, filename)
         if len(th) > 0:  # don't bother with empty thesauri
             th.to_shelf(filename)
-    return Delayed(Vectors.from_shelf_readonly, filename)
+    return Delayed(Vectors, Vectors.from_shelf_readonly, filename)
 
 
 def shelve_single_thesaurus(conf_file):
