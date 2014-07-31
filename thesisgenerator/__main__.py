@@ -1,4 +1,4 @@
-#!/usr/bin/python
+# !/usr/bin/python
 # coding=utf-8
 """
 Created on Oct 18, 2012
@@ -182,10 +182,6 @@ def _build_pipeline(cv_i, vector_source, feature_extr_conf, feature_sel_conf, ou
     init_args, fit_args = {}, {}
     pipeline_list = []
 
-    if isinstance(vector_source, Delayed):
-        # build the actual object now (in the worker sub-process)
-        vector_source = vector_source()
-
     _build_vectorizer(cv_i, vector_source, init_args, fit_args, feature_extr_conf,
                       pipeline_list, output_dir, exp_name=exp_name)
 
@@ -217,7 +213,7 @@ def _build_classifiers(classifiers_conf):
     for i, clf_name in enumerate(classifiers_conf):
         if not classifiers_conf[clf_name]:
             continue
-            #  ignore disabled classifiers
+            # ignore disabled classifiers
         if not classifiers_conf[clf_name]['run']:
             logging.debug('Ignoring classifier %s' % clf_name)
             continue
@@ -226,7 +222,11 @@ def _build_classifiers(classifiers_conf):
         yield clf(**init_args)
 
 
-def _cv_loop(configuration, cv_i, score_func, test_idx, train_idx, vector_source, X, y):
+def _cv_loop(configuration, cv_i, score_func, test_idx, train_idx, vector_source:Delayed, X, y):
+    if isinstance(vector_source, Delayed):
+        # build the actual object now (in the worker sub-process)
+        vector_source = vector_source()
+
     scores_this_cv_run = []
     pipeline, fit_params = _build_pipeline(cv_i, vector_source,
                                            configuration['feature_extraction'],
@@ -259,7 +259,7 @@ def _cv_loop(configuration, cv_i, score_func, test_idx, train_idx, vector_source
     tr_matrix = tr_matrix[to_keep_train, :]
     y_train = y_train[to_keep_train]
     # do the same for the test set
-    to_keep_test = test_matrix.A.sum(axis=1) >= configuration['min_test_features'] # todo need unit test
+    to_keep_test = test_matrix.A.sum(axis=1) >= configuration['min_test_features']  # todo need unit test
     logging.info('%d/%d test documents have enough features', sum(to_keep_test), len(y_test))
     test_matrix = test_matrix[to_keep_test, :]
     y_test = y_test[to_keep_test]
