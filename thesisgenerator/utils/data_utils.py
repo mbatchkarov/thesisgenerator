@@ -14,7 +14,6 @@ from discoutils.thesaurus_loader import Vectors
 from discoutils.misc import Delayed
 import numpy as np
 from joblib import Memory, Parallel, delayed
-from discoutils.misc import ContainsEverything
 from sklearn.datasets import load_files
 from thesisgenerator.classifiers import NoopTransformer
 from thesisgenerator.plugins import tokenizers
@@ -150,7 +149,7 @@ def load_and_shelve_thesaurus(path, **kwargs):
         logging.info('Shelving %s to %s', path, filename)
         if len(th) > 0:  # don't bother with empty thesauri
             th.to_shelf(filename)
-    return Delayed(Vectors, Vectors.from_shelf_readonly, filename)
+    return Delayed(Vectors, Vectors.from_shelf_readonly, filename, **kwargs)
 
 
 def shelve_single_thesaurus(conf_file):
