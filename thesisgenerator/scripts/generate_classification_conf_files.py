@@ -1,4 +1,4 @@
-from copy import deepcopy
+from glob import glob
 import os
 import shutil
 import sys
@@ -9,7 +9,7 @@ sys.path.append('.')
 sys.path.append('..')
 sys.path.append('../..')
 from thesisgenerator.composers.vectorstore import *
-from thesisgenerator.utils.conf_file_utils import set_in_conf_file, parse_config_file
+from thesisgenerator.utils.conf_file_utils import set_in_conf_file
 
 '''
 Once all thesauri with ngram entries (obtained using different composition methods) have been built offline,
@@ -154,11 +154,11 @@ def baronified_experiments(exp_number, prefix):
             composer_name = composer_class.name
             if composer_name == 'Socher':
                 thesaurus_file = os.path.join(prefix,
-                                              'socher_vectors/thesaurus_baronified/socher.baronified.sims.neighbours'
+                                              'socher_vectors/thesaurus_baronified/socher.baronified.events.filtered'
                                               '.strings')
             else:
                 pattern = '{prefix}/exp{unlab_num}-{thesf_num}bAN_NN_{unlab_name}-{svd_dims}_{composer_name}_baronified/' \
-                          'AN_NN_{unlab_name}-{svd_dims}_{composer_name}.baronified.sims.neighbours.strings'
+                          'AN_NN_{unlab_name}-{svd_dims}_{composer_name}.baronified.events.filtered.strings'
                 thesaurus_file = pattern.format(**locals())
             e = Experiment(exp_number, composer_name, thesaurus_file, labelled_corpus, unlab_name, unlab_num,
                            thesf_name, thesf_num, 'AN_NN', svd_dims, baronified=True)
@@ -210,27 +210,79 @@ def baselines(exp_number):
     return exp_number
 
 
+def technion_corpora_experiments(exp_number, prefix,
+                                 root='/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data/techtc100-clean/*'):
+    svd_dims = 100
+    corpora = glob(root)
+    use_similarity = False
+
+    # unlabelled corpus
+    for unlab_num, unlab_name in zip([10, 12, 13], ['gigaw', 'neuro', 'word2vec']):
+        # types of features extracted
+        for thesf_num, thesf_name in zip([12, 14, 15], ['dependencies', 'neuro', 'word2vec']):
+            # not all combinations of unlabelled corpus and features extracted make sense, e.g. word2vec+dependency
+            if unlab_name == 'gigaw':
+                if thesf_name != 'dependencies':
+                    continue
+            else:
+                if unlab_name != thesf_name:
+                    # neuro corpus with neuro features
+                    continue
+
+            for labelled_corpus in corpora:
+                for composer_class in composer_algos:
+                    composer_name = composer_class.name
+
+                    if composer_name == 'APDT':
+                        continue
+                    if composer_name == 'Socher' and unlab_name != 'neuro':
+                        # currently can't train Socher composer, so no point in applying it to any
+                        # other vectors than his
+                        continue
+                    if unlab_name == 'word2vec' and composer_name not in composer_algos[:5]:
+                        # word2vec only works with add, mult, left or right composer for now
+                        continue
+
+                    if thesf_name == 'neuro':
+                        thesaurus_file = socher_thesaurus_file
+                    else:
+                        if composer_name == 'Observed':
+                            pattern = reduced_obs_pattern
+                        else:
+                            pattern = reduced_pattern
+                        thesaurus_file = pattern.format(**locals())
+
+                    e = Experiment(exp_number, composer_name, thesaurus_file, labelled_corpus,
+                                   unlab_name, unlab_num,
+                                   thesf_name, thesf_num,
+                                   'AN_NN', svd_dims,
+                                   use_similarity=use_similarity)
+                    experiments.append(e)
+                    exp_number += 1
+    return exp_number
+
+
 prefix = '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit'
 composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
                   RightmostWordComposer, BaroniComposer,
                   Bunch(name='Observed'), Bunch(name='APDT'), Bunch(name='Socher')]
 
-# e.g. exp10-13bAN_NN_gigaw_Left/AN_NN_gigaw_Left.sims.neighbours.strings
+# e.g. exp10-13bAN_NN_gigaw_Left/AN_NN_gigaw_Left.events.filtered.strings
 unred_pattern = '{prefix}/exp{unlab_num}-{thesf_num}bAN_NN_{unlab_name:.5}_{composer_name}/' \
-                'AN_NN_{unlab_name:.5}_{composer_name}.sims.neighbours.strings'
+                'AN_NN_{unlab_name:.5}_{composer_name}.events.filtered.strings'
 
-# e.g. exp10-13bAN_NN_gigaw_Observed/exp10.sims.neighbours.strings
-unred_obs_pattern = '{prefix}/exp{unlab_num}-{thesf_num}bAN_NN_{unlab_name}_{composer_name}/' \
-                    'exp{unlab_num}.sims.neighbours.strings'
+# e.g. exp10-13bAN_NN_gigaw_Observed/exp10.events.filtered.strings
+unred_obs_pattern = '{prefix}/exp{unlab_num}-{thesf_num}bAN_NN_{unlab_name:.5}_{composer_name}/' \
+                    'exp{unlab_num}.events.filtered.strings'
 
-# e.g. exp10-12bAN_NN_gigaw-30_Mult/AN_NN_gigaw-30_Mult.sims.neighbours.strings
-reduced_pattern = '{prefix}/exp{unlab_num}-{thesf_num}bAN_NN_{unlab_name}-{svd_dims}_{composer_name}/' \
-                  'AN_NN_{unlab_name}-{svd_dims}_{composer_name}.sims.neighbours.strings'
-# e.g. exp10-12bAN_NN_gigaw-30_Observed/exp10-SVD30.sims.neighbours.strings
-reduced_obs_pattern = '{prefix}/exp{unlab_num}-{thesf_num}bAN_NN_{unlab_name}-{svd_dims}_{composer_name}/' \
-                      'exp{unlab_num}-SVD{svd_dims}.sims.neighbours.strings'
+# e.g. exp10-12bAN_NN_gigaw-30_Mult/AN_NN_gigaw-30_Mult.events.filtered.strings
+reduced_pattern = '{prefix}/exp{unlab_num}-{thesf_num}bAN_NN_{unlab_name:.5}-{svd_dims}_{composer_name}/' \
+                  'AN_NN_{unlab_name:.5}-{svd_dims}_{composer_name}.events.filtered.strings'
+# e.g. exp10-12bAN_NN_gigaw-30_Observed/exp10-SVD30.events.filtered.strings
+reduced_obs_pattern = '{prefix}/exp{unlab_num}-{thesf_num}bAN_NN_{unlab_name:.5}-{svd_dims}_{composer_name}/' \
+                      'exp{unlab_num}-SVD{svd_dims}.events.filtered.strings'
 
-socher_thesaurus_file = os.path.join(prefix, 'socher_vectors/thesaurus/socher.sims.neighbours.strings')
+socher_thesaurus_file = os.path.join(prefix, 'socher_vectors/thesaurus/socher.events.filtered.strings')
 
 experiments = []
 
@@ -241,7 +293,7 @@ exp_number = an_only_nn_only_experiments(exp_number, prefix, composer_algos)
 exp_number = external_unigram_vector_experiments(exp_number, prefix)  # socher embeddings + Add/Mult composition
 exp_number = external_unigram_vector_experiments(exp_number, prefix, use_socher_embeddings=False)  # word2vec embeddings
 # exp_number = baronified_experiments(exp_number, prefix)
-
+exp_number = technion_corpora_experiments(exp_number, prefix)
 
 for e in experiments:
     print(e, ',')
@@ -252,11 +304,13 @@ megasuperbase_conf_file = 'conf/exp1-superbase.conf'
 for exp in experiments:
     # sanity check
     if exp.thesaurus_file and os.path.exists(exp.thesaurus_file):
-        print("last modified: %s" % time.ctime(os.path.getmtime(exp.thesaurus_file)), \
-            os.stat(exp.thesaurus_file).st_size >> 20, \
-            exp.thesaurus_file)  # size in MB
+        pass
+        print(exp.number,
+              "last modified: %s" % time.ctime(os.path.getmtime(exp.thesaurus_file)),
+              # os.stat(exp.thesaurus_file).st_size >> 20, # size in MB
+              exp.thesaurus_file)
     else:
-        print('MISSING THESAURUS:', exp.thesaurus_file)
+        print(exp.number, 'MISSING THESAURUS:', exp.thesaurus_file)
 
     experiment_dir = 'conf/exp%d' % exp.number
     if not os.path.exists(experiment_dir):
@@ -266,8 +320,10 @@ for exp in experiments:
     shutil.copy(megasuperbase_conf_file, base_conf_file)
     if exp.labelled_name == 'R2':
         train_data = 'sample-data/reuters21578/r8-tagged-grouped'
-    else:
+    elif exp.labelled_name == 'MR':
         train_data = 'sample-data/movie-reviews-tagged'
+    else:
+        train_data = exp.labelled_name
 
     set_in_conf_file(base_conf_file, ['training_data'], train_data)
     set_in_conf_file(base_conf_file, ['feature_extraction', 'decode_token_handler'],
