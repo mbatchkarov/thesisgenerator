@@ -273,7 +273,7 @@ def test_bigram_features_with_composer_without_fs():
 
 def _check_debug_file(ev_matrix, tr_matrix, voc):
     for name, matrix in zip(['tr', 'ev'], [tr_matrix, ev_matrix]):
-        filename = "PostVectDump_fs-test_%s-cl0-fold'NONE'.csv" % name
+        filename = "PostVectDump_fs-test_%s-fold0.csv" % name
         df = read_csv(filename)
         # the columns are u'id', u'target', u'total_feat_weight', u'nonzero_feats', followed by feature vectors
         # check that we have the right number of columns

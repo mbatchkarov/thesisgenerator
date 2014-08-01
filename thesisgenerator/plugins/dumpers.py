@@ -24,12 +24,11 @@ class FeatureVectorsCsvDumper(TransformerMixin):
     Saves the vectorized input to file for inspection
     """
 
-    def __init__(self, exp_name, pipe_id=0, prefix='.'):
+    def __init__(self, exp_name, cv_number=0, prefix='.'):
         self.exp_name = exp_name
-        self.pipe_id = pipe_id
+        self.cv_number = cv_number
         self.prefix = prefix
         self._tranform_call_count = 0
-        self.cv_number = 'NONE'
 
     def _dump(self, X, y, file_name='dump.csv'):
         """
@@ -43,13 +42,6 @@ class FeatureVectorsCsvDumper(TransformerMixin):
         We only want to dump after stages 1.2 and 2.1
         """
         matrix, vocabulary_ = X
-        #vocab_file = './tmp_vocabulary_%s_%d' % (self.exp_name, self.pipe_id)
-        #logging.info('reading %s' % vocab_file)
-        #with open(vocab_file, 'r') as f:
-        #    vocabulary_ = pickle.load(f)
-        #    if len(y) < 1:
-        #        os.remove(vocab_file)
-
         new_file = os.path.join(self.prefix, file_name)
         c = csv.writer(open(new_file, "w"))
         inverse_vocab = {index: word for (word, index) in vocabulary_.items()}
@@ -73,14 +65,13 @@ class FeatureVectorsCsvDumper(TransformerMixin):
 
         if 1 <= self._tranform_call_count <= 2:
             self._dump(X, self.y,
-                       file_name='PostVectDump_%s_%s-cl%d-fold%r.csv' % (self.exp_name,
-                                                                         suffix[self._tranform_call_count],
-                                                                         self.pipe_id,
-                                                                         self.cv_number))
+                       file_name='PostVectDump_%s_%s-fold%r.csv' % (self.exp_name,
+                                                                     suffix[self._tranform_call_count],
+                                                                     self.cv_number))
         return X
 
     def get_params(self, deep=True):
-        return {'pipe_id': self.pipe_id,
+        return {'cv_number': self.cv_number,
                 'exp_name': self.exp_name}
 
 

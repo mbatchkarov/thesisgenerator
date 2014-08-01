@@ -3,17 +3,14 @@ from collections import defaultdict
 import logging
 import array
 import numbers
-import shelve
 import scipy.sparse as sp
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 from discoutils.misc import ContainsEverything
 from thesisgenerator.classifiers import NoopTransformer
-from thesisgenerator.composers.vectorstore import DummyThesaurus
 from thesisgenerator.plugins import tokenizers
 from thesisgenerator.plugins.bov_feature_handlers import get_token_handler
 from discoutils.tokens import DocumentFeature
-from discoutils.thesaurus_loader import Thesaurus
 from thesisgenerator.plugins.stats import get_stats_recorder
 
 
@@ -117,7 +114,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
         self.stats = get_stats_recorder(self.record_stats, stats_hdf_file, '-tr')
         # a different stats recorder will be used for the testing data
 
-        # BEGIN super.fit_transform
+        ########### BEGIN super.fit_transform ##########
         # this is a modified version of super.fit_transform which works with an empty vocabulary
         max_df = self.max_df
         min_df = self.min_df
@@ -149,11 +146,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
                                                            max_features)
 
             self.vocabulary_ = vocabulary
-            # END super.fit_transform
-
-        # once training is done, convert all document features (unigrams and composable ngrams)
-        # to a ditributional feature vector
-
+        ########## END super.fit_transform ##########
         return X, self.vocabulary_
 
     def transform(self, raw_documents):
