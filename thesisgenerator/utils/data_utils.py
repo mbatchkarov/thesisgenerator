@@ -72,6 +72,22 @@ def load_tokenizer(normalise_entities=False, use_pos=True, coarse_pos=True, lemm
     )
     return tok
 
+def get_tokenized_data(training_data, test_data, normalise_entities,
+                       use_pos, coarse_pos, lemmatize, lowercase, remove_stopwords,
+                       remove_short_words, remove_long_words, shuffle_targets, *args, **kwargs):
+    raw_data, data_ids = load_text_data_into_memory(training_path=training_data, test_path=test_data,
+                                                    shuffle_targets=shuffle_targets)
+    tokenizer = load_tokenizer(joblib_caching=False,  # remove this parameter
+                               normalise_entities=normalise_entities,
+                               use_pos=use_pos,
+                               coarse_pos=coarse_pos,
+                               lemmatize=lemmatize,
+                               lowercase=lowercase,
+                               remove_stopwords=remove_stopwords,
+                               remove_short_words=remove_short_words,
+                               remove_long_words=remove_long_words
+    )
+    return tokenize_data(raw_data, tokenizer, data_ids)
 
 def _get_data_iterators(path, shuffle_targets=False):
     """

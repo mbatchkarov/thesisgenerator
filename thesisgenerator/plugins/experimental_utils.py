@@ -3,6 +3,7 @@
 
 # if one tries to run this script from the main project directory the
 # thesisgenerator package would not be on the path, add it and try again
+from collections import ChainMap
 import sys
 
 sys.path.append('.')
@@ -10,13 +11,14 @@ sys.path.append('..')
 sys.path.append('../..')
 
 import glob
-from thesisgenerator.utils.data_utils import (load_text_data_into_memory,
-                                              load_tokenizer, get_thesaurus,
-                                              tokenize_data)
+import os
+import logging
+import platform
+from thesisgenerator.utils.data_utils import get_thesaurus, get_tokenized_data
 from thesisgenerator.utils.conf_file_utils import parse_config_file
 from thesisgenerator.plugins.file_generators import _vary_training_size_file_iterator
 from thesisgenerator.__main__ import go
-from thesisgenerator.plugins.dumpers import *
+from joblib import Memory
 
 
 def _clear_old_files(i, prefix):
@@ -67,23 +69,13 @@ def run_experiment(expid, num_workers=4,
     if not thesaurus:
         thesaurus = get_thesaurus(conf)
 
-    raw_data, data_ids = load_text_data_into_memory(
-        training_path=conf['training_data'],
-        test_path=conf['test_data'],
-        shuffle_targets=conf['shuffle_targets']
-    )
-    tokenizer = load_tokenizer(
-        joblib_caching=conf['joblib_caching'],
-        normalise_entities=conf['feature_extraction']['normalise_entities'],
-        use_pos=conf['feature_extraction']['use_pos'],
-        coarse_pos=conf['feature_extraction']['coarse_pos'],
-        lemmatize=conf['feature_extraction']['lemmatize'],
-        lowercase=conf['tokenizer']['lowercase'],
-        remove_stopwords=conf['tokenizer']['remove_stopwords'],
-        remove_short_words=conf['tokenizer']['remove_short_words'],
-        remove_long_words=conf['tokenizer']['remove_long_words']
-    )
-    tokenised_data = tokenize_data(raw_data, tokenizer, data_ids)
+    memory = Memory(cachedir='.', verbose=0)
+    get_cached_tokenized_data = memory.cache(get_tokenized_data, ignore=['*', '**']) \
+        if conf['joblib_caching'] else get_tokenized_data
+    tokenised_data = get_cached_tokenized_data(**ChainMap(conf,
+                                                          conf['feature_extraction'],
+                                                          conf['tokenizer'],
+                                                          conf['feature_extraction']))
 
     # run data through the pipeline
     return [go(new_conf_file, log_dir, tokenised_data, thesaurus, n_jobs=num_workers)
@@ -93,7 +85,6 @@ def run_experiment(expid, num_workers=4,
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO,
                         format="%(asctime)s\t%(module)s.%(funcName)s (line %(lineno)d)\t%(levelname)s : %(message)s")
-
     if len(sys.argv) == 2:
         i = int(sys.argv[1])  # full experiment id
         run_experiment(i)
