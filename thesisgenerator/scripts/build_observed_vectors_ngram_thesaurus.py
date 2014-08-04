@@ -91,6 +91,12 @@ def do_work(corpus, features, svd_dims):
 
 
 def do_work_socher(baronify):
+    """
+    Formats the files output by Socher (2011)'s matlab code into byblo-compatible files. See note
+    "Socher vectors" in Evernote
+
+    :param baronify:
+    """
     # SET UP A FEW REQUIRED PATHS
     # where are the composed n-gram vectors, must contain parsed.txt, phrases.txt and outVectors.txt
     # before running this function, put all phrases to be composed in parsed.txt, wrapping them
@@ -171,9 +177,9 @@ def do_work_socher(baronify):
         entries_file, features_file, vectors_file = baronify_files(entries_file, features_file, vectors_file)
 
     # BUILD A THESAURUS FROM THESE FILES
-    os.chdir(byblo_base_dir)
-    do_second_part_without_base_thesaurus(byblo_conf_file, output_dir,
-                                          vectors_file, entries_file, features_file)
+    # os.chdir(byblo_base_dir)
+    # do_second_part_without_base_thesaurus(byblo_conf_file, output_dir,
+    #                                       vectors_file, entries_file, features_file)
 
 
 def get_cmd_parser():

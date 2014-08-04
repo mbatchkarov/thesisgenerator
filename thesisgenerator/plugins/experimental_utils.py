@@ -45,7 +45,7 @@ def run_experiment(expid, num_workers=4,
     :param thesaurus: provide a parsed thesaurus instead of a path to one (useful for unit testing)
     :return:
     """
-    print(('RUNNING EXPERIMENT %d' % expid))
+    logging.info('RUNNING EXPERIMENT %d', expid)
     hostname = platform.node()
     if 'apollo' in hostname or 'node' in hostname:
         num_workers = 30
@@ -64,15 +64,14 @@ def run_experiment(expid, num_workers=4,
 
     _clear_old_files(expid, prefix)
     conf, configspec_file = parse_config_file(base_conf_file)
+    if not thesaurus:
+        thesaurus = get_thesaurus(conf)
+
     raw_data, data_ids = load_text_data_into_memory(
         training_path=conf['training_data'],
         test_path=conf['test_data'],
         shuffle_targets=conf['shuffle_targets']
     )
-
-    if not thesaurus:
-        thesaurus = get_thesaurus(conf)
-
     tokenizer = load_tokenizer(
         joblib_caching=conf['joblib_caching'],
         normalise_entities=conf['feature_extraction']['normalise_entities'],

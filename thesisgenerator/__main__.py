@@ -13,11 +13,7 @@ import pickle
 import sys
 
 from joblib import Parallel, delayed
-import six
-
-sys.path.append('.')
-sys.path.append('..')
-sys.path.append('../..')
+from datetime import datetime
 
 import os
 import shutil
@@ -33,7 +29,6 @@ from sklearn import cross_validation
 from sklearn.pipeline import Pipeline
 
 from discoutils.misc import Bunch, Delayed
-from discoutils.thesaurus_loader import Vectors
 from thesisgenerator.composers.feature_selectors import MetadataStripper
 from thesisgenerator.utils.reflection_utils import get_named_object, get_intersection_of_parameters
 from thesisgenerator.utils.misc import ChainCallable
@@ -81,13 +76,14 @@ def _build_crossvalidation_iterator(config, x_vals, y_vals, x_test=None,
         y_vals = hstack([y_vals, y_test])
 
     dataset_size = len(x_vals)
+    random_state = config['random_state']
     if k < 0:
         logging.warning('crossvalidation.k not specified, defaulting to 1')
         k = 1
     if cv_type == 'kfold':
-        iterator = cross_validation.KFold(dataset_size, int(k))
+        iterator = cross_validation.KFold(dataset_size, n_folds=int(k), random_state=random_state)
     elif cv_type == 'skfold':
-        iterator = cross_validation.StratifiedKFold(y_vals, int(k))
+        iterator = cross_validation.StratifiedKFold(y_vals, n_folds=int(k), random_state=random_state)
     elif cv_type == 'loo':
         iterator = cross_validation.LeaveOneOut(dataset_size, int(k))
     elif cv_type == 'bootstrap':
@@ -95,7 +91,8 @@ def _build_crossvalidation_iterator(config, x_vals, y_vals, x_test=None,
         if k < 0:
             logging.warning('crossvalidation.ratio not specified,defaulting to 0.8')
             ratio = 0.8
-        iterator = cross_validation.Bootstrap(dataset_size, n_iter=int(k), train_size=ratio)
+        iterator = cross_validation.Bootstrap(dataset_size, n_iter=int(k),
+                                              train_size=ratio, random_state=random_state)
     elif cv_type == 'oracle':
         iterator = LeaveNothingOut(dataset_size)
     elif cv_type == 'test_set' and x_test is not None and y_test is not None:
@@ -222,18 +219,23 @@ def _build_classifiers(classifiers_conf):
         yield clf(**init_args)
 
 
-def _cv_loop(configuration, cv_i, score_func, test_idx, train_idx, vector_source:Delayed, X, y):
+def _cv_loop(log_dir, config, cv_i, score_func, test_idx, train_idx, vector_source:Delayed, X, y):
+    _config_logger(log_dir,
+                   name='{}-cv{}'.format(config['name'], cv_i),
+                   debug=config['debug'])
+
+
     if isinstance(vector_source, Delayed):
         # build the actual object now (in the worker sub-process)
         vector_source = vector_source()
 
     scores_this_cv_run = []
     pipeline, fit_params = _build_pipeline(cv_i, vector_source,
-                                           configuration['feature_extraction'],
-                                           configuration['feature_selection'],
-                                           configuration['output_dir'],
-                                           configuration['debug'],
-                                           exp_name=configuration['name'])
+                                           config['feature_extraction'],
+                                           config['feature_selection'],
+                                           config['output_dir'],
+                                           config['debug'],
+                                           exp_name=config['name'])
     # code below is a simplified version of sklearn's _cross_val_score
     train_text = [X[idx] for idx in train_idx]
     test_text = [X[idx] for idx in test_idx]
@@ -254,17 +256,17 @@ def _cv_loop(configuration, cv_i, score_func, test_idx, train_idx, vector_source
 
 
     # remove documents with too few features
-    to_keep_train = tr_matrix.A.sum(axis=1) >= configuration['min_train_features']
+    to_keep_train = tr_matrix.A.sum(axis=1) >= config['min_train_features']
     logging.info('%d/%d train documents have enough features', sum(to_keep_train), len(y_train))
     tr_matrix = tr_matrix[to_keep_train, :]
     y_train = y_train[to_keep_train]
     # do the same for the test set
-    to_keep_test = test_matrix.A.sum(axis=1) >= configuration['min_test_features']  # todo need unit test
+    to_keep_test = test_matrix.A.sum(axis=1) >= config['min_test_features']  # todo need unit test
     logging.info('%d/%d test documents have enough features', sum(to_keep_test), len(y_test))
     test_matrix = test_matrix[to_keep_test, :]
     y_test = y_test[to_keep_test]
 
-    for clf in _build_classifiers(configuration['classifiers']):
+    for clf in _build_classifiers(config['classifiers']):
         logging.info('Starting training of %s', clf)
         clf = clf.fit(tr_matrix, y_train)
         predictions = clf.predict(test_matrix)
@@ -273,7 +275,7 @@ def _cv_loop(configuration, cv_i, score_func, test_idx, train_idx, vector_source
         tr_set_scores = score_func(y_train, clf.predict(tr_matrix))
         logging.info('Training set scores: %r', tr_set_scores)
 
-        if configuration['feature_extraction']['record_stats']:
+        if config['feature_extraction']['record_stats']:
             # if a feature selectors exist, use its vocabulary
             # step_name = 'fs' if 'fs' in pipeline.named_steps else 'vect'
             inv_voc = {index: feature for (feature, index) in pipeline.named_steps['vect'].vocabulary_.items()}
@@ -293,6 +295,7 @@ def _cv_loop(configuration, cv_i, score_func, test_idx, train_idx, vector_source
                  metric.split('.')[-1],
                  score])
         logging.info('Done with %s', clf)
+    print('cv', cv_i, 'pid:', os.getpid(), 'end time', datetime.now())
     return scores_this_cv_run
 
 
@@ -338,7 +341,9 @@ def _analyze(scores, output_dir, name, class_names):
     return csv
 
 
-def _config_logger(output_path=None, name='log', debug=False):
+def _config_logger(logs_dir=None, name='log', debug=False):
+    if logs_dir and not os.path.exists(logs_dir):
+        os.makedirs(logs_dir)
     newly_created_logger = logging.getLogger()
 
     # for parallelisation purposes we need to remove all the handlers that were
@@ -362,8 +367,8 @@ def _config_logger(output_path=None, name='log', debug=False):
     sh.setFormatter(fmt)
     newly_created_logger.addHandler(sh)
 
-    if output_path is not None:
-        log_file = os.path.join(output_path, '%s.log' % name)
+    if logs_dir is not None:
+        log_file = os.path.join(logs_dir, '%s.log' % name)
         fh = logging.FileHandler(log_file, mode='w')
         if debug:
             fh.setLevel(logging.DEBUG)
@@ -392,27 +397,13 @@ def _prepare_output_directory(clean, output):
         os.makedirs(output)
 
 
-def _prepare_classpath(classpath):
-    # **********************************
-    # ADD classpath TO SYSTEM PATH
-    # **********************************
-    for path in classpath.split(os.pathsep):
-        logging.info('Adding (%s) to system path' % glob(path))
-        sys.path.append(os.path.abspath(path))
-
-
-def go(conf_file, log_dir, data, vector_source, classpath='', clean=False, n_jobs=1):
-    if not os.path.exists(log_dir):
-        os.makedirs(log_dir)
-
+def go(conf_file, log_dir, data, vector_source, clean=False, n_jobs=1):
     config, configspec_file = parse_config_file(conf_file)
 
-    log = _config_logger(log_dir, name=config['name'], debug=config['debug'])
-    log.info('Reading configuration file from \'%s\', conf spec from \'%s\''
-             % (glob(conf_file)[0], configspec_file))
+    logging.info('Reading configuration file from %s, conf spec from %s',
+                 glob(conf_file)[0], configspec_file)
     output = config['output_dir']
     _prepare_output_directory(clean, output)
-    _prepare_classpath(classpath)
     shutil.copy(conf_file, output)
 
     # Runs all commands specified in the configuration file
@@ -424,15 +415,17 @@ def go(conf_file, log_dir, data, vector_source, classpath='', clean=False, n_job
     x_tr, y_tr, x_test, y_test = data
 
     # CREATE CROSSVALIDATION ITERATOR
-    cv_iterator, x_vals_seen, y_vals_seen = \
-        _build_crossvalidation_iterator(config['crossvalidation'], x_tr, y_tr, x_test, y_test)
+    cv_iterator, x_vals_seen, y_vals_seen = _build_crossvalidation_iterator(config['crossvalidation'],
+                                                                            x_tr, y_tr, x_test, y_test)
     all_scores = []
     score_func = ChainCallable(config['evaluation'])
 
-    scores_over_cv = Parallel(n_jobs=n_jobs)(
-        delayed(_cv_loop)(config, i, score_func, test_idx, train_idx, vector_source, x_vals_seen, y_vals_seen)
-        for i, (train_idx, test_idx) in enumerate(cv_iterator)
-    )
+    params = []
+    for i, (train_idx, test_idx) in enumerate(cv_iterator):
+        params.append((log_dir, config, i, score_func, test_idx, train_idx,
+                       vector_source, x_vals_seen, y_vals_seen))
+
+    scores_over_cv = Parallel(n_jobs=n_jobs)(delayed(_cv_loop)(*foo) for foo in params)
     all_scores.extend([score for one_set_of_scores in scores_over_cv for score in one_set_of_scores])
     class_names = dict(enumerate(sorted(set(y_vals_seen))))
     output_file = _analyze(all_scores, config['output_dir'], config['name'], class_names)

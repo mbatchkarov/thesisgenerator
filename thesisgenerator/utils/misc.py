@@ -74,14 +74,14 @@ class ChainCallable(object):
     """
 
     def __init__(self, config):
-        self.to_call = [(x, get_named_object(x)) for x in
-                        config.keys() if config[x]['run']]
         self.config = config
 
     def __call__(self, true_labels, predicted_labels):
+        to_call = [(x, get_named_object(x)) for x in
+                        self.config.keys() if self.config[x]['run']]
         options = {}
         result = {}
-        for func_name, func in self.to_call:
+        for func_name, func in to_call:
             initialize_args = inspect.getargspec(func)[0]
             call_args = {arg: val for arg, val in self.config[func_name].items()
                          if val != '' and arg in initialize_args}
