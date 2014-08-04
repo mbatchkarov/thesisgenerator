@@ -72,6 +72,7 @@ def load_tokenizer(normalise_entities=False, use_pos=True, coarse_pos=True, lemm
     )
     return tok
 
+
 def get_tokenized_data(training_data, test_data, normalise_entities,
                        use_pos, coarse_pos, lemmatize, lowercase, remove_stopwords,
                        remove_short_words, remove_long_words, shuffle_targets, *args, **kwargs):
@@ -88,6 +89,7 @@ def get_tokenized_data(training_data, test_data, normalise_entities,
                                remove_long_words=remove_long_words
     )
     return tokenize_data(raw_data, tokenizer, data_ids)
+
 
 def _get_data_iterators(path, shuffle_targets=False):
     """
@@ -193,19 +195,24 @@ def shelve_all_thesauri(n_jobs):
     Parallel(n_jobs=n_jobs)(delayed(shelve_single_thesaurus)(conf_file) for conf_file in thesauri.values())
 
 
-if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO,
-                        format="%(asctime)s\t%(module)s.%(funcName)s (line %(lineno)d)\t%(levelname)s : %("
-                               "message)s")
+def cache_single_labelled_corpus(conf_file, memory=None):
+    if not memory:
+        memory = Memory(cachedir='.', verbose=0)
+    conf, _ = parse_config_file(conf_file)
+    get_cached_tokenized_data = memory.cache(get_tokenized_data, ignore=['*', '**'])
+    _ = get_cached_tokenized_data(**ChainMap(conf,
+                                             conf['feature_extraction'],
+                                             conf['tokenizer'],
+                                             conf['feature_extraction']))
 
-    parser = argparse.ArgumentParser()
-    group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument('--jobs', type=int, help='Number of shelving jobs (will do all possible thesauri)')
-    group.add_argument('--experiment', type=int, help='Shelve just the thesaurus of this experiment')
 
-    parameters = parser.parse_args()
-    if parameters.jobs:
-        shelve_all_thesauri(parser.parse_args().jobs)
-    else:
-        shelve_single_thesaurus('conf/exp{0}/exp{0}_base.conf'.format(parameters.experiment))
+def cache_all_labelled_corpora(n_jobs):
+    all_conf_files = glob('conf/exp*/exp*_base.conf')
+    corpora = dict()
+    for conf_file in all_conf_files:
+        conf, _ = parse_config_file(conf_file)
+        corpus = conf['training_data']
+        corpora[corpus] = conf_file
+
+    Parallel(n_jobs=n_jobs)(delayed(cache_single_labelled_corpus)(conf_file) for conf_file in corpora.values())
 

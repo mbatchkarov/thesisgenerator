@@ -291,7 +291,6 @@ def _cv_loop(log_dir, config, cv_i, score_func, test_idx, train_idx, vector_sour
                  metric.split('.')[-1],
                  score])
         logging.info('Done with %s', clf)
-    print('cv', cv_i, 'pid:', os.getpid(), 'end time', datetime.now())
     return scores_this_cv_run
 
 
