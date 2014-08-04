@@ -33,7 +33,7 @@ def _clear_old_files(i, prefix):
         os.remove(f)
 
 
-def run_experiment(expid, num_workers=4,
+def run_experiment(expid, num_workers=1,
                    predefined_sized=[],
                    prefix='/mnt/lustre/scratch/inf/mmb28/thesisgenerator',
                    thesaurus=None):
@@ -48,11 +48,8 @@ def run_experiment(expid, num_workers=4,
     :return:
     """
     logging.info('RUNNING EXPERIMENT %d', expid)
-    hostname = platform.node()
-    if 'apollo' in hostname or 'node' in hostname:
-        num_workers = 30
 
-    sizes = [500]
+    sizes = [500] # this is only used if crossval type is subsampled_test_set
     if expid == 0:
         # exp0 is for debugging only, we don't have to do much
         sizes = [180]
