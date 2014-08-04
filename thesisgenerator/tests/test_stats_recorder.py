@@ -71,7 +71,7 @@ def test_coverage_statistics(stats_file):
     # at train time everything must be in vocabulary (that's how it works)
     # and in thesaurus (the test thesaurus is set up this way)
     df = sum_up_token_counts('%s.tc.csv' % stats_file.replace('-ev', '-tr'))
-
+    print(df)
     assert df.query('IV == 0 and IT == 0').shape == (0, 3)  # 2 types both OOV and OOT
     assert df.query('IV == 0 and IT == 0')['count'].sum() == 0.0  # 4 tokens
 
