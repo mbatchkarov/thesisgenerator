@@ -45,13 +45,14 @@ class TestUtils(TestCase):
         # with a test set the random seed should make no difference
         for seed in range(10):
             self.conf['random_state'] = seed
-            it, all_x, all_y = \
-                _build_crossvalidation_iterator(self.conf, self.x_train,
+            it, all_y = \
+                _build_crossvalidation_iterator(self.conf,
                                                 self.y_train,
-                                                x_test=self.x_test,
                                                 y_test=self.y_test)
 
             count = 0
+            all_x = list(self.x_train)
+            all_x.extend(self.x_test)
             for train, test in it:
                 assert_array_equal(array(all_x)[train], self.x_train)
                 assert_array_equal(array(all_x)[test], self.x_test)
@@ -71,17 +72,17 @@ class TestUtils(TestCase):
             for seed in [1, 2, 3, 1, 2, 3, 1, 2, 3]:
                 self.conf['random_state'] = seed
                 if not subsampling:
-                    it, all_x, all_y = \
-                        _build_crossvalidation_iterator(self.conf,
-                                                        self.x_train,
-                                                        self.y_train)
+                    it, all_y = _build_crossvalidation_iterator(self.conf,
+                                                                self.y_train)
                 else:
-                    it, all_x, all_y = \
-                        _build_crossvalidation_iterator(self.conf,
-                                                        self.x_train,
-                                                        self.y_train,
-                                                        x_test=self.x_test,
-                                                        y_test=self.y_test)
+                    it, all_y = _build_crossvalidation_iterator(self.conf,
+                                                                self.y_train,
+                                                                y_test=self.y_test)
+                if self.y_train is not None:
+                    all_x = list(self.x_train)
+                    all_x.extend(self.x_test)
+                else:
+                    all_x = self.x_train
 
                 for fold_num, (train, test) in enumerate(it):
                     tr = array(all_x)[train]
@@ -89,7 +90,7 @@ class TestUtils(TestCase):
 
                     if not subsampling:
                         # 2-fold CV, iterator should yield train/test segments
-                        #  half as long as the full data set
+                        # half as long as the full data set
                         self.assertEqual(len(tr),
                                          len(self.x_train) / self.conf['k'])
                     else:

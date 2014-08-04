@@ -41,8 +41,7 @@ from thesisgenerator import config
 from thesisgenerator.plugins.dumpers import FeatureVectorsCsvDumper
 
 
-def _build_crossvalidation_iterator(config, x_vals, y_vals, x_test=None,
-                                    y_test=None):
+def _build_crossvalidation_iterator(config, y_train, y_test=None):
     """
     Returns a crossvalidation iterator, which contains a list of
     (train_indices, test_indices) that can be used to slice
@@ -61,21 +60,20 @@ def _build_crossvalidation_iterator(config, x_vals, y_vals, x_test=None,
     logging.info('Building crossvalidation iterator')
     cv_type = config['type']
     k = config['k']
+    dataset_size = len(y_train)
 
-    if x_test is not None and y_test is not None:
+    if y_test is not None:
         logging.warning('You have requested test set to be used for evaluation.')
         if cv_type != 'test_set' and cv_type != 'subsampled_test_set':
             logging.error('Wrong crossvalidation type. Only test_set '
                           'or subsampled_test_set are permitted with a test set')
             sys.exit(1)
 
-        x_vals = list(x_vals)
-        train_indices = range(len(x_vals))
-        test_indices = range(len(x_vals), len(x_vals) + len(x_test))
-        x_vals.extend(x_test)
-        y_vals = hstack([y_vals, y_test])
+        train_indices = range(dataset_size)
+        test_indices = range(dataset_size, dataset_size + len(y_test))
+        y_train = hstack([y_train, y_test])
+        dataset_size += len(y_test)
 
-    dataset_size = len(x_vals)
     random_state = config['random_state']
     if k < 0:
         logging.warning('crossvalidation.k not specified, defaulting to 1')
@@ -83,7 +81,7 @@ def _build_crossvalidation_iterator(config, x_vals, y_vals, x_test=None,
     if cv_type == 'kfold':
         iterator = cross_validation.KFold(dataset_size, n_folds=int(k), random_state=random_state)
     elif cv_type == 'skfold':
-        iterator = cross_validation.StratifiedKFold(y_vals, n_folds=int(k), random_state=random_state)
+        iterator = cross_validation.StratifiedKFold(y_train, n_folds=int(k), random_state=random_state)
     elif cv_type == 'loo':
         iterator = cross_validation.LeaveOneOut(dataset_size, int(k))
     elif cv_type == 'bootstrap':
@@ -95,11 +93,10 @@ def _build_crossvalidation_iterator(config, x_vals, y_vals, x_test=None,
                                               train_size=ratio, random_state=random_state)
     elif cv_type == 'oracle':
         iterator = LeaveNothingOut(dataset_size)
-    elif cv_type == 'test_set' and x_test is not None and y_test is not None:
+    elif cv_type == 'test_set' and y_test is not None:
         iterator = PredefinedIndicesIterator(train_indices, test_indices)
-    elif cv_type == 'subsampled_test_set' and \
-                    x_test is not None and y_test is not None:
-        iterator = SubsamplingPredefinedIndicesIterator(y_vals,
+    elif cv_type == 'subsampled_test_set' and y_test is not None:
+        iterator = SubsamplingPredefinedIndicesIterator(y_train,
                                                         train_indices,
                                                         test_indices, int(k),
                                                         config['sample_size'],
@@ -110,7 +107,7 @@ def _build_crossvalidation_iterator(config, x_vals, y_vals, x_test=None,
             'types are \'kfold\', \'skfold\', \'loo\', \'bootstrap\', '
             '\'test_set\', \'subsampled_test_set\' and \'oracle\'')
 
-    return iterator, x_vals, y_vals
+    return iterator, y_train
 
 
 def _build_vectorizer(id, vector_source, init_args, fit_args, feature_extraction_conf, pipeline_list,
@@ -223,7 +220,6 @@ def _cv_loop(log_dir, config, cv_i, score_func, test_idx, train_idx, vector_sour
     _config_logger(log_dir,
                    name='{}-cv{}'.format(config['name'], cv_i),
                    debug=config['debug'])
-
 
     if isinstance(vector_source, Delayed):
         # build the actual object now (in the worker sub-process)
@@ -415,19 +411,26 @@ def go(conf_file, log_dir, data, vector_source, clean=False, n_jobs=1):
     x_tr, y_tr, x_test, y_test = data
 
     # CREATE CROSSVALIDATION ITERATOR
-    cv_iterator, x_vals_seen, y_vals_seen = _build_crossvalidation_iterator(config['crossvalidation'],
-                                                                            x_tr, y_tr, x_test, y_test)
+    cv_iterator, y_vals = _build_crossvalidation_iterator(config['crossvalidation'],
+                                                          y_tr, y_test)
+    if x_test is not None:
+        # concatenate all data, the CV iterator will make sure x_test is used for testing
+        x_vals = list(x_tr)
+        x_vals.extend(list(x_test))
+    else:
+        x_vals = x_tr
+
     all_scores = []
     score_func = ChainCallable(config['evaluation'])
 
     params = []
     for i, (train_idx, test_idx) in enumerate(cv_iterator):
         params.append((log_dir, config, i, score_func, test_idx, train_idx,
-                       vector_source, x_vals_seen, y_vals_seen))
+                       vector_source, x_vals, y_vals))
 
     scores_over_cv = Parallel(n_jobs=n_jobs)(delayed(_cv_loop)(*foo) for foo in params)
     all_scores.extend([score for one_set_of_scores in scores_over_cv for score in one_set_of_scores])
-    class_names = dict(enumerate(sorted(set(y_vals_seen))))
+    class_names = dict(enumerate(sorted(set(y_vals))))
     output_file = _analyze(all_scores, config['output_dir'], config['name'], class_names)
     return output_file
 
