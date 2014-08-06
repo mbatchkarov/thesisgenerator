@@ -29,8 +29,7 @@ def tokenize_data(data, tokenizer, corpus_ids):
     x_tr = tokenizer.tokenize_corpus(x_tr, corpus_ids[0])
     if x_test is not None and y_test is not None and corpus_ids[1] is not None:
         x_test = tokenizer.tokenize_corpus(x_test, corpus_ids[1])
-    data = (x_tr, y_tr, x_test, y_test)
-    return data
+    return x_tr, y_tr, x_test, y_test
 
 
 def load_text_data_into_memory(training_path, test_path=None, shuffle_targets=False):
@@ -73,9 +72,10 @@ def load_tokenizer(normalise_entities=False, use_pos=True, coarse_pos=True, lemm
     return tok
 
 
-def get_tokenized_data(training_data, test_data, normalise_entities,
+def get_tokenized_data(training_data, normalise_entities,
                        use_pos, coarse_pos, lemmatize, lowercase, remove_stopwords,
-                       remove_short_words, remove_long_words, shuffle_targets, *args, **kwargs):
+                       remove_short_words, remove_long_words, shuffle_targets,
+                       test_data=None, *args, **kwargs):
     raw_data, data_ids = load_text_data_into_memory(training_path=training_data, test_path=test_data,
                                                     shuffle_targets=shuffle_targets)
     tokenizer = load_tokenizer(joblib_caching=False,  # remove this parameter
@@ -103,8 +103,8 @@ def _get_data_iterators(path, shuffle_targets=False):
 
     logging.info('Using a file content generator with source %(path)s' % locals())
     if not os.path.isdir(path):
-        raise ValueError('The provided source path (%s) has to be a directory containing data in the mallet format'
-                         ' (class per directory, document per file).')
+        raise ValueError('The provided source path %s has to be a directory containing data in the mallet format'
+                         ' (class per directory, document per file).' % path)
 
     dataset = load_files(path, shuffle=False)
     logging.info('Targets are: %s', dataset.target_names)

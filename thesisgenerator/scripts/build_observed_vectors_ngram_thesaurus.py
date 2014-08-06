@@ -150,6 +150,13 @@ def do_work_socher(baronify):
                 composed_phrases.append(d)
                 continue
 
+            # if we got to here, something is amiss
+            # this line is neither empty nor parser bolerplate- usually poorly stripped HTML
+            # pretend nothing is wrong, the composer would not have dealt with this, so
+            # this phrase will get removed by the filter below
+            if '(ROOT' not in line and len(line.strip()) > 0:
+                composed_phrases.append(None) # indicates that something is wrong
+
     # get a list of all phrases where composition worked (no unknown words)
     with open(socher_phrases_file) as infile:
         success = [i for i, line in enumerate(infile) if '*UNKNOWN*' not in line]
