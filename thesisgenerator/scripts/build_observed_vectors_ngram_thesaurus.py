@@ -11,8 +11,9 @@ import os
 from discoutils.tokens import DocumentFeature
 from discoutils.thesaurus_loader import Thesaurus, Vectors
 from discoutils.io_utils import write_vectors_to_disk
-from thesisgenerator.scripts.build_phrasal_thesauri_offline import do_second_part_without_base_thesaurus, \
-    _find_conf_file, baronify_files, _find_events_file
+from thesisgenerator.scripts.build_phrasal_thesauri_offline import (do_second_part_without_base_thesaurus,
+                                                                    _find_conf_file, baronify_files,
+                                                                    _find_events_file)
 import numpy as np
 import scipy.sparse as sp
 from operator import itemgetter
@@ -92,8 +93,10 @@ def do_work(corpus, features, svd_dims):
 
 def do_work_socher(baronify):
     """
-    Formats the files output by Socher (2011)'s matlab code into byblo-compatible files. See note
-    "Socher vectors" in Evernote
+    Formats the files output by Socher (2011)'s matlab code into byblo-compatible files.
+
+    Before running this a list of all phrases needs to be extracted from the labelled data, and these need to
+    be composed with Socher's matlab code. See note "Socher vectors" in Evernote.
 
     :param baronify:
     """
@@ -159,9 +162,9 @@ def do_work_socher(baronify):
     assert len(composed_phrases) == mat.shape[0]  # same number of rows
 
     # CREATE BYBLO EVENTS/FEATURES/ENTRIES FILE FROM INPUT
-    vectors_file = os.path.join(socher_base_dir, 'socher.events.filtered.strings')
-    entries_file = os.path.join(socher_base_dir, 'socher.entries.filtered.strings')
-    features_file = os.path.join(socher_base_dir, 'socher.features.filtered.strings')
+    vectors_file = os.path.join(output_dir, 'socher.events.filtered.strings')
+    entries_file = os.path.join(output_dir, 'socher.entries.filtered.strings')
+    features_file = os.path.join(output_dir, 'socher.features.filtered.strings')
 
     # do the actual writing
     write_vectors_to_disk(
@@ -169,12 +172,13 @@ def do_work_socher(baronify):
         composed_phrases,
         ['RAE-feat%d' % i for i in range(100)],  # Socher provides 100-dimensional vectors
         vectors_file,
-        features_file,
-        entries_file
+        # features_file, # only the vectors file is really needed, unless we are building a Byblo thesaurus
+        # entries_file
     )
 
-    if baronify:
-        entries_file, features_file, vectors_file = baronify_files(entries_file, features_file, vectors_file)
+    # if baronify:
+    # entries_file, features_file, vectors_file = baronify_files(entries_file, features_file, vectors_file)
+
 
     # BUILD A THESAURUS FROM THESE FILES
     # os.chdir(byblo_base_dir)
