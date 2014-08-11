@@ -47,7 +47,7 @@ def do_work(corpus, features, svd_dims):
         observed_ngram_vectors_file = '%s/exp%d-%db/exp%d-with-obs-phrases-SVD%d.events.filtered.strings' % \
                                       (prefix, corpus, features, corpus, svd_dims)
 
-    logging.info('Using observed events file %s', observed_ngram_vectors_file)
+    logging.info('Using observed events file %s ', observed_ngram_vectors_file)
     # where should the output go
     if svd_dims == 0:
         outdir = '%s/exp%d-%dbAN_NN_%s_Observed' % (prefix, corpus, features, name)
@@ -86,9 +86,9 @@ def do_work(corpus, features, svd_dims):
     logging.info(entries_file)
 
     # BUILD A THESAURUS FROM THESE FILES
-    os.chdir(byblo_base_dir)
-    do_second_part_without_base_thesaurus(_find_conf_file(unigram_thesaurus_dir), outdir,
-                                          vectors_file, entries_file, features_file)
+    # os.chdir(byblo_base_dir)
+    # do_second_part_without_base_thesaurus(_find_conf_file(unigram_thesaurus_dir), outdir,
+    #                                       vectors_file, entries_file, features_file)
 
 
 def do_work_socher(baronify):
