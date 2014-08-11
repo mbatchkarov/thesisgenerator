@@ -71,7 +71,8 @@ def compose_and_write_vectors(unigram_vectors_path, short_vector_dataset_name, c
             'vect__vector_source': composer,
             'fs__vector_source': composer,
         }
-        _, vocabulary = pipeline.fit_transform(all_text, **fit_args)
+        # y doesn't really matter here, but is required by fit_transform
+        _, vocabulary = pipeline.fit_transform(all_text, y=np.arange(len(all_text)), **fit_args)
         logging.info('Found a total of %d document features', len(vocabulary))
         # compose_all returns all unigrams and composed phrases
         mat, cols, rows = composer.compose_all(vocabulary.keys())
@@ -100,7 +101,9 @@ all_classification_corpora = classification_data_path + classification_data_path
 
 if __name__ == '__main__':
     # tests only
-    logging.basicConfig()
+    logging.basicConfig(level=logging.INFO,
+                    format="%(asctime)s\t%(module)s.%(funcName)s (line %(lineno)d)\t%(levelname)s : %("
+                           "message)s")
     compose_and_write_vectors('../FeatureExtrationToolkit/exp10-12b/exp10-SVD100.events.filtered.strings',
                               'whatever',
                               all_classification_corpora,
