@@ -1,72 +1,68 @@
 from glob import glob
-from itertools import chain
-import logging
 import os
-from pprint import pprint
 import sys
 
 sys.path.append('.')
 sys.path.append('..')
 sys.path.append('../..')
 
-from numpy import hstack
 from sklearn.pipeline import Pipeline
 from thesisgenerator.composers.feature_selectors import VectorBackedSelectKBest
 from thesisgenerator.composers.vectorstore import *
 from thesisgenerator.plugins.bov import ThesaurusVectorizer
-from thesisgenerator.utils.data_utils import load_tokenizer, load_text_data_into_memory, tokenize_data
+from thesisgenerator.utils.data_utils import get_tokenized_data
 from discoutils.io_utils import write_vectors_to_disk
 
 
 def compose_and_write_vectors(unigram_vectors_path, short_vector_dataset_name, classification_data_paths,
-                              pretrained_Baroni_composer_file,
-                              output_dir='.', composer_classes='bar'):
+                              composer_classes, pretrained_Baroni_composer_file=None,
+                              output_dir='.'):
     """
     Extracts all composable features from a labelled classification corpus and dumps a composed vector for each of them
-    to disk
+    to disk. The output file will also contain all unigram vectors that were passed in.
     :param unigram_vectors_path: a file in Byblo events format that contain vectors for all unigrams. This
     will be used in the composition process
-    :param classification_data_paths: Corpora to extract features from. Type: [ [train1, test1], [train2, test2] ]
+    :param classification_data_paths: Corpora to extract features from.
     :param pretrained_Baroni_composer_file: path to pre-trained Baroni AN/NN composer file
     :param output_dir:
     :param composer_classes: what composers to use
-    :return:
-    :rtype: list of strings
+    :type composer_classes: list
     """
-    tokenized_data = ([], [], [], [])
-    for dataset in classification_data_paths:
-
-        raw_data, data_ids = load_text_data_into_memory(dataset)
-        tokenizer = load_tokenizer(
-            joblib_caching=False,
-            normalise_entities=False,
-            use_pos=True,
-            coarse_pos=True,
-            lemmatize=True,
-            lowercase=True,
-            remove_stopwords=True,
-            remove_short_words=False)
-        data_in_this_dir = tokenize_data(raw_data, tokenizer, data_ids)
-        for x, y in zip(tokenized_data, data_in_this_dir):
-            if y is not None:
-                x.extend(y)
+    all_text = []
+    for path in classification_data_paths:
+        x_tr, _, _, _ = get_tokenized_data(path,
+                                           normalise_entities=False,
+                                           use_pos=True,
+                                           coarse_pos=True,
+                                           lemmatize=True,
+                                           lowercase=True,
+                                           remove_stopwords=False,
+                                           remove_short_words=False,
+                                           remove_long_words=False,
+                                           shuffle_targets=False)
+        assert len(x_tr) > 0
+        all_text.extend(x_tr)
+        logging.info('Documents so far: %d', len(all_text))
 
     pipeline = Pipeline([
-        ('vect', ThesaurusVectorizer(ngram_range=(0, 0), min_df=5, use_tfidf=False, # only compose frequent phrases
+        # do not extract unigrams explicitly, all unigrams that we have vectors for will be written anyway (see below)
+        ('vect', ThesaurusVectorizer(ngram_range=(0, 0), min_df=1, use_tfidf=False,
                                      extract_VO_features=False, extract_SVO_features=False,
                                      unigram_feature_pos_tags=['N', 'J'])),
         ('fs', VectorBackedSelectKBest(must_be_in_thesaurus=True)),
     ])
 
-    x_tr, y_tr, x_ev, y_ev = tokenized_data
     vectors = Vectors.from_tsv(unigram_vectors_path,
                                # ensure there's only unigrams in the set of unigram vectors
+                               # composers do not need any ngram vectors contain in this file, they may well be
+                               # observed ones
                                row_filter=lambda x, y: y.tokens[0].pos in {'N', 'J'} and y.type == '1-GRAM')
 
     # doing this loop in parallel isn't worth it as pickling or shelving `vectors` is so slow
     # it negates any gains from using multiple cores
     for composer_class in composer_classes:
         if composer_class == BaroniComposer:
+            assert pretrained_Baroni_composer_file is not None
             composer = BaroniComposer(vectors, pretrained_Baroni_composer_file)
         else:
             composer = composer_class(vectors)
@@ -75,7 +71,9 @@ def compose_and_write_vectors(unigram_vectors_path, short_vector_dataset_name, c
             'vect__vector_source': composer,
             'fs__vector_source': composer,
         }
-        _, vocabulary = pipeline.fit_transform(x_tr + x_ev, y=hstack([y_tr, y_ev]), **fit_args)
+        _, vocabulary = pipeline.fit_transform(all_text, **fit_args)
+        logging.info('Found a total of %d document features', len(vocabulary))
+        # compose_all returns all unigrams and composed phrases
         mat, cols, rows = composer.compose_all(vocabulary.keys())
 
         events_path = os.path.join(output_dir,
@@ -99,3 +97,11 @@ classification_data_path_mr = ['/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sa
 technion_data_paths = glob('/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data/techtc100-clean/*')
 
 all_classification_corpora = classification_data_path + classification_data_path_mr + technion_data_paths
+
+if __name__ == '__main__':
+    # tests only
+    logging.basicConfig()
+    compose_and_write_vectors('../FeatureExtrationToolkit/exp10-12b/exp10-SVD100.events.filtered.strings',
+                              'whatever',
+                              all_classification_corpora,
+                              [AdditiveComposer])

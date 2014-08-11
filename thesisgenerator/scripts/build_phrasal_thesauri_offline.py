@@ -155,7 +155,8 @@ def baronify_files(entries_file, features_file, vectors_file):
     """
     # read the entries
     # todo hardcoded file
-    baroni_entries_file = '/mnt/lustre/scratch/inf/mmb28/FeatureExtractionToolkit/exp10-12-composed-ngrams-MR-R2/AN_NN_gigaw-100_Baroni.entries.filtered.strings'
+    baroni_entries_file = '/mnt/lustre/scratch/inf/mmb28/FeatureExtractionToolkit/exp10-12-composed-ngrams-MR-R2-tech' \
+                          '/AN_NN_gigaw-100_Baroni.entries.filtered.strings'
     logging.info('Filtering out entries not in %s', baroni_entries_file)
     with open(baroni_entries_file) as infile:
         baroni_entries = set(line.strip().split()[0] for line in infile)
@@ -220,7 +221,7 @@ def build_unreduced_AN_NN_thesauri(corpus, corpus_name, features,
                                                          'exp%d-%db' % (corpus, features)))  # input 1
 
     ngram_vectors_dir = os.path.join(byblo_base_dir, '..',
-                                     'exp%d-%d-composed-ngrams-MR-R2' % (corpus, features))  # output 1
+                                     'exp%d-%d-composed-ngrams-MR-R2-tech' % (corpus, features))  # output 1
     # output 2 is a set of directories <output1>*
 
     apdt_composed_vectors = os.path.join(byblo_base_dir, '..', 'apdt_vectors',
@@ -257,12 +258,11 @@ def build_unreduced_AN_NN_thesauri(corpus, corpus_name, features,
         os.chdir(thesisgenerator_base_dir)
         unigram_vectors_file = external_events_file if external_embeddings \
             else _find_events_file(unigram_thesaurus_dir)
-        dump.compose_and_write_vectors(unigram_vectors_file,  # I think it is OK for this to contain phrase vectors
+        dump.compose_and_write_vectors(unigram_vectors_file,
                                        corpus_name,
                                        dump.all_classification_corpora,  # input 2
-                                       None,
-                                       output_dir=ngram_vectors_dir,
-                                       composer_classes=composer_algos)
+                                       composer_algos,
+                                       output_dir=ngram_vectors_dir)
     else:
         logging.warning('Skipping composition stage. Assuming output is at %s', ngram_vectors_dir)
 
@@ -327,7 +327,7 @@ def build_full_composed_thesauri_with_baroni_and_svd(corpus, features, stages, u
                                          'exp%d-%d_AN_NNvectors-cleaned' % (corpus, features))
 
     ngram_vectors_dir = os.path.join(byblo_base_dir, '..',
-                                     'exp%d-%d-composed-ngrams-MR-R2' % (corpus, features))  # output 1
+                                     'exp%d-%d-composed-ngrams-MR-R2-tech' % (corpus, features))  # output 1
     composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
                       RightmostWordComposer, BaroniComposer]
 
@@ -405,12 +405,15 @@ def build_full_composed_thesauri_with_baroni_and_svd(corpus, features, stages, u
         os.chdir(thesisgenerator_base_dir)
         for svd_dims, all_reduced_vectors, trained_composer_file \
                 in zip(target_dimensionality, baroni_training_data, trained_composer_files):
+            # it is OK for the first parameter to contain phrase vectors, there is explicit filtering coming up
+            # the assumption is these are actually observed phrasal vectors
             dump.compose_and_write_vectors(all_reduced_vectors,
                                            '%s-%s' % (dataset_name, svd_dims),
                                            dump.all_classification_corpora,
-                                           trained_composer_file,
+                                           composer_algos,
+                                           pretrained_Baroni_composer_file=trained_composer_file,
                                            output_dir=ngram_vectors_dir,
-                                           composer_classes=composer_algos)
+            )
     else:
         logging.warning('Skipping composition stage. Assuming output is at %s', ngram_vectors_dir)
 
