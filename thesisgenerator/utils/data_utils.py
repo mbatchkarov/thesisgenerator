@@ -158,8 +158,9 @@ def load_and_shelve_thesaurus(path, **kwargs):
     """
     # built-in hash has randomisation enabled by default on py>=3.3
     filename = 'shelf_%s' % md5(path.encode('utf8')).hexdigest()
-    search_paths = glob('%s*' % filename)  # shelve may add an extension
-    if len(search_paths) == 1:  # there is exactly one file that matches that name
+    # shelve may add an extension or split the file in bits with different extensions
+    search_paths = glob('%s*' % filename)
+    if search_paths:  # there are files that match that name
         logging.info('Returning pre-shelved object %s for %s', filename, path)
     else:
         # that shelf does not exist, create it
