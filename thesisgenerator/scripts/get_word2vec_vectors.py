@@ -93,9 +93,6 @@ def compute_and_write_vectors(stages):
         logging.info(model.most_similar('computer/N', topn=20))
         logging.info(model.similarity('computer/N', 'software/N'))
 
-        entry_sample = select_entries(model.vocab.keys())
-
-
         # get word2vec vectors for each word, write to TSV
         vectors = dict()
         dimension_names = ['word2vec_feat%02d' % i for i in range(100)]  # word2vec produces 100-dim vectors
@@ -111,6 +108,7 @@ def compute_and_write_vectors(stages):
 
     if 'eval' in stages:
         disk_vectors = Vectors.from_tsv(unigram_events_file)
+        entry_sample = select_entries(model.vocab.keys())
         for word in entry_sample:
             sorted_vector = sorted(disk_vectors[word], key=itemgetter(0))
             logging.info('Read from disk %s', word)
