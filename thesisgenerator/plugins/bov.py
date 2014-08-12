@@ -157,7 +157,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
             # this is a bit of hack and a waste of effort, since a thesaurus will have been loaded first
             logging.info('Building random neighbour vector source with vocabulary of size %d', len(self.vocabulary_))
             self.thesaurus.k = self.k
-            self.thesaurus.vocab = self.vocabulary_
+            self.thesaurus.vocab = list(self.vocabulary_.keys())
 
         self.ngram_range = self.ngram_range_decode
 
