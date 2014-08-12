@@ -325,6 +325,10 @@ for exp in experiments:
     else:
         train_data = exp.labelled_name
 
+    if exp.thesaurus_file is None and 'Base' in exp.decode_token_handler:
+        # signifier baseline, not using a thesaurus, so shouldn't do any feature selection based on the thesaurus
+        set_in_conf_file(base_conf_file, ['feature_selection', 'must_be_in_thesaurus'], False)
+
     set_in_conf_file(base_conf_file, ['training_data'], train_data)
     set_in_conf_file(base_conf_file, ['feature_extraction', 'decode_token_handler'],
                      'thesisgenerator.plugins.bov_feature_handlers.%s' % exp.decode_token_handler)
