@@ -11,9 +11,8 @@ import os
 from discoutils.tokens import DocumentFeature
 from discoutils.thesaurus_loader import Thesaurus, Vectors
 from discoutils.io_utils import write_vectors_to_disk
-from thesisgenerator.scripts.build_phrasal_thesauri_offline import (do_second_part_without_base_thesaurus,
-                                                                    _find_conf_file, baronify_files,
-                                                                    _find_events_file)
+import thesisgenerator.scripts.build_phrasal_thesauri_offline as offline
+from thesisgenerator.utils.misc import noop
 import numpy as np
 import scipy.sparse as sp
 from operator import itemgetter
@@ -41,7 +40,7 @@ def do_work(corpus, features, svd_dims):
         observed_ngram_vectors_file = '%s/observed_vectors/exp%d-%d_AN_NNvectors-cleaned' % (prefix, corpus, features)
         unigram_thesaurus_dir = os.path.abspath(os.path.join(byblo_base_dir, '..',
                                                              'exp%d-%db' % (corpus, features)))
-        observed_unigram_vectors_file = _find_events_file(unigram_thesaurus_dir)
+        observed_unigram_vectors_file = offline._find_events_file(unigram_thesaurus_dir)
     else:
         # contain SVD-reduced N,J and NP observed vectors
         observed_ngram_vectors_file = '%s/exp%d-%db/exp%d-with-obs-phrases-SVD%d.events.filtered.strings' % \
@@ -86,9 +85,9 @@ def do_work(corpus, features, svd_dims):
     logging.info(entries_file)
 
     # BUILD A THESAURUS FROM THESE FILES
-    # os.chdir(byblo_base_dir)
-    # do_second_part_without_base_thesaurus(_find_conf_file(unigram_thesaurus_dir), outdir,
-    #                                       vectors_file, entries_file, features_file)
+    os.chdir(byblo_base_dir)
+    offline.do_second_part_without_base_thesaurus(offline._find_conf_file(unigram_thesaurus_dir), outdir,
+                                                  vectors_file, entries_file, features_file)
 
 
 def do_work_socher(baronify):
@@ -155,7 +154,7 @@ def do_work_socher(baronify):
             # pretend nothing is wrong, the composer would not have dealt with this, so
             # this phrase will get removed by the filter below
             if '(ROOT' not in line and len(line.strip()) > 0:
-                composed_phrases.append(None) # indicates that something is wrong
+                composed_phrases.append(None)  # indicates that something is wrong
 
     # get a list of all phrases where composition worked (no unknown words)
     with open(socher_phrases_file) as infile:
@@ -188,9 +187,9 @@ def do_work_socher(baronify):
 
 
     # BUILD A THESAURUS FROM THESE FILES
-    # os.chdir(byblo_base_dir)
-    # do_second_part_without_base_thesaurus(byblo_conf_file, output_dir,
-    #                                       vectors_file, entries_file, features_file)
+    os.chdir(byblo_base_dir)
+    offline.do_second_part_without_base_thesaurus(byblo_conf_file, output_dir,
+                                                  vectors_file, entries_file, features_file)
 
 
 def get_cmd_parser():
@@ -213,6 +212,9 @@ if __name__ == '__main__':
 
     parameters = get_cmd_parser().parse_args()
     logging.info(parameters)
+
+    offline.run_byblo = noop
+    offline.reindex_all_byblo_vectors = noop
 
     if parameters.socher:
         do_work_socher(parameters.baronify)
