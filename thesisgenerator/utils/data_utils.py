@@ -141,7 +141,10 @@ def get_thesaurus(conf):
         if use_shelf:
             thesaurus = load_and_shelve_thesaurus(path, **params)
         else:
-            thesaurus = Delayed(Vectors, Vectors.from_tsv, path, **params)
+            # single we are running single-threaded, might as well read this in now
+            # returning a delayed() will cause the file to be read for each CV fold
+            # thesaurus = Delayed(Vectors, Vectors.from_tsv, path, **params)
+            thesaurus = Vectors.from_tsv(path, **params)
     if not thesaurus:
         # if a vector source has not been passed in and has not been initialised, then init it to avoid
         # accessing empty things
