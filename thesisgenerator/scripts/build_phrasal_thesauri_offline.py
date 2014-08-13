@@ -17,6 +17,7 @@ from discoutils.cmd_utils import (set_stage_in_byblo_conf_file, run_byblo, parse
 from discoutils.reduce_dimensionality import do_svd
 from thesisgenerator.scripts import dump_all_composed_vectors as dump
 from thesisgenerator.composers.vectorstore import *
+from thesisgenerator.utils.misc import noop
 
 
 def calculate_unigram_vectors(thesaurus_dir):
@@ -464,7 +465,8 @@ def get_corpus_features_cmd_parser():
 def get_cmd_parser():
     parser = argparse.ArgumentParser(parents=[get_corpus_features_cmd_parser()])
     # add options specific to this script here
-    parser.add_argument('--stages', choices=('unigrams', 'svd', 'baroni', 'compose', 'thesauri'), required=True,
+    parser.add_argument('--stages', choices=('unigrams', 'svd', 'baroni', 'compose', 'symlink', 'thesauri'),
+                        required=True,
                         nargs='+',
                         help='What parts of the pipeline to run. Each part is independent, the pipeline can be '
                              'run incrementally. The stages are: '
@@ -472,7 +474,9 @@ def get_cmd_parser():
                              '2) svd: reduce noun and adj matrix, apply to NP matrix '
                              '3) baroni: train Baroni composer '
                              '4) compose: compose all possible NP vectors with all composers '
-                             '5) thesauri: build thesauri from available composed vectors')
+                             '5) symlink: link composed files to where thesauri stage assumes they are. This runs '
+                             'automatically as a part of the thesauri stage, but can also be run separately.'
+                             '6) thesauri: build thesauri from available composed vectors')
     parser.add_argument('--use-svd', action='store_true',
                         help='If set, SVD will be performed and a Baroni composer will be trained. Otherwise the'
                              'svd part of the pipeline is skipped.')
@@ -505,6 +509,14 @@ if __name__ == '__main__':
     # here 'neuro' stands for Socher(2011) for historical reasons
     corpus = {'gigaword': 10, 'wikipedia': 11, 'neuro': 12, 'word2vec': 13}
     features = {'dependencies': 12, 'windows': 13, 'neuro': 14, 'word2vec': 15}
+
+    if 'thesauri' not in parameters.stages and 'symlink' in parameters.stages:
+        logging.warning('You requested SYMLINK stage without THESAURI stage. This is implemented by running '
+                        'thesaurus-stage after monkey-patching the functions that do the heavy work')
+        # this is needed as the symlinking code is too heavily intertwined into the thesaurus-running code
+        run_byblo = noop
+        reindex_all_byblo_vectors = noop
+        parameters.stages.append('thesauri')
 
     if parameters.use_svd:
         logging.info('Starting pipeline with SVD and Baroni composer')
