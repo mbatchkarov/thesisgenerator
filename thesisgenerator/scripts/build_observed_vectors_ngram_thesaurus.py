@@ -186,10 +186,12 @@ def do_work_socher(baronify):
     # entries_file, features_file, vectors_file = baronify_files(entries_file, features_file, vectors_file)
 
 
+    # this function writes its output to the correct location, there is no need to run a monkey-patched version
+    # of the function below to symlink output
     # BUILD A THESAURUS FROM THESE FILES
-    os.chdir(byblo_base_dir)
-    offline.do_second_part_without_base_thesaurus(byblo_conf_file, output_dir,
-                                                  vectors_file, entries_file, features_file)
+    # os.chdir(byblo_base_dir)
+    # offline.do_second_part_without_base_thesaurus(byblo_conf_file, output_dir,
+    #                                               vectors_file, entries_file, features_file)
 
 
 def get_cmd_parser():
