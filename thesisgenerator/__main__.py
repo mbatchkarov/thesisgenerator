@@ -381,7 +381,6 @@ def _prepare_output_directory(clean, output):
     # CLEAN OUTPUT DIRECTORY
     # **********************************
     if clean and os.path.exists(output):
-        logging.info('Cleaning output directory %s', glob(output))
         shutil.rmtree(output)
 
     # **********************************
@@ -402,7 +401,6 @@ def go(conf_file, log_dir, data, vector_source, clean=False, n_jobs=1):
     shutil.copy(conf_file, output)
 
     # Runs all commands specified in the configuration file
-    logging.info('Running tasks')
 
     # **********************************
     # LOADING RAW TEXT

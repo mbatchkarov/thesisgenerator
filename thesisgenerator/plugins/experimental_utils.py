@@ -69,6 +69,7 @@ def run_experiment(expid, num_workers=1,
     memory = Memory(cachedir='.', verbose=0)
     get_cached_tokenized_data = memory.cache(get_tokenized_data, ignore=['*', '**']) \
         if conf['joblib_caching'] else get_tokenized_data
+    logging.info('Tokenizing %s', conf['training_data'])
     tokenised_data = get_cached_tokenized_data(**ChainMap(conf,
                                                           conf['feature_extraction'],
                                                           conf['tokenizer'],
