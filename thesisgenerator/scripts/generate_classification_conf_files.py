@@ -53,17 +53,17 @@ class Experiment():
 
     def __str__(self):
         # num: doc_feats, comp, handler, unlab, svd, lab, thes_feats
-        return "'%s'" % ','.join([str(self.number),
-                                  self.unlabelled_name,
-                                  self.labelled_name,
-                                  str(self.distrib_vector_dim),
-                                  self.composer_name,
-                                  self.document_features,
-                                  self.thesaurus_features_name,
-                                  str(int(self.baronified)),
-                                  str(int(self.use_similarity)),
-                                  str(int(self.random_neighbour_thesaurus)),
-                                  self.decode_token_handler,
+        return ','.join([str(self.number),
+                         self.unlabelled_name,
+                         self.labelled_name,
+                         str(self.distrib_vector_dim),
+                         self.composer_name,
+                         self.document_features,
+                         self.thesaurus_features_name,
+                         str(int(self.baronified)),
+                         str(int(self.use_similarity)),
+                         str(int(self.random_neighbour_thesaurus)),
+                         self.decode_token_handler,
         ])
 
     def __repr__(self):
@@ -296,9 +296,9 @@ exp_number = external_unigram_vector_experiments(exp_number, prefix, use_socher_
 exp_number = technion_corpora_experiments(exp_number, prefix)
 
 for e in experiments:
-    print(e, ',')
+    print(e)
 
-# sys.exit(0)
+sys.exit(0)
 print('Writing conf files')
 megasuperbase_conf_file = 'conf/exp1-superbase.conf'
 for exp in experiments:
