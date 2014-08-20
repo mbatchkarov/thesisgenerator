@@ -1,3 +1,4 @@
+from collections import ChainMap
 from glob import glob
 import os
 import shutil
@@ -106,7 +107,7 @@ def basic_experiments(exp_number, prefix, composer_algos, use_similarity=True):
     # do experiments where Socher(2011) provides both unigram vectors and composition algorithm
     for labelled_corpus in ['R2', 'MR']:
         composer_name = 'Socher'
-        e = Experiment(exp_number, composer_name, socher_thesaurus_file, labelled_corpus,
+        e = Experiment(exp_number, composer_name, socher_composed_events_file, labelled_corpus,
                        'Neuro', 'Neuro', 'Neuro', 'Neuro', 'AN_NN', 0, use_similarity=use_similarity)
         experiments.append(e)
         exp_number += 1
@@ -124,7 +125,7 @@ def an_only_nn_only_experiments(exp_number, prefix, composer_algos):
                 composer_name = composer_class.name
 
                 if composer_name == 'Socher':
-                    thesaurus_file = socher_thesaurus_file
+                    thesaurus_file = socher_composed_events_file
                 else:
                     if composer_name == 'Observed':
                         pattern = reduced_obs_pattern
@@ -212,53 +213,68 @@ def baselines(exp_number):
 
 def technion_corpora_experiments(exp_number, prefix,
                                  root='/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data/techtc100-clean/*'):
-    svd_dims = 100
+    svd_dims = 100  # do not delete, these are used
     corpora = glob(root)
     use_similarity = False
+    print('--------------', exp_number)
 
-    # unlabelled corpus
-    for unlab_num, unlab_name in zip([10, 12, 13], ['gigaw', 'neuro', 'word2vec']):
-        # types of features extracted
-        for thesf_num, thesf_name in zip([12, 14, 15], ['dependencies', 'neuro', 'word2vec']):
-            # not all combinations of unlabelled corpus and features extracted make sense, e.g. word2vec+dependency
-            if unlab_name == 'gigaw':
-                if thesf_name != 'dependencies':
-                    continue
+    def _make_experiment(exp_number):
+        if thesf_name == 'neuro':
+            if composer_name == 'Socher':
+                # turian vectors composed with socher live in a special place
+                thesaurus_file = socher_composed_events_file
             else:
-                if unlab_name != thesf_name:
-                    # neuro corpus with neuro features
-                    continue
+                # the parameters of the enclosing function are stored in globals, not locals
+                thesaurus_file = unred_pattern.format(**ChainMap(locals(), globals()))
+        elif thesf_name == 'word2vec':
+            thesaurus_file = unred_pattern.format(**ChainMap(locals(), globals()))
+        elif thesf_name == 'dependencies' or thesf_name == 'windows':
+            if composer_name == 'Observed':
+                thesaurus_file = reduced_obs_pattern.format(**ChainMap(locals(), globals()))
+            else:
+                thesaurus_file = reduced_pattern.format(**ChainMap(locals(), globals()))
 
-            for labelled_corpus in corpora:
-                for composer_class in composer_algos:
-                    composer_name = composer_class.name
+        e = Experiment(exp_number, composer_name,
+                       thesaurus_file, labelled_corpus,
+                       unlab_name, unlab_num,
+                       thesf_name, thesf_num,
+                       'AN_NN', svd_dims,
+                       use_similarity=use_similarity)
+        experiments.append(e)
+        print(e, thesaurus_file)
 
-                    if composer_name == 'APDT':
-                        continue
-                    if composer_name == 'Socher' and unlab_name != 'neuro':
-                        # currently can't train Socher composer, so no point in applying it to any
-                        # other vectors than his
-                        continue
-                    if unlab_name == 'word2vec' and composer_name not in composer_algos[:5]:
-                        # word2vec only works with add, mult, left or right composer for now
-                        continue
+    def count_vectors():
+        unlab_num, unlab_name = 10, 'gigaw'
+        thesf_num, thesf_name = 12, 'dependencies'
+        composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
+                          RightmostWordComposer, BaroniComposer, Bunch(name='Observed')]
+        for c in composer_algos:
+            yield unlab_num, unlab_name, thesf_name, thesf_num, c.name
 
-                    if thesf_name == 'neuro':
-                        thesaurus_file = socher_thesaurus_file
-                    else:
-                        if composer_name == 'Observed':
-                            pattern = reduced_obs_pattern
-                        else:
-                            pattern = reduced_pattern
-                        thesaurus_file = pattern.format(**locals())
+    def turian_vectors():
+        unlab_num, unlab_name = 12, 'neuro'
+        thesf_num, thesf_name = 14, 'neuro'
+        composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
+                          RightmostWordComposer, Bunch(name='Socher')]
+        for c in composer_algos:
+            yield unlab_num, unlab_name, thesf_name, thesf_num, c.name
 
-                    e = Experiment(exp_number, composer_name, thesaurus_file, labelled_corpus,
-                                   unlab_name, unlab_num,
-                                   thesf_name, thesf_num,
-                                   'AN_NN', svd_dims,
-                                   use_similarity=use_similarity)
-                    experiments.append(e)
-                    exp_number += 1
+    def word2vec_vectors():
+        unlab_num, unlab_name = 13, 'word2vec'
+        thesf_num, thesf_name = 15, 'word2vec'
+        composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer, RightmostWordComposer]
+        for c in composer_algos:
+            yield unlab_num, unlab_name, thesf_name, thesf_num, c.name
+
+    def all_vectors():
+        yield from count_vectors()
+        yield from turian_vectors()
+        yield from word2vec_vectors()
+
+    for unlab_num, unlab_name, thesf_name, thesf_num, composer_name in all_vectors():
+        for labelled_corpus in corpora:
+            _make_experiment(exp_number)
+            exp_number += 1
     return exp_number
 
 
@@ -282,7 +298,7 @@ reduced_pattern = '{prefix}/exp{unlab_num}-{thesf_num}bAN_NN_{unlab_name:.5}-{sv
 reduced_obs_pattern = '{prefix}/exp{unlab_num}-{thesf_num}bAN_NN_{unlab_name:.5}-{svd_dims}_{composer_name}/' \
                       'exp{unlab_num}-SVD{svd_dims}.events.filtered.strings'
 
-socher_thesaurus_file = os.path.join(prefix, 'socher_vectors/thesaurus/socher.events.filtered.strings')
+socher_composed_events_file = os.path.join(prefix, 'socher_vectors/thesaurus/socher.events.filtered.strings')
 
 experiments = []
 
@@ -298,7 +314,7 @@ exp_number = technion_corpora_experiments(exp_number, prefix)
 for e in experiments:
     print(e)
 
-sys.exit(0)
+# sys.exit(0)
 print('Writing conf files')
 megasuperbase_conf_file = 'conf/exp1-superbase.conf'
 for exp in experiments:
