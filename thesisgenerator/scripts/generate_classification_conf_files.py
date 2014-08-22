@@ -38,7 +38,7 @@ class Experiment():
         self.random_neighbour_thesaurus = random_neighbour_thesaurus
         self.decode_token_handler = decode_token_handler
 
-        # todo this should really be moved to ExpLosion
+        # todo this is a nasty hack to enforce logic that should have been enforced elsewhere
         if 'socher' in composer_name.lower():
             self.unlabelled_name = 'neuro'
             self.unlabelled_num = 12
@@ -56,7 +56,7 @@ class Experiment():
         # num: doc_feats, comp, handler, unlab, svd, lab, thes_feats
         return ','.join([str(self.number),
                          self.unlabelled_name,
-                         self.labelled_name,
+                         'TechTC' if 'techtc' in self.labelled_name else self.labelled_name,
                          str(self.distrib_vector_dim),
                          self.composer_name,
                          self.document_features,
@@ -108,7 +108,7 @@ def basic_experiments(exp_number, prefix, composer_algos, use_similarity=True):
     for labelled_corpus in ['R2', 'MR']:
         composer_name = 'Socher'
         e = Experiment(exp_number, composer_name, socher_composed_events_file, labelled_corpus,
-                       'Neuro', 'Neuro', 'Neuro', 'Neuro', 'AN_NN', 0, use_similarity=use_similarity)
+                       'neuro', 12, 'neuro', 14, 'AN_NN', 100, use_similarity=use_similarity)
         experiments.append(e)
         exp_number += 1
     return exp_number
@@ -314,7 +314,7 @@ exp_number = technion_corpora_experiments(exp_number, prefix)
 for e in experiments:
     print(e)
 
-# sys.exit(0)
+sys.exit(0)
 print('Writing conf files')
 megasuperbase_conf_file = 'conf/exp1-superbase.conf'
 for exp in experiments:
