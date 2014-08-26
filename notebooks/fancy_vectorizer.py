@@ -9,7 +9,8 @@ from sklearn.naive_bayes import MultinomialNB
 from sklearn.datasets import fetch_20newsgroups
 from sklearn.cross_validation import ShuffleSplit
 from sklearn.metrics import f1_score, accuracy_score
-from functools import partial, lru_cache
+from functools import partial
+from functools32 import lru_cache
 from operator import itemgetter
 import gensim
 
@@ -23,7 +24,7 @@ class DistributionalVectorizer(CountVectorizer):
     def __init__(self, model):
         self.thesaurus = model
         self.k = 3  # todo hardcoded value
-        super().__init__()  # todo not passing on any parameters
+        super(DistributionalVectorizer, self).__init__()  # todo not passing on any parameters
 
     def paraphrase(self, feature, vocabulary, j_indices, values, **kwargs):
         neighbours = self.get_nearest_neighbours(feature)
@@ -37,7 +38,7 @@ class DistributionalVectorizer(CountVectorizer):
         values.append(1)
 
     def fit_transform(self, raw_documents, y=None):
-        res = super().fit_transform(raw_documents, y)
+        res = super(DistributionalVectorizer, self).fit_transform(raw_documents, y)
         self.init_sims(self.vocabulary_.keys())
         return res
 
@@ -155,7 +156,6 @@ def eval_classifier(DATA_SIZES, NUM_CV, newsgroups_train, newsgroups_test, vect_
     for i, train_size in enumerate(DATA_SIZES):
         cv_iter = ShuffleSplit(len(newsgroups_train.data), n_iter=NUM_CV, train_size=train_size)
         for j, (train_idx, _) in enumerate(cv_iter):
-            print('Size %d, fold %d' % (train_size, j))
             vectorizer = vect_callable()
             clf = MultinomialNB(alpha=.001)
             tr = vectorizer.fit_transform(itemgetter(*train_idx)(newsgroups_train.data))
