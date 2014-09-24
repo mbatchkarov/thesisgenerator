@@ -104,6 +104,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
                                                   dtype=dtype)
 
     def fit_transform(self, raw_documents, y=None, vector_source=None, stats_hdf_file=None):
+        self._check_vocabulary()
         self.thesaurus = vector_source
         self.handler = get_token_handler(self.train_token_handler,
                                          self.k,
@@ -150,6 +151,11 @@ class ThesaurusVectorizer(TfidfVectorizer):
         return X, self.vocabulary_
 
     def transform(self, raw_documents):
+        if not hasattr(self, 'vocabulary_'):
+            self._check_vocabulary()
+
+        if not hasattr(self, 'vocabulary_') or len(self.vocabulary_) == 0:
+            raise ValueError("Vocabulary wasn't fitted or is empty!")
         # record stats separately for the test set
         self.stats = get_stats_recorder(self.record_stats, self.stats_hdf_file_, '-ev')
 
