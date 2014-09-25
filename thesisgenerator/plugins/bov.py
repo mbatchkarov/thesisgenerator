@@ -121,13 +121,13 @@ class ThesaurusVectorizer(TfidfVectorizer):
         min_df = self.min_df
         max_features = self.max_features
 
-        vocabulary, X = self._count_vocab(raw_documents, self.fixed_vocabulary)
+        vocabulary, X = self._count_vocab(raw_documents, self.fixed_vocabulary_)
         X = X.tocsc()
 
         if self.binary:
             X.data.fill(1)
 
-        if not self.fixed_vocabulary:
+        if not self.fixed_vocabulary_:
             if vocabulary:
                 X = self._sort_features(X, vocabulary)
 
