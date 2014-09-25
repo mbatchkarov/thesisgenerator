@@ -169,7 +169,8 @@ def baronified_experiments(exp_number, prefix):
     return exp_number
 
 
-def external_unigram_vector_experiments(exp_number, prefix, use_socher_embeddings=True, use_similarity=True):
+def external_unigram_vector_experiments(exp_number, prefix, use_socher_embeddings=True, use_similarity=True,
+                                        handler='SignifiedOnlyFeatureHandler'):
     if use_socher_embeddings:
         thesf_num, thesf_name = 14, 'neuro'
         unlab_num, unlab_name = 12, 'neuro'
@@ -187,7 +188,8 @@ def external_unigram_vector_experiments(exp_number, prefix, use_socher_embedding
             e = Experiment(exp_number, composer_name, thesaurus_file, labelled_corpus, unlab_name,
                            unlab_num,
                            thesf_name, thesf_num, 'AN_NN', svd_dims,
-                           use_similarity=use_similarity)
+                           use_similarity=use_similarity,
+                           decode_token_handler=handler)
             experiments.append(e)
             exp_number += 1
 
@@ -310,11 +312,15 @@ exp_number = external_unigram_vector_experiments(exp_number, prefix)  # socher e
 exp_number = external_unigram_vector_experiments(exp_number, prefix, use_socher_embeddings=False)  # word2vec embeddings
 # exp_number = baronified_experiments(exp_number, prefix)
 exp_number = technion_corpora_experiments(exp_number, prefix)
+# word2vec/socher embeddings with a signifier-signified encoding
+exp_number = external_unigram_vector_experiments(exp_number, prefix, handler='SignifierSignifiedFeatureHandler')
+exp_number = external_unigram_vector_experiments(exp_number, prefix, handler='SignifierSignifiedFeatureHandler',
+                                                 use_socher_embeddings=False)
 
 for e in experiments:
     print(e)
 
-sys.exit(0)
+# sys.exit(0)
 print('Writing conf files')
 megasuperbase_conf_file = 'conf/exp1-superbase.conf'
 for exp in experiments:
