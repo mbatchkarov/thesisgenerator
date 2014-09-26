@@ -1,3 +1,4 @@
+conf/*
 # ignore  python bytecode files anywhere in the tree
 *.pyc
 
