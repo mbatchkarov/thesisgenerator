@@ -247,7 +247,7 @@ def technion_corpora_experiments(exp_number, prefix,
 
     def count_vectors():
         unlab_num, unlab_name = 10, 'gigaw'
-        thesf_num, thesf_name = 12, 'dependencies'
+        thesf_num, thesf_name = 13, 'windows'
         composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
                           RightmostWordComposer, BaroniComposer, Bunch(name='Observed')]
         for c in composer_algos:
