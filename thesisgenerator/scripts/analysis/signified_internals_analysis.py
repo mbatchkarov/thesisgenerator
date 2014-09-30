@@ -17,6 +17,7 @@ from thesisgenerator.utils.conf_file_utils import parse_config_file
 from thesisgenerator.utils.misc import get_susx_mysql_conn
 from thesisgenerator.plugins.stats import sum_up_token_counts
 from thesisgenerator.utils.misc import calculate_log_odds
+from thesisgenerator.utils.data_utils import get_thesaurus
 from collections import Counter
 from itertools import chain, combinations, groupby
 from operator import attrgetter
@@ -48,7 +49,7 @@ class TrainCount(object):
 
 
 class ReplacementsResult(object):
-    def __init__(self, sim, rank):
+    def __init__(self, sim, rank=0):
         self.rank, self.sim = rank, sim
 
 
@@ -184,10 +185,10 @@ def analyse_replacement_ranks_and_sims(df, thes):
                 # 2. The random-neighbour replacement may result in replacements for IV-OOT, which in turn causes
                 # a KeyError below
                 # Most of the analysis done by this script doesn't make sense in these special cases so it's OK to fail
-                rank = [x[0] for x in thes[original]].index(replacement)
-                res_ranks.extend([rank] * count)
+                # rank = [x[0] for x in thes[original]].index(replacement)
+                # res_ranks.extend([rank] * count)
 
-    return ReplacementsResult(res_sims, res_ranks)
+    return ReplacementsResult(res_sims)
 
 
 def get_replacements_df(paraphrases_file):
@@ -211,7 +212,8 @@ def get_log_odds(feature_log_probas, inv_voc):
 
 def _get_neighbours(feature, thes, vocabulary, k):
     # this is a copy of the first bit of BaseFeatureHandler's _paraphrase method
-    neighbours = [(neighbour, sim) for neighbour, sim in thes[feature] if neighbour in vocabulary]
+    neighbours = [(neighbour, sim) for neighbour, sim in thes.get_nearest_neighbours(feature)
+                  if neighbour in vocabulary]
     return neighbours[:k]
 
 
@@ -353,12 +355,12 @@ def _test_replacement_match(paraphrases_df, thes, voc):
         recorded_replacements = []
         for i in range(1, 4):
             r = paraphrases_df['replacement%d' % i][feature]
-            if r > 0:  # remove NaN
+            if r:  # remove NaN
                 recorded_replacements.append(r)
         assert recorded_replacements == inferred_replacements
 
 
-def get_stats_for_a_single_fold(params, exp, subexp, cv_fold, thes_shelf):
+def get_stats_for_a_single_fold(params, exp, subexp, cv_fold, thes):
     logging.info('Doing fold %d', cv_fold)
     name = 'exp%d-%d' % (exp, subexp)
     class_pulls, lo_of_good_features, it_oov_class_pulls, basic_para_stats, \
@@ -369,13 +371,12 @@ def get_stats_for_a_single_fold(params, exp, subexp, cv_fold, thes_shelf):
         tr_counts = train_time_counts('statistics/stats-%s-cv%d-tr.tc.csv' % (name, cv_fold))
         ev_counts = decode_time_counts('statistics/stats-%s-cv%d-ev.tc.csv' % (name, cv_fold))
 
-    thes = Thesaurus.from_shelf_readonly(thes_shelf)
-
     logging.info('Classificational vectors')
     pkl_path = 'statistics/stats-%s-cv%d-ev.MultinomialNB.pkl' % (name, cv_fold)
     all_clf_vect, full_inv_voc, all_feature_counts, X, y = load_classificational_vectors(pkl_path)
-    good_clf_vect, good_inv_voc = get_good_vectors(all_clf_vect, all_feature_counts, params.min_freq, full_inv_voc,
-                                                   thes)
+    thes.init_sims([x.tokens_as_str() for x in full_inv_voc.values()])  # this is important
+    good_clf_vect, good_inv_voc = get_good_vectors(all_clf_vect, all_feature_counts,
+                                                   params.min_freq, full_inv_voc, thes)
 
     all_feature_counts = {v.tokens_as_str(): all_feature_counts[k] for k, v in full_inv_voc.items()}
     good_inv_voc = {k: v.tokens_as_str() for k, v in good_inv_voc.items()}
@@ -476,21 +477,14 @@ def do_work(params, exp, subexp, folds=20, workers=4, cursor=None):
     conf, configspec_file = parse_config_file('conf/exp{0}/exp{0}_base.conf'.format(exp))
 
     logging.info('Preparing thesaurus')
-    filename = load_and_shelve_thesaurus(conf['vector_sources']['neighbours_file'],
-                                         conf['vector_sources']['sim_threshold'],
-                                         conf['vector_sources']['include_self'],
-                                         conf['vector_sources']['allow_lexical_overlap'],
-                                         conf['vector_sources']['max_neighbours'],
-                                         ContainsEverything())
+    thesaurus = get_thesaurus(conf)
 
     all_data = Parallel(n_jobs=workers)(
-        delayed(get_stats_for_a_single_fold)(params, exp, subexp, cv_fold, filename) for cv_fold in range(folds))
+        delayed(get_stats_for_a_single_fold)(params, exp, subexp, cv_fold, thesaurus) for cv_fold in range(folds))
 
     logging.info('Finished all CV folds, collating')
     # COLLATE AND AVERAGE STATS OVER CROSSVALIDATION, THEN DISPLAY
     try:
-        histogram_from_list(list(chain.from_iterable(x.paraphrase_stats.rank for x in all_data)),
-                            1, 'Replacement ranks')
         histogram_from_list(list(chain.from_iterable(x.paraphrase_stats.sim for x in all_data)),
                             2, 'Replacement similarities')
     except AttributeError:
