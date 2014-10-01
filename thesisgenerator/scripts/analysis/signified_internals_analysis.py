@@ -1,16 +1,14 @@
-import argparse
-import os
-import shelve
 import sys
-from discoutils.misc import ContainsEverything
 
 sys.path.append('.')
 sys.path.append('..')
 sys.path.append('../..')
 
-from discoutils.thesaurus_loader import Thesaurus
+import argparse
+from collections import defaultdict
+import random
+import platform
 from sklearn.metrics.pairwise import cosine_similarity
-from thesisgenerator.utils.data_utils import load_and_shelve_thesaurus
 from thesisgenerator.scripts.analysis.plot import *
 from thesisgenerator.scripts.analysis.utils import *
 from thesisgenerator.utils.conf_file_utils import parse_config_file
@@ -18,19 +16,11 @@ from thesisgenerator.utils.misc import get_susx_mysql_conn
 from thesisgenerator.plugins.stats import sum_up_token_counts
 from thesisgenerator.utils.misc import calculate_log_odds
 from thesisgenerator.utils.data_utils import get_thesaurus
-from collections import Counter
 from itertools import chain, combinations, groupby
 from operator import attrgetter
-import logging
-import random
-import platform
 import numpy as np
-from scipy.stats import chisquare
-from operator import add, itemgetter
-from discoutils.tokens import DocumentFeature
 from joblib import Parallel, delayed
 import pandas as pd
-from collections import defaultdict
 from scipy.stats import spearmanr, pearsonr
 
 # #####################################################
