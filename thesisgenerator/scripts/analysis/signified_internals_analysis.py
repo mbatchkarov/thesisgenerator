@@ -605,7 +605,7 @@ if __name__ == '__main__':
         # do all experiments in order, all CV folds in parallel
         logging.info('Analysing all experiments')
         for i in chain(range(1, 121)):
-            do_work(parameters, i, 0, folds=20, workers=20, cursor=c)
+            do_work(parameters, i, 0, folds=20, workers=20)
     else:
         # do just one experiment, with minimal concurrency
         logging.info('Analysing just one experiment: %d', parameters.experiment)
@@ -615,5 +615,5 @@ if __name__ == '__main__':
             do_work(parameters, 0, 0, folds=2, workers=1, cursor=None)
         else:
             # production version
-            do_work(parameters, parameters.experiment, 0, folds=20, workers=1, cursor=c)
+            do_work(parameters, parameters.experiment, 0, folds=20, workers=1)
 
