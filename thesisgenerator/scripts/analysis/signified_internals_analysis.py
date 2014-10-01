@@ -324,11 +324,9 @@ def correlate_similarities(classificational_vectors, inv_voc, thes):
         second = inv_voc[j]
         dist_sim, class_sim = 0, 0
         # when first and second are not neighbours in the thesaurus set their sim to 0
-        # todo not sure if this is optimal
-        dist_neighbours = thes.get(first, [])
-        for neigh, sim in dist_neighbours:
-            if neigh == second:
-                dist_sim = sim
+        tmp = thes.cos_similarity(first, second)
+        if tmp:
+            dist_sim = tmp
 
         class_sim = cl_thes[i, j]
         dist_sim = dist_sim
