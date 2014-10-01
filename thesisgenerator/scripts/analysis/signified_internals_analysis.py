@@ -551,10 +551,10 @@ def do_work(params, exp, subexp, folds=20, workers=4, cursor=None):
             logging.info('Spearman without zeroes: %r', spearmanr(x1, y1))
             logging.info('R-squared of sim correlation without zeroes: %r', r2)
 
-    if cursor:
-        plt.subplot(2, 3, 6)
-        s = get_experiment_info_string(cursor, exp, name)
-        plt.annotate(s, (0.05, 0.5), textcoords='axes fraction')
+    # if cursor:
+    # plt.subplot(2, 3, 6)
+    #     s = get_experiment_info_string(cursor, exp, name)
+    #     plt.annotate(s, (0.05, 0.5), textcoords='axes fraction')
 
     plt.tight_layout()
     plt.savefig('figures/stats-%s.png' % name, format='png')
@@ -595,11 +595,11 @@ if __name__ == '__main__':
 
     logging.info(parameters)
 
-    if parameters.info:
-        conn = get_susx_mysql_conn()
-        c = conn.cursor() if conn else None
-    else:
-        c = None
+    # if parameters.info:
+    # conn = get_susx_mysql_conn()
+    #     c = conn.cursor() if conn else None
+    # else:
+    #     c = None
 
     if parameters.experiment < 0:
         # do all experiments in order, all CV folds in parallel
