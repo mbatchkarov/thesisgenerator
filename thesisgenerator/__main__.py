@@ -32,11 +32,12 @@ from discoutils.misc import Bunch, Delayed
 from thesisgenerator.composers.feature_selectors import MetadataStripper
 from thesisgenerator.utils.reflection_utils import get_named_object, get_intersection_of_parameters
 from thesisgenerator.utils.misc import ChainCallable
-from thesisgenerator.classifiers import LeaveNothingOut, PredefinedIndicesIterator, \
-    SubsamplingPredefinedIndicesIterator, PicklingPipeline
+from thesisgenerator.classifiers import (LeaveNothingOut, PredefinedIndicesIterator,
+                                         SubsamplingPredefinedIndicesIterator, PicklingPipeline)
 from thesisgenerator.utils.conf_file_utils import set_in_conf_file, parse_config_file
-from thesisgenerator.utils.data_utils import tokenize_data, load_text_data_into_memory, \
-    load_tokenizer, get_thesaurus
+from thesisgenerator.utils.data_utils import (tokenize_data, load_text_data_into_memory,
+                                              load_tokenizer, get_thesaurus)
+from thesisgenerator.utils.misc import update_dict_according_to_mask
 from thesisgenerator import config
 from thesisgenerator.plugins.dumpers import FeatureVectorsCsvDumper
 
@@ -256,6 +257,16 @@ def _cv_loop(log_dir, config, cv_i, score_func, test_idx, train_idx, vector_sour
     logging.info('%d/%d train documents have enough features', sum(to_keep_train), len(y_train))
     tr_matrix = tr_matrix[to_keep_train, :]
     y_train = y_train[to_keep_train]
+
+    # the slice above may remove all occurences of a feature,
+    # e.g. when it only occurs in one document (very common) and the document
+    # doesn't have enough features. Drop empty columns in the term-doc matrix
+    column_mask = tr_matrix.A.sum(axis=0) > 0
+    tr_matrix = tr_matrix[:, column_mask]
+
+    voc = update_dict_according_to_mask(pipeline.named_steps['vect'].vocabulary_, column_mask)
+    inv_voc = {index: feature for (feature, index) in voc.items()}
+
     # do the same for the test set
     to_keep_test = test_matrix.A.sum(axis=1) >= config['min_test_features']  # todo need unit test
     logging.info('%d/%d test documents have enough features', sum(to_keep_test), len(y_test))
@@ -274,7 +285,6 @@ def _cv_loop(log_dir, config, cv_i, score_func, test_idx, train_idx, vector_sour
         if config['feature_extraction']['record_stats']:
             # if a feature selectors exist, use its vocabulary
             # step_name = 'fs' if 'fs' in pipeline.named_steps else 'vect'
-            inv_voc = {index: feature for (feature, index) in pipeline.named_steps['vect'].vocabulary_.items()}
             with open('%s.%s.pkl' % (stats.prefix, clf.__class__.__name__.split('.')[-1]), 'wb') as outf:
                 # pickle files needs to open in 'wb' mode
                 logging.info('Pickling trained classifier to %s', outf.name)

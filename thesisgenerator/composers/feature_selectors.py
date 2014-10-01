@@ -4,7 +4,7 @@ from sklearn.feature_selection import SelectKBest, chi2
 import numpy as np
 from sklearn.feature_selection.univariate_selection import _clean_nans
 from discoutils.thesaurus_loader import Vectors
-from thesisgenerator.utils.misc import calculate_log_odds
+from thesisgenerator.utils.misc import calculate_log_odds, update_dict_according_to_mask
 
 __author__ = 'mmb28'
 
@@ -88,18 +88,6 @@ class VectorBackedSelectKBest(SelectKBest):
         log_odds = calculate_log_odds(X, y)
         return (log_odds > self.min_log_odds_score) | (log_odds < -self.min_log_odds_score)
 
-    def _update_vocab_according_to_mask(self, mask):
-        v = self.vocabulary_
-        if len(v) < mask.shape[0]:
-            logging.info('Already pruned %d document features down to %d', mask.shape[0], len(v))
-            return
-
-        # see which features are left
-        v = {feature: index for feature, index in v.items() if mask[index]}
-        # assign new indices for each remaining feature in order, map: old_index -> new_index
-        new_indices = {old_index: new_index for new_index, old_index in enumerate(sorted(v.values()))}
-        # update indices in vocabulary
-        self.vocabulary_ = {feature: new_indices[index] for feature, index in v.items()}
 
     def _get_support_mask(self):
         k = self.k
@@ -123,7 +111,7 @@ class VectorBackedSelectKBest(SelectKBest):
         self.log_odds_mask = self.log_odds_mask[mask]
         self.vectors_mask = self.vectors_mask[mask]
 
-        self._update_vocab_according_to_mask(mask)
+        self.vocabulary_ = update_dict_according_to_mask(self.vocabulary_, mask)
         return mask
 
 

@@ -4,6 +4,7 @@ from thesisgenerator.utils.reflection_utils import get_named_object
 import logging
 import numpy as np
 
+
 def get_susx_mysql_conn():
     """
     Returns a mysql connection to the Sussex BoV database, or None if
@@ -20,7 +21,7 @@ def get_susx_mysql_conn():
     config = ConfigObj('thesisgenerator/db-credentials')
     if not config:
         logging.warning('File thesisgenerator/db-credentials file not found. This is '
-                     'needed for a MySQL connection. Check your working directory.')
+                        'needed for a MySQL connection. Check your working directory.')
         return None
 
     return mdb.connect(config['server'],
@@ -35,7 +36,7 @@ def linear_compress(x):
     elif x >= 0.3:
         return 1.
     else:
-        return 5 * x - 0.5 # f(0.1) = 0 and f(0.3) = 1
+        return 5 * x - 0.5  # f(0.1) = 0 and f(0.3) = 1
 
 
 def unit(x):
@@ -48,6 +49,7 @@ def noop(*args, **kwargs):
 
 def one(*args, **kwargs):
     return 1.
+
 
 class ChainCallable(object):
     """
@@ -78,7 +80,7 @@ class ChainCallable(object):
 
     def __call__(self, true_labels, predicted_labels):
         to_call = [(x, get_named_object(x)) for x in
-                        self.config.keys() if self.config[x]['run']]
+                   self.config.keys() if self.config[x]['run']]
         options = {}
         result = {}
         for func_name, func in to_call:
@@ -89,6 +91,7 @@ class ChainCallable(object):
             result[func_name.strip()] = (
                 func(true_labels, predicted_labels, **call_args))
         return result
+
 
 def calculate_log_odds(X, y):
     """
@@ -112,42 +115,22 @@ def calculate_log_odds(X, y):
         log_odds[idx] = log_odds_this_feature
     return log_odds
 
-from functools import partial
 
-class memoize(object):
-    """cache the return value of a method
-
-    Source: http://code.activestate.com/recipes/577452-a-memoize-decorator-for-instance-methods/
-
-    This class is meant to be used as a decorator of methods. The return value
-    from a given method invocation will be cached on the instance whose method
-    was invoked. All arguments passed to a method decorated with memoize must
-    be hashable.
-
-    If a memoized method is invoked directly on its class the result will not
-    be cached. Instead the method will be invoked like a static method:
-    class Obj(object):
-        @memoize
-        def add_to(self, arg):
-            return self + arg
-    Obj.add_to(1) # not enough arguments
-    Obj.add_to(1, 2) # returns 3, result is not cached
+def update_dict_according_to_mask(v, mask):
     """
-    def __init__(self, func):
-        self.func = func
-    def __get__(self, obj, objtype=None):
-        if obj is None:
-            return self.func
-        return partial(self, obj)
-    def __call__(self, *args, **kw):
-        obj = args[0]
-        try:
-            cache = obj.__cache
-        except AttributeError:
-            cache = obj.__cache = {}
-        key = (self.func, args[1:], frozenset(kw.items()))
-        try:
-            res = cache[key]
-        except KeyError:
-            res = cache[key] = self.func(*args, **kw)
-        return res
+    Given a dictionary of {something:index} and a boolean mask, removes items as specified by the mask
+    and re-assigns consecutive indices to the remaining items. The values of `v` are assumed to
+    consecutive integers starting at 0
+    :param mask: array-like, must be indexable by the values of `v`
+    :rtype: dict
+    """
+    if len(v) != len(mask):
+        logging.error('Mask and dict do not match in size: %d vs %d', mask.shape[0], len(v))
+        return
+
+    # see which features are left
+    v = {feature: index for feature, index in v.items() if mask[index]}
+    # assign new indices for each remaining feature in order, map: old_index -> new_index
+    new_indices = {old_index: new_index for new_index, old_index in enumerate(sorted(v.values()))}
+    # update indices in vocabulary
+    return {feature: new_indices[index] for feature, index in v.items()}
