@@ -97,12 +97,15 @@ def calculate_log_odds(X, y):
     """
 
     :param X: term-document matrix, shape (m,n)
-    :type X: array-like
+    :type X: scipy.sparse
     :param y: document labels, shape (m,)
-    :type y: array-like
+    :type y: np.array
     :return: log odds scores of all features
     :rtype: array-like, shape (n,)
     """
+    alpha = .000001
+    alpha_denom = alpha * len(set(y))
+
     log_odds = np.empty(X.shape[1])
     class0_indices = y == sorted(set(y))[0]
     X = X.A
@@ -110,7 +113,10 @@ def calculate_log_odds(X, y):
         all_counts = X[:, idx]  # document counts of this feature
         total_counts = np.count_nonzero(all_counts)  # how many docs the feature occurs in
         count_in_class0 = np.count_nonzero(all_counts[class0_indices])  # how many of them are class 0
-        p = float(count_in_class0) / total_counts
+
+        # p = float(count_in_class0) / total_counts
+        # smoothing to avoid taking log(0) below
+        p = (float(count_in_class0) + alpha) / (total_counts + alpha_denom)
         log_odds_this_feature = np.log(p) - np.log(1 - p)
         log_odds[idx] = log_odds_this_feature
     return log_odds
@@ -119,7 +125,7 @@ def calculate_log_odds(X, y):
 def update_dict_according_to_mask(v, mask):
     """
     Given a dictionary of {something:index} and a boolean mask, removes items as specified by the mask
-    and re-assigns consecutive indices to the remaining items. The values of `v` are assumed to
+    and re-assigns consecutive indices to the remaining items. The values of `v` are assumed to be
     consecutive integers starting at 0
     :param mask: array-like, must be indexable by the values of `v`
     :rtype: dict
