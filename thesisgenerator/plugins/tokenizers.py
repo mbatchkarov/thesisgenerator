@@ -118,7 +118,8 @@ class XmlTokenizer(object):
 
         # record how many times this tokenizer has had a cache miss
         self.cache_miss_count += 1
-        return [self.tokenize_doc(x) for x in corpus]
+        # i is needed to get the ID of the doc in case something goes wrong
+        return [self.tokenize_doc(x) for (i, x) in enumerate(corpus)]
 
     def tokenize_corpus(self, corpus, corpus_id_joblib):
         # externally visible method- uses a corpus identifier and a bunch of important tokenizer

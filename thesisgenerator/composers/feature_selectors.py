@@ -83,6 +83,9 @@ class VectorBackedSelectKBest(SelectKBest):
         return mask
 
     def _zero_score_of_low_log_odds_features(self, X, y):
+        if self.min_log_odds_score <= 0:
+            # we don't want to use log odds score, return an all-true mask
+            return np.ones(X.shape[1])
         if len(set(y)) != 2:
             raise ValueError('Calculating a log odds score requires a binary classification task')
         log_odds = calculate_log_odds(X, y)
