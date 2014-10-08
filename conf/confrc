@@ -88,7 +88,7 @@ min_train_features = float() # these need to be a float when using similarity sc
     k=integer(default=99999999999999) # if doing feature selection by chi-squared, how many features to keep
     alpha=float
     percentile=int
-    min_log_odds_score=float() # features with a log odds score outside the range [-min_log_odds_score, min_log_odds_score] will be removed
+    min_log_odds_score=float() # features with a log odds score outside the range [-min_log_odds_score, min_log_odds_score] will be removed. If a non-positive value is provided here, log-odds filtering will not be used.
 
 [classifiers]
     [[sklearn.naive_bayes.MultinomialNB]]
