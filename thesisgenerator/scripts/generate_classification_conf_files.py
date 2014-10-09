@@ -79,7 +79,7 @@ class Experiment():
 def basic_experiments(exp_number, prefix, composer_algos, use_similarity=True):
     for thesf_num, thesf_name in zip([12, 13], ['dependencies', 'windows']):
         for unlab_num, unlab_name in zip([10], ['gigaw']):  # 11, 'wiki'
-            for labelled_corpus in ['R2', 'MR']:
+            for labelled_corpus in ['R2', 'MR', 'AM']:
                 for svd_dims in [0, 100]:
                     for composer_class in composer_algos:
                         composer_name = composer_class.name
@@ -90,6 +90,8 @@ def basic_experiments(exp_number, prefix, composer_algos, use_similarity=True):
                             continue  # APDT only works with dependency unigram vectors
                         if composer_name == 'Socher':
                             continue  # Socher RAE done separately below as it only works for a small subset of settings
+                        if thesf_name == 'dependencies' and composer_name in ['Baroni', 'Observed']:
+                            continue  # can't easily run Julie's observed vectors code, so pretend it doesnt exist
 
                         if composer_name == 'Observed':
                             pattern = unred_obs_pattern if svd_dims < 1 else reduced_obs_pattern
@@ -105,7 +107,7 @@ def basic_experiments(exp_number, prefix, composer_algos, use_similarity=True):
                         exp_number += 1
 
     # do experiments where Socher(2011) provides both unigram vectors and composition algorithm
-    for labelled_corpus in ['R2', 'MR']:
+    for labelled_corpus in ['R2', 'MR', 'AM']:
         composer_name = 'Socher'
         e = Experiment(exp_number, composer_name, socher_composed_events_file, labelled_corpus,
                        'neuro', 12, 'neuro', 14, 'AN_NN', 100, use_similarity=use_similarity)
@@ -123,6 +125,8 @@ def an_only_nn_only_experiments(exp_number, prefix, composer_algos):
         for doc_feature_type in ['AN', 'NN']:
             for composer_class in composer_algos:
                 composer_name = composer_class.name
+                if thesf_name == 'dependencies' and composer_name in ['Baroni', 'Observed']:
+                    continue  # can't easily run Julie's observed vectors code, so pretend it doesnt exist
 
                 if composer_name == 'Socher':
                     thesaurus_file = socher_composed_events_file
@@ -142,33 +146,6 @@ def an_only_nn_only_experiments(exp_number, prefix, composer_algos):
     return exp_number
 
 
-def baronified_experiments(exp_number, prefix):
-    # do experiments with a reduced thesaurus entry sets, aka "Baronified"
-    # todo not using observed-baronified because I haven't built such a thesaurus
-    composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
-                      RightmostWordComposer, BaroniComposer, Bunch(name='APDT'), Bunch(name='Socher')]
-    svd_dims = 100
-    thesf_num, thesf_name = 12, 'dependencies'  # only dependencies
-    unlab_num, unlab_name = 10, 'gigaw'
-    for labelled_corpus in ['R2', 'MR']:
-        for composer_class in composer_algos:
-            composer_name = composer_class.name
-            if composer_name == 'Socher':
-                thesaurus_file = os.path.join(prefix,
-                                              'socher_vectors/thesaurus_baronified/socher.baronified.events.filtered'
-                                              '.strings')
-            else:
-                pattern = '{prefix}/exp{unlab_num}-{thesf_num}bAN_NN_{unlab_name}-{svd_dims}_{composer_name}_baronified/' \
-                          'AN_NN_{unlab_name}-{svd_dims}_{composer_name}.baronified.events.filtered.strings'
-                thesaurus_file = pattern.format(**locals())
-            e = Experiment(exp_number, composer_name, thesaurus_file, labelled_corpus, unlab_name, unlab_num,
-                           thesf_name, thesf_num, 'AN_NN', svd_dims, baronified=True)
-            experiments.append(e)
-            exp_number += 1
-            print(e, ',')
-    return exp_number
-
-
 def external_unigram_vector_experiments(exp_number, prefix, use_socher_embeddings=True, use_similarity=True,
                                         handler='SignifiedOnlyFeatureHandler'):
     if use_socher_embeddings:
@@ -181,7 +158,7 @@ def external_unigram_vector_experiments(exp_number, prefix, use_socher_embedding
     svd_dims = 100
     composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer, RightmostWordComposer]
 
-    for labelled_corpus in ['R2', 'MR']:
+    for labelled_corpus in ['R2', 'MR', 'AM']:
         for composer_class in composer_algos:
             composer_name = composer_class.name
             thesaurus_file = unred_pattern.format(**locals())
@@ -198,7 +175,7 @@ def external_unigram_vector_experiments(exp_number, prefix, use_socher_embedding
 
 def baselines(exp_number):
     # random-neighbour experiments. These include an "random_neighbour_thesaurus=True" option in the conf file
-    for corpus in ['R2', 'MR']:
+    for corpus in ['R2', 'MR', 'AM'] + techtc_corpora:
         e = Experiment(exp_number, 'Random', None, corpus, '-', None, '-', None, 'AN_NN', -1,
                        random_neighbour_thesaurus=True)
         experiments.append(e)
@@ -213,12 +190,9 @@ def baselines(exp_number):
     return exp_number
 
 
-def technion_corpora_experiments(exp_number, prefix,
-                                 root='/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data/techtc100-clean/*'):
+def technion_corpora_experiments(exp_number, prefix):
     svd_dims = 100  # do not delete, these are used
-    corpora = glob(root)
     use_similarity = False
-    print('--------------', exp_number)
 
     def _make_experiment(exp_number):
         if thesf_name == 'neuro':
@@ -243,7 +217,6 @@ def technion_corpora_experiments(exp_number, prefix,
                        'AN_NN', svd_dims,
                        use_similarity=use_similarity)
         experiments.append(e)
-        print(e, thesaurus_file)
 
     def count_vectors():
         unlab_num, unlab_name = 10, 'gigaw'
@@ -274,7 +247,7 @@ def technion_corpora_experiments(exp_number, prefix,
         yield from word2vec_vectors()
 
     for unlab_num, unlab_name, thesf_name, thesf_num, composer_name in all_vectors():
-        for labelled_corpus in corpora:
+        for labelled_corpus in techtc_corpora:
             _make_experiment(exp_number)
             exp_number += 1
     return exp_number
@@ -283,7 +256,7 @@ def technion_corpora_experiments(exp_number, prefix,
 prefix = '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit'
 composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
                   RightmostWordComposer, BaroniComposer,
-                  Bunch(name='Observed'), Bunch(name='APDT'), Bunch(name='Socher')]
+                  Bunch(name='Observed'), Bunch(name='Socher')]  # Bunch(name='APDT'),
 
 # e.g. exp10-13bAN_NN_gigaw_Left/AN_NN_gigaw_Left.events.filtered.strings
 unred_pattern = '{prefix}/exp{unlab_num}-{thesf_num}bAN_NN_{unlab_name:.5}_{composer_name}/' \
@@ -301,6 +274,7 @@ reduced_obs_pattern = '{prefix}/exp{unlab_num}-{thesf_num}bAN_NN_{unlab_name:.5}
                       'exp{unlab_num}-SVD{svd_dims}.events.filtered.strings'
 
 socher_composed_events_file = os.path.join(prefix, 'socher_vectors/thesaurus/socher.events.filtered.strings')
+techtc_corpora = list(glob('/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data/techtc100-clean/*'))
 
 experiments = []
 
@@ -310,7 +284,6 @@ exp_number = basic_experiments(exp_number, prefix, composer_algos, use_similarit
 exp_number = an_only_nn_only_experiments(exp_number, prefix, composer_algos)
 exp_number = external_unigram_vector_experiments(exp_number, prefix)  # socher embeddings + Add/Mult composition
 exp_number = external_unigram_vector_experiments(exp_number, prefix, use_socher_embeddings=False)  # word2vec embeddings
-# exp_number = baronified_experiments(exp_number, prefix)
 exp_number = technion_corpora_experiments(exp_number, prefix)
 # word2vec/socher embeddings with a signifier-signified encoding
 exp_number = external_unigram_vector_experiments(exp_number, prefix, handler='SignifierSignifiedFeatureHandler')
@@ -318,9 +291,9 @@ exp_number = external_unigram_vector_experiments(exp_number, prefix, handler='Si
                                                  use_socher_embeddings=False)
 
 for e in experiments:
-    print(e)
+    print('%s,' % e)
 
-# sys.exit(0)
+sys.exit(0)
 print('Writing conf files')
 megasuperbase_conf_file = 'conf/exp1-superbase.conf'
 for exp in experiments:
@@ -344,6 +317,8 @@ for exp in experiments:
         train_data = 'sample-data/reuters21578/r8-tagged-grouped'
     elif exp.labelled_name == 'MR':
         train_data = 'sample-data/movie-reviews-tagged'
+    elif exp.labelled_name == 'AM':
+        train_data = 'sample-data/amazon_grouped-tagged'
     else:
         train_data = exp.labelled_name
 
