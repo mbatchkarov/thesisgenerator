@@ -97,7 +97,9 @@ classification_data_path_mr = ['/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sa
 
 technion_data_paths = glob('/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data/techtc100-clean/*')
 
-all_classification_corpora = classification_data_path + classification_data_path_mr + technion_data_paths
+amazon_data_path = ['/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data/amazon_grouped-tagged']
+
+all_classification_corpora = classification_data_path + classification_data_path_mr + technion_data_paths + amazon_data_path
 
 if __name__ == '__main__':
     # tests only
