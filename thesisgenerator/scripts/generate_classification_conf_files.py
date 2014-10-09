@@ -90,6 +90,8 @@ def basic_experiments(exp_number, prefix, composer_algos, use_similarity=True):
                             continue  # APDT only works with dependency unigram vectors
                         if composer_name == 'Socher':
                             continue  # Socher RAE done separately below as it only works for a small subset of settings
+                        if thesf_name == 'dependencies' and composer_name in ['Baroni', 'Observed']:
+                            continue  # can't easily run Julie's observed vectors code, so pretend it doesnt exist
 
                         if composer_name == 'Observed':
                             pattern = unred_obs_pattern if svd_dims < 1 else reduced_obs_pattern
@@ -123,6 +125,8 @@ def an_only_nn_only_experiments(exp_number, prefix, composer_algos):
         for doc_feature_type in ['AN', 'NN']:
             for composer_class in composer_algos:
                 composer_name = composer_class.name
+                if thesf_name == 'dependencies' and composer_name in ['Baroni', 'Observed']:
+                    continue  # can't easily run Julie's observed vectors code, so pretend it doesnt exist
 
                 if composer_name == 'Socher':
                     thesaurus_file = socher_composed_events_file
