@@ -46,9 +46,9 @@ stanford_NP_pattern = '(ROOT\n (NP ({} {}) ({} {})))\n\n'
 stanford_unigram_pattern = '(ROOT\n (NP ({} {})))\n\n'
 
 seen_modifiers = set()
-with open('r2-mr-technion-ANs-NNs-julie.txt', 'w') as outf_julie, \
-        open('r2-mr-technion-ANs-NNs-socher.txt', 'w') as outf_socher, \
-        open('r2-mr-technion-modifiers.txt', 'w') as outf_mods:
+with open('r2-mr-technion-am-ANs-NNs-julie.txt', 'w') as outf_julie, \
+        open('r2-mr-technion-am-ANs-NNs-socher.txt', 'w') as outf_socher, \
+        open('r2-mr-technion-am-modifiers.txt', 'w') as outf_mods:
     for item in list(voc.keys()):
         if item.type in {'AN', 'NN'}:
             first = str(item.tokens[0])
