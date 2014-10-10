@@ -22,6 +22,7 @@ from thesisgenerator.composers.vectorstore import DummyThesaurus
 
 
 def tokenize_data(data, tokenizer, corpus_ids):
+    logging.info('Tokenizer starting')
     # param corpus_ids - list-like, names of the training corpus (and optional testing corpus), used for
     # retrieving pre-tokenized data from joblib cache
     x_tr, y_tr, x_test, y_test = data
@@ -29,6 +30,7 @@ def tokenize_data(data, tokenizer, corpus_ids):
     x_tr = tokenizer.tokenize_corpus(x_tr, corpus_ids[0])
     if x_test is not None and y_test is not None and corpus_ids[1] is not None:
         x_test = tokenizer.tokenize_corpus(x_test, corpus_ids[1])
+    logging.info('Tokenizer finished')
     return x_tr, y_tr, x_test, y_test
 
 
@@ -88,7 +90,6 @@ def get_tokenized_data(training_data, normalise_entities,
                                remove_short_words=remove_short_words,
                                remove_long_words=remove_long_words
     )
-    logging.info('Tokenizer finished')
     return tokenize_data(raw_data, tokenizer, data_ids)
 
 
