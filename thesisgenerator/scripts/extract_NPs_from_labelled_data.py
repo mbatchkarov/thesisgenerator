@@ -1,3 +1,8 @@
+import sys
+
+sys.path.append('.')
+sys.path.append('..')
+sys.path.append('../..')
 from thesisgenerator.scripts import dump_all_composed_vectors as dump
 from thesisgenerator.plugins.bov import ThesaurusVectorizer
 from thesisgenerator.utils.data_utils import get_tokenized_data
@@ -76,7 +81,7 @@ with open('r2-mr-technion-am-ANs-NNs-julie.txt', 'w') as outf_julie, \
         else:  # there shouldn't be any other features
             raise ValueError('Item %r has the wrong feature type: %s' % (item, item.type))
 
-
+logging.info('Done')
 
 
 

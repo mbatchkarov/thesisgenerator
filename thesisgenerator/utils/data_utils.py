@@ -53,7 +53,7 @@ def load_tokenizer(normalise_entities=False, use_pos=True, coarse_pos=True, lemm
     """
 
     if joblib_caching:
-        memory = Memory(cachedir='.', verbose=0)
+        memory = Memory(cachedir='.', verbose=1)
     else:
         memory = NoopTransformer()
 
@@ -78,7 +78,7 @@ def get_tokenized_data(training_data, normalise_entities,
                        test_data=None, *args, **kwargs):
     raw_data, data_ids = load_text_data_into_memory(training_path=training_data, test_path=test_data,
                                                     shuffle_targets=shuffle_targets)
-    tokenizer = load_tokenizer(joblib_caching=False,  # remove this parameter
+    tokenizer = load_tokenizer(joblib_caching=True,  # remove this parameter
                                normalise_entities=normalise_entities,
                                use_pos=use_pos,
                                coarse_pos=coarse_pos,
@@ -88,6 +88,7 @@ def get_tokenized_data(training_data, normalise_entities,
                                remove_short_words=remove_short_words,
                                remove_long_words=remove_long_words
     )
+    logging.info('Tokenizer finished')
     return tokenize_data(raw_data, tokenizer, data_ids)
 
 
@@ -217,6 +218,6 @@ def cache_all_labelled_corpora(n_jobs):
         conf, _ = parse_config_file(conf_file)
         corpus = conf['training_data']
         corpora[corpus] = conf_file
-
+    print(corpora)
     Parallel(n_jobs=n_jobs)(delayed(cache_single_labelled_corpus)(conf_file) for conf_file in corpora.values())
 
