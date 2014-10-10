@@ -8,12 +8,10 @@ Created on Oct 18, 2012
 
 # if one tries to run this script from the main project directory the
 # thesisgenerator package would not be on the path, add it and try again
-import dbm
 import pickle
 import sys
 
 from joblib import Parallel, delayed
-from datetime import datetime
 
 import os
 import shutil
@@ -468,15 +466,14 @@ if __name__ == '__main__':
     conf, configspec_file = parse_config_file(conf_file)
 
     data, data_id, _ = load_text_data_into_memory(conf['training_data'], conf['test_data'])
-    tokenizer = load_tokenizer(
-        joblib_caching=conf['joblib_caching'],
-        normalise_entities=conf['feature_extraction']['normalise_entities'],
-        use_pos=conf['feature_extraction']['use_pos'],
-        coarse_pos=conf['feature_extraction']['coarse_pos'],
-        lemmatize=conf['feature_extraction']['lemmatize'],
-        lowercase=conf['tokenizer']['lowercase'],
-        remove_stopwords=conf['tokenizer']['remove_stopwords'],
-        remove_short_words=conf['tokenizer']['remove_short_words'])
+    tokenizer = load_tokenizer(joblib_caching=conf['joblib_caching'],
+                               normalise_entities=conf['feature_extraction']['normalise_entities'],
+                               use_pos=conf['feature_extraction']['use_pos'],
+                               coarse_pos=conf['feature_extraction']['coarse_pos'],
+                               lemmatize=conf['feature_extraction']['lemmatize'],
+                               lowercase=conf['tokenizer']['lowercase'],
+                               remove_stopwords=conf['tokenizer']['remove_stopwords'],
+                               remove_short_words=conf['tokenizer']['remove_short_words'])
     data = tokenize_data(data, tokenizer, data_id)
     vector_store = get_thesaurus(conf)
     go(conf_file, log_dir, data, vector_store, classpath=classpath, clean=clean, n_jobs=1)

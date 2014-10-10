@@ -1,3 +1,8 @@
+import sys
+
+sys.path.append('.')
+sys.path.append('..')
+sys.path.append('../..')
 import argparse
 import logging
 from thesisgenerator.utils.data_utils import (shelve_all_thesauri, cache_all_labelled_corpora,
