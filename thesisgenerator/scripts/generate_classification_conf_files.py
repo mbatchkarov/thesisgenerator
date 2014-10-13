@@ -293,7 +293,7 @@ exp_number = external_unigram_vector_experiments(exp_number, prefix, handler='Si
 for e in experiments:
     print('%s,' % e)
 
-sys.exit(0)
+# sys.exit(0)
 print('Writing conf files')
 megasuperbase_conf_file = 'conf/exp1-superbase.conf'
 for exp in experiments:
@@ -314,11 +314,11 @@ for exp in experiments:
     base_conf_file = os.path.join(experiment_dir, 'exp%d_base.conf' % exp.number)
     shutil.copy(megasuperbase_conf_file, base_conf_file)
     if exp.labelled_name == 'R2':
-        train_data = 'sample-data/reuters21578/r8-tagged-grouped'
+        train_data = '/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data/reuters21578/r8-tagged-grouped'
     elif exp.labelled_name == 'MR':
-        train_data = 'sample-data/movie-reviews-tagged'
+        train_data = '/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data/movie-reviews-tagged'
     elif exp.labelled_name == 'AM':
-        train_data = 'sample-data/amazon_grouped-tagged'
+        train_data = '/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data/amazon_grouped-tagged'
     else:
         train_data = exp.labelled_name
 
