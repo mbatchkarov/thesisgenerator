@@ -19,23 +19,23 @@ get_cached_tokenized_data = memory.cache(get_tokenized_data, ignore=['*', '**'])
 # get any conf file, tokenizer settings should be the same
 conf, _ = parse_config_file('conf/exp1/exp1_base.conf')
 
-all_text = []
+all_nps = set()
 for path in dump.all_classification_corpora:
-    x_tr, _, _, _ = tokenised_data = get_cached_tokenized_data(conf['training_data'],
-                                                               get_tokenizer_settings_from_conf(conf))
+    x_tr, _, _, _ = get_cached_tokenized_data(conf['training_data'],
+                                              get_tokenizer_settings_from_conf(conf))
     assert len(x_tr) > 0
-    all_text.extend(x_tr)
-    logging.info('Documents so far: %d', len(all_text))
+    logging.info('Documents in this corpus: %d', len(x_tr))
 
-# this will include vectors for all unigrams that occur in the labelled set in the output file
-# the composition code for other methods (in dump_all_composed_vectors.py) include vectors for all
-# unigrams that occur in the UNLABELLED set. This shouldn't make a difference as during classification we search for
-# neighbours of each doc feature among the features the occur in BOTH the labelled and unlabelled set
-vect = ThesaurusVectorizer(min_df=1, ngram_range=(1, 1),
-                           extract_SVO_features=False, extract_VO_features=False,
-                           unigram_feature_pos_tags=set('NJ'))
-data_matrix, voc = vect.fit_transform(all_text, np.ones(len(all_text)))
-logging.info('Found a total of %d document features', len(voc))
+    # this will include vectors for all unigrams that occur in the labelled set in the output file
+    # the composition code for other methods (in dump_all_composed_vectors.py) include vectors for all
+    # unigrams that occur in the UNLABELLED set. This shouldn't make a difference as during classification we search for
+    # neighbours of each doc feature among the features the occur in BOTH the labelled and unlabelled set
+    vect = ThesaurusVectorizer(min_df=1, ngram_range=(1, 1),
+                               extract_SVO_features=False, extract_VO_features=False,
+                               unigram_feature_pos_tags=set('NJ'))
+    data_matrix, voc = vect.fit_transform(x_tr, np.ones(len(x_tr)))
+    logging.info('Found a total of %d document features', len(voc))
+    all_nps |= voc.keys()  # set intersection
 
 # (ROOT
 # (NP (NN acquisition) (NN pact)))
@@ -45,7 +45,7 @@ logging.info('Found a total of %d document features', len(voc))
 stanford_NP_pattern = '(ROOT\n (NP ({} {}) ({} {})))\n\n'
 
 # (ROOT
-#   (NP (NN roads)))
+# (NP (NN roads)))
 # I checked that this extracts the neural word embedding for the word
 stanford_unigram_pattern = '(ROOT\n (NP ({} {})))\n\n'
 
@@ -53,7 +53,7 @@ seen_modifiers = set()
 with open('r2-mr-technion-am-ANs-NNs-julie.txt', 'w') as outf_julie, \
         open('r2-mr-technion-am-ANs-NNs-socher.txt', 'w') as outf_socher, \
         open('r2-mr-technion-am-modifiers.txt', 'w') as outf_mods:
-    for item in list(voc.keys()):
+    for item in all_nps:
         if item.type in {'AN', 'NN'}:
             first = str(item.tokens[0])
             second = str(item.tokens[1])
