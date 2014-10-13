@@ -1,29 +1,28 @@
 import sys
+import logging
 
 sys.path.append('.')
 sys.path.append('..')
 sys.path.append('../..')
+from joblib import Memory
 from thesisgenerator.scripts import dump_all_composed_vectors as dump
 from thesisgenerator.plugins.bov import ThesaurusVectorizer
-from thesisgenerator.utils.data_utils import get_tokenized_data
-import logging
+from thesisgenerator.utils.data_utils import get_tokenized_data, get_tokenizer_settings_from_conf
+from thesisgenerator.utils.conf_file_utils import parse_config_file
 import numpy as np
 
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s\t%(module)s.%(funcName)s ""(line %(lineno)d)\t%(levelname)s : %(""message)s")
 
+memory = Memory(cachedir='.', verbose=999)
+get_cached_tokenized_data = memory.cache(get_tokenized_data, ignore=['*', '**'])
+# get any conf file, tokenizer settings should be the same
+conf, _ = parse_config_file('conf/exp1/exp1_base.conf')
+
 all_text = []
 for path in dump.all_classification_corpora:
-    x_tr, _, _, _ = get_tokenized_data(path,
-                                       normalise_entities=False,
-                                       use_pos=True,
-                                       coarse_pos=True,
-                                       lemmatize=True,
-                                       lowercase=True,
-                                       remove_stopwords=False,
-                                       remove_short_words=False,
-                                       remove_long_words=False,
-                                       shuffle_targets=False)
+    x_tr, _, _, _ = tokenised_data = get_cached_tokenized_data(conf['training_data'],
+                                                               get_tokenizer_settings_from_conf(conf))
     assert len(x_tr) > 0
     all_text.extend(x_tr)
     logging.info('Documents so far: %d', len(all_text))
@@ -42,7 +41,7 @@ logging.info('Found a total of %d document features', len(voc))
 # (NP (NN acquisition) (NN pact)))
 #
 # (ROOT
-#   (NP (JJ pacific) (NN stock)))
+# (NP (JJ pacific) (NN stock)))
 stanford_NP_pattern = '(ROOT\n (NP ({} {}) ({} {})))\n\n'
 
 # (ROOT
