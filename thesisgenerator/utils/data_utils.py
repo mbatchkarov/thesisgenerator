@@ -22,13 +22,19 @@ from thesisgenerator.composers.vectorstore import DummyThesaurus
 
 
 def tokenize_data(data, tokenizer, corpus_ids):
-    # param corpus_ids - list-like, names of the training corpus (and optional testing corpus), used for
-    # retrieving pre-tokenized data from joblib cache
+    """
+    :param data: list of strings, contents of documents to tokenize
+    :param tokenizer:
+    :param corpus_ids:  list-like, names of the training corpus (and optional testing corpus), used for
+    retrieving pre-tokenized data from joblib cache
+    """
+    logging.info('Tokenizer starting')
     x_tr, y_tr, x_test, y_test = data
     # todo this logic needs to be moved to feature extractor
     x_tr = tokenizer.tokenize_corpus(x_tr, corpus_ids[0])
     if x_test is not None and y_test is not None and corpus_ids[1] is not None:
         x_test = tokenizer.tokenize_corpus(x_test, corpus_ids[1])
+    logging.info('Tokenizer finished')
     return x_tr, y_tr, x_test, y_test
 
 
@@ -53,7 +59,7 @@ def load_tokenizer(normalise_entities=False, use_pos=True, coarse_pos=True, lemm
     """
 
     if joblib_caching:
-        memory = Memory(cachedir='.', verbose=1)
+        memory = Memory(cachedir='.', verbose=9999)
     else:
         memory = NoopTransformer()
 
@@ -72,13 +78,22 @@ def load_tokenizer(normalise_entities=False, use_pos=True, coarse_pos=True, lemm
     return tok
 
 
+def _is_cached(func, *args, **kwds):
+    """
+    From https://github.com/klusta-team/hybrid_analysis/blob/master/joblib_utils.py
+    :param func:
+    :param args:
+    :param kwds:
+    :return: :rtype:
+    """
+    s = func.get_output_dir(*args, **kwds)
+    return os.path.exists(func.get_output_dir(*args, **kwds)[0])
+
 def get_tokenized_data(training_data, normalise_entities,
                        use_pos, coarse_pos, lemmatize, lowercase, remove_stopwords,
                        remove_short_words, remove_long_words, shuffle_targets,
-                       test_data=None, *args, **kwargs):
-    raw_data, data_ids = load_text_data_into_memory(training_path=training_data, test_path=test_data,
-                                                    shuffle_targets=shuffle_targets)
-    tokenizer = load_tokenizer(joblib_caching=True,  # remove this parameter
+                       test_data=None, joblib_caching=True, *args, **kwargs):
+    tokenizer = load_tokenizer(joblib_caching=joblib_caching,
                                normalise_entities=normalise_entities,
                                use_pos=use_pos,
                                coarse_pos=coarse_pos,
@@ -86,9 +101,15 @@ def get_tokenized_data(training_data, normalise_entities,
                                lowercase=lowercase,
                                remove_stopwords=remove_stopwords,
                                remove_short_words=remove_short_words,
-                               remove_long_words=remove_long_words
-    )
-    logging.info('Tokenizer finished')
+                               remove_long_words=remove_long_words)
+    if joblib_caching and _is_cached(tokenizer.cached_tokenize_corpus, None,
+                                     training_data, **tokenizer.important_params):
+        # avoid reading in the contents of the corpus, we have a cached tokenized version already
+        raw_data = (None, None, None, None)
+        data_ids = (training_data, test_data)
+    else:
+        raw_data, data_ids = load_text_data_into_memory(training_path=training_data, test_path=test_data,
+                                                        shuffle_targets=shuffle_targets)
     return tokenize_data(raw_data, tokenizer, data_ids)
 
 
