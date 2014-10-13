@@ -15,8 +15,7 @@ from discoutils.misc import Delayed
 import numpy as np
 from joblib import Memory, Parallel, delayed
 from sklearn.datasets import load_files
-from thesisgenerator.classifiers import NoopTransformer
-from thesisgenerator.plugins import tokenizers
+from thesisgenerator.plugins.tokenizers import XmlTokenizer
 from thesisgenerator.utils.conf_file_utils import parse_config_file
 from thesisgenerator.composers.vectorstore import DummyThesaurus
 
@@ -51,65 +50,24 @@ def load_text_data_into_memory(training_path, test_path=None, shuffle_targets=Fa
     return (x_train, y_train, x_test, y_test), (training_path, test_path)
 
 
-def load_tokenizer(normalise_entities=False, use_pos=True, coarse_pos=True, lemmatize=True,
-                   lowercase=True, remove_stopwords=False, remove_short_words=False,
-                   remove_long_words=False, joblib_caching=False):
-    """
-    Initialises the state of helper modules from a config object
-    """
-
-    if joblib_caching:
-        memory = Memory(cachedir='.', verbose=9999)
-    else:
-        memory = NoopTransformer()
-
-    tok = tokenizers.XmlTokenizer(
-        memory,
-        normalise_entities=normalise_entities,
-        use_pos=use_pos,
-        coarse_pos=coarse_pos,
-        lemmatize=lemmatize,
-        lowercase=lowercase,
-        remove_stopwords=remove_stopwords,
-        remove_short_words=remove_short_words,
-        remove_long_words=remove_long_words,
-        use_cache=joblib_caching
-    )
-    return tok
+def get_tokenizer_settings_from_conf(conf):
+    return {'normalise_entities': conf['feature_extraction']['normalise_entities'],
+            'use_pos': conf['feature_extraction']['use_pos'],
+            'coarse_pos': conf['feature_extraction']['coarse_pos'],
+            'lemmatize': conf['feature_extraction']['lemmatize'],
+            'lowercase': conf['tokenizer']['lowercase'],
+            'remove_stopwords': conf['tokenizer']['remove_stopwords'],
+            'remove_short_words': conf['tokenizer']['remove_short_words'],
+            'remove_long_words': conf['tokenizer']['remove_long_words']}
 
 
-def _is_cached(func, *args, **kwds):
-    """
-    From https://github.com/klusta-team/hybrid_analysis/blob/master/joblib_utils.py
-    :param func:
-    :param args:
-    :param kwds:
-    :return: :rtype:
-    """
-    s = func.get_output_dir(*args, **kwds)
-    return os.path.exists(func.get_output_dir(*args, **kwds)[0])
-
-def get_tokenized_data(training_data, normalise_entities,
-                       use_pos, coarse_pos, lemmatize, lowercase, remove_stopwords,
-                       remove_short_words, remove_long_words, shuffle_targets,
-                       test_data=None, joblib_caching=True, *args, **kwargs):
-    tokenizer = load_tokenizer(joblib_caching=joblib_caching,
-                               normalise_entities=normalise_entities,
-                               use_pos=use_pos,
-                               coarse_pos=coarse_pos,
-                               lemmatize=lemmatize,
-                               lowercase=lowercase,
-                               remove_stopwords=remove_stopwords,
-                               remove_short_words=remove_short_words,
-                               remove_long_words=remove_long_words)
-    if joblib_caching and _is_cached(tokenizer.cached_tokenize_corpus, None,
-                                     training_data, **tokenizer.important_params):
-        # avoid reading in the contents of the corpus, we have a cached tokenized version already
-        raw_data = (None, None, None, None)
-        data_ids = (training_data, test_data)
-    else:
-        raw_data, data_ids = load_text_data_into_memory(training_path=training_data, test_path=test_data,
-                                                        shuffle_targets=shuffle_targets)
+def get_tokenized_data(training_data, tokenizer_conf, shuffle_targets=False,
+                       test_data=None, *args, **kwargs):
+    # tokenizer shouldn't cache, it's too low-level. Also, the labels of that data set are lost
+    # instead, this entire method should be cached
+    tokenizer = XmlTokenizer(**tokenizer_conf)
+    raw_data, data_ids = load_text_data_into_memory(training_path=training_data, test_path=test_data,
+                                                    shuffle_targets=shuffle_targets)
     return tokenize_data(raw_data, tokenizer, data_ids)
 
 
@@ -226,10 +184,9 @@ def cache_single_labelled_corpus(conf_file, memory=None):
         memory = Memory(cachedir='.', verbose=0)
     conf, _ = parse_config_file(conf_file)
     get_cached_tokenized_data = memory.cache(get_tokenized_data, ignore=['*', '**'])
-    _ = get_cached_tokenized_data(**ChainMap(conf,
-                                             conf['feature_extraction'],
-                                             conf['tokenizer'],
-                                             conf['feature_extraction']))
+    get_cached_tokenized_data(conf['training_data'],
+                              get_tokenizer_settings_from_conf(conf),
+                              test_data=conf['test_data'])
 
 
 def cache_all_labelled_corpora(n_jobs):

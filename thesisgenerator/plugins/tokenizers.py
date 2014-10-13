@@ -75,12 +75,12 @@ class XmlTokenizer(object):
         "NUMBER": "NUMBER"
     })
 
-    def __init__(self, memory=NoopTransformer(), normalise_entities=False, use_pos=True,
+    def __init__(self, normalise_entities=False, use_pos=True,
                  coarse_pos=True, lemmatize=True, lowercase=True,
                  remove_stopwords=False, remove_short_words=False,
                  remove_long_words=False,
-                 use_cache=False, dependency_format='collapsed-ccprocessed'):
-        #store all important parameteres
+                 dependency_format='collapsed-ccprocessed'):
+        # store all important parameteres
         self.normalise_entities = normalise_entities
         self.use_pos = use_pos
         self.coarse_pos = coarse_pos
@@ -96,35 +96,11 @@ class XmlTokenizer(object):
 
         self.charset = 'utf8'
         self.charset_error = 'replace'
-        self.cached_tokenize_corpus = memory.cache(self._tokenize_corpus, ignore=['corpus', 'self'])
-        self.cache_miss_count = 0
 
-    def __setattr__(self, name, value):
-        self.__dict__[name] = value
-
-        # if we try to modify an essential field (one that affect the operation of the tokenizer) make sure to update
-        # that in self.important_params. This is needed because once a tokenizer is created any modifications to its
-        # important fields will not be propagated to self.important_params, practically undoing the modification if
-        # caching is used
-        if hasattr(self, 'important_params'):
-            # before constructor is done self.important_params does not exist
-            if name in self.important_params.keys():
-                self.important_params[name] = value
-
-
-    def _tokenize_corpus(self, corpus, corpus_id_joblib, **kwargs):
-        # use the tokenizer settings (**kwargs) as cache key,
-        # ignore the identity of the XmlTokenizer object
-
-        # record how many times this tokenizer has had a cache miss
-        self.cache_miss_count += 1
-        # i is needed to get the ID of the doc in case something goes wrong
-        return [self.tokenize_doc(x) for (i, x) in enumerate(corpus)]
 
     def tokenize_corpus(self, corpus, corpus_id_joblib):
-        # externally visible method- uses a corpus identifier and a bunch of important tokenizer
-        # settings to query the joblib cache
-        return self.cached_tokenize_corpus(corpus, corpus_id_joblib, **self.important_params)
+        # i is needed to get the ID of the doc in case something goes wrong
+        return [self.tokenize_doc(x) for (i, x) in enumerate(corpus)]
 
     def _process_sentence(self, tree):
         tokens = []
@@ -158,7 +134,7 @@ class XmlTokenizer(object):
                 iob_tag = element.find('NER').text.upper()
             except AttributeError:
                 # logging.error('You have requested named entity '
-                #               'normalisation, but the input data are '
+                # 'normalisation, but the input data are '
                 #               'not annotated for entities')
                 iob_tag = 'MISSING'
                 # raise ValueError('Data not annotated for named entities')
@@ -194,7 +170,7 @@ class XmlTokenizer(object):
                 type = dep.get('type')
                 head = dep.find('governor')
                 head_idx = int(head.get('idx'))
-                #head_txt = head.text
+                # head_txt = head.text
 
                 dependent = dep.find('dependent')
                 dependent_idx = int(dependent.get('idx'))
@@ -246,7 +222,7 @@ class XmlTokenizer(object):
             is_float = False
 
         # try:
-        #     locale.atof(s)
+        # locale.atof(s)
         #     is_int = True
         # except ValueError:
         #     is_int = False

@@ -14,7 +14,7 @@ import glob
 import os
 import logging
 import platform
-from thesisgenerator.utils.data_utils import get_thesaurus, get_tokenized_data
+from thesisgenerator.utils.data_utils import get_thesaurus, get_tokenized_data, get_tokenizer_settings_from_conf
 from thesisgenerator.utils.conf_file_utils import parse_config_file
 from thesisgenerator.plugins.file_generators import _vary_training_size_file_iterator
 from thesisgenerator.__main__ import go
@@ -49,7 +49,7 @@ def run_experiment(expid, num_workers=1,
     """
     logging.info('RUNNING EXPERIMENT %d', expid)
 
-    sizes = [500] # this is only used if crossval type is subsampled_test_set
+    sizes = [500]  # this is only used if crossval type is subsampled_test_set
     if expid == 0:
         # exp0 is for debugging only, we don't have to do much
         sizes = [180]
@@ -66,15 +66,14 @@ def run_experiment(expid, num_workers=1,
     if not thesaurus:
         thesaurus = get_thesaurus(conf)
 
-    memory = Memory(cachedir='.', verbose=0)
+    memory = Memory(cachedir='.', verbose=999)
     get_cached_tokenized_data = memory.cache(get_tokenized_data, ignore=['*', '**']) \
         if conf['joblib_caching'] else get_tokenized_data
     logging.info('Tokenizing %s', conf['training_data'])
-    tokenised_data = get_cached_tokenized_data(**ChainMap(conf,
-                                                          conf['feature_extraction'],
-                                                          conf['tokenizer'],
-                                                          conf['feature_extraction']))
 
+    tokenised_data = get_cached_tokenized_data(conf['training_data'],
+                                               get_tokenizer_settings_from_conf(conf),
+                                               test_data=conf['test_data'])
     # run data through the pipeline
     return [go(new_conf_file, log_dir, tokenised_data, thesaurus, n_jobs=num_workers)
             for new_conf_file, log_dir in conf_file_iterator]

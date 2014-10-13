@@ -33,11 +33,12 @@ from thesisgenerator.utils.misc import ChainCallable
 from thesisgenerator.classifiers import (LeaveNothingOut, PredefinedIndicesIterator,
                                          SubsamplingPredefinedIndicesIterator, PicklingPipeline)
 from thesisgenerator.utils.conf_file_utils import set_in_conf_file, parse_config_file
-from thesisgenerator.utils.data_utils import (tokenize_data, load_text_data_into_memory,
-                                              load_tokenizer, get_thesaurus)
+from thesisgenerator.utils.data_utils import (get_thesaurus, get_tokenizer_settings_from_conf,
+                                              get_tokenized_data)
 from thesisgenerator.utils.misc import update_dict_according_to_mask
 from thesisgenerator import config
 from thesisgenerator.plugins.dumpers import FeatureVectorsCsvDumper
+from thesisgenerator.plugins.tokenizers import XmlTokenizer
 
 
 def _build_crossvalidation_iterator(config, y_train, y_test=None):
@@ -465,15 +466,8 @@ if __name__ == '__main__':
 
     conf, configspec_file = parse_config_file(conf_file)
 
-    data, data_id, _ = load_text_data_into_memory(conf['training_data'], conf['test_data'])
-    tokenizer = load_tokenizer(joblib_caching=conf['joblib_caching'],
-                               normalise_entities=conf['feature_extraction']['normalise_entities'],
-                               use_pos=conf['feature_extraction']['use_pos'],
-                               coarse_pos=conf['feature_extraction']['coarse_pos'],
-                               lemmatize=conf['feature_extraction']['lemmatize'],
-                               lowercase=conf['tokenizer']['lowercase'],
-                               remove_stopwords=conf['tokenizer']['remove_stopwords'],
-                               remove_short_words=conf['tokenizer']['remove_short_words'])
-    data = tokenize_data(data, tokenizer, data_id)
+    tokenised_data = get_tokenized_data(conf['training_data'],
+                                        get_tokenizer_settings_from_conf(conf),
+                                        test_data=conf['test_data'])
     vector_store = get_thesaurus(conf)
-    go(conf_file, log_dir, data, vector_store, classpath=classpath, clean=clean, n_jobs=1)
+    go(conf_file, log_dir, tokenised_data, vector_store, classpath=classpath, clean=clean, n_jobs=1)

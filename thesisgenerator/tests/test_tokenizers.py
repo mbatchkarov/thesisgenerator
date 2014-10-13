@@ -29,14 +29,14 @@ class Test_tokenizer(TestCase):
             setattr(self.tokenizer, key, val)
 
         with open('thesisgenerator/resources/test-tr/earn/earn_1.tagged') \
-            as infile:
+                as infile:
             self.doc = infile.read()
         with open('thesisgenerator/resources/test-ev/earn/earn_2.tagged') \
-            as infile:
+                as infile:
             self.other_doc = infile.read()
 
         with open('thesisgenerator/resources/tokenizer/invalid_tokens.tagged') \
-            as infile:
+                as infile:
             self.invalid_doc = infile.read()
 
         self.doc_name = 'test_tokenizers_doc1'
@@ -46,72 +46,6 @@ class Test_tokenizer(TestCase):
         self.assertIn('</document>', self.doc)
         self.assertIn('<token id=', self.doc)
         self.assertIn('</token>', self.doc)
-
-    def test_xml_tokenizer_with_corpus_caching(self):
-        from tempfile import mkdtemp
-
-        joblib_cache_dir = mkdtemp(prefix='joblib_cache', suffix='thesgen')
-        cache_memory = Memory(cachedir=joblib_cache_dir, verbose=0)
-        false_memory = NoopTransformer()
-
-        corpus = [self.doc] # a corpus of one document
-        for using_joblib, memory in enumerate([false_memory, cache_memory]):
-            self.params['memory'] = memory
-            tokenizer = XmlTokenizer(**self.params)
-
-            # tokenize the same corpus repeatedly
-            for j in range(10):
-                # get only the first sentence of the corpus
-                tokenised_docs = self._strip_dependency_tree(tokenizer.tokenize_corpus(corpus, self.doc_name)[0])
-                self.assertListEqual(tokenised_docs, [[Token('Cats', '', 1),
-                                                       Token('like', '', 2),
-                                                       Token('dogs', '', 3)]])
-                # a corpus is a list of documents, which is a list of sentences, which is a list of tokens
-
-                if using_joblib:
-                    # with caching the tokenizer must only ever have one cache miss- the first time it is called
-                    # if tests have been run before in this directory, the cache will still be there and no cache
-                    # misses will occur
-                    self.assertLessEqual(tokenizer.cache_miss_count, 1)
-                else:
-                    # without caching the tokenizer must miss every time
-                    self.assertEqual(tokenizer.cache_miss_count, j + 1)
-
-            # modify the tokenizer and check if cache still works as expected
-            self.assertFalse(tokenizer.use_pos)
-            #self.assertFalse(tokenizer.important_params['use_pos'])
-            tokenizer.use_pos = True
-            self.assertTrue(tokenizer.use_pos)
-            #self.assertTrue(tokenizer.important_params['use_pos'])
-
-            tokenised_docs = self._strip_dependency_tree(tokenizer.tokenize_corpus(corpus, self.doc_name)[0])
-            self.assertListEqual(tokenised_docs, [[Token('Cats', 'NNP', 1),
-                                                   Token('like', 'VB', 2),
-                                                   Token('dogs', 'NNP', 3)]])
-
-            # changing the parameters of the tokenizer should cause a cache miss
-            self.assertEqual(tokenizer.cache_miss_count, 2 if using_joblib else j + 2)
-
-            tokenizer.coarse_pos = True
-            tokenised_docs = self._strip_dependency_tree(tokenizer.tokenize_corpus(corpus, self.doc_name)[0])
-            self.assertListEqual(tokenised_docs, [[Token('Cats', 'N', 1),
-                                                   Token('like', 'V', 2),
-                                                   Token('dogs', 'N', 3)]])
-            # another parameter change, another cache miss
-            self.assertEqual(tokenizer.cache_miss_count, 3 if using_joblib else j + 3)
-
-            # changing a parameter back to what is was should cause a cache hit
-            tokenizer.use_pos = False
-            tokenizer.coarse_pos = False
-            tokenised_docs = self._strip_dependency_tree(tokenizer.tokenize_corpus(corpus, self.doc_name)[0])
-            self.assertListEqual(tokenised_docs, [[Token('Cats', '', 1),
-                                                   Token('like', '', 2),
-                                                   Token('dogs', '', 3)]])
-            self.assertEqual(tokenizer.cache_miss_count, 3 if using_joblib else j + 4)
-
-        import shutil
-
-        shutil.rmtree(joblib_cache_dir)
 
     def test_xml_tokenizer_lowercasing(self):
         """
@@ -136,7 +70,7 @@ class Test_tokenizer(TestCase):
         are used as separators later and having them in the token messes up parsing
         """
 
-        #  test that invalid tokens are removed
+        # test that invalid tokens are removed
         tokens = self._strip_dependency_tree(self.tokenizer.tokenize_doc(self.invalid_doc))
         self.assertListEqual(tokens[0], [Token('like', '', 2),
                                          Token('dogs', '', 3, ner='ORG')])
@@ -167,21 +101,21 @@ class Test_tokenizer(TestCase):
             3: Token('dogs', 'N', 2, ner='ORG'),
         })
         self.assertEqual(len(dep_tree.edges()), 2)
-        self.assertEqual(dep_tree.succ[2][1]['type'], 'nsubj') # 1 is the nsubj of 2
-        self.assertEqual(dep_tree.succ[2][3]['type'], 'dobj') # 3 is the dobj of 2
+        self.assertEqual(dep_tree.succ[2][1]['type'], 'nsubj')  # 1 is the nsubj of 2
+        self.assertEqual(dep_tree.succ[2][3]['type'], 'dobj')  # 3 is the dobj of 2
 
         # remove the subject of the sentence and check that dependency is gone
         tree = self._replace_word_in_document('cat', 'the', document=doc)
         sent, (dep_tree, token_index) = self.tokenizer.tokenize_doc(ET.tostring(tree))[0]
 
         self.assertDictEqual(token_index, {
-            #1: Token('cats', 'N', 0), # remove
+            # 1: Token('cats', 'N', 0), # remove
             2: Token('like', 'V', 1),
             3: Token('dogs', 'N', 2, ner='ORG'),
         })
         self.assertEqual(len(dep_tree.edges()), 1)
-        self.assertEqual(dep_tree.succ[2][3]['type'], 'dobj') # 3 is the dobj of 2
-        self.assertNotIn(1, dep_tree.succ[2]) # the subject isn't there anymore
+        self.assertEqual(dep_tree.succ[2][3]['type'], 'dobj')  # 3 is the dobj of 2
+        self.assertNotIn(1, dep_tree.succ[2])  # the subject isn't there anymore
 
 
     def _replace_word_in_document(self, original, replacement, document=None):
