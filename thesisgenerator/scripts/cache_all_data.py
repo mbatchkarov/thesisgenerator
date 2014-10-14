@@ -20,8 +20,8 @@ if __name__ == '__main__':
 
     parameters = parser.parse_args()
     if parameters.jobs:
-        shelve_all_thesauri(parser.parse_args().jobs)
+        # shelve_all_thesauri(parser.parse_args().jobs)
         cache_all_labelled_corpora(parser.parse_args().jobs)
     else:
-        shelve_single_thesaurus('conf/exp{0}/exp{0}_base.conf'.format(parameters.experiment))
+        # shelve_single_thesaurus('conf/exp{0}/exp{0}_base.conf'.format(parameters.experiment))
         cache_single_labelled_corpus('conf/exp{0}/exp{0}_base.conf'.format(parameters.experiment))
