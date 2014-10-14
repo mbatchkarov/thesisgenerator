@@ -181,7 +181,7 @@ def shelve_all_thesauri(n_jobs):
 
 def cache_single_labelled_corpus(conf_file, memory=None):
     if not memory:
-        memory = Memory(cachedir='.', verbose=0)
+        memory = Memory(cachedir='.', verbose=999)
     conf, _ = parse_config_file(conf_file)
     get_cached_tokenized_data = memory.cache(get_tokenized_data, ignore=['*', '**'])
     get_cached_tokenized_data(conf['training_data'],
