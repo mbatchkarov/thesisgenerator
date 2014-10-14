@@ -17,7 +17,8 @@ memory = Memory(cachedir='.', verbose=999)
 get_cached_tokenized_data = memory.cache(get_tokenized_data, ignore=['*', '**'])
 
 all_nps = set()
-for conf_file, corpus_path in get_all_corpora().items():
+for corpus_path, conf_file in get_all_corpora().items():
+    logging.info('Processing corpus %s', corpus_path)
     conf, _ = parse_config_file(conf_file)
     x_tr, _, _, _ = get_cached_tokenized_data(conf['training_data'],
                                               get_tokenizer_settings_from_conf(conf),
