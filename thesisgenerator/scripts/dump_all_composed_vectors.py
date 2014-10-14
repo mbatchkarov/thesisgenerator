@@ -10,11 +10,12 @@ from sklearn.pipeline import Pipeline
 from thesisgenerator.composers.feature_selectors import VectorBackedSelectKBest
 from thesisgenerator.composers.vectorstore import *
 from thesisgenerator.plugins.bov import ThesaurusVectorizer
-from thesisgenerator.utils.data_utils import get_tokenized_data
+from thesisgenerator.utils.data_utils import get_tokenized_data, get_tokenizer_settings_from_conf_file
 from discoutils.io_utils import write_vectors_to_disk
+from joblib import Memory
 
 
-def compose_and_write_vectors(unigram_vectors_path, short_vector_dataset_name, classification_data_paths,
+def compose_and_write_vectors(unigram_vectors_path, short_vector_dataset_name, classification_corpora,
                               composer_classes, pretrained_Baroni_composer_file=None,
                               output_dir='.'):
     """
@@ -22,24 +23,19 @@ def compose_and_write_vectors(unigram_vectors_path, short_vector_dataset_name, c
     to disk. The output file will also contain all unigram vectors that were passed in.
     :param unigram_vectors_path: a file in Byblo events format that contain vectors for all unigrams. This
     will be used in the composition process
-    :param classification_data_paths: Corpora to extract features from.
+    :param classification_corpora: Corpora to extract features from. Dict {corpus_path: conf_file}
+    :type classification_corpora: dict
     :param pretrained_Baroni_composer_file: path to pre-trained Baroni AN/NN composer file
     :param output_dir:
     :param composer_classes: what composers to use
     :type composer_classes: list
     """
+    memory = Memory('.', verbose=999)
+    get_data = memory.cache(get_tokenized_data, ignore=['*', '**'])
     all_text = []
-    for path in classification_data_paths:
-        x_tr, _, _, _ = get_tokenized_data(path,
-                                           normalise_entities=False,
-                                           use_pos=True,
-                                           coarse_pos=True,
-                                           lemmatize=True,
-                                           lowercase=True,
-                                           remove_stopwords=False,
-                                           remove_short_words=False,
-                                           remove_long_words=False,
-                                           shuffle_targets=False)
+    for corpus_path, conf_file in classification_corpora.items():
+        x_tr, _, _, _ = get_data(corpus_path,
+                                 get_tokenizer_settings_from_conf_file(conf_file))
         assert len(x_tr) > 0
         all_text.extend(x_tr)
         logging.info('Documents so far: %d', len(all_text))

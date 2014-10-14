@@ -61,8 +61,12 @@ def get_tokenizer_settings_from_conf(conf):
             'remove_long_words': conf['tokenizer']['remove_long_words']}
 
 
+def get_tokenizer_settings_from_conf_file(conf_file):
+    conf, _ = parse_config_file(conf_file)
+    return get_tokenizer_settings_from_conf(conf)
+
 def get_tokenized_data(training_data, tokenizer_conf, shuffle_targets=False,
-                       test_data=None, *args, **kwargs):
+                       test_data='', *args, **kwargs):
     # tokenizer shouldn't cache, it's too low-level. Also, the labels of that data set are lost
     # instead, this entire method should be cached
     tokenizer = XmlTokenizer(**tokenizer_conf)
