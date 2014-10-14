@@ -189,13 +189,23 @@ def cache_single_labelled_corpus(conf_file, memory=None):
                               test_data=conf['test_data'])
 
 
-def cache_all_labelled_corpora(n_jobs):
+def get_all_corpora():
+    """
+    Returns a dict of {corpus_path: conf_file}, where conf file is one of
+    the conf files that uses that corpus
+    :rtype: dict
+    """
     all_conf_files = glob('conf/exp*/exp*_base.conf')
     corpora = dict()
     for conf_file in all_conf_files:
         conf, _ = parse_config_file(conf_file)
         corpus = conf['training_data']
         corpora[corpus] = conf_file
+    return corpora
+
+
+def cache_all_labelled_corpora(n_jobs):
+    corpora = get_all_corpora()
     print(corpora)
     Parallel(n_jobs=n_jobs)(delayed(cache_single_labelled_corpus)(conf_file) for conf_file in corpora.values())
 
