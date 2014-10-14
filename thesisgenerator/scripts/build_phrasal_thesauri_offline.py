@@ -262,7 +262,7 @@ def build_unreduced_AN_NN_thesauri(corpus, corpus_name, features,
             else _find_events_file(unigram_thesaurus_dir)
         dump.compose_and_write_vectors(unigram_vectors_file,
                                        corpus_name,
-                                       get_all_corpora().keys(),  # input 2
+                                       get_all_corpora(),  # input 2
                                        composer_algos,
                                        output_dir=ngram_vectors_dir)
     else:
@@ -411,7 +411,7 @@ def build_full_composed_thesauri_with_baroni_and_svd(corpus, features, stages, u
             # the assumption is these are actually observed phrasal vectors
             dump.compose_and_write_vectors(all_reduced_vectors,
                                            '%s-%s' % (dataset_name, svd_dims),
-                                           get_all_corpora().keys(),
+                                           get_all_corpora(),
                                            composer_algos,
                                            pretrained_Baroni_composer_file=trained_composer_file,
                                            output_dir=ngram_vectors_dir,
