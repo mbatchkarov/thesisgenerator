@@ -5,9 +5,8 @@ sys.path.append('.')
 sys.path.append('..')
 sys.path.append('../..')
 from joblib import Memory
-from thesisgenerator.scripts import dump_all_composed_vectors as dump
 from thesisgenerator.plugins.bov import ThesaurusVectorizer
-from thesisgenerator.utils.data_utils import get_tokenized_data, get_tokenizer_settings_from_conf
+from thesisgenerator.utils.data_utils import get_tokenized_data, get_tokenizer_settings_from_conf, get_all_corpora
 from thesisgenerator.utils.conf_file_utils import parse_config_file
 import numpy as np
 
@@ -16,13 +15,13 @@ logging.basicConfig(level=logging.INFO,
 
 memory = Memory(cachedir='.', verbose=999)
 get_cached_tokenized_data = memory.cache(get_tokenized_data, ignore=['*', '**'])
-# get any conf file, tokenizer settings should be the same
-conf, _ = parse_config_file('conf/exp1/exp1_base.conf')
 
 all_nps = set()
-for path in dump.all_classification_corpora:
+for conf_file, corpus_path in get_all_corpora().items():
+    conf, _ = parse_config_file(conf_file)
     x_tr, _, _, _ = get_cached_tokenized_data(conf['training_data'],
-                                              get_tokenizer_settings_from_conf(conf))
+                                              get_tokenizer_settings_from_conf(conf),
+                                              test_data=conf['test_data'])
     assert len(x_tr) > 0
     logging.info('Documents in this corpus: %d', len(x_tr))
 
