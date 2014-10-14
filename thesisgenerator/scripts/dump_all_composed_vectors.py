@@ -89,24 +89,3 @@ def compose_and_write_vectors(unigram_vectors_path, short_vector_dataset_name, c
         write_vectors_to_disk(mat.tocoo(), rows2idx, cols, events_path,
                               features_path=features_path, entries_path=entries_path,
                               entry_filter=lambda x: x.type in {'AN', 'NN', '1-GRAM'})
-
-
-classification_data_path = ['/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data/reuters21578/r8-tagged-grouped']
-
-classification_data_path_mr = ['/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data/movie-reviews-tagged']
-
-technion_data_paths = glob('/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data/techtc100-clean/*')
-
-amazon_data_path = ['/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data/amazon_grouped-tagged']
-
-all_classification_corpora = classification_data_path + classification_data_path_mr + technion_data_paths + amazon_data_path
-
-if __name__ == '__main__':
-    # tests only
-    logging.basicConfig(level=logging.INFO,
-                    format="%(asctime)s\t%(module)s.%(funcName)s (line %(lineno)d)\t%(levelname)s : %("
-                           "message)s")
-    compose_and_write_vectors('../FeatureExtrationToolkit/exp10-12b/exp10-SVD100.events.filtered.strings',
-                              'whatever',
-                              all_classification_corpora,
-                              [AdditiveComposer])
