@@ -11,6 +11,7 @@ sys.path.append('..')
 sys.path.append('../..')
 from thesisgenerator.composers.vectorstore import *
 from thesisgenerator.utils.conf_file_utils import set_in_conf_file
+from operator import attrgetter
 
 '''
 Once all thesauri with ngram entries (obtained using different composition methods) have been built offline,
@@ -313,13 +314,16 @@ exp_number = external_unigram_vector_experiments(exp_number, prefix, handler='Si
 exp_number = external_unigram_vector_experiments(exp_number, prefix, handler='SignifierSignifiedFeatureHandler',
                                                  use_socher_embeddings=False)
 
-for e in experiments:
+# re-order experiments so that the hard ones (high-memory, long-running) come last
+sorted_experiments = sorted(experiments, key=attrgetter('labelled_name'))
+for new_id, e in enumerate(sorted_experiments, 1):
+    e.number = new_id
     print('%s,' % e)
 
 # sys.exit(0)
 print('Writing conf files')
 megasuperbase_conf_file = 'conf/exp1-superbase.conf'
-for exp in experiments:
+for exp in sorted_experiments:
     # sanity check
     if exp.thesaurus_file and os.path.exists(exp.thesaurus_file):
         pass
