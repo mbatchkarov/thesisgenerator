@@ -316,14 +316,17 @@ exp_number = external_unigram_vector_experiments(exp_number, prefix, handler='Si
 
 # re-order experiments so that the hard ones (high-memory, long-running) come last
 sorted_experiments = sorted(experiments, key=attrgetter('labelled_name'))
+experiments = []
 for new_id, e in enumerate(sorted_experiments, 1):
     e.number = new_id
+    experiments.append(e)
+for e in experiments:
     print('%s,' % e)
 
 # sys.exit(0)
 print('Writing conf files')
 megasuperbase_conf_file = 'conf/exp1-superbase.conf'
-for exp in sorted_experiments:
+for exp in experiments:
     # sanity check
     if exp.thesaurus_file and os.path.exists(exp.thesaurus_file):
         pass
