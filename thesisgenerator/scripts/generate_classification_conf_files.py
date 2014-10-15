@@ -25,7 +25,7 @@ class Experiment():
                  unlabelled_name, unlabelled_num,
                  thesaurus_features_name, thesaurus_features_num,
                  document_features, distrib_vector_dim,
-                 baronified=False, use_similarity=True,
+                 baronified=False, use_similarity=False,
                  random_neighbour_thesaurus=False,
                  decode_token_handler='SignifiedOnlyFeatureHandler'):
         self.number = number
@@ -76,11 +76,24 @@ class Experiment():
         return set(d1.keys()) == set(d2.keys()) and all(d1[x] == d2[x] for x in list(d1.keys()) if x != 'number')
 
 
-def basic_experiments(exp_number, prefix, composer_algos, use_similarity=True):
-    for thesf_num, thesf_name in zip([12, 13], ['dependencies', 'windows']):
-        for unlab_num, unlab_name in zip([10], ['gigaw']):  # 11, 'wiki'
-            for labelled_corpus in ['R2', 'MR', 'AM']:
-                for svd_dims in [0, 100]:
+def basic_experiments(exp_number, prefix, composer_algos, use_similarity=False):
+    if use_similarity:
+        # I'm not that interested in this parameter, let's only run a small
+        # number of experiments to see what it does
+        a = zip([13], ['windows'])
+        b = zip([10], ['gigaw'])  #
+        c = ['R2']
+        d = [100]
+    else:
+        a = zip([12, 13], ['dependencies', 'windows'])
+        b = zip([10], ['gigaw'])  #
+        c = ['R2', 'MR', 'AM']
+        d = [0, 100]
+
+    for thesf_num, thesf_name in a:
+        for unlab_num, unlab_name in b:
+            for labelled_corpus in c:
+                for svd_dims in d:
                     for composer_class in composer_algos:
                         composer_name = composer_class.name
 
@@ -107,7 +120,7 @@ def basic_experiments(exp_number, prefix, composer_algos, use_similarity=True):
                         exp_number += 1
 
     # do experiments where Socher(2011) provides both unigram vectors and composition algorithm
-    for labelled_corpus in ['R2', 'MR', 'AM']:
+    for labelled_corpus in c:
         composer_name = 'Socher'
         e = Experiment(exp_number, composer_name, socher_composed_events_file, labelled_corpus,
                        'neuro', 12, 'neuro', 14, 'AN_NN', 100, use_similarity=use_similarity)
@@ -289,8 +302,8 @@ techtc_corpora = list(glob('/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample
 experiments = []
 
 exp_number = baselines(1)
+exp_number = basic_experiments(exp_number, prefix, composer_algos)
 exp_number = basic_experiments(exp_number, prefix, composer_algos, use_similarity=True)
-exp_number = basic_experiments(exp_number, prefix, composer_algos, use_similarity=False)
 exp_number = an_only_nn_only_experiments(exp_number, prefix, composer_algos)
 exp_number = external_unigram_vector_experiments(exp_number, prefix)  # socher embeddings + Add/Mult composition
 exp_number = external_unigram_vector_experiments(exp_number, prefix, use_socher_embeddings=False)  # word2vec embeddings
@@ -303,7 +316,7 @@ exp_number = external_unigram_vector_experiments(exp_number, prefix, handler='Si
 for e in experiments:
     print('%s,' % e)
 
-sys.exit(0)
+# sys.exit(0)
 print('Writing conf files')
 megasuperbase_conf_file = 'conf/exp1-superbase.conf'
 for exp in experiments:
