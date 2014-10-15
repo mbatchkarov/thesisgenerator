@@ -226,6 +226,15 @@ def technion_corpora_experiments(exp_number, prefix):
         for c in composer_algos:
             yield unlab_num, unlab_name, thesf_name, thesf_num, c.name
 
+    def dependency_vectors():
+        unlab_num, unlab_name = 10, 'gigaw'
+        thesf_num, thesf_name = 12, 'dependencies'
+        # can't easily run Julie's observed dependency code, ignore it
+        composer_algos = [AdditiveComposer, MultiplicativeComposer,
+                          LeftmostWordComposer, RightmostWordComposer]
+        for c in composer_algos:
+            yield unlab_num, unlab_name, thesf_name, thesf_num, c.name
+
     def turian_vectors():
         unlab_num, unlab_name = 12, 'neuro'
         thesf_num, thesf_name = 14, 'neuro'
@@ -242,6 +251,7 @@ def technion_corpora_experiments(exp_number, prefix):
             yield unlab_num, unlab_name, thesf_name, thesf_num, c.name
 
     def all_vectors():
+        yield from dependency_vectors()
         yield from count_vectors()
         yield from turian_vectors()
         yield from word2vec_vectors()
@@ -256,7 +266,7 @@ def technion_corpora_experiments(exp_number, prefix):
 prefix = '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit'
 composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
                   RightmostWordComposer, BaroniComposer,
-                  Bunch(name='Observed'), Bunch(name='Socher')]  # Bunch(name='APDT'),
+                  Bunch(name='Observed'), Bunch(name='Socher')]
 
 # e.g. exp10-13bAN_NN_gigaw_Left/AN_NN_gigaw_Left.events.filtered.strings
 unred_pattern = '{prefix}/exp{unlab_num}-{thesf_num}bAN_NN_{unlab_name:.5}_{composer_name}/' \
@@ -293,7 +303,7 @@ exp_number = external_unigram_vector_experiments(exp_number, prefix, handler='Si
 for e in experiments:
     print('%s,' % e)
 
-# sys.exit(0)
+sys.exit(0)
 print('Writing conf files')
 megasuperbase_conf_file = 'conf/exp1-superbase.conf'
 for exp in experiments:
