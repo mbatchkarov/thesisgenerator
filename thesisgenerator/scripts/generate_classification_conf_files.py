@@ -11,7 +11,6 @@ sys.path.append('..')
 sys.path.append('../..')
 from thesisgenerator.composers.vectorstore import *
 from thesisgenerator.utils.conf_file_utils import set_in_conf_file
-from operator import attrgetter
 
 '''
 Once all thesauri with ngram entries (obtained using different composition methods) have been built offline,
@@ -57,7 +56,7 @@ class Experiment():
         # num: doc_feats, comp, handler, unlab, svd, lab, thes_feats
         return ','.join([str(self.number),
                          self.unlabelled_name,
-                         'TechTC' if 'techtc' in self.labelled_name else self.labelled_name,
+                         self.labelled_name,
                          str(self.distrib_vector_dim),
                          self.composer_name,
                          self.document_features,
@@ -315,7 +314,20 @@ exp_number = external_unigram_vector_experiments(exp_number, prefix, handler='Si
                                                  use_socher_embeddings=False)
 
 # re-order experiments so that the hard ones (high-memory, long-running) come last
-sorted_experiments = sorted(experiments, key=attrgetter('labelled_name'))
+def _myorder(item):
+    """
+    If the thing is AM move it to the from of the sorted list, sort
+    all other items lexicographically
+    :param item:
+    :return:
+    """
+    data = getattr(item, 'labelled_name')
+    if data == 'AM':
+        return chr(1)
+    return data
+
+
+sorted_experiments = sorted(experiments, key=_myorder)
 experiments = []
 for new_id, e in enumerate(sorted_experiments, 1):
     e.number = new_id
