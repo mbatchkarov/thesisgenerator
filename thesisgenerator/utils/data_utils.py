@@ -65,12 +65,12 @@ def get_tokenizer_settings_from_conf_file(conf_file):
     conf, _ = parse_config_file(conf_file)
     return get_tokenizer_settings_from_conf(conf)
 
-def get_tokenized_data(training_data, tokenizer_conf, shuffle_targets=False,
+def get_tokenized_data(training_path, tokenizer_conf, shuffle_targets=False,
                        test_data='', *args, **kwargs):
     # tokenizer shouldn't cache, it's too low-level. Also, the labels of that data set are lost
     # instead, this entire method should be cached
     tokenizer = XmlTokenizer(**tokenizer_conf)
-    raw_data, data_ids = load_text_data_into_memory(training_path=training_data, test_path=test_data,
+    raw_data, data_ids = load_text_data_into_memory(training_path=training_path, test_path=test_data,
                                                     shuffle_targets=shuffle_targets)
     return tokenize_data(raw_data, tokenizer, data_ids)
 

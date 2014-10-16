@@ -154,10 +154,12 @@ class XmlTokenizer(object):
 
             tokens.append(Token(txt, pos, int(element.get('id')), ner=iob_tag))
 
+        token_index = {t.index: t for t in tokens}
+
         # build a graph from the dependency information available in the input
         tokens_ids = set(x.index for x in tokens)
         dep_tree = nx.DiGraph()
-        dep_tree.add_nodes_from(tokens_ids)
+        dep_tree.add_nodes_from(tokens)
 
         dependencies = tree.find('.//{}-dependencies'.format(self.dependency_format))
         # some file are formatted like so: <basic-dependencies> ... </basic-dependencies>
@@ -176,9 +178,9 @@ class XmlTokenizer(object):
                 dependent_idx = int(dependent.get('idx'))
                 #dependent_txt = dependent.text
                 if dependent_idx in tokens_ids and head_idx in tokens_ids:
-                    dep_tree.add_edge(head_idx, dependent_idx, type=type)
+                    dep_tree.add_edge(token_index[head_idx], token_index[dependent_idx], type=type)
 
-        return tokens, (dep_tree, {t.index: t for t in tokens})
+        return dep_tree
 
     def tokenize_doc(self, doc, **kwargs):
         """
