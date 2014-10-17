@@ -90,9 +90,9 @@ def _get_data_iterators(path, shuffle_targets=False):
         raise ValueError('The provided source path %s has to be a directory containing data in the mallet format'
                          ' (class per directory, document per file).' % path)
 
-    dataset = load_files(path, shuffle=False)
+    dataset = load_files(path, shuffle=False, load_content=False)
     logging.info('Targets are: %s', dataset.target_names)
-    data_iterable = dataset.data
+    data_iterable = dataset.filenames
     if shuffle_targets:
         logging.warning('RANDOMIZING TARGETS')
         random.shuffle(dataset.target)
