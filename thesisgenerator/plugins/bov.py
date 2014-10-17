@@ -280,6 +280,11 @@ class ThesaurusVectorizer(TfidfVectorizer):
                         if n == 1 and feature.tokens[0].pos not in self.unigram_feature_pos_tags:
                             continue
                         features.append(feature)
+        # it doesn't matter where in the sentence/document these features were found
+        # erase their index
+        for feature in features:
+            for token in feature.tokens:
+                token.index = 'any'
 
         return features  # + last_chars + shapes
 
