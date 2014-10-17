@@ -17,7 +17,7 @@ import gzip
 from networkx.readwrite.json_graph import node_link_data
 from joblib import Memory, Parallel, delayed
 from sklearn.datasets import load_files
-from thesisgenerator.plugins.tokenizers import XmlTokenizer
+from thesisgenerator.plugins.tokenizers import XmlTokenizer, GzippedJsonTokenizer
 from thesisgenerator.utils.conf_file_utils import parse_config_file
 from thesisgenerator.composers.vectorstore import DummyThesaurus
 
@@ -69,13 +69,21 @@ def get_tokenizer_settings_from_conf_file(conf_file):
 
 
 def get_tokenized_data(training_path, tokenizer_conf, shuffle_targets=False,
-                       test_data='', *args, **kwargs):
-    # tokenizer shouldn't cache, it's too low-level. Also, the labels of that data set are lost
-    # instead, this entire method should be cached
-    tokenizer = XmlTokenizer(**tokenizer_conf)
-    raw_data, data_ids = load_text_data_into_memory(training_path=training_path, test_path=test_data,
-                                                    shuffle_targets=shuffle_targets)
-    return tokenize_data(raw_data, tokenizer, data_ids)
+                       test_data='', gzip_json=True, *args, **kwargs):
+    if gzip_json:
+        tokenizer = GzippedJsonTokenizer(**tokenizer_conf)
+        x_tr, y_tr = tokenizer.tokenize_corpus(training_path)
+        if test_data:
+            x_test, y_test = tokenizer.tokenize_corpus(test_data)
+        else:
+            x_test, y_test = None, None
+        return x_tr, np.array(y_tr), x_test, np.array(y_test) if y_test else y_test
+    else:
+        tokenizer = XmlTokenizer(**tokenizer_conf)
+        raw_data, data_ids = load_text_data_into_memory(training_path=training_path,
+                                                        test_path=test_data,
+                                                        shuffle_targets=shuffle_targets)
+        return tokenize_data(raw_data, tokenizer, data_ids)
 
 
 def _get_data_iterators(path, shuffle_targets=False):

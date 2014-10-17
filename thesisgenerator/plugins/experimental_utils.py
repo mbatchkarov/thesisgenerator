@@ -3,7 +3,6 @@
 
 # if one tries to run this script from the main project directory the
 # thesisgenerator package would not be on the path, add it and try again
-from collections import ChainMap
 import sys
 
 sys.path.append('.')
@@ -13,12 +12,10 @@ sys.path.append('../..')
 import glob
 import os
 import logging
-import platform
 from thesisgenerator.utils.data_utils import get_thesaurus, get_tokenized_data, get_tokenizer_settings_from_conf
 from thesisgenerator.utils.conf_file_utils import parse_config_file
 from thesisgenerator.plugins.file_generators import _vary_training_size_file_iterator
 from thesisgenerator.__main__ import go
-from joblib import Memory
 
 
 def _clear_old_files(i, prefix):
@@ -66,14 +63,13 @@ def run_experiment(expid, num_workers=1,
     if not thesaurus:
         thesaurus = get_thesaurus(conf)
 
-    memory = Memory(cachedir='.', verbose=999)
-    get_cached_tokenized_data = memory.cache(get_tokenized_data, ignore=['*', '**']) \
-        if conf['joblib_caching'] else get_tokenized_data
+    suffix = '.gz' if conf['joblib_caching'] else ''
     logging.info('Tokenizing %s', conf['training_data'])
 
-    tokenised_data = get_cached_tokenized_data(conf['training_data'],
-                                               get_tokenizer_settings_from_conf(conf),
-                                               test_data=conf['test_data'])
+    test_path = conf['test_data'] + suffix if conf['test_data'] else ''
+    tokenised_data = get_tokenized_data(conf['training_data'] + suffix,
+                                        get_tokenizer_settings_from_conf(conf),
+                                        test_data=test_path)
     # run data through the pipeline
     return [go(new_conf_file, log_dir, tokenised_data, thesaurus, n_jobs=num_workers)
             for new_conf_file, log_dir in conf_file_iterator]

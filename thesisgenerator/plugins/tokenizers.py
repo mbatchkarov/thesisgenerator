@@ -1,14 +1,14 @@
 # coding=utf-8
 from collections import defaultdict
-from copy import deepcopy
 import logging
+import gzip
+import json
 
 from sklearn.feature_extraction.stop_words import ENGLISH_STOP_WORDS
 import networkx as nx
 
-from thesisgenerator.classifiers import NoopTransformer
 from discoutils.tokens import Token
-
+from networkx.readwrite.json_graph import node_link_graph
 
 try:
     import xml.etree.cElementTree as ET
@@ -16,65 +16,60 @@ except ImportError:
     logging.warning('cElementTree not available')
     import xml.etree.ElementTree as ET
 
+# copied from feature extraction toolkit
+pos_coarsification_map = defaultdict(lambda: "UNK")
+pos_coarsification_map.update({"JJ": "J",
+                               "JJN": "J",
+                               "JJS": "J",
+                               "JJR": "J",
+
+                               "VB": "V",
+                               "VBD": "V",
+                               "VBG": "V",
+                               "VBN": "V",
+                               "VBP": "V",
+                               "VBZ": "V",
+
+                               "NN": "N",
+                               "NNS": "N",
+                               "NNP": "N",
+                               "NPS": "N",
+                               "NP": "N",
+
+                               "RB": "RB",
+                               "RBR": "RB",
+                               "RBS": "RB",
+
+                               "DT": "DET",
+                               "WDT": "DET",
+
+                               "IN": "CONJ",
+                               "CC": "CONJ",
+
+                               "PRP": "PRON",
+                               "PRP$": "PRON",
+                               "WP": "PRON",
+                               "WP$": "PRON",
+
+                               ".": "PUNCT",
+                               ":": "PUNCT",
+                               ":": "PUNCT",
+                               "": "PUNCT",
+                               "'": "PUNCT",
+                               "\"": "PUNCT",
+                               "'": "PUNCT",
+                               "-LRB-": "PUNCT",
+                               "-RRB-": "PUNCT",
+
+                               # the four NE types that FET 0.3.6 may return as PoS tags
+                               # not really needed in the classification pipeline yet
+                               "PERSON": "PERSON",
+                               "LOC": "LOC",
+                               "ORG": "ORG",
+                               "NUMBER": "NUMBER"})
+
 
 class XmlTokenizer(object):
-    # for parsing integers with comma for thousands separator
-    # locale.setlocale(locale.LC_ALL, 'en_US')
-
-    # copied from feature extraction toolkit
-    pos_coarsification_map = defaultdict(lambda: "UNK")
-    pos_coarsification_map.update({
-        "JJ": "J",
-        "JJN": "J",
-        "JJS": "J",
-        "JJR": "J",
-
-        "VB": "V",
-        "VBD": "V",
-        "VBG": "V",
-        "VBN": "V",
-        "VBP": "V",
-        "VBZ": "V",
-
-        "NN": "N",
-        "NNS": "N",
-        "NNP": "N",
-        "NPS": "N",
-        "NP": "N",
-
-        "RB": "RB",
-        "RBR": "RB",
-        "RBS": "RB",
-
-        "DT": "DET",
-        "WDT": "DET",
-
-        "IN": "CONJ",
-        "CC": "CONJ",
-
-        "PRP": "PRON",
-        "PRP$": "PRON",
-        "WP": "PRON",
-        "WP$": "PRON",
-
-        ".": "PUNCT",
-        ":": "PUNCT",
-        ":": "PUNCT",
-        "": "PUNCT",
-        "'": "PUNCT",
-        "\"": "PUNCT",
-        "'": "PUNCT",
-        "-LRB-": "PUNCT",
-        "-RRB-": "PUNCT",
-
-        # the four NE types that FET 0.3.6 may return as PoS tags
-        # not really needed in the classification pipeline yet
-        "PERSON": "PERSON",
-        "LOC": "LOC",
-        "ORG": "ORG",
-        "NUMBER": "NUMBER"
-    })
-
     def __init__(self, normalise_entities=False, use_pos=True,
                  coarse_pos=True, lemmatize=True, lowercase=True,
                  remove_stopwords=False, remove_short_words=False,
@@ -90,12 +85,6 @@ class XmlTokenizer(object):
         self.remove_short_words = remove_short_words
         self.remove_long_words = remove_long_words
         self.dependency_format = dependency_format
-
-        # store the important parameters for use as joblib keys
-        self.important_params = deepcopy(self.__dict__)
-
-        self.charset = 'utf8'
-        self.charset_error = 'replace'
 
 
     def tokenize_corpus(self, corpus, corpus_id_joblib):
@@ -137,7 +126,7 @@ class XmlTokenizer(object):
             except AttributeError:
                 # logging.error('You have requested named entity '
                 # 'normalisation, but the input data are '
-                #               'not annotated for entities')
+                # 'not annotated for entities')
                 iob_tag = 'MISSING'
                 # raise ValueError('Data not annotated for named entities')
 
@@ -178,7 +167,7 @@ class XmlTokenizer(object):
 
                 dependent = dep.find('dependent')
                 dependent_idx = int(dependent.get('idx'))
-                #dependent_txt = dependent.text
+                # dependent_txt = dependent.text
                 if dependent_idx in tokens_ids and head_idx in tokens_ids:
                     dep_tree.add_edge(token_index[head_idx], token_index[dependent_idx], type=type)
 
@@ -225,16 +214,32 @@ class XmlTokenizer(object):
         except ValueError:
             is_float = False
 
-        # try:
-        # locale.atof(s)
-        #     is_int = True
-        # except ValueError:
-        #     is_int = False
-
         is_only_digits_or_punct = True
         for ch in s:
             if ch.isalpha():
                 is_only_digits_or_punct = False
                 break
 
-        return is_float or is_only_digits_or_punct  #or is_int
+        return is_float or is_only_digits_or_punct  # or is_int
+
+
+class GzippedJsonTokenizer(XmlTokenizer):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    def tokenize_corpus(self, corpus, *args, **kwargs):
+        def _token_decode(dct):
+            d = dict(dct)
+            if '__token__' in d:
+                return Token(**d)
+            else:
+                return d
+
+        labels, docs = [], []
+        with gzip.open(corpus, 'rb') as infile:
+            for line in infile:
+                d = json.loads(line.decode('UTF8'), object_hook=_token_decode)
+                labels.append(d[0])
+                docs.append([node_link_graph(js) for js in d[1:]])
+
+        return docs, labels
