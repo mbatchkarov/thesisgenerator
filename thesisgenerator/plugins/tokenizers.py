@@ -115,7 +115,7 @@ class XmlTokenizer(object):
 
             pos = element.find('POS').text.upper() if self.use_pos else ''
             if self.coarse_pos:
-                pos = self.pos_coarsification_map[pos.upper()]
+                pos = pos_coarsification_map[pos.upper()]
 
             if pos == 'PUNCT' or am_i_a_number:
                 # logging.debug('Tokenizer ignoring stopword %s' % txt)
