@@ -89,9 +89,11 @@ class XmlTokenizer(object):
 
     def tokenize_corpus(self, corpus, corpus_id_joblib):
         # i is needed to get the ID of the doc in case something goes wrong
-        for (i, doc) in enumerate(corpus):
-            with open(doc) as infile:
-                yield self.tokenize_doc(infile.read())
+        trees = []
+        for (i, x) in enumerate(corpus):
+            with open(x) as infile:
+             trees.append(self.tokenize_doc(infile.read()))
+        return trees
 
     def _process_sentence(self, tree):
         tokens = []
