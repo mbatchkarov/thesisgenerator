@@ -11,11 +11,12 @@ sys.path.append('../..')
 from discoutils.thesaurus_loader import Vectors
 from discoutils.misc import Delayed
 from discoutils.tokens import Token
+from discoutils.cmd_utils import run_and_log_output
 import numpy as np
 import json
 import gzip
 from networkx.readwrite.json_graph import node_link_data
-from joblib import Memory, Parallel, delayed
+from joblib import Parallel, delayed
 from sklearn.datasets import load_files
 from thesisgenerator.plugins.tokenizers import XmlTokenizer, GzippedJsonTokenizer
 from thesisgenerator.utils.conf_file_utils import parse_config_file
@@ -29,19 +30,15 @@ def tokenize_data(data, tokenizer, corpus_ids):
     :param corpus_ids:  list-like, names of the training corpus (and optional testing corpus), used for
     retrieving pre-tokenized data from joblib cache
     """
-    logging.info('Tokenizer starting')
     x_tr, y_tr, x_test, y_test = data
     # todo this logic needs to be moved to feature extractor
     x_tr = tokenizer.tokenize_corpus(x_tr, corpus_ids[0])
     if x_test is not None and y_test is not None and corpus_ids[1] is not None:
         x_test = tokenizer.tokenize_corpus(x_test, corpus_ids[1])
-    logging.info('Tokenizer finished')
     return x_tr, y_tr, x_test, y_test
 
 
 def load_text_data_into_memory(training_path, test_path=None, shuffle_targets=False):
-    # read the raw text just once
-    logging.info('Loading raw training set %s', training_path)
     x_train, y_train = _get_data_iterators(training_path, shuffle_targets=shuffle_targets)
 
     if test_path:
@@ -139,7 +136,7 @@ def get_thesaurus(conf):
             # single we are running single-threaded, might as well read this in now
             # returning a delayed() will cause the file to be read for each CV fold
             # thesaurus = Delayed(Vectors, Vectors.from_tsv, path, **params)
-            thesaurus = Vectors.from_tsv(path, **params)
+            thesaurus = Vectors.from_tsv(path, tar=conf['joblib_caching'], **params)
     if not thesaurus:
         # if a vector source has not been passed in and has not been initialised, then init it to avoid
         # accessing empty things
@@ -169,17 +166,17 @@ def load_and_shelve_thesaurus(path, **kwargs):
     return Delayed(Vectors, Vectors.from_shelf_readonly, filename, **kwargs)
 
 
-def shelve_single_thesaurus(conf_file):
+def tar_single_thesaurus(conf_file):
     conf, _ = parse_config_file(conf_file)
     th = conf['vector_sources']['neighbours_file']
 
     if os.path.exists(th):
-        load_and_shelve_thesaurus(th, **conf['vector_sources'])
+        run_and_log_output('tar -zcvf {0}.gz {0}'.format(th))
     else:
         logging.warning('Thesaurus does not exist: %s', th)
 
 
-def shelve_all_thesauri(n_jobs):
+def tar_all_thesauri(n_jobs):
     """
     Loads, parses and shelves all thesauri used in experiments.
     """
@@ -191,10 +188,10 @@ def shelve_all_thesauri(n_jobs):
         thes_file = conf['vector_sources']['neighbours_file']
         thesauri[thes_file] = conf_file
 
-    Parallel(n_jobs=n_jobs)(delayed(shelve_single_thesaurus)(conf_file) for conf_file in thesauri.values())
+    Parallel(n_jobs=n_jobs)(delayed(tar_single_thesaurus)(conf_file) for conf_file in thesauri.values())
 
 
-def cache_single_labelled_corpus(conf_file):
+def jsonify_single_labelled_corpus(conf_file):
     conf, _ = parse_config_file(conf_file)
     train_set = conf['training_data']
     test_set = conf['test_data']
@@ -215,9 +212,10 @@ def cache_single_labelled_corpus(conf_file):
             outfile.write(bytes(json.dumps(all_data, default=_token_encode), 'UTF8'))
             outfile.write(bytes('\n', 'UTF8'))
 
+    # always load the dataset from XML
     x_tr, y_tr, x_test, y_test = get_tokenized_data(train_set,
                                                     get_tokenizer_settings_from_conf_file(conf_file),
-                                                    test_data=test_set)
+                                                    test_data=test_set, gzip_json=False)
     with gzip.open('%s.gz' % train_set, 'wb') as outfile:
         _write_corpus_to_json(x_tr, y_tr, outfile)
         logging.info('Writing %s to gzip json', train_set)
@@ -240,8 +238,8 @@ def get_all_corpora():
     return corpora
 
 
-def cache_all_labelled_corpora(n_jobs):
+def jsonify_all_labelled_corpora(n_jobs):
     corpora = get_all_corpora()
     logging.info(corpora)
-    Parallel(n_jobs=n_jobs)(delayed(cache_single_labelled_corpus)(conf_file) for conf_file in corpora.values())
+    Parallel(n_jobs=n_jobs)(delayed(jsonify_single_labelled_corpus)(conf_file) for conf_file in corpora.values())
 

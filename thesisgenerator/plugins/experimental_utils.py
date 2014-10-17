@@ -64,8 +64,6 @@ def run_experiment(expid, num_workers=1,
         thesaurus = get_thesaurus(conf)
 
     suffix = '.gz' if conf['joblib_caching'] else ''
-    logging.info('Tokenizing %s', conf['training_data'])
-
     test_path = conf['test_data'] + suffix if conf['test_data'] else ''
     tokenised_data = get_tokenized_data(conf['training_data'] + suffix,
                                         get_tokenizer_settings_from_conf(conf),

@@ -87,10 +87,11 @@ class XmlTokenizer(object):
         self.dependency_format = dependency_format
 
 
-    def tokenize_corpus(self, corpus, corpus_id_joblib):
+    def tokenize_corpus(self, file_names, corpus_name):
+        logging.info('XmlTokenizer running for %s', corpus_name)
         # i is needed to get the ID of the doc in case something goes wrong
         trees = []
-        for (i, x) in enumerate(corpus):
+        for (i, x) in enumerate(file_names):
             with open(x) as infile:
              trees.append(self.tokenize_doc(infile.read()))
         return trees
@@ -229,7 +230,8 @@ class GzippedJsonTokenizer(XmlTokenizer):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def tokenize_corpus(self, corpus, *args, **kwargs):
+    def tokenize_corpus(self, tar_file, *args, **kwargs):
+        logging.info('Compressed JSON tokenizer running for %s', tar_file)
         def _token_decode(dct):
             d = dict(dct)
             if '__token__' in d:
@@ -238,7 +240,7 @@ class GzippedJsonTokenizer(XmlTokenizer):
                 return d
 
         labels, docs = [], []
-        with gzip.open(corpus, 'rb') as infile:
+        with gzip.open(tar_file, 'rb') as infile:
             for line in infile:
                 d = json.loads(line.decode('UTF8'), object_hook=_token_decode)
                 labels.append(d[0])
