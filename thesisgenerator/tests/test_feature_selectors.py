@@ -1,7 +1,6 @@
 import os
 
 from sklearn.pipeline import Pipeline
-import numpy as np
 import numpy.testing as t
 from pandas.io.parsers import read_csv
 
@@ -9,8 +8,8 @@ from thesisgenerator.composers.feature_selectors import VectorBackedSelectKBest
 from thesisgenerator.composers.vectorstore import *
 from thesisgenerator.plugins.bov import ThesaurusVectorizer
 from thesisgenerator.plugins.dumpers import FeatureVectorsCsvDumper
-from discoutils.tokens import DocumentFeature, Token
-from thesisgenerator.utils.data_utils import load_text_data_into_memory, load_tokenizer, tokenize_data
+from thesisgenerator.utils.data_utils import load_text_data_into_memory, tokenize_data
+from thesisgenerator.plugins.tokenizers import XmlTokenizer
 
 
 training_matrix_signifier_bigrams = np.array(
@@ -41,7 +40,7 @@ def _do_feature_selection(must_be_in_thesaurus, k, handler='Base', vector_source
         test_path='thesisgenerator/resources/test-ev',
     )
 
-    tokenizer = load_tokenizer()
+    tokenizer = XmlTokenizer()
     x_train, y_train, x_test, y_test = tokenize_data(raw_data, tokenizer, data_ids)
 
     if vector_source == 'default':
