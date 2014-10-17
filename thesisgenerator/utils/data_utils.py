@@ -1,5 +1,3 @@
-import argparse
-from collections import ChainMap
 from glob import glob
 from hashlib import md5
 import logging
@@ -12,7 +10,11 @@ sys.path.append('..')
 sys.path.append('../..')
 from discoutils.thesaurus_loader import Vectors
 from discoutils.misc import Delayed
+from discoutils.tokens import Token
 import numpy as np
+import json
+import gzip
+from networkx.readwrite.json_graph import node_link_data
 from joblib import Memory, Parallel, delayed
 from sklearn.datasets import load_files
 from thesisgenerator.plugins.tokenizers import XmlTokenizer
@@ -64,6 +66,7 @@ def get_tokenizer_settings_from_conf(conf):
 def get_tokenizer_settings_from_conf_file(conf_file):
     conf, _ = parse_config_file(conf_file)
     return get_tokenizer_settings_from_conf(conf)
+
 
 def get_tokenized_data(training_path, tokenizer_conf, shuffle_targets=False,
                        test_data='', *args, **kwargs):
@@ -183,14 +186,35 @@ def shelve_all_thesauri(n_jobs):
     Parallel(n_jobs=n_jobs)(delayed(shelve_single_thesaurus)(conf_file) for conf_file in thesauri.values())
 
 
-def cache_single_labelled_corpus(conf_file, memory=None):
-    if not memory:
-        memory = Memory(cachedir='.', verbose=999)
+def cache_single_labelled_corpus(conf_file):
     conf, _ = parse_config_file(conf_file)
-    get_cached_tokenized_data = memory.cache(get_tokenized_data, ignore=['*', '**'])
-    get_cached_tokenized_data(conf['training_data'],
-                              get_tokenizer_settings_from_conf(conf),
-                              test_data=conf['test_data'])
+    train_set = conf['training_data']
+    test_set = conf['test_data']
+
+    def _token_encode(t):
+        if isinstance(t, Token):
+            d = t.__dict__
+            d.update({'__token__': True})
+            return d
+        raise TypeError
+
+    def _write_corpus_to_json(x_tr, y_tr, outfile):
+        for document, label in zip(x_tr, y_tr):
+            all_data = [label]
+            for sent_parse_tree in document:
+                data = node_link_data(sent_parse_tree)
+                all_data.append(data)
+            outfile.write(bytes(json.dumps(all_data, default=_token_encode), 'UTF8'))
+            outfile.write(bytes('\n', 'UTF8'))
+
+    x_tr, y_tr, x_test, y_test = get_tokenized_data(train_set,
+                                                    get_tokenizer_settings_from_conf_file(conf_file),
+                                                    test_data=test_set)
+    with gzip.open('%s.gz' % train_set, 'wb') as outfile:
+        _write_corpus_to_json(x_tr, y_tr, outfile)
+        logging.info('Writing %s to gzip json', train_set)
+        if x_test:
+            _write_corpus_to_json(x_test, y_test, outfile)
 
 
 def get_all_corpora():
@@ -210,6 +234,6 @@ def get_all_corpora():
 
 def cache_all_labelled_corpora(n_jobs):
     corpora = get_all_corpora()
-    print(corpora)
+    logging.info(corpora)
     Parallel(n_jobs=n_jobs)(delayed(cache_single_labelled_corpus)(conf_file) for conf_file in corpora.values())
 

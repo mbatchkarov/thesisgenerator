@@ -2,18 +2,8 @@ import sys
 
 sys.path.append('.')
 import gzip, json
-from networkx.readwrite.json_graph import node_link_data, node_link_graph
+from networkx.readwrite.json_graph import node_link_graph
 from discoutils.tokens import Token
-from thesisgenerator.utils.data_utils import get_tokenized_data, get_all_corpora, get_tokenizer_settings_from_conf_file
-
-
-def token_encode(t):
-    if isinstance(t, Token):
-        d = t.__dict__
-        d.update({'__token__': True})
-        return d
-    raise TypeError
-
 
 def token_decode(dct):
     d = dict(dct)
@@ -27,27 +17,6 @@ def token_decode(dct):
 # print(t)
 # t1 = json.loads(t, object_hook=token_decode, object_pairs_hook=token_decode)
 # print(t1)
-
-def _write_corpus(x_tr, y_tr, outfile):
-    for document, label in zip(x_tr, y_tr):
-            all_data = [label]
-            for sent_parse_tree in document:
-                data = node_link_data(sent_parse_tree)
-                all_data.append(data)
-            outfile.write(bytes(json.dumps(all_data, default=token_encode), 'UTF8'))
-            outfile.write(bytes('\n', 'UTF8'))
-
-for corpus_path, conf_file in get_all_corpora().items():
-    if 'movie' not in corpus_path:
-        continue
-
-    print(corpus_path)
-    x_tr, y_tr, x_test, y_test = get_tokenized_data(corpus_path,
-                                                    get_tokenizer_settings_from_conf_file(conf_file))
-    with gzip.open('%s.gz' % corpus_path, 'wb') as outfile:
-        _write_corpus(x_tr, y_tr, outfile)
-        if x_test:
-            _write_corpus(x_test, y_test, outfile)
 
 
 with gzip.open('sample-data/movie-reviews-tagged.gz', 'rb') as infile:
