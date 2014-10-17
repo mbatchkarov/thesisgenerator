@@ -192,9 +192,23 @@ def tar_all_thesauri(n_jobs):
 
 
 def jsonify_single_labelled_corpus(conf_file):
+    """
+    Tokenizes an entire XML corpus (sentence segmented and dependency parsed), incl test and train chunk,
+    and writes its content to a single JSON gzip-ed file,
+     one document per line. Each line is a JSON array, the first value of which is the label of
+     the document, and the rest are JSON representation of the dependency parse trees of
+     each sentence in the document. The resultant document can be loaded with a GzippedJsonTokenizer.
+
+    :param conf_file: A conf file. If this is specified, the other params will not be used, but
+     will be read from the conf file instead
+    :param tokenizer_conf: a dict to configure the tokenizer
+    :param train_set: path to the training set in XML format
+    :param test_set: test set. If this is present, it will be written to the same file as the training set.
+    """
     conf, _ = parse_config_file(conf_file)
     train_set = conf['training_data']
     test_set = conf['test_data']
+    tokenizer_conf = get_tokenizer_settings_from_conf_file(conf_file)
 
     def _token_encode(t):
         if isinstance(t, Token):
@@ -214,7 +228,7 @@ def jsonify_single_labelled_corpus(conf_file):
 
     # always load the dataset from XML
     x_tr, y_tr, x_test, y_test = get_tokenized_data(train_set,
-                                                    get_tokenizer_settings_from_conf_file(conf_file),
+                                                    tokenizer_conf,
                                                     test_data=test_set, gzip_json=False)
     with gzip.open('%s.gz' % train_set, 'wb') as outfile:
         _write_corpus_to_json(x_tr, y_tr, outfile)
