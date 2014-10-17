@@ -96,9 +96,9 @@ class Test_tokenizer(TestCase):
         dep_tree = self.tokenizer.tokenize_doc(doc)[0]
 
         # token index is 1-indexed, as is the output of Stanford
-        cats = Token('cats', 'N', 0)
-        like = Token('like', 'V', 1)
-        dogs = Token('dogs', 'N', 2, ner='ORG')
+        cats = Token('cats', 'N', 1)
+        like = Token('like', 'V', 2)
+        dogs = Token('dogs', 'N', 3, ner='ORG')
 
         self.assertSetEqual(set(dep_tree.nodes()), set([cats, like, dogs]))
         self.assertEqual(len(dep_tree.edges()), 2)

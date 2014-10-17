@@ -232,8 +232,8 @@ class ThesaurusVectorizer(TfidfVectorizer):
 
         if self.extract_NN_features:
             for head, dep, data in parse_tree.edges(data=True):
-                if data['type'] == 'nn' and head.pos == 'N' and dep.pos == 'n':
-                    new_features.append(DocumentFeature('AN', (dep, head)))
+                if data['type'] == 'nn' and head.pos == 'N' and dep.pos == 'N':
+                    new_features.append(DocumentFeature('NN', (dep, head)))
 
 
         if self.remove_features_with_NER:
