@@ -57,7 +57,7 @@ min_train_features = float() # these need to be a float when using similarity sc
 
 
 [tokenizer]
-	lowercase=boolean
+	lowercase=boolean(default=True)
     keep_only_IT=boolean(default=False)
     remove_stopwords=boolean(default=False)
 	remove_short_words=boolean(default=False)

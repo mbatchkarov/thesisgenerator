@@ -21,14 +21,14 @@ def black_cat_parse_tree():
     with open('thesisgenerator/resources/tokenizer/black_cat.tagged') as infile:
         txt = infile.read()
     t = XmlTokenizer()
-    sentence, (parse_tree, token_index) = t.tokenize_doc(txt)[0]
-    assert len(sentence) == len(parse_tree.nodes()) == 14
-    return parse_tree, token_index
+    parse_tree = t.tokenize_doc(txt)[0]
+    assert len(parse_tree.nodes()) == 14 # 15 tokens, 1 on of which is punctuation
+    return parse_tree
 
 
 # @pytest.skip('Some dependency features manually disabled for performance reasons')
 def test_extract_features_from_correct_dependency_tree(black_cat_parse_tree, vectorizer, valid_AN_features):
-    features = vectorizer.extract_features_from_dependency_tree(*black_cat_parse_tree)
+    features = vectorizer.extract_features_from_dependency_tree(black_cat_parse_tree)
 
     for adj, noun in valid_AN_features:
         f = DocumentFeature('AN', (Token(adj, 'J'), Token(noun, 'N')))
@@ -38,14 +38,14 @@ def test_extract_features_from_correct_dependency_tree(black_cat_parse_tree, vec
     assert DocumentFeature('SVO', (Token('cat', 'N'), Token('eat', 'V'), Token('bird', 'N') )) \
         in features
 
-    assert DocumentFeature('NN', (Token('heart', 'N'), Token('surgery', 'N') )) in features
+    assert DocumentFeature('NN', (Token('heart', 'N'), Token('surgery', 'N'))) in features
 
 
 def test_extract_features_with_disabled_features(black_cat_parse_tree, vectorizer, valid_AN_features):
     vectorizer.extract_VO_features = False
     vectorizer.extract_SVO_features = False
 
-    features = vectorizer.extract_features_from_dependency_tree(*black_cat_parse_tree)
+    features = vectorizer.extract_features_from_dependency_tree(black_cat_parse_tree)
 
     for adj, noun in valid_AN_features:
         f = DocumentFeature('AN', (Token(adj, 'J'), Token(noun, 'N')))
@@ -59,14 +59,12 @@ def test_extract_features_with_disabled_features(black_cat_parse_tree, vectorize
 
 
 def test_extract_features_from_empty_dependency_tree(vectorizer):
-    parse_tree, token_index = nx.DiGraph(), {}
-    features = vectorizer.extract_features_from_dependency_tree(parse_tree, token_index)
+    features = vectorizer.extract_features_from_dependency_tree(nx.DiGraph())
     assert not features
 
 
 def test_remove_features_containing_named_entities(vectorizer, black_cat_parse_tree):
-    parse_tree, token_index = black_cat_parse_tree
-    features = vectorizer.extract_features_from_dependency_tree(parse_tree, token_index)
+    features = vectorizer.extract_features_from_dependency_tree(black_cat_parse_tree)
 
     cleaned_features = vectorizer._remove_features_containing_named_entities(features)
     assert cleaned_features == features
@@ -91,17 +89,15 @@ def test_extract_features_from_dependency_tree_with_wrong_relation_types(black_c
                                                                          change_to,
                                                                          expected_feature_count,
                                                                          valid_AN_features):
-    parse_tree, token_index = black_cat_parse_tree
-
     #change all dependencies to amod
-    for source, target, data in parse_tree.edges(data=True):
+    for source, target, data in black_cat_parse_tree.edges(data=True):
         if data['type'] != change_to:
             data['type'] = change_to
 
-    for source, target, data in parse_tree.edges(data=True):
+    for source, target, data in black_cat_parse_tree.edges(data=True):
         print(data)
 
-    features = vectorizer.extract_features_from_dependency_tree(parse_tree, token_index)
+    features = vectorizer.extract_features_from_dependency_tree(black_cat_parse_tree)
     # if all relations are changed to AMOD, we should get two adjective per noun
     # if all relations are changed to NSUBJ, we should get no AN/VO/SVO features as we're missing the required relations
     # to build and AN feature, we need an AMOD relation between a J and a N

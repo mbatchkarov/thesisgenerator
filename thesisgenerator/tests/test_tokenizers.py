@@ -1,4 +1,5 @@
 # coding=utf-8
+from operator import attrgetter
 from unittest import TestCase
 from joblib import Memory
 from thesisgenerator.classifiers import NoopTransformer
@@ -52,14 +53,14 @@ class Test_tokenizer(TestCase):
         tests xml_tokenizer's lowercasing facility
         """
 
-        tokens = self._strip_dependency_tree(self.tokenizer.tokenize_doc(self.doc))
+        tokens = self._tokens_from_dependency_tree(self.tokenizer.tokenize_doc(self.doc))
         self.assertListEqual(tokens, [[Token('Cats', '', 1),
                                        Token('like', '', 2),
                                        Token('dogs', '', 3)]])
 
         self.params['lowercase'] = True
         self.tokenizer = XmlTokenizer(**self.params)
-        tokens = self._strip_dependency_tree(self.tokenizer.tokenize_doc(self.doc))
+        tokens = self._tokens_from_dependency_tree(self.tokenizer.tokenize_doc(self.doc))
         self.assertListEqual(tokens, [[Token('cats', '', 1),
                                        Token('like', '', 2),
                                        Token('dogs', '', 3)]])
@@ -71,14 +72,14 @@ class Test_tokenizer(TestCase):
         """
 
         # test that invalid tokens are removed
-        tokens = self._strip_dependency_tree(self.tokenizer.tokenize_doc(self.invalid_doc))
+        tokens = self._tokens_from_dependency_tree(self.tokenizer.tokenize_doc(self.invalid_doc))
         self.assertListEqual(tokens[0], [Token('like', '', 2),
                                          Token('dogs', '', 3, ner='ORG')])
 
         # test that valid named entity tokens get normalised
         self.params['normalise_entities'] = True
         self.tokenizer = XmlTokenizer(**self.params)
-        tokens = self._strip_dependency_tree(self.tokenizer.tokenize_doc(self.invalid_doc))
+        tokens = self._tokens_from_dependency_tree(self.tokenizer.tokenize_doc(self.invalid_doc))
         self.assertListEqual(tokens[0], [Token('like', '', 2),
                                          Token('__NER-ORG__', '', 3, ner='ORG')])
 
@@ -92,30 +93,28 @@ class Test_tokenizer(TestCase):
         with open('thesisgenerator/resources/earn_1-with-deps.tagged') as infile:
             doc = infile.read()
 
-        sent, (dep_tree, token_index) = self.tokenizer.tokenize_doc(doc)[0]
+        dep_tree = self.tokenizer.tokenize_doc(doc)[0]
 
         # token index is 1-indexed, as is the output of Stanford
-        self.assertDictEqual(token_index, {
-            1: Token('cats', 'N', 0),
-            2: Token('like', 'V', 1),
-            3: Token('dogs', 'N', 2, ner='ORG'),
-        })
+        cats = Token('cats', 'N', 1)
+        like = Token('like', 'V', 2)
+        dogs = Token('dogs', 'N', 3, ner='ORG')
+
+        self.assertSetEqual(set(dep_tree.nodes()), set([cats, like, dogs]))
         self.assertEqual(len(dep_tree.edges()), 2)
-        self.assertEqual(dep_tree.succ[2][1]['type'], 'nsubj')  # 1 is the nsubj of 2
-        self.assertEqual(dep_tree.succ[2][3]['type'], 'dobj')  # 3 is the dobj of 2
+        self.assertDictEqual(dep_tree.succ, {cats: {},
+                                             like: {cats: {'type': 'nsubj'}, dogs: {'type': 'dobj'}},
+                                             dogs: {}})
 
         # remove the subject of the sentence and check that dependency is gone
         tree = self._replace_word_in_document('cat', 'the', document=doc)
-        sent, (dep_tree, token_index) = self.tokenizer.tokenize_doc(ET.tostring(tree))[0]
+        dep_tree = self.tokenizer.tokenize_doc(ET.tostring(tree))[0]
 
-        self.assertDictEqual(token_index, {
-            # 1: Token('cats', 'N', 0), # remove
-            2: Token('like', 'V', 1),
-            3: Token('dogs', 'N', 2, ner='ORG'),
-        })
+        self.assertSetEqual(set(dep_tree.nodes()), set([like, dogs]))
         self.assertEqual(len(dep_tree.edges()), 1)
-        self.assertEqual(dep_tree.succ[2][3]['type'], 'dobj')  # 3 is the dobj of 2
-        self.assertNotIn(1, dep_tree.succ[2])  # the subject isn't there anymore
+        # the subject isn't there anymore
+        self.assertDictEqual(dep_tree.succ, {like: {dogs: {'type': 'dobj'}},
+                                             dogs: {}})
 
 
     def _replace_word_in_document(self, original, replacement, document=None):
@@ -139,13 +138,13 @@ class Test_tokenizer(TestCase):
         tree = self._replace_word_in_document('like', 'the')
 
         self.tokenizer.remove_stopwords = True
-        tokens = self._strip_dependency_tree(self.tokenizer.tokenize_doc(ET.tostring(tree)))
+        tokens = self._tokens_from_dependency_tree(self.tokenizer.tokenize_doc(ET.tostring(tree)))
         self.assertListEqual(tokens, [[Token('Cats', '', 1),
                                        Token('dogs', '', 3)]])
 
         self.tokenizer.use_pos = True
         self.tokenizer.coarse_pos = True
-        tokens = self._strip_dependency_tree(self.tokenizer.tokenize_doc(ET.tostring(tree)))
+        tokens = self._tokens_from_dependency_tree(self.tokenizer.tokenize_doc(ET.tostring(tree)))
         self.assertListEqual(tokens, [[Token('Cats', 'N', 1),
                                        Token('dogs', 'N', 3)]])
 
@@ -155,31 +154,31 @@ class Test_tokenizer(TestCase):
         """
         self.tokenizer.lemmatize = True
         self.tokenizer.remove_short_words = True
-        tokens = self._strip_dependency_tree(self.tokenizer.tokenize_doc(self.doc))
+        tokens = self._tokens_from_dependency_tree(self.tokenizer.tokenize_doc(self.doc))
         self.assertListEqual(tokens, [[Token('like', '', 2)]])
 
         self.tokenizer.use_pos = True
         self.tokenizer.coarse_pos = True
-        tokens = self._strip_dependency_tree(self.tokenizer.tokenize_doc(self.doc))
+        tokens = self._tokens_from_dependency_tree(self.tokenizer.tokenize_doc(self.doc))
         self.assertListEqual(tokens, [[Token('like', 'V', 2)]])
 
     def test_xml_tokenizer_pos(self):
         """
         Tests xml_tokenizer's coarse_pos and use_pos facilities
         """
-        tokens = self._strip_dependency_tree(self.tokenizer.tokenize_doc(self.doc))
+        tokens = self._tokens_from_dependency_tree(self.tokenizer.tokenize_doc(self.doc))
         self.assertListEqual(tokens, [[Token('Cats', '', 1),
                                        Token('like', '', 2),
                                        Token('dogs', '', 3)]])
 
         self.tokenizer.use_pos = True
-        tokens = self._strip_dependency_tree(self.tokenizer.tokenize_doc(self.doc))
+        tokens = self._tokens_from_dependency_tree(self.tokenizer.tokenize_doc(self.doc))
         self.assertListEqual(tokens, [[Token('Cats', 'NNP', 1),
                                        Token('like', 'VB', 2),
                                        Token('dogs', 'NNP', 3)]])
 
         self.tokenizer.coarse_pos = True
-        tokens = self._strip_dependency_tree(self.tokenizer.tokenize_doc(self.doc))
+        tokens = self._tokens_from_dependency_tree(self.tokenizer.tokenize_doc(self.doc))
         self.assertListEqual(tokens, [[Token('Cats', 'N', 1),
                                        Token('like', 'V', 2),
                                        Token('dogs', 'N', 3)]])
@@ -190,7 +189,7 @@ class Test_tokenizer(TestCase):
         """
 
         self.tokenizer.lemmatize = True
-        tokens = self._strip_dependency_tree(self.tokenizer.tokenize_doc(self.doc))
+        tokens = self._tokens_from_dependency_tree(self.tokenizer.tokenize_doc(self.doc))
         self.assertListEqual(tokens, [[Token('Cat', '', 1),
                                        Token('like', '', 2),
                                        Token('dog', '', 3)]])
@@ -209,7 +208,7 @@ class Test_tokenizer(TestCase):
         self.tokenizer.remove_stopwords = False
         self.tokenizer.remove_short_words = False
 
-        tokens = self._strip_dependency_tree(self.tokenizer.tokenize_doc(self.doc))
+        tokens = self._tokens_from_dependency_tree(self.tokenizer.tokenize_doc(self.doc))
         self.assertListEqual(tokens, [[
                                           Token('cat', 'N', 1),
                                           Token('like', 'V', 2),
@@ -217,15 +216,15 @@ class Test_tokenizer(TestCase):
                                       ]])
 
         self.tokenizer.lowercase = False
-        tokens = self._strip_dependency_tree(self.tokenizer.tokenize_doc(self.doc))
+        tokens = self._tokens_from_dependency_tree(self.tokenizer.tokenize_doc(self.doc))
         self.assertListEqual(tokens, [[
                                           Token('Cat', 'N', 1),
                                           Token('like', 'V', 2),
                                           Token('dog', 'N', 3)
                                       ]])
 
-    def _strip_dependency_tree(self, tokens):
-        return [sent[0] for sent in tokens]
+    def _tokens_from_dependency_tree(self, trees):
+        return [sorted(tree.nodes(), key=attrgetter('index')) for tree in trees]
 
     def test_is_number(self):
         is_number = self.tokenizer._is_number

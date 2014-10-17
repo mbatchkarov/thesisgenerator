@@ -33,8 +33,7 @@ class TestThesaurusVectorizer(TestCase):
             'lemmatize': True,
             'lowercase': True,
             'remove_stopwords': False,
-            'remove_short_words': False,
-            'use_cache': False
+            'remove_short_words': False
         }
         self.tokenizer = tokenizers.XmlTokenizer(**self.tokenizer_opts)
 

@@ -1,14 +1,14 @@
 # coding=utf-8
 from collections import defaultdict
-from copy import deepcopy
 import logging
+import gzip
+import json
 
 from sklearn.feature_extraction.stop_words import ENGLISH_STOP_WORDS
 import networkx as nx
 
-from thesisgenerator.classifiers import NoopTransformer
 from discoutils.tokens import Token
-
+from networkx.readwrite.json_graph import node_link_graph
 
 try:
     import xml.etree.cElementTree as ET
@@ -16,65 +16,60 @@ except ImportError:
     logging.warning('cElementTree not available')
     import xml.etree.ElementTree as ET
 
+# copied from feature extraction toolkit
+pos_coarsification_map = defaultdict(lambda: "UNK")
+pos_coarsification_map.update({"JJ": "J",
+                               "JJN": "J",
+                               "JJS": "J",
+                               "JJR": "J",
+
+                               "VB": "V",
+                               "VBD": "V",
+                               "VBG": "V",
+                               "VBN": "V",
+                               "VBP": "V",
+                               "VBZ": "V",
+
+                               "NN": "N",
+                               "NNS": "N",
+                               "NNP": "N",
+                               "NPS": "N",
+                               "NP": "N",
+
+                               "RB": "RB",
+                               "RBR": "RB",
+                               "RBS": "RB",
+
+                               "DT": "DET",
+                               "WDT": "DET",
+
+                               "IN": "CONJ",
+                               "CC": "CONJ",
+
+                               "PRP": "PRON",
+                               "PRP$": "PRON",
+                               "WP": "PRON",
+                               "WP$": "PRON",
+
+                               ".": "PUNCT",
+                               ":": "PUNCT",
+                               ":": "PUNCT",
+                               "": "PUNCT",
+                               "'": "PUNCT",
+                               "\"": "PUNCT",
+                               "'": "PUNCT",
+                               "-LRB-": "PUNCT",
+                               "-RRB-": "PUNCT",
+
+                               # the four NE types that FET 0.3.6 may return as PoS tags
+                               # not really needed in the classification pipeline yet
+                               "PERSON": "PERSON",
+                               "LOC": "LOC",
+                               "ORG": "ORG",
+                               "NUMBER": "NUMBER"})
+
 
 class XmlTokenizer(object):
-    # for parsing integers with comma for thousands separator
-    # locale.setlocale(locale.LC_ALL, 'en_US')
-
-    # copied from feature extraction toolkit
-    pos_coarsification_map = defaultdict(lambda: "UNK")
-    pos_coarsification_map.update({
-        "JJ": "J",
-        "JJN": "J",
-        "JJS": "J",
-        "JJR": "J",
-
-        "VB": "V",
-        "VBD": "V",
-        "VBG": "V",
-        "VBN": "V",
-        "VBP": "V",
-        "VBZ": "V",
-
-        "NN": "N",
-        "NNS": "N",
-        "NNP": "N",
-        "NPS": "N",
-        "NP": "N",
-
-        "RB": "RB",
-        "RBR": "RB",
-        "RBS": "RB",
-
-        "DT": "DET",
-        "WDT": "DET",
-
-        "IN": "CONJ",
-        "CC": "CONJ",
-
-        "PRP": "PRON",
-        "PRP$": "PRON",
-        "WP": "PRON",
-        "WP$": "PRON",
-
-        ".": "PUNCT",
-        ":": "PUNCT",
-        ":": "PUNCT",
-        "": "PUNCT",
-        "'": "PUNCT",
-        "\"": "PUNCT",
-        "'": "PUNCT",
-        "-LRB-": "PUNCT",
-        "-RRB-": "PUNCT",
-
-        # the four NE types that FET 0.3.6 may return as PoS tags
-        # not really needed in the classification pipeline yet
-        "PERSON": "PERSON",
-        "LOC": "LOC",
-        "ORG": "ORG",
-        "NUMBER": "NUMBER"
-    })
-
     def __init__(self, normalise_entities=False, use_pos=True,
                  coarse_pos=True, lemmatize=True, lowercase=True,
                  remove_stopwords=False, remove_short_words=False,
@@ -91,16 +86,15 @@ class XmlTokenizer(object):
         self.remove_long_words = remove_long_words
         self.dependency_format = dependency_format
 
-        # store the important parameters for use as joblib keys
-        self.important_params = deepcopy(self.__dict__)
 
-        self.charset = 'utf8'
-        self.charset_error = 'replace'
-
-
-    def tokenize_corpus(self, corpus, corpus_id_joblib):
+    def tokenize_corpus(self, file_names, corpus_name):
+        logging.info('XmlTokenizer running for %s', corpus_name)
         # i is needed to get the ID of the doc in case something goes wrong
-        return [self.tokenize_doc(x) for (i, x) in enumerate(corpus)]
+        trees = []
+        for (i, x) in enumerate(file_names):
+            with open(x) as infile:
+             trees.append(self.tokenize_doc(infile.read()))
+        return trees
 
     def _process_sentence(self, tree):
         tokens = []
@@ -124,7 +118,7 @@ class XmlTokenizer(object):
 
             pos = element.find('POS').text.upper() if self.use_pos else ''
             if self.coarse_pos:
-                pos = self.pos_coarsification_map[pos.upper()]
+                pos = pos_coarsification_map[pos.upper()]
 
             if pos == 'PUNCT' or am_i_a_number:
                 # logging.debug('Tokenizer ignoring stopword %s' % txt)
@@ -135,7 +129,7 @@ class XmlTokenizer(object):
             except AttributeError:
                 # logging.error('You have requested named entity '
                 # 'normalisation, but the input data are '
-                #               'not annotated for entities')
+                # 'not annotated for entities')
                 iob_tag = 'MISSING'
                 # raise ValueError('Data not annotated for named entities')
 
@@ -154,10 +148,12 @@ class XmlTokenizer(object):
 
             tokens.append(Token(txt, pos, int(element.get('id')), ner=iob_tag))
 
+        token_index = {t.index: t for t in tokens}
+
         # build a graph from the dependency information available in the input
         tokens_ids = set(x.index for x in tokens)
         dep_tree = nx.DiGraph()
-        dep_tree.add_nodes_from(tokens_ids)
+        dep_tree.add_nodes_from(tokens)
 
         dependencies = tree.find('.//{}-dependencies'.format(self.dependency_format))
         # some file are formatted like so: <basic-dependencies> ... </basic-dependencies>
@@ -174,11 +170,11 @@ class XmlTokenizer(object):
 
                 dependent = dep.find('dependent')
                 dependent_idx = int(dependent.get('idx'))
-                #dependent_txt = dependent.text
+                # dependent_txt = dependent.text
                 if dependent_idx in tokens_ids and head_idx in tokens_ids:
-                    dep_tree.add_edge(head_idx, dependent_idx, type=type)
+                    dep_tree.add_edge(token_index[head_idx], token_index[dependent_idx], type=type)
 
-        return tokens, (dep_tree, {t.index: t for t in tokens})
+        return dep_tree
 
     def tokenize_doc(self, doc, **kwargs):
         """
@@ -221,16 +217,33 @@ class XmlTokenizer(object):
         except ValueError:
             is_float = False
 
-        # try:
-        # locale.atof(s)
-        #     is_int = True
-        # except ValueError:
-        #     is_int = False
-
         is_only_digits_or_punct = True
         for ch in s:
             if ch.isalpha():
                 is_only_digits_or_punct = False
                 break
 
-        return is_float or is_only_digits_or_punct  #or is_int
+        return is_float or is_only_digits_or_punct  # or is_int
+
+
+class GzippedJsonTokenizer(XmlTokenizer):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    def tokenize_corpus(self, tar_file, *args, **kwargs):
+        logging.info('Compressed JSON tokenizer running for %s', tar_file)
+        def _token_decode(dct):
+            d = dict(dct)
+            if '__token__' in d:
+                return Token(**d)
+            else:
+                return d
+
+        labels, docs = [], []
+        with gzip.open(tar_file, 'rb') as infile:
+            for line in infile:
+                d = json.loads(line.decode('UTF8'), object_hook=_token_decode)
+                labels.append(d[0])
+                docs.append([node_link_graph(js) for js in d[1:]])
+
+        return docs, labels

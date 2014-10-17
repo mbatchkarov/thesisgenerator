@@ -3,6 +3,7 @@ from collections import defaultdict
 import logging
 import array
 import numbers
+from operator import attrgetter
 import scipy.sparse as sp
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -89,7 +90,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
                                                   analyzer=analyzer,
                                                   stop_words=stop_words,
                                                   token_pattern=token_pattern,
-                                                  #min_n=min_n,
+                                                  # min_n=min_n,
                                                   #max_n=max_n,
                                                   ngram_range=ngram_range,
                                                   max_df=max_df,
@@ -115,7 +116,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
         self.stats = get_stats_recorder(self.record_stats, stats_hdf_file, '-tr')
         # a different stats recorder will be used for the testing data
 
-        ########### BEGIN super.fit_transform ##########
+        # ########## BEGIN super.fit_transform ##########
         # this is a modified version of super.fit_transform which works with an empty vocabulary
         max_df = self.max_df
         min_df = self.min_df
@@ -175,7 +176,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
         # todo can't populate at this stage of the pipeline, because the vocabulary might
         # change if feature selection is enabled. Trying to do this will result in attempts to compose
         # features that we do not know how to compose because these have not been removed by FS
-        #if self.thesaurus:
+        # if self.thesaurus:
         #    logging.info('Populating vector source %s prior to transform', self.thesaurus)
         #    self.thesaurus.populate_vector_space(self.vocabulary_.keys())
 
@@ -196,53 +197,50 @@ class ThesaurusVectorizer(TfidfVectorizer):
     def _remove_features_containing_named_entities(self, features):
         return [f for f in features if not any(token.ner in self.entity_ner_tags for token in f.tokens)]
 
-    def extract_features_from_dependency_tree(self, parse_tree, token_index):
+    def extract_features_from_dependency_tree(self, parse_tree):
         # extract sentence-internal adjective-noun compounds
         new_features = []
 
         if self.extract_AN_features:
             # get tuples of (head, dependent) for each amod relation in the tree
             # also enforce that head is a noun, dependent is an adjective
-            amods = [x[:2] for x in parse_tree.edges(data=True) if x[2]['type'] == 'amod' and
-                                                                   token_index[x[0]].pos == 'N' and
-                                                                   token_index[x[1]].pos == 'J']
-            for head, dep in amods:
-                new_features.append(DocumentFeature('AN', (token_index[dep], token_index[head])))
+            for head, dep, data in parse_tree.edges(data=True):
+                if data['type'] == 'amod' and head.pos == 'N' and dep.pos == 'J':
+                    new_features.append(DocumentFeature('AN', (dep, head)))
 
         if self.extract_SVO_features or self.extract_VO_features:
             # extract sentence-internal subject-verb-direct object compounds
             # todo how do we handle prepositional objects?
-            verbs = [t.index for t in token_index.values() if t.pos == 'V']
+            verbs = [t for t in parse_tree.nodes() if t.pos == 'V']
 
-            objects = set([(head, dep) for head, dep, opts in parse_tree.edges(data=True)
-                           if opts['type'] == 'dobj' and token_index[head].pos == 'V' and token_index[dep].pos == 'N'])
+            objects = set([(head, dep) for head, dep, data in parse_tree.edges(data=True)
+                           if data['type'] == 'dobj' and head.pos == 'V' and dep.pos == 'N'])
 
         if self.extract_SVO_features:
             subjects = set([(head, dep) for head, dep, opts in parse_tree.edges(data=True) if
-                            opts['type'] == 'nsubj' and token_index[head].pos == 'V' and token_index[dep].pos == 'N'])
+                            opts['type'] == 'nsubj' and head.pos == 'V' and dep.pos == 'N'])
 
             subjverbobj = [(s[1], v, o[1]) for v in verbs for s in subjects for o in objects if s[0] == v and o[0] == v]
 
             for s, v, o in subjverbobj:
-                new_features.append(DocumentFeature('SVO', (token_index[s], token_index[v], token_index[o])))
+                new_features.append(DocumentFeature('SVO', (s, v, o)))
 
         if self.extract_VO_features:
             verbobj = [(v, o[1]) for v in verbs for o in objects if o[0] == v]
             for v, o in verbobj:
-                new_features.append(DocumentFeature('VO', (token_index[v], token_index[o])))
+                new_features.append(DocumentFeature('VO', (v, o)))
 
         if self.extract_NN_features:
-            nns = [x[:2] for x in parse_tree.edges(data=True) if x[2]['type'] == 'nn' and
-                                                                 token_index[x[0]].pos == 'N' and
-                                                                 token_index[x[1]].pos == 'N']
-            for (head, dep) in nns:
-                new_features.append(DocumentFeature('NN', (token_index[dep], token_index[head])))
+            for head, dep, data in parse_tree.edges(data=True):
+                if data['type'] == 'nn' and head.pos == 'N' and dep.pos == 'N':
+                    new_features.append(DocumentFeature('NN', (dep, head)))
+
 
         if self.remove_features_with_NER:
             return self._remove_features_containing_named_entities(new_features)
         return new_features
 
-    def my_feature_extractor(self, sentences, ngram_range=(1, 1)):
+    def my_feature_extractor(self, doc_sentences, ngram_range=(1, 1)):
         """
         Turn a document( a list of tokens) into a sequence of features. These
         include n-grams after stop words filtering,
@@ -253,35 +251,41 @@ class ThesaurusVectorizer(TfidfVectorizer):
 
         # extract sentence-internal token n-grams
         min_n, max_n = map(int, ngram_range)
-        for sentence, (parse_tree, token_indices) in sentences:
-            if not sentence:  # the sentence segmenter sometimes returns empty sentences
+        for parse_tree in doc_sentences:
+            if not parse_tree:  # the sentence segmenter sometimes returns empty sentences
                 continue
 
             if parse_tree:
-                features.extend(self.extract_features_from_dependency_tree(parse_tree, token_indices))
+                features.extend(self.extract_features_from_dependency_tree(parse_tree))
             else:
                 # sometimes an input document will have a sentence of one word, which has no dependencies
                 # just ignore that and extract all the features that can be extracted without it
                 logging.warning('Dependency tree not available')
 
             # extract sentence-internal n-grams
-            if max_n > 0:
+            if max_n == 1:
+                # just unigrams, can get away without sorting the tokens
+                for token in parse_tree.nodes_iter():
+                    if token.pos not in self.unigram_feature_pos_tags:
+                        continue
+                    features.append(DocumentFeature('1-GRAM', (token, )))
+
+            if max_n > 1:
+                # the tokens are stored as nodes in the parse tree in ANY order, sort them
+                sentence = sorted(parse_tree.nodes(), key=attrgetter('index'))
                 n_tokens = len(sentence)
                 for n in range(min_n, min(max_n + 1, n_tokens + 1)):
                     for i in range(n_tokens - n + 1):
                         feature = DocumentFeature('%d-GRAM' % n, tuple(sentence[i: i + n]))
                         if n == 1 and feature.tokens[0].pos not in self.unigram_feature_pos_tags:
                             continue
-
                         features.append(feature)
+        # it doesn't matter where in the sentence/document these features were found
+        # erase their index
+        for feature in features:
+            for token in feature.tokens:
+                token.index = 'any'
 
-
-        #for sentence in sentences:
-        #    for a, b in self._walk_pairwise(sentence):
-        #        if a.upper().endswith('/J') and b.upper().endswith('/N'):
-        #            features.append(('AN', (a, b)))
-
-        #return self.thesaurus.accept_features(features)  # + last_chars + shapes
         return features  # + last_chars + shapes
 
     def my_analyzer(self):
@@ -307,7 +311,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
                 tokenize(preprocess(self.decode(doc))), self.ngram_range)
 
         elif self.analyzer == 'ngram':
-            #assume input already tokenized
+            # assume input already tokenized
             return lambda token_list: self.my_feature_extractor(token_list, self.ngram_range)
         else:
             return super(ThesaurusVectorizer, self).build_analyzer()
@@ -341,7 +345,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
         indptr.append(0)
         for doc_id, doc in enumerate(raw_documents):
             for feature in analyze(doc):
-                #####################  begin non-original code  #####################
+                # ####################  begin non-original code  #####################
 
                 try:
                     feature_index_in_vocab = vocabulary[feature]
@@ -380,7 +384,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
             if not vocabulary:
                 logging.error('Empty vocabulary')
                 # raise ValueError("empty vocabulary; perhaps the documents only"
-                #                  " contain stop words")
+                # " contain stop words")
 
         # some Python/Scipy versions won't accept an array.array:
         if j_indices:
@@ -388,7 +392,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
         else:
             j_indices = np.array([], dtype=np.int32)
         indptr = np.frombuffer(indptr, dtype=np.intc)
-        #values = np.ones(len(j_indices))
+        # values = np.ones(len(j_indices))
 
         X = sp.csr_matrix((values, j_indices, indptr),
                           shape=(len(indptr) - 1, len(vocabulary)),
