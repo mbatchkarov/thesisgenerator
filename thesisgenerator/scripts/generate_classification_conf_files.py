@@ -333,7 +333,7 @@ for new_id, e in enumerate(sorted_experiments, 1):
     e.number = new_id
     experiments.append(e)
 for e in experiments:
-    print('%s,' % e)
+    print(e)
 
 # sys.exit(0)
 print('Writing conf files')
