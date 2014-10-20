@@ -252,7 +252,8 @@ def _cv_loop(log_dir, config, cv_i, score_func, test_idx, train_idx, vector_sour
 
 
     # remove documents with too few features
-    to_keep_train = tr_matrix.A.sum(axis=1) >= config['min_train_features']
+    to_keep_train = tr_matrix.sum(axis=1) >= config['min_train_features']
+    to_keep_train = np.ravel(np.array(to_keep_train))
     logging.info('%d/%d train documents have enough features', sum(to_keep_train), len(y_train))
     tr_matrix = tr_matrix[to_keep_train, :]
     y_train = y_train[to_keep_train]
@@ -260,15 +261,17 @@ def _cv_loop(log_dir, config, cv_i, score_func, test_idx, train_idx, vector_sour
     # the slice above may remove all occurences of a feature,
     # e.g. when it only occurs in one document (very common) and the document
     # doesn't have enough features. Drop empty columns in the term-doc matrix
-    column_mask = tr_matrix.A.sum(axis=0) > 0
+    column_mask = tr_matrix.sum(axis=0) > 0
+    column_mask = np.squeeze(np.array(column_mask))
     tr_matrix = tr_matrix[:, column_mask]
 
     voc = update_dict_according_to_mask(pipeline.named_steps['vect'].vocabulary_, column_mask)
     inv_voc = {index: feature for (feature, index) in voc.items()}
 
     # do the same for the test set
-    to_keep_test = test_matrix.A.sum(axis=1) >= config['min_test_features']  # todo need unit test
-    logging.info('%d/%d test documents have enough features', sum(to_keep_test), len(y_test))
+    to_keep_test = test_matrix.sum(axis=1) >= config['min_test_features']  # todo need unit test
+    to_keep_test = np.ravel(np.array(to_keep_test))
+    logging.info('%d/%d test documents have enough features', np.count_nonzero(to_keep_test), len(y_test))
     test_matrix = test_matrix[to_keep_test, :]
     y_test = y_test[to_keep_test]
 
