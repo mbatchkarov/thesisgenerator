@@ -17,7 +17,7 @@ Once all thesauri with ngram entries (obtained using different composition metho
 use this script to generate the conf files required to run them through the classification framework
 '''
 
-
+# todo use thesisgenerator.utils.db.* here- this class is really 2 separate things
 class Experiment():
     def __init__(self, number,
                  composer_name, thesaurus_file,
