@@ -1,9 +1,9 @@
 import os
 from datetime import datetime as dt
+import peewee as pw
 from discoutils.misc import Bunch
 from thesisgenerator.utils import db
 from thesisgenerator.composers.vectorstore import *
-
 
 
 # populate database
@@ -29,13 +29,15 @@ reduced_pattern = '{prefix}/exp{unlab_num}-{thesf_num}bAN_NN_{unlab_name:.5}-{sv
 reduced_obs_pattern = '{prefix}/exp{unlab_num}-{thesf_num}bAN_NN_{unlab_name:.5}-{svd_dims}_{composer_name}/' \
                       'exp{unlab_num}-SVD{svd_dims}.events.filtered.strings'
 
-# db.Vectors.drop_table()
-# db.Vectors.create_table()
+db.ClassificationExperiment.drop_table()
+db.Vectors.drop_table()
+pw.create_model_tables([db.ClassificationExperiment, db.Vectors])
 
 
 # random neighbours composer for use in baselines
 v = db.Vectors.create(algorithm='random', can_build=True,
-                      dimensionality=-1, composer='random')
+                      dimensionality=None, unlabelled_percentage=None,
+                      unlabelled=None, composer='random')
 
 # standard windows/dependency thesauri that I built back in the day
 for thesf_num, thesf_name in zip([12, 13], ['dependencies', 'windows']):
@@ -67,12 +69,20 @@ for thesf_num, thesf_name in zip([12, 13], ['dependencies', 'windows']):
                                       modified=modified, size=size)
                 print(v)
 
-print('---------------')
 # Socher (2011)'s paraphrase model
 path = os.path.join(prefix, 'socher_vectors/thesaurus/socher.events.filtered.strings')
 db.Vectors.create(algorithm='turian', an_build=False, dimensionality=100,
                   unlabelled='turian', path=path,
                   composer='Socher')
+
+# Socher's vectors with simple composition
+for composer_class in [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer, RightmostWordComposer]:
+    composer_name = composer_class.name
+    pattern = '{prefix}/exp12-14bAN_NN_neuro_{composer_name}/AN_NN_neuro_{composer_name}.events.filtered.strings'
+    thesaurus_file = pattern.format(**locals())
+    v = db.Vectors.create(algorithm='turian', can_build=True, dimensionality=100, unlabelled='turian',
+                          path=thesaurus_file, composer=composer_name)
+    print(v)
 
 # word2vec composed with various simple algorithms
 for composer_class in [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer, RightmostWordComposer]:
