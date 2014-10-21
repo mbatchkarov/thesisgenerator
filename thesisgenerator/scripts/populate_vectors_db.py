@@ -1,6 +1,7 @@
 import os
+import sys
+sys.path.append('.')
 from datetime import datetime as dt
-import peewee as pw
 from discoutils.misc import Bunch
 from thesisgenerator.utils import db
 from thesisgenerator.composers.vectorstore import *
