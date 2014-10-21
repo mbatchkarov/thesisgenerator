@@ -51,7 +51,7 @@ class ClassificationExperiment(pw.Model):
 
 
 class Results(pw.Model):
-    id = pw.ForeignKeyField(ClassificationExperiment, primary_key=True)
+    id = pw.ForeignKeyField(ClassificationExperiment, primary_key=True, on_delete='CASCADE')
     classifier = pw.CharField(null=False)
     accuracy_mean = pw.DoubleField(null=False)
     accuracy_std = pw.DoubleField(null=False)

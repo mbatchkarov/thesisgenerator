@@ -2,19 +2,21 @@
 from collections import defaultdict
 import csv
 import logging
-from operator import itemgetter
 import os
-import itertools
-import platform
+from datetime import datetime as dt
 from numpy import count_nonzero
 import sys
+from glob import glob
 
 sys.path.append('.')
 sys.path.append('..')
 sys.path.append('../..')
 from sklearn.base import TransformerMixin
-from thesisgenerator.plugins.consolidator import consolidate_results
+import pandas as pd
+from discoutils.cmd_utils import get_git_hash
 from thesisgenerator.utils.misc import get_susx_mysql_conn
+from thesisgenerator.utils.conf_file_utils import parse_config_file
+from thesisgenerator.utils import db
 
 __author__ = 'mmb28'
 
@@ -66,8 +68,8 @@ class FeatureVectorsCsvDumper(TransformerMixin):
         if 1 <= self._tranform_call_count <= 2:
             self._dump(X, self.y,
                        file_name='PostVectDump_%s_%s-fold%r.csv' % (self.exp_name,
-                                                                     suffix[self._tranform_call_count],
-                                                                     self.cv_number))
+                                                                    suffix[self._tranform_call_count],
+                                                                    self.cv_number))
         return X
 
     def get_params(self, deep=True):
@@ -85,7 +87,7 @@ columns = [('id', 'INTEGER NOT NULL AUTO_INCREMENT'),
            ('sample_size', 'INTEGER'),
            ('classifier', 'TEXT'),
 
-           #  performance
+           # performance
            ('metric', 'TEXT'),
            ('score_mean', 'FLOAT'),
            ('score_std', 'FLOAT')]
@@ -102,81 +104,88 @@ class ConsolidatedResultsCsvWriter(object):
     def __str__(self):
         return 'ConsolidatedResultsCsvWriter-%s' % self.c
 
+    def consolidate_results(self, conf_dir, output_dir):
+        """
+        Consolidates the results of a series of experiment and passes it on to a
+        writer
+        A single thesaurus must be used in each experiment
+        """
+        print('Consolidating results from %s' % conf_dir)
 
-class ConsolidatedResultsSqlWriter(object):
-    def __init__(self, table_number, output_db_conn):
-        self.conn = output_db_conn
-        c = self.conn.cursor()
+        conf_file = glob(os.path.join(conf_dir, '*.conf'))[0]
+        print('Processing file %s' % conf_file)
 
-        self.table_name = 'data%d' % table_number
+        config_obj, configspec_file = parse_config_file(conf_file)
 
-        c.execute('DROP TABLE IF EXISTS %s' % self.table_name)
-        params = [item for col in columns for item in col]
-        template = 'CREATE TABLE %s(' + \
-                   ', '.join(['%s %s'] * (len(params) // 2)) + \
-                   ', PRIMARY KEY(id))'
-        q = template % tuple(itertools.chain([self.table_name], params))
-        c.execute(q)
-        self.conn.commit()
+        exp_name = config_obj['name']
+        cv_folds = config_obj['crossvalidation']['k']
+        sample_size = config_obj['crossvalidation']['sample_size']
 
-    def writerow(self, row):
-        template = "INSERT INTO %s(" + \
-                   ', '.join(['%s'] * len(columns)) + \
-                   ") VALUES (" + \
-                   ', '.join(['\"%s\"'] * len(row)) + \
-                   ")"
-        sql = template % tuple(itertools.chain([self.table_name],
-                                               map(itemgetter(0), columns),
-                                               row))
-        self.conn.cursor().execute(sql)
-        self.conn.commit()
+        # find out the classifier score from the final csv file
+        output_file = os.path.join(output_dir, '%s.out.csv' % exp_name)
+        git_hash = get_git_hash()
 
-    def __del__(self):
-        self.conn.commit()
-        self.conn.close()
+        try:
+            reader = csv.reader(open(output_file, 'r'))
+            _ = next(reader)  # skip over header
+            for row in reader:
+                classifier, metric, score_my_mean, score_my_std = row
 
-    def __str__(self):
-        return 'ConsolidatedResultsSqliteWriter-%s' % self.table_name
+                self.c.writerow([
+                    None,  # primary key, should be updated automatically
+                    exp_name,
+                    git_hash,
+                    dt.now().isoformat(),
 
+                    # experiment settings
+                    cv_folds,
+                    sample_size,  # sample_size
+                    classifier,
+                    # these need to be converted to a bool and then to an int
+                    # because mysql stores booleans as a tinyint and complains
+                    # if you pass in a python boolean
 
-class DummySqlWriter(object):
-    """
-    A null SqlWriter object
-    """
-
-    def writerow(self, row):
-        pass
-
-
-class ConsolidatedResultsSqlAndCsvWriter(object):
-    def __init__(self, table_number, csv_output_fh, output_db_conn):
-        self.csv = ConsolidatedResultsCsvWriter(csv_output_fh)
-        if output_db_conn:
-            self.sql_conn = ConsolidatedResultsSqlWriter(table_number,
-                                                         output_db_conn)
-        else:
-            logging.warning("Database connection impossible")
-            self.sql_conn = DummySqlWriter()
-
-    def writerow(self, row):
-        self.csv.writerow(row)
-        self.sql_conn.writerow(row)
-
-    def __str__(self):
-        return 'ConsolidatedResultsSqliteAndCsvWriter-%s-%s' % (
-            self.csv, self.sql_conn)
+                    # performance
+                    metric,
+                    score_my_mean,
+                    score_my_std])
+        except IOError:
+            print('WARNING: output file %s is missing' % output_file)
 
 
 def consolidate_single_experiment(prefix, expid):
     output_dir = '%s/conf/exp%d/output/' % (prefix, expid)
     csv_out_fh = open(os.path.join(output_dir, "summary%d.csv" % expid), "w")
     conf_dir = '%s/conf/exp%d/exp%d_base-variants' % (prefix, expid, expid)
+    writer = ConsolidatedResultsCsvWriter(csv_out_fh)
+    writer.consolidate_results(conf_dir, output_dir)
+
+    # insert a subset of the data to MySQL
+    if expid == 0:
+        # can't have experiment ID 0 in mysql, so can't have the results point to it
+        return
+
     output_db_conn = get_susx_mysql_conn()
     if output_db_conn:
-        writer = ConsolidatedResultsSqlAndCsvWriter(expid, csv_out_fh, output_db_conn)
-    else:
-        writer = ConsolidatedResultsCsvWriter(csv_out_fh)
-    consolidate_results(writer, conf_dir, output_dir )
+        # do some SQL-fu here
+        output_file = os.path.join(output_dir, 'exp%d-0.out.csv' % expid)
+        df = pd.read_csv(output_file)
+        data = {'id': expid}
+        for classifier in set(df.classifier):
+            data['classifier'] = classifier
+            data['accuracy_mean'] = df['score_mean'][(df['classifier'] == classifier) &
+                                                     (df['metric'] == 'accuracy_score')].iloc[0]
+            data['accuracy_std'] = df['score_std'][(df['classifier'] == classifier) &
+                                                   (df['metric'] == 'accuracy_score')].iloc[0]
+            data['microf1_mean'] = df['score_mean'][(df['classifier'] == classifier) &
+                                                    (df['metric'] == 'microavg_f1')].iloc[0]
+            data['microf1_std'] = df['score_std'][(df['classifier'] == classifier) &
+                                                  (df['metric'] == 'microavg_f1')].iloc[0]
+            data['macrof1_mean'] = df['score_mean'][(df['classifier'] == classifier) &
+                                                    (df['metric'] == 'macroavg_f1')].iloc[0]
+            data['macrof1_std'] = df['score_std'][(df['classifier'] == classifier) &
+                                                  (df['metric'] == 'macroavg_f1')].iloc[0]
+            db.Results.create(**data)
 
 
 if __name__ == '__main__':
@@ -185,5 +194,5 @@ if __name__ == '__main__':
 
     prefix = '/mnt/lustre/scratch/inf/mmb28/thesisgenerator'
     # consolidate_single_experiment(prefix, 0)
-    for expid in range(1, 129):
+    for expid in [0]:  # range(1, 129):
         consolidate_single_experiment(prefix, expid)
