@@ -29,11 +29,6 @@ reduced_pattern = '{prefix}/exp{unlab_num}-{thesf_num}bAN_NN_{unlab_name:.5}-{sv
 reduced_obs_pattern = '{prefix}/exp{unlab_num}-{thesf_num}bAN_NN_{unlab_name:.5}-{svd_dims}_{composer_name}/' \
                       'exp{unlab_num}-SVD{svd_dims}.events.filtered.strings'
 
-db.ClassificationExperiment.drop_table()
-db.Vectors.drop_table()
-pw.create_model_tables([db.ClassificationExperiment, db.Vectors])
-
-
 # random neighbours composer for use in baselines
 v = db.Vectors.create(algorithm='random', can_build=True,
                       dimensionality=None, unlabelled_percentage=None,

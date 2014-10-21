@@ -125,8 +125,7 @@ mr_corpus = 'movie-reviews-tagged'
 am_corpus = 'amazon_grouped-tagged'
 all_corpora = techtc_corpora + [r2_corpus, mr_corpus, am_corpus]
 
-db.ClassificationExperiment.drop_table()
-db.ClassificationExperiment.create_table()
+db.ClassificationExperiment.raw('TRUNCATE TABLE `classificationexperiment`;')
 experiments = []
 baselines()
 all_standard_experiments()
