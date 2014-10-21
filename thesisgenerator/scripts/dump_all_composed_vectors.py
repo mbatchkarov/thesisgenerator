@@ -12,7 +12,6 @@ from thesisgenerator.composers.vectorstore import *
 from thesisgenerator.plugins.bov import ThesaurusVectorizer
 from thesisgenerator.utils.data_utils import get_tokenized_data, get_tokenizer_settings_from_conf_file
 from discoutils.io_utils import write_vectors_to_disk
-from joblib import Memory
 
 
 def compose_and_write_vectors(unigram_vectors_path, short_vector_dataset_name, classification_corpora,
@@ -30,12 +29,10 @@ def compose_and_write_vectors(unigram_vectors_path, short_vector_dataset_name, c
     :param composer_classes: what composers to use
     :type composer_classes: list
     """
-    memory = Memory('.', verbose=999)
-    get_data = memory.cache(get_tokenized_data, ignore=['*', '**'])
     all_text = []
     for corpus_path, conf_file in classification_corpora.items():
-        x_tr, _, _, _ = get_data(corpus_path,
-                                 get_tokenizer_settings_from_conf_file(conf_file))
+        x_tr, _, _, _ = get_tokenized_data(corpus_path + '.gz',
+                                           get_tokenizer_settings_from_conf_file(conf_file))
         assert len(x_tr) > 0
         all_text.extend(x_tr)
         logging.info('Documents so far: %d', len(all_text))

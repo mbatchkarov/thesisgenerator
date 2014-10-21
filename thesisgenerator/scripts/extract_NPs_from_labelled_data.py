@@ -2,9 +2,6 @@ import sys
 import logging
 
 sys.path.append('.')
-sys.path.append('..')
-sys.path.append('../..')
-from joblib import Memory
 from thesisgenerator.plugins.bov import ThesaurusVectorizer
 from thesisgenerator.utils.data_utils import get_tokenized_data, get_tokenizer_settings_from_conf, get_all_corpora
 from thesisgenerator.utils.conf_file_utils import parse_config_file
@@ -13,16 +10,13 @@ import numpy as np
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s\t%(module)s.%(funcName)s ""(line %(lineno)d)\t%(levelname)s : %(""message)s")
 
-memory = Memory(cachedir='.', verbose=999)
-get_cached_tokenized_data = memory.cache(get_tokenized_data, ignore=['*', '**'])
-
 all_nps = set()
 for corpus_path, conf_file in get_all_corpora().items():
     logging.info('Processing corpus %s', corpus_path)
     conf, _ = parse_config_file(conf_file)
-    x_tr, _, _, _ = get_cached_tokenized_data(conf['training_data'],
-                                              get_tokenizer_settings_from_conf(conf),
-                                              test_data=conf['test_data'])
+    x_tr, _, _, _ = get_tokenized_data(conf['training_data'] + '.gz',
+                                       get_tokenizer_settings_from_conf(conf),
+                                       test_data=conf['test_data'])
     assert len(x_tr) > 0
     logging.info('Documents in this corpus: %d', len(x_tr))
 
