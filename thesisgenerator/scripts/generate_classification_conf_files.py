@@ -11,87 +11,42 @@ sys.path.append('..')
 sys.path.append('../..')
 from thesisgenerator.composers.vectorstore import *
 from thesisgenerator.utils.conf_file_utils import set_in_conf_file
+from thesisgenerator.utils.db import ClassificationExperiment, Vectors
 
 '''
 Once all thesauri with ngram entries (obtained using different composition methods) have been built offline,
 use this script to generate the conf files required to run them through the classification framework
 '''
 
-
-class Experiment():
-    def __init__(self, number,
-                 composer_name, thesaurus_file,
-                 labelled_name,
-                 unlabelled_name, unlabelled_num,
-                 thesaurus_features_name, thesaurus_features_num,
-                 document_features, distrib_vector_dim,
-                 baronified=False, use_similarity=False,
-                 random_neighbour_thesaurus=False,
-                 decode_token_handler='SignifiedOnlyFeatureHandler'):
-        self.number = number
-        self.composer_name = composer_name
-        self.thesaurus_file = thesaurus_file
-        self.labelled_name = labelled_name
-        self.document_features = document_features
-        self.baronified = baronified
-        self.use_similarity = use_similarity
-        self.random_neighbour_thesaurus = random_neighbour_thesaurus
-        self.decode_token_handler = decode_token_handler
-
-        # todo this is a nasty hack to enforce logic that should have been enforced elsewhere
-        if 'socher' in composer_name.lower():
-            self.unlabelled_name = 'neuro'
-            self.unlabelled_num = 12
-            self.thesaurus_features_name = 'neuro'
-            self.thesaurus_features_num = 14
-            self.distrib_vector_dim = 100
-        else:
-            self.unlabelled_name = unlabelled_name
-            self.unlabelled_num = unlabelled_num
-            self.thesaurus_features_name = thesaurus_features_name
-            self.thesaurus_features_num = thesaurus_features_num
-            self.distrib_vector_dim = distrib_vector_dim
-
-    def __str__(self):
-        # num: doc_feats, comp, handler, unlab, svd, lab, thes_feats
-        return ','.join([str(self.number),
-                         self.unlabelled_name,
-                         self.labelled_name,
-                         str(self.distrib_vector_dim),
-                         self.composer_name,
-                         self.document_features,
-                         self.thesaurus_features_name,
-                         str(int(self.baronified)),
-                         str(int(self.use_similarity)),
-                         str(int(self.random_neighbour_thesaurus)),
-                         self.decode_token_handler,
-        ])
-
-    def __repr__(self):
-        return str(self)
-
-    def __eq__(self, other):
-        d1 = deepcopy(self.__dict__)
-        d2 = deepcopy(other.__dict__)
-        return set(d1.keys()) == set(d2.keys()) and all(d1[x] == d2[x] for x in list(d1.keys()) if x != 'number')
+# todo use thesisgenerator.utils.db.* instead
+def __init__(self, number,
+             composer_name, thesaurus_file,
+             labelled_name,
+             unlabelled_name, unlabelled_num,
+             thesaurus_features_name, thesaurus_features_num,
+             document_features, distrib_vector_dim,
+             baronified=False, use_similarity=False,
+             random_neighbour_thesaurus=False,
+             decode_token_handler='SignifiedOnlyFeatureHandler'):
+    pass  # todo remove this
 
 
-def basic_experiments(exp_number, prefix, composer_algos, use_similarity=False):
+def count_vectors_experiments(composer_algos, use_similarity=False):
     if use_similarity:
         # I'm not that interested in this parameter, let's only run a small
         # number of experiments to see what it does
-        a = zip([13], ['windows'])
-        b = zip([10], ['gigaw'])  #
+        a = ['count_windows']
+        b = ['gigaw']
         c = ['R2']
         d = [100]
     else:
-        a = zip([12, 13], ['dependencies', 'windows'])
-        b = zip([10], ['gigaw'])  #
+        a = ['count_dependencies', 'count_windows']
+        b = ['gigaw']
         c = ['R2', 'MR', 'AM']
         d = [0, 100]
 
-    for thesf_num, thesf_name in a:
-        for unlab_num, unlab_name in b:
+    for thesf_name in a:
+        for unlab_name in b:
             for labelled_corpus in c:
                 for svd_dims in d:
                     for composer_class in composer_algos:
@@ -99,108 +54,85 @@ def basic_experiments(exp_number, prefix, composer_algos, use_similarity=False):
 
                         if composer_name == 'Baroni' and svd_dims == 0:
                             continue  # not training Baroni without SVD
-                        if composer_name == 'APDT' and thesf_name == 'windows':
+                        if composer_name == 'APDT' and thesf_name == 'count_windows':
                             continue  # APDT only works with dependency unigram vectors
                         if composer_name == 'Socher':
-                            continue  # Socher RAE done separately below as it only works for a small subset of settings
-                        if thesf_name == 'dependencies' and composer_name in ['Baroni', 'Observed']:
+                            # Socher RAE done separately below as it only works for a small subset of settings
+                            continue
+                        if thesf_name == 'count_dependencies' and composer_name in ['Baroni', 'Observed']:
                             continue  # can't easily run Julie's observed vectors code, so pretend it doesnt exist
 
-                        if composer_name == 'Observed':
-                            pattern = unred_obs_pattern if svd_dims < 1 else reduced_obs_pattern
-                        else:
-                            pattern = unred_pattern if svd_dims < 1 else reduced_pattern
+                        # there should only be one result
+                        vectors = Vectors.select().where((Vectors.dimensionality == svd_dims) &
+                                                         (Vectors.unlabelled == unlab_name) &
+                                                         (Vectors.composer == composer_name) &
+                                                         (Vectors.algorithm == thesf_name))
 
-                        thesaurus_file = pattern.format(**locals())
-                        e = Experiment(exp_number, composer_name, thesaurus_file, labelled_corpus, unlab_name,
-                                       unlab_num,
-                                       thesf_name, thesf_num, 'AN_NN', svd_dims,
-                                       use_similarity=use_similarity)
+                        e = ClassificationExperiment(use_similarity=use_similarity, vectors=vectors[0],
+                                                     labelled=labelled_corpus)
                         experiments.append(e)
-                        exp_number += 1
-
-    # do experiments where Socher(2011) provides both unigram vectors and composition algorithm
-    for labelled_corpus in c:
-        composer_name = 'Socher'
-        e = Experiment(exp_number, composer_name, socher_composed_events_file, labelled_corpus,
-                       'neuro', 12, 'neuro', 14, 'AN_NN', 100, use_similarity=use_similarity)
-        experiments.append(e)
-        exp_number += 1
     return exp_number
 
 
-def an_only_nn_only_experiments(exp_number, prefix, composer_algos):
+def an_only_nn_only_experiments_r2(exp_number):
     # do some experiment with AN or NN features only for comparison
-    thesf_num, thesf_name = 12, 'dependencies'  # only dependencies
-    unlab_num, unlab_name = 10, 'gigaw'
-    svd_dims = 100  # do only 100 dimensional experiments (to include Baroni and Socher)
-    for labelled_corpus in ['R2']:
-        for doc_feature_type in ['AN', 'NN']:
-            for composer_class in composer_algos:
-                composer_name = composer_class.name
-                if thesf_name == 'dependencies' and composer_name in ['Baroni', 'Observed']:
-                    continue  # can't easily run Julie's observed vectors code, so pretend it doesnt exist
+    thesf_name, unlab_name = 'count_windows', 'gigaw'
+    svd_dims, lab_name = 100, 'R2'
 
-                if composer_name == 'Socher':
-                    thesaurus_file = socher_composed_events_file
-                else:
-                    if composer_name == 'Observed':
-                        pattern = reduced_obs_pattern
-                    else:
-                        pattern = reduced_pattern
-                    thesaurus_file = pattern.format(**locals())
-                e = Experiment(exp_number, composer_name, thesaurus_file, labelled_corpus, unlab_name, unlab_num,
-                               thesf_name, thesf_num, doc_feature_type, svd_dims)
+    for doc_features in ['AN', 'NN']:
+        for composer_class in [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
+                               RightmostWordComposer, BaroniComposer, Bunch(name='Observed')]:
+            composer_name = composer_class.name
+            if thesf_name == 'count_dependencies' and composer_name in ['Baroni', 'Observed']:
+                continue  # can't easily run Julie's observed vectors code, so pretend it doesnt exist
 
-                if e not in experiments:
-                    experiments.append(e)
-                    exp_number += 1
+            # there should only be one result
+            vectors = Vectors.select().where((Vectors.dimensionality == svd_dims) &
+                                             (Vectors.unlabelled == unlab_name) &
+                                             (Vectors.composer == composer_name) &
+                                             (Vectors.algorithm == thesf_name))
+            e = ClassificationExperiment(vectors=vectors[0], labelled=lab_name, document_features=doc_features)
+            experiments.append(e)
 
     return exp_number
 
 
-def external_unigram_vector_experiments(exp_number, prefix, use_socher_embeddings=True, use_similarity=True,
-                                        handler='SignifiedOnlyFeatureHandler'):
+def external_unigram_vector_experiments(use_socher_embeddings=True):
     if use_socher_embeddings:
-        thesf_num, thesf_name = 14, 'neuro'
-        unlab_num, unlab_name = 12, 'neuro'
+        thesf_name = 'neuro'
+        unlab_name = 'neuro'
     else:
-        thesf_num, thesf_name = 15, 'word2vec'
-        unlab_num, unlab_name = 13, 'word2vec'
+        thesf_name = 'word2vec'
+        unlab_name = 'word2vec'
 
     svd_dims = 100
     composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer, RightmostWordComposer]
 
-    for labelled_corpus in ['R2', 'MR', 'AM']:
-        for composer_class in composer_algos:
-            composer_name = composer_class.name
+    for composer_class in composer_algos:
+        composer_name = composer_class.name
+        vectors = Vectors.select().where((Vectors.dimensionality == svd_dims) &
+                                         (Vectors.unlabelled == unlab_name) &
+                                         (Vectors.composer == composer_name) &
+                                         (Vectors.algorithm == thesf_name))
+        for labelled_corpus in ['R2', 'MR', 'AM']:
             thesaurus_file = unred_pattern.format(**locals())
-            e = Experiment(exp_number, composer_name, thesaurus_file, labelled_corpus, unlab_name,
-                           unlab_num,
-                           thesf_name, thesf_num, 'AN_NN', svd_dims,
-                           use_similarity=use_similarity,
-                           decode_token_handler=handler)
+            # there should only be one result
+            e = ClassificationExperiment(vectors=vectors[0], labelled=labelled_corpus)
             experiments.append(e)
-            exp_number += 1
 
     return exp_number
 
 
-def baselines(exp_number):
+def baselines():
     # random-neighbour experiments. These include an "random_neighbour_thesaurus=True" option in the conf file
+    random_vectors = Vectors.get(Vectors.algorithm == 'random')
     for corpus in ['R2', 'MR', 'AM'] + techtc_corpora:
-        e = Experiment(exp_number, 'Random', None, corpus, '-', None, '-', None, 'AN_NN', -1,
-                       random_neighbour_thesaurus=True)
+        e = ClassificationExperiment(labelled=corpus, vectors=random_vectors)
         experiments.append(e)
-        exp_number += 1
 
         # signifier experiments (bag-of-words)
-        e = Experiment(exp_number, 'Signifier', None, corpus, '-', None, '-', None, 'AN_NN', -1,
-                       decode_token_handler='BaseFeatureHandler')
+        e = ClassificationExperiment(labelled=corpus, decode_handler='BaseFeatureHandler')
         experiments.append(e)
-        exp_number += 1
-
-    return exp_number
 
 
 def technion_corpora_experiments(exp_number, prefix):
@@ -217,7 +149,7 @@ def technion_corpora_experiments(exp_number, prefix):
                 thesaurus_file = unred_pattern.format(**ChainMap(locals(), globals()))
         elif thesf_name == 'word2vec':
             thesaurus_file = unred_pattern.format(**ChainMap(locals(), globals()))
-        elif thesf_name == 'dependencies' or thesf_name == 'windows':
+        elif thesf_name == 'count_dependencies' or thesf_name == 'count_windows':
             if composer_name == 'Observed':
                 thesaurus_file = reduced_obs_pattern.format(**ChainMap(locals(), globals()))
             else:
@@ -233,7 +165,7 @@ def technion_corpora_experiments(exp_number, prefix):
 
     def count_vectors():
         unlab_num, unlab_name = 10, 'gigaw'
-        thesf_num, thesf_name = 13, 'windows'
+        thesf_num, thesf_name = 13, 'count_windows'
         composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
                           RightmostWordComposer, BaroniComposer, Bunch(name='Observed')]
         for c in composer_algos:
@@ -241,7 +173,7 @@ def technion_corpora_experiments(exp_number, prefix):
 
     def dependency_vectors():
         unlab_num, unlab_name = 10, 'gigaw'
-        thesf_num, thesf_name = 12, 'dependencies'
+        thesf_num, thesf_name = 12, 'count_dependencies'
         # can't easily run Julie's observed dependency code, ignore it
         composer_algos = [AdditiveComposer, MultiplicativeComposer,
                           LeftmostWordComposer, RightmostWordComposer]
@@ -301,12 +233,12 @@ techtc_corpora = list(glob('/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample
 
 experiments = []
 
-exp_number = baselines(1)
-exp_number = basic_experiments(exp_number, prefix, composer_algos)
-exp_number = basic_experiments(exp_number, prefix, composer_algos, use_similarity=True)
-exp_number = an_only_nn_only_experiments(exp_number, prefix, composer_algos)
-exp_number = external_unigram_vector_experiments(exp_number, prefix)  # socher embeddings + Add/Mult composition
-exp_number = external_unigram_vector_experiments(exp_number, prefix, use_socher_embeddings=False)  # word2vec embeddings
+exp_number = baselines()
+exp_number = count_vectors_experiments(composer_algos)
+exp_number = count_vectors_experiments(composer_algos, use_similarity=True)
+exp_number = an_only_nn_only_experiments_r2(exp_number)
+exp_number = external_unigram_vector_experiments()  # socher embeddings + Add/Mult composition
+exp_number = external_unigram_vector_experiments(use_socher_embeddings=False)  # word2vec embeddings
 exp_number = technion_corpora_experiments(exp_number, prefix)
 # word2vec/socher embeddings with a signifier-signified encoding
 exp_number = external_unigram_vector_experiments(exp_number, prefix, handler='SignifierSignifiedFeatureHandler')
@@ -327,7 +259,7 @@ def _myorder(item):
     return data
 
 
-sorted_experiments = sorted(experiments, key=_myorder)
+sorted_experiments = sorted(set(experiments), key=_myorder)
 experiments = []
 for new_id, e in enumerate(sorted_experiments, 1):
     e.number = new_id
