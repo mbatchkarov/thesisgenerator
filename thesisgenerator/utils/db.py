@@ -17,10 +17,10 @@ db.connect()
 class Vectors(pw.Model):
     algorithm = pw.CharField(null=False)  # how the unigram vectors were built, e.g. count_windows, Turian, word2vec
     can_build = pw.BooleanField()  # whether I built the vectors myself or downloaded off the internet
-    dimensionality = pw.IntegerField()  # 0 to indicate no SVD was done, -1 for not applicable
-    unlabelled_percentage = pw.IntegerField(default=100)  # how much of the unlabelled data was used
-    unlabelled = pw.CharField()  # path to unlabelled corpus that data was used, if I did it
-    path = pw.CharField()  # where on disk the vectors are stored
+    dimensionality = pw.IntegerField(null=True)  # 0 to indicate no SVD was done, -1 for not applicable
+    unlabelled_percentage = pw.IntegerField(default=100,null=True)  # how much of the unlabelled data was used
+    unlabelled = pw.CharField(null=True)  # path to unlabelled corpus that data was used, if I did it
+    path = pw.CharField(null=True)  # where on disk the vectors are stored
     composer = pw.CharField()  # what composer was used to build phrasal vectors (if any)
 
     modified = pw.DateField(null=True, default=None)  # when was the file last modifier
