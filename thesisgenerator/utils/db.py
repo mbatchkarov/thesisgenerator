@@ -50,10 +50,25 @@ class ClassificationExperiment(pw.Model):
         return '%s: %s' % (self.id, basic_settings)
 
 
+class Results(pw.Model):
+    id = pw.ForeignKeyField(ClassificationExperiment, primary_key=True)
+    classifier = pw.CharField(null=False)
+    accuracy_mean = pw.DoubleField(null=False)
+    accuracy_std = pw.DoubleField(null=False)
+    microf1_mean = pw.DoubleField(null=False)
+    microf1_std = pw.DoubleField(null=False)
+    macrof1_mean = pw.DoubleField(null=False)
+    macrof1_std = pw.DoubleField(null=False)
+
+    class Meta:
+        database = db
+
+
 if __name__ == '__main__':
+    Results.drop_table()
     ClassificationExperiment.drop_table()
     Vectors.drop_table()
-    pw.create_model_tables([ClassificationExperiment, Vectors])
+    pw.create_model_tables([Results, ClassificationExperiment, Vectors])
 
     # print(1)
     # v = Vectors.create(can_build=False, dimensionality=100, unlabelled='wtf')
