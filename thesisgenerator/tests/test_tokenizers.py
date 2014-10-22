@@ -1,8 +1,6 @@
 # coding=utf-8
 from operator import attrgetter
 from unittest import TestCase
-from joblib import Memory
-from thesisgenerator.classifiers import NoopTransformer
 from thesisgenerator.plugins.tokenizers import XmlTokenizer
 from discoutils.tokens import DocumentFeature, Token
 

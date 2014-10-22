@@ -81,8 +81,10 @@ for composer_class in [AdditiveComposer, MultiplicativeComposer, LeftmostWordCom
     pattern = '{prefix}/exp12-14bAN_NN_neuro_{composer_name}/AN_NN_neuro_{composer_name}.events.filtered.strings'
     thesaurus_file = pattern.format(**locals())
     modified, size = get_size(thesaurus_file)
-    v = db.Vectors.create(algorithm='turian', can_build=True, dimensionality=100, unlabelled='turian',
-                          path=thesaurus_file, composer=composer_name)
+    v = db.Vectors.create(algorithm='turian', can_build=True, dimensionality=100,
+                          unlabelled='turian',
+                          path=thesaurus_file, composer=composer_name,
+                          modified=modified, size=size)
     print(v)
 
 # word2vec composed with various simple algorithms
