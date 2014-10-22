@@ -111,7 +111,14 @@ class ConsolidatedResultsCsvWriter(object):
         """
         print('Consolidating results from %s' % conf_dir)
 
-        conf_file = glob(os.path.join(conf_dir, '*.conf'))[0]
+        try:
+            conf_file = glob(os.path.join(conf_dir, '*.conf'))[0]
+        except IndexError:
+            # the experiment never started, so no conf file was written,
+            # cut some old output files still linger and thus the other
+            # checks in this functions won't be triggered
+            logging.error('Experiment in %s never started', conf_dir)
+            raise FileNotFoundError # let the caller worry about that
         print('Processing file %s' % conf_file)
 
         config_obj, configspec_file = parse_config_file(conf_file)
