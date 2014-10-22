@@ -185,7 +185,8 @@ def consolidate_single_experiment(prefix, expid):
                                                     (df['metric'] == 'macroavg_f1')].iloc[0]
             data['macrof1_std'] = df['score_std'][(df['classifier'] == classifier) &
                                                   (df['metric'] == 'macroavg_f1')].iloc[0]
-            db.Results.create(**data)
+        res = db.Results(**data)
+        res.save()
 
 
 if __name__ == '__main__':
