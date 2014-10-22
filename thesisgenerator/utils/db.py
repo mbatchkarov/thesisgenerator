@@ -23,6 +23,7 @@ class Vectors(pw.Model):
 
     modified = pw.DateField(null=True, default=None)  # when was the file last modifier
     size = pw.IntegerField(null=True, default=None)  # file size in MB
+    gz_size = pw.IntegerField(null=True, default=None)  # file size of compressed JSON version
 
     class Meta:
         database = db
