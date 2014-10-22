@@ -84,7 +84,6 @@ columns = [('id', 'INTEGER NOT NULL AUTO_INCREMENT'),
 
            # experiment settings
            ('cv_folds', 'INTEGER'),
-           ('sample_size', 'INTEGER'),
            ('classifier', 'TEXT'),
 
            # performance
@@ -119,46 +118,48 @@ class ConsolidatedResultsCsvWriter(object):
 
         exp_name = config_obj['name']
         cv_folds = config_obj['crossvalidation']['k']
-        sample_size = config_obj['crossvalidation']['sample_size']
 
         # find out the classifier score from the final csv file
         output_file = os.path.join(output_dir, '%s.out.csv' % exp_name)
+        if not os.path.exists(output_file):
+            raise FileNotFoundError
         git_hash = get_git_hash()
 
-        try:
-            reader = csv.reader(open(output_file, 'r'))
-            _ = next(reader)  # skip over header
-            for row in reader:
-                classifier, metric, score_my_mean, score_my_std = row
+        reader = csv.reader(open(output_file, 'r'))
+        _ = next(reader)  # skip over header
+        for row in reader:
+            classifier, metric, score_my_mean, score_my_std = row
 
-                self.c.writerow([
-                    None,  # primary key, should be updated automatically
-                    exp_name,
-                    git_hash,
-                    dt.now().isoformat(),
+            self.c.writerow([
+                None,  # primary key, should be updated automatically
+                exp_name,
+                git_hash,
+                dt.now().isoformat(),
 
-                    # experiment settings
-                    cv_folds,
-                    sample_size,  # sample_size
-                    classifier,
-                    # these need to be converted to a bool and then to an int
-                    # because mysql stores booleans as a tinyint and complains
-                    # if you pass in a python boolean
+                # experiment settings
+                cv_folds,
+                classifier,
+                # these need to be converted to a bool and then to an int
+                # because mysql stores booleans as a tinyint and complains
+                # if you pass in a python boolean
 
-                    # performance
-                    metric,
-                    score_my_mean,
-                    score_my_std])
-        except IOError:
-            print('WARNING: output file %s is missing' % output_file)
+                # performance
+                metric,
+                score_my_mean,
+                score_my_std])
 
 
 def consolidate_single_experiment(prefix, expid):
     output_dir = '%s/conf/exp%d/output/' % (prefix, expid)
-    csv_out_fh = open(os.path.join(output_dir, "summary%d.csv" % expid), "w")
     conf_dir = '%s/conf/exp%d/exp%d_base-variants' % (prefix, expid, expid)
-    writer = ConsolidatedResultsCsvWriter(csv_out_fh)
-    writer.consolidate_results(conf_dir, output_dir)
+    try:
+        csv_out_fh = open(os.path.join(output_dir, "summary%d.csv" % expid), "w")
+        writer = ConsolidatedResultsCsvWriter(csv_out_fh)
+        writer.consolidate_results(conf_dir, output_dir)
+    except FileNotFoundError:
+        logging.error('output file missing for exp %s', expid)
+        logging.error('-----------------------------------')
+        return
 
     # insert a subset of the data to MySQL
     if expid == 0:
@@ -187,7 +188,7 @@ def consolidate_single_experiment(prefix, expid):
                                                   (df['metric'] == 'macroavg_f1')].iloc[0]
             res = db.Results(**data)
             res.delete_instance()  # remove any previous results for this experiment
-            logging.info(res.save(force_insert=True))
+            res.save(force_insert=True)
 
         e = db.ClassificationExperiment.get(id=1)
         e.git_hash = get_git_hash()
