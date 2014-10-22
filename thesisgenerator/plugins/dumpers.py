@@ -189,6 +189,10 @@ def consolidate_single_experiment(prefix, expid):
         res.delete_instance() # remove any previous results for this experiment
         logging.info(res.save(force_insert=True))
 
+        e = db.ClassificationExperiment.get(id=1)
+        e.git_hash = get_git_hash()
+        e.date_ran = dt.fromtimestamp(os.path.getmtime(output_file))
+        e.save(only=[db.ClassificationExperiment.git_hash, db.ClassificationExperiment.date_ran])
 
 if __name__ == '__main__':
     # ----------- CONSOLIDATION -----------
