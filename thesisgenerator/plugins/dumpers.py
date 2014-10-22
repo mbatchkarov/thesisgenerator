@@ -186,7 +186,8 @@ def consolidate_single_experiment(prefix, expid):
             data['macrof1_std'] = df['score_std'][(df['classifier'] == classifier) &
                                                   (df['metric'] == 'macroavg_f1')].iloc[0]
         res = db.Results(**data)
-        res.save()
+        res.delete_instance() # remove any previous results for this experiment
+        logging.info(res.save(force_insert=True))
 
 
 if __name__ == '__main__':
@@ -195,5 +196,5 @@ if __name__ == '__main__':
 
     prefix = '/mnt/lustre/scratch/inf/mmb28/thesisgenerator'
     # consolidate_single_experiment(prefix, 0)
-    for expid in [0]:  # range(1, 129):
+    for expid in range(30,33):
         consolidate_single_experiment(prefix, expid)
