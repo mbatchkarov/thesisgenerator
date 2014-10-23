@@ -58,10 +58,10 @@ class StatsRecorder(object):
         with open(self.tc_file, 'w') as outfile:
             outfile.write('feature, IV, IT\n')
         with open(self.par_file, 'w') as outfile:
-            outfile.write('feature, available_replacements, max_replacements, '
-                          'replacement1, replacement1_rank, replacement1_sim, '
-                          'replacement2, replacement2_rank, replacement2_sim, replacement3, '
-                          'replacement3_rank, replacement3_sim\n')
+            outfile.write('feature, available_replacements, '
+                          'replacement1, replacement1_sim, '
+                          'replacement2, replacement2_sim, '
+                          'replacement3, replacement3_sim\n')
 
     def _flush_data_to_csv(self, filename, data):
         if data:
@@ -93,10 +93,10 @@ class StatsRecorder(object):
         while True:
             current = len(event)
             # expected = len(self.paraphrases.columns)
-            expected = 12
+            expected = 8
             if current >= expected:
                 break
-            event.extend(['NaN', 'NaN', 'NaN'])
+            event.extend(['NaN', 'NaN'])
         self.paraphrases.append(event)
         if len(self.paraphrases) > self.max_rows_in_memory:
             self._flush_data_to_csv(self.par_file, self.paraphrases)

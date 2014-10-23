@@ -93,13 +93,10 @@ def test_get_decode_time_paraphrase_statistics(stats_file):
 
     # this test uses a signifier-signified encoding, i.e. only OOV-IT items are looked up
     df = pd.read_csv('%s.par.csv' % stats_file, sep=', ')
-    assert df.shape == (5, 12)
+    assert df.shape == (5, 8)
 
     assert _get_counter_ignoring_negatives(df, ['replacement%d_sim' % (i + 1) for i in range(3)]) == \
            Counter({.05: 2, .06: 2, .11: 2, .7: 1, .3: 1})  # 2 inserted items had a sim of .05, etc
-
-    assert _get_counter_ignoring_negatives(df, ['replacement%d_rank' % (i + 1) for i in range(3)]) == \
-           Counter({0: 5, 1: 3})  # 5 inserted items were the top neighbour, etc
 
     assert _get_counter_ignoring_negatives(df, ['available_replacements']) == \
            Counter({1: 2, 2: 3})  # 2 items have had 1 replacement, etc

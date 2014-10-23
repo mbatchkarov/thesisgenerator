@@ -1,4 +1,5 @@
 from discoutils.tokens import DocumentFeature
+from discoutils.thesaurus_loader import Thesaurus
 from thesisgenerator.utils.reflection_utils import get_named_object
 
 
@@ -61,31 +62,26 @@ class BaseFeatureHandler():
            currently loaded thesaurus.
         """
 
-        #logging.debug('Paraphrasing %r in doc %d', feature, doc_id)
+        # logging.debug('Paraphrasing %r in doc %d', feature, doc_id)
         neighbours = self.thesaurus.get_nearest_neighbours(feature)
-
-        # if there are any neighbours filter the list of
-        # neighbours so that it contains only pairs where
-        # the neighbour has been seen
-        neighbours = [(DocumentFeature.from_string(neighbour), rank, sim)
-                      for rank, (neighbour, sim) in enumerate(neighbours)
-                      if DocumentFeature.from_string(neighbour) in vocabulary]
-        k, available_neighbours = self.k, len(neighbours)
-        event = [feature.tokens_as_str(), available_neighbours, self.k]
-
-        for neighbour, rank, sim in neighbours[:self.k]:
-            # todo the document may already contain the feature we
+        if isinstance(self.thesaurus, Thesaurus):
+            # precomputed thesauri do not guarantee that the returned neighbours will be in vocabulary
+            # these should by now only the used in testing though
+            neighbours = [(neighbour, sim) for (neighbour, sim) in neighbours
+                          if DocumentFeature.from_string(neighbour) in vocabulary]
+        event = [feature.tokens_as_str(), len(neighbours)]
+        for neighbour, sim in neighbours[:self.k]:
+            # the document may already contain the feature we
             # are about to insert into it,
             # a merging strategy is required,
             # e.g. what do we do if the document has the word X
             # in it and we encounter X again. By default,
             # scipy uses addition
-            #doc_id_indices.append(doc_id)
-            j_indices.append(vocabulary.get(neighbour))
+            df = DocumentFeature.from_string(neighbour)
+            j_indices.append(vocabulary.get(df))
             values.append(self.sim_transformer(sim))
-
             # track the event
-            event.extend([neighbour.tokens_as_str(), rank, sim])
+            event.extend([neighbour, sim])
         stats.register_paraphrase(event)
 
 

@@ -91,7 +91,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
                                                   stop_words=stop_words,
                                                   token_pattern=token_pattern,
                                                   # min_n=min_n,
-                                                  #max_n=max_n,
+                                                  # max_n=max_n,
                                                   ngram_range=ngram_range,
                                                   max_df=max_df,
                                                   min_df=min_df,
@@ -148,7 +148,10 @@ class ThesaurusVectorizer(TfidfVectorizer):
                                                            max_features)
 
             self.vocabulary_ = vocabulary
-        ########## END super.fit_transform ##########
+        # ######### END super.fit_transform ##########
+        if (self.thesaurus and hasattr(self.thesaurus, 'get_nearest_neighbours') and
+                hasattr(self.thesaurus.get_nearest_neighbours, 'cache_info')):
+            logging.info('NN cache info: %s', self.thesaurus.get_nearest_neighbours.cache_info())
         return X, self.vocabulary_
 
     def transform(self, raw_documents):
@@ -177,7 +180,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
         # change if feature selection is enabled. Trying to do this will result in attempts to compose
         # features that we do not know how to compose because these have not been removed by FS
         # if self.thesaurus:
-        #    logging.info('Populating vector source %s prior to transform', self.thesaurus)
+        # logging.info('Populating vector source %s prior to transform', self.thesaurus)
         #    self.thesaurus.populate_vector_space(self.vocabulary_.keys())
 
         #  BEGIN a modified version of super.transform that works when vocabulary is empty
@@ -234,7 +237,6 @@ class ThesaurusVectorizer(TfidfVectorizer):
             for head, dep, data in parse_tree.edges(data=True):
                 if data['type'] == 'nn' and head.pos == 'N' and dep.pos == 'N':
                     new_features.append(DocumentFeature('NN', (dep, head)))
-
 
         if self.remove_features_with_NER:
             return self._remove_features_containing_named_entities(new_features)
@@ -353,7 +355,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
                     feature_index_in_vocab = None
                     # if term is not in seen vocabulary
 
-                #is_in_vocabulary = bool(feature_index_in_vocab is not None)
+                # is_in_vocabulary = bool(feature_index_in_vocab is not None)
                 is_in_vocabulary = feature in vocabulary
                 #is_in_th = bool(self.thesaurus.get(feature))
                 is_in_th = feature in self.thesaurus if self.thesaurus else False
