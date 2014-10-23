@@ -1,5 +1,6 @@
 import os
 import sys
+
 sys.path.append('.')
 from datetime import datetime as dt
 from discoutils.misc import Bunch
@@ -35,6 +36,7 @@ v = db.Vectors.create(algorithm='random', can_build=True,
                       dimensionality=None, unlabelled_percentage=None,
                       unlabelled=None, composer='random')
 
+
 def get_size(thesaurus_file):
     global modified, size
     if os.path.exists(thesaurus_file):
@@ -42,7 +44,9 @@ def get_size(thesaurus_file):
         size = os.stat(thesaurus_file).st_size >> 20  # size in MB
     else:
         modified, size = None, None
-    return modified, size
+    gz_file = thesaurus_file + '.gz'
+    gz_size = os.stat(gz_file).st_size >> 20 if os.path.exists(gz_file) else None
+    return modified, size, gz_size
 
 # standard windows/dependency thesauri that I built back in the day
 for thesf_num, thesf_name in zip([12, 13], ['dependencies', 'windows']):
@@ -61,30 +65,30 @@ for thesf_num, thesf_name in zip([12, 13], ['dependencies', 'windows']):
                     pattern = unred_pattern if svd_dims < 1 else reduced_pattern
 
                 thesaurus_file = pattern.format(**locals())
-                modified, size = get_size(thesaurus_file)
+                modified, size, gz_size = get_size(thesaurus_file)
                 v = db.Vectors.create(algorithm='count_' + thesf_name, can_build=True,
                                       dimensionality=svd_dims, unlabelled=unlab_name,
                                       path=thesaurus_file, composer=composer_name,
-                                      modified=modified, size=size)
+                                      modified=modified, size=size, gz_size=gz_size)
                 print(v)
 
 # Socher (2011)'s paraphrase model
 path = os.path.join(prefix, 'socher_vectors/thesaurus/socher.events.filtered.strings')
-modified, size = get_size(path)
+modified, size, gz_size = get_size(path)
 db.Vectors.create(algorithm='turian', an_build=False, dimensionality=100,
                   unlabelled='turian', path=path, composer='Socher',
-                  modified=modified, size=size)
+                  modified=modified, size=size, gz_size=gz_size)
 
 # Socher's vectors with simple composition
 for composer_class in [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer, RightmostWordComposer]:
     composer_name = composer_class.name
     pattern = '{prefix}/exp12-14bAN_NN_neuro_{composer_name}/AN_NN_neuro_{composer_name}.events.filtered.strings'
     thesaurus_file = pattern.format(**locals())
-    modified, size = get_size(thesaurus_file)
+    modified, size, gz_size = get_size(thesaurus_file)
     v = db.Vectors.create(algorithm='turian', can_build=True, dimensionality=100,
                           unlabelled='turian',
                           path=thesaurus_file, composer=composer_name,
-                          modified=modified, size=size)
+                          modified=modified, size=size, gz_size=gz_size)
     print(v)
 
 # word2vec composed with various simple algorithms
@@ -92,8 +96,8 @@ for composer_class in [AdditiveComposer, MultiplicativeComposer, LeftmostWordCom
     composer_name = composer_class.name
     pattern = '{prefix}/exp13-15bAN_NN_word2_{composer_name}/AN_NN_word2_{composer_name}.events.filtered.strings'
     thesaurus_file = pattern.format(**locals())
-    modified, size = get_size(thesaurus_file)
+    modified, size, gz_size = get_size(thesaurus_file)
     v = db.Vectors.create(algorithm='word2vec', can_build=True, dimensionality=100,
                           unlabelled='gigaw', path=thesaurus_file,
-                          composer=composer_name, modified=modified, size=size)
+                          composer=composer_name, modified=modified, size=size, gz_size=gz_size)
     print(v)
