@@ -209,5 +209,5 @@ if __name__ == '__main__':
 
     prefix = '/mnt/lustre/scratch/inf/mmb28/thesisgenerator'
     # consolidate_single_experiment(prefix, 0)
-    for expid in range(30, 277):
+    for expid in range(1, 277):
         consolidate_single_experiment(prefix, expid)

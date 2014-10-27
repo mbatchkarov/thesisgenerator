@@ -179,7 +179,7 @@ for exp in experiments:
     set_in_conf_file(base_conf_file, ['feature_extraction', 'decode_token_handler'],
                      'thesisgenerator.plugins.bov_feature_handlers.%s' % exp.decode_handler)
     set_in_conf_file(base_conf_file, ['feature_extraction', 'random_neighbour_thesaurus'],
-                     exp.vectors and exp.vectors.algorithm == 'random')
+                     exp.vectors is not None and exp.vectors.algorithm == 'random')
     set_in_conf_file(base_conf_file, ['vector_sources', 'neighbours_file'],
                      exp.vectors.path if exp.vectors else '')
     set_in_conf_file(base_conf_file, ['output_dir'], './conf/exp%d/output' % exp.id)
