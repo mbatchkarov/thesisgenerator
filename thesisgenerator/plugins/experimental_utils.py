@@ -16,6 +16,7 @@ from thesisgenerator.utils.data_utils import get_thesaurus, get_tokenized_data, 
 from thesisgenerator.utils.conf_file_utils import parse_config_file
 from thesisgenerator.plugins.file_generators import _vary_training_size_file_iterator
 from thesisgenerator.__main__ import go
+from thesisgenerator.plugins.dumpers import consolidate_single_experiment
 
 
 def _clear_old_files(i, prefix):
@@ -80,6 +81,8 @@ if __name__ == '__main__':
     if len(sys.argv) == 2:
         i = int(sys.argv[1])  # full experiment id
         run_experiment(i)
+        prefix = '/mnt/lustre/scratch/inf/mmb28/thesisgenerator'
+        consolidate_single_experiment(prefix, i)
     elif len(sys.argv) == 3:
         i, j = list(map(int(sys.argv)))
         run_experiment(i, subexpid=j)
