@@ -28,7 +28,7 @@ composed_output_dir = join(prefix, 'word2vec_vectors', 'composed')
 
 # unigram extraction parameters
 MIN_COUNT = 50
-WORKERS = 4
+WORKERS = 10
 
 # composition parameters
 composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer, RightmostWordComposer]
