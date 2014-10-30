@@ -9,7 +9,6 @@ sys.path.append('.')
 sys.path.append('..')
 sys.path.append('../..')
 from discoutils.thesaurus_loader import Vectors
-from discoutils.misc import Delayed
 from discoutils.tokens import Token
 from discoutils.cmd_utils import run_and_log_output
 import numpy as np
@@ -151,6 +150,8 @@ def load_and_shelve_thesaurus(path, **kwargs):
     keeping it in memory. Returns a callable that returns the thesaurus
     :rtype: Delayed
     """
+    from discoutils.misc import Delayed
+
     # built-in hash has randomisation enabled by default on py>=3.3
     filename = 'shelf_%s' % md5(path.encode('utf8')).hexdigest()
     # shelve may add an extension or split the file in bits with different extensions
@@ -249,6 +250,8 @@ def get_all_corpora():
         conf, _ = parse_config_file(conf_file)
         corpus = conf['training_data']
         corpora[corpus] = conf_file
+    if not corpora:
+        raise ValueError('Could not find any labelled corpora')
     return corpora
 
 
