@@ -1,35 +1,40 @@
 # -*- coding: utf-8 -*-
 import argparse
-from operator import itemgetter
 import os, sys
-import random
+from os.path import join
 import gensim, logging, errno
 
 sys.path.append('.')
 sys.path.append('..')
 sys.path.append('../..')
 
-
 from discoutils.tokens import DocumentFeature
-from discoutils.thesaurus_loader import Thesaurus, Vectors
-from thesisgenerator.plugins.tokenizers import XmlTokenizer
+from discoutils.thesaurus_loader import Vectors
+from thesisgenerator.plugins.tokenizers import pos_coarsification_map
+from thesisgenerator.scripts.dump_all_composed_vectors import compose_and_write_vectors
+from thesisgenerator.utils.data_utils import get_all_corpora
+from thesisgenerator.composers.vectorstore import (AdditiveComposer, MultiplicativeComposer,
+                                                   LeftmostWordComposer, RightmostWordComposer)
 
 logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
 
 # inputs
-conll_data_dir = '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/data/gigaword-afe-split-tagged-parsed/gigaword/'
-pos_only_data_dir = '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/data/gigaword-afe-split-pos/gigaword/'
+prefix = '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit'
+conll_data_dir = join(prefix, 'data/gigaword-afe-split-tagged-parsed/gigaword/')
+pos_only_data_dir = join(prefix, 'data/gigaword-afe-split-pos/gigaword/')
 # outputs
-unigram_events_file = '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/word2vec_vectors/thesaurus/word2vec.events.filtered.strings'
-unigram_thes_file = '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/word2vec_vectors/word2vec.unigram.thesaurus.txt'
+unigram_events_file = join(prefix, 'word2vec_vectors/word2vec-%dperc.unigr.strings')
+composed_output_dir = join(prefix, 'word2vec_vectors', 'composed')
 
-# operation parameters
+# unigram extraction parameters
 MIN_COUNT = 50
 WORKERS = 4
-pos_map = XmlTokenizer.pos_coarsification_map
+
+# composition parameters
+composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer, RightmostWordComposer]
 
 
-def compute_and_write_vectors(stages):
+def compute_and_write_vectors(stages, percent):
     # <markdowncell>
 
     # Data formatting
@@ -53,6 +58,8 @@ def compute_and_write_vectors(stages):
     # ```
 
     # <codecell>
+    global unigram_events_file
+    unigram_events_file = unigram_events_file % percent
 
     if 'reformat' in stages:
         try:
@@ -64,99 +71,62 @@ def compute_and_write_vectors(stages):
                 raise
 
         for filename in os.listdir(conll_data_dir):
-            outfile_name = os.path.join(pos_only_data_dir, filename)
+            outfile_name = join(pos_only_data_dir, filename)
             logging.info('Reformatting %s to %s', filename, outfile_name)
-            with open(os.path.join(conll_data_dir, filename)) as infile, open(outfile_name, 'w') as outfile:
+            with open(join(conll_data_dir, filename)) as infile, open(outfile_name, 'w') as outfile:
                 for line in infile:
                     if not line.strip():  # conll empty line = sentence boundary
                         outfile.write('.\n')
                         continue
                     idx, word, lemma, pos, ner, dep, _ = line.strip().split('\t')
-                    outfile.write('%s/%s ' % (lemma.lower(), pos_map[pos]))
+                    outfile.write('%s/%s ' % (lemma.lower(), pos_coarsification_map[pos]))
 
     if 'vectors' in stages:
         # train a word2vec model
         class MySentences(object):
-            def __init__(self, dirname):
+            def __init__(self, dirname, file_percentage):
                 self.dirname = dirname
+                self.limit = file_percentage
 
             def __iter__(self):
-                for fname in os.listdir(self.dirname):
-                    for line in open(os.path.join(self.dirname, fname)):
+                files = [x for x in os.listdir(self.dirname) if not x.startswith('.')]
+                count = int(self.limit * len(files))
+                for fname in files[:count]:
+                    for line in open(join(self.dirname, fname)):
                         yield line.split()
 
-
-        logging.info('Training word2vec')
-        sentences = MySentences(pos_only_data_dir)  # a memory-friendly iterator
+        logging.info('Training word2vec on %d percent of %s', percent, pos_only_data_dir)
+        sentences = MySentences(pos_only_data_dir, percent)
         model = gensim.models.Word2Vec(sentences, workers=WORKERS, min_count=MIN_COUNT)
-
-        logging.info(model.most_similar('computer/N', topn=20))
-        logging.info(model.similarity('computer/N', 'software/N'))
 
         # get word2vec vectors for each word, write to TSV
         vectors = dict()
-        dimension_names = ['word2vec_feat%02d' % i for i in range(100)]  # word2vec produces 100-dim vectors
+        dimension_names = ['f%02d' % i for i in range(100)]  # word2vec produces 100-dim vectors
         for word in model.vocab.keys():
             # watch for non-DocumentFeatures, these break to_tsv
             # also ignore words with non-ascii characters
-            if DocumentFeature.from_string(word).type == 'EMPTY' or has_non_ascii(word):
+            if DocumentFeature.from_string(word).type == 'EMPTY':
                 logging.info('Ignoring vector for %s', word)
                 continue
             vectors[word] = zip(dimension_names, model[word])
-        th1 = Vectors(vectors)
-        th1.to_tsv(unigram_events_file)
+        vectors = Vectors(vectors)
+        vectors.to_tsv(unigram_events_file)
 
-    if 'eval' in stages:
-        disk_vectors = Vectors.from_tsv(unigram_events_file)
-        entry_sample = select_entries(model.vocab.keys())
-        for word in entry_sample:
-            sorted_vector = sorted(disk_vectors[word], key=itemgetter(0))
-            logging.info('Read from disk %s', word)
-            logging.info('sorted vector %r', sorted_vector[:5])
-            logging.info('matrix %r', disk_vectors.get_vector(word).A.ravel()[:5])
-            logging.info('In memory')
-            logging.info('word2vec value : %r', model[word][:5])
-            logging.info('thes matrix value: %r', th1.get_vector(word).A.ravel()[:5])
-            logging.info('thes value %r\n\n', vectors[word][:5])
+    if 'compose' in stages:
+        # if we'll also be composing we don't have to write the unigram vectors to disk
+        # just to read them back later.
+        compose_and_write_vectors(vectors if 'vectors' in stages else unigram_events_file,
+                                  'word2vec_%dpercent' % args.percent,
+                                  get_all_corpora(),  # todo it is redundant to read in all corpora
+                                  composer_algos,
+                                  output_dir=composed_output_dir)
 
-
-
-    if 'thesaurus' in stages:
-        # build a thesaurus out of the nearest neighbours of each unigram and save it to TSV
-        # this is a little incompatible with the rest of my thesauri as it uses
-        # the first PoS-augmented form for each word2vec word is used
-        # nevertheless, it's useful to compare these neighbours to Byblo's neighbours as a sanity check
-        logging.info('Building mini thesaurus')
-        mythes = dict()
-        for word in entry_sample:
-            neighours = model.most_similar(word, topn=10)
-            if any(has_non_ascii(foo[0]) for foo in neighours):
-                continue
-            mythes[word] = neighours
-        Thesaurus(mythes).to_tsv(unigram_thes_file)
-
-def select_entries(mylist):
-    result = []
-    for word in random.sample(mylist, 10):
-        if DocumentFeature.from_string(word).type == 'EMPTY' or has_non_ascii(word):
-            continue
-        result.append(word)
-    return result
-
-def has_non_ascii(word):
-    try:
-        word.decode('ascii')
-    except (UnicodeEncodeError, UnicodeDecodeError) as e:
-        return True
-    return False
 
 if __name__ == '__main__':
-
-    assert has_non_ascii('å')
-    assert not has_non_ascii('a')
-
     parser = argparse.ArgumentParser()
-    parser.add_argument('--stages', choices=('reformat', 'vectors', 'eval', 'thesaurus'),
+    parser.add_argument('--stages', choices=('reformat', 'vectors', 'compose'),
                         required=True, nargs='+')
-    compute_and_write_vectors(parser.parse_args().stages)
+    parser.add_argument('--percent', default=100, type=int)
+    args = parser.parse_args()
+    compute_and_write_vectors(args.stages, args.percent)
 

@@ -19,9 +19,10 @@ def compose_and_write_vectors(unigram_vectors_path, short_vector_dataset_name, c
                               output_dir='.'):
     """
     Extracts all composable features from a labelled classification corpus and dumps a composed vector for each of them
-    to disk. The output file will also contain all unigram vectors that were passed in.
-    :param unigram_vectors_path: a file in Byblo events format that contain vectors for all unigrams. This
-    will be used in the composition process
+    to disk. The output file will also contain all unigram vectors that were passed in, and only unigrams!
+    :param unigram_vectors_path: a file in Byblo events format that contain vectors for all unigrams OR
+    a Vectors object. This will be used in the composition process
+    :type unigram_vectors_path: str or Vectors
     :param classification_corpora: Corpora to extract features from. Dict {corpus_path: conf_file}
     :type classification_corpora: dict
     :param pretrained_Baroni_composer_file: path to pre-trained Baroni AN/NN composer file
@@ -45,11 +46,14 @@ def compose_and_write_vectors(unigram_vectors_path, short_vector_dataset_name, c
         ('fs', VectorBackedSelectKBest(must_be_in_thesaurus=True)),
     ])
 
-    vectors = Vectors.from_tsv(unigram_vectors_path,
-                               # ensure there's only unigrams in the set of unigram vectors
-                               # composers do not need any ngram vectors contain in this file, they may well be
-                               # observed ones
-                               row_filter=lambda x, y: y.tokens[0].pos in {'N', 'J'} and y.type == '1-GRAM')
+    if isinstance(unigram_vectors_path, Vectors):
+        vectors = unigram_vectors_path
+    else:
+        # ensure there's only unigrams in the set of unigram vectors
+        # composers do not need any ngram vectors contain in this file, they may well be
+        # observed ones
+        vectors = Vectors.from_tsv(unigram_vectors_path,
+                                   row_filter=lambda x, y: y.tokens[0].pos in {'N', 'J'} and y.type == '1-GRAM')
 
     # doing this loop in parallel isn't worth it as pickling or shelving `vectors` is so slow
     # it negates any gains from using multiple cores
