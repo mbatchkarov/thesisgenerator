@@ -19,11 +19,12 @@ use this script to generate the conf files required to run them through the clas
 '''
 
 
-def vectors_from_settings(unlab_name, algorithm, composer_name, svd_dims):
+def vectors_from_settings(unlab_name, algorithm, composer_name, svd_dims, percent=100):
     v = db.Vectors.select().where((db.Vectors.dimensionality == svd_dims) &
                                   (db.Vectors.unlabelled == unlab_name) &
                                   (db.Vectors.composer == composer_name) &
-                                  (db.Vectors.algorithm == algorithm))
+                                  (db.Vectors.algorithm == algorithm) &
+                                  (db.Vectors.unlabelled_percentage == percent))
     return v[0]
 
 
@@ -116,6 +117,15 @@ def an_only_nn_only_experiments_r2():
             experiments.append(e)
 
 
+def word2vec_with_less_data_on_r2():
+    for unlab, algo, composer, svd_dims in word2vec_vector_settings():
+        # only up to 90%, 100% was done separately above
+        for percent in range(10, 91, 10):
+            e = db.ClassificationExperiment(labelled=r2_corpus,
+                                            vectors=vectors_from_settings(unlab, algo, composer,
+                                                                          svd_dims, percent))
+            experiments.append(e)
+
 prefix = '/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data'
 techtc_corpora = list(os.path.join(*x.split(os.sep)[-2:]) \
                       for x in glob('%s/techtc100-clean/*' % prefix) \
@@ -132,7 +142,7 @@ all_standard_experiments()
 hybrid_experiments()
 use_similarity_experiments()
 an_only_nn_only_experiments_r2()
-
+word2vec_with_less_data_on_r2()
 
 # re-order experiments so that the hard ones (high-memory, long-running) come first
 def _myorder(item):
