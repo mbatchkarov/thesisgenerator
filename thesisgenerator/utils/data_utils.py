@@ -135,7 +135,7 @@ def get_thesaurus(conf):
             # single we are running single-threaded, might as well read this in now
             # returning a delayed() will cause the file to be read for each CV fold
             # thesaurus = Delayed(Vectors, Vectors.from_tsv, path, **params)
-            thesaurus = Vectors.from_tsv(path, tar=conf['joblib_caching'], **params)
+            thesaurus = Vectors.from_tsv(path, gzipped=conf['joblib_caching'], **params)
     if not thesaurus:
         # if a vector source has not been passed in and has not been initialised, then init it to avoid
         # accessing empty things
@@ -167,17 +167,17 @@ def load_and_shelve_thesaurus(path, **kwargs):
     return Delayed(Vectors, Vectors.from_shelf_readonly, filename, **kwargs)
 
 
-def tar_single_thesaurus(conf_file):
+def gzip_single_thesaurus(conf_file):
     conf, _ = parse_config_file(conf_file)
     th = conf['vector_sources']['neighbours_file']
 
     if os.path.exists(th):
-        run_and_log_output('tar -zcvf {0}.gz {0}'.format(th))
+        run_and_log_output('gzip -k {0}'.format(th))
     else:
         logging.warning('Thesaurus does not exist: %s', th)
 
 
-def tar_all_thesauri(n_jobs):
+def gzip_all_thesauri(n_jobs):
     """
     Loads, parses and shelves all thesauri used in experiments.
     """
@@ -189,7 +189,7 @@ def tar_all_thesauri(n_jobs):
         thes_file = conf['vector_sources']['neighbours_file']
         thesauri[thes_file] = conf_file
 
-    Parallel(n_jobs=n_jobs)(delayed(tar_single_thesaurus)(conf_file) for conf_file in thesauri.values())
+    Parallel(n_jobs=n_jobs)(delayed(gzip_single_thesaurus)(conf_file) for conf_file in thesauri.values())
 
 
 def jsonify_single_labelled_corpus(conf_file):

@@ -5,8 +5,8 @@ sys.path.append('..')
 sys.path.append('../..')
 import argparse
 import logging
-from thesisgenerator.utils.data_utils import (tar_all_thesauri, jsonify_all_labelled_corpora,
-                                              tar_single_thesaurus, jsonify_single_labelled_corpus)
+from thesisgenerator.utils.data_utils import (gzip_all_thesauri, jsonify_all_labelled_corpora,
+                                              gzip_single_thesaurus, jsonify_single_labelled_corpus)
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO,
@@ -20,8 +20,8 @@ if __name__ == '__main__':
 
     parameters = parser.parse_args()
     if parameters.jobs:
-        tar_all_thesauri(parser.parse_args().jobs)
+        gzip_all_thesauri(parser.parse_args().jobs)
         jsonify_all_labelled_corpora(parser.parse_args().jobs)
     else:
-        tar_single_thesaurus('conf/exp{0}/exp{0}_base.conf'.format(parameters.experiment))
+        gzip_single_thesaurus('conf/exp{0}/exp{0}_base.conf'.format(parameters.experiment))
         jsonify_single_labelled_corpus('conf/exp{0}/exp{0}_base.conf'.format(parameters.experiment))
