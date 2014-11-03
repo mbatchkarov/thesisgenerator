@@ -34,7 +34,7 @@ WORKERS = 10
 composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer, RightmostWordComposer]
 
 
-def compute_and_write_vectors(stages, percent):
+def compute_and_write_vectors(stages, percent, repeat):
     # <markdowncell>
 
     # Data formatting
@@ -81,45 +81,48 @@ def compute_and_write_vectors(stages, percent):
                     idx, word, lemma, pos, ner, dep, _ = line.strip().split('\t')
                     outfile.write('%s/%s ' % (lemma.lower(), pos_coarsification_map[pos]))
 
-    if 'vectors' in stages:
-        # train a word2vec model
-        class MySentences(object):
-            def __init__(self, dirname, file_percentage):
-                self.dirname = dirname
-                self.limit = file_percentage
+    if percent < 100 and repeat > 1:
+        repeat = 1  # only repeat when using the entire corpus
+    for i in range(repeat):
+        if 'vectors' in stages:
+            # train a word2vec model
+            class MySentences(object):
+                def __init__(self, dirname, file_percentage):
+                    self.dirname = dirname
+                    self.limit = file_percentage
 
-            def __iter__(self):
-                files = [x for x in os.listdir(self.dirname) if not x.startswith('.')]
-                count = int(self.limit * len(files))
-                for fname in files[:count]:
-                    for line in open(join(self.dirname, fname)):
-                        yield line.split()
+                def __iter__(self):
+                    files = [x for x in os.listdir(self.dirname) if not x.startswith('.')]
+                    count = int(self.limit * len(files))
+                    for fname in files[:count]:
+                        for line in open(join(self.dirname, fname)):
+                            yield line.split()
 
-        logging.info('Training word2vec on %d percent of %s', percent, pos_only_data_dir)
-        sentences = MySentences(pos_only_data_dir, percent)
-        model = gensim.models.Word2Vec(sentences, workers=WORKERS, min_count=MIN_COUNT)
+            logging.info('Training word2vec on %d percent of %s', percent, pos_only_data_dir)
+            sentences = MySentences(pos_only_data_dir, percent)
+            model = gensim.models.Word2Vec(sentences, workers=WORKERS, min_count=MIN_COUNT)
 
-        # get word2vec vectors for each word, write to TSV
-        vectors = dict()
-        dimension_names = ['f%02d' % i for i in range(100)]  # word2vec produces 100-dim vectors
-        for word in model.vocab.keys():
-            # watch for non-DocumentFeatures, these break to_tsv
-            # also ignore words with non-ascii characters
-            if DocumentFeature.from_string(word).type == 'EMPTY':
-                logging.info('Ignoring vector for %s', word)
-                continue
-            vectors[word] = zip(dimension_names, model[word])
-        vectors = Vectors(vectors)
-        vectors.to_tsv(unigram_events_file)
+            # get word2vec vectors for each word, write to TSV
+            vectors = dict()
+            dimension_names = ['f%02d' % i for i in range(100)]  # word2vec produces 100-dim vectors
+            for word in model.vocab.keys():
+                # watch for non-DocumentFeatures, these break to_tsv
+                # also ignore words with non-ascii characters
+                if DocumentFeature.from_string(word).type == 'EMPTY':
+                    logging.info('Ignoring vector for %s', word)
+                    continue
+                vectors[word] = zip(dimension_names, model[word])
+            vectors = Vectors(vectors)
+            vectors.to_tsv(unigram_events_file + '.rep%d' % i, gzipped=True)
 
-    if 'compose' in stages:
-        # if we'll also be composing we don't have to write the unigram vectors to disk
-        # just to read them back later.
-        compose_and_write_vectors(vectors if 'vectors' in stages else unigram_events_file,
-                                  'word2vec_%dpercent' % args.percent,
-                                  get_all_corpora(),  # todo it is redundant to read in all corpora
-                                  composer_algos,
-                                  output_dir=composed_output_dir)
+        if 'compose' in stages:
+            # if we'll also be composing we don't have to write the unigram vectors to disk
+            # just to read them back later.
+            compose_and_write_vectors(vectors if 'vectors' in stages else unigram_events_file + '.rep%d' % i,
+                                      'word2vec_%dpercent-rep%d' % (percent, repeat),
+                                      get_all_corpora(),  # todo it is redundant to read in all corpora
+                                      composer_algos,
+                                      output_dir=composed_output_dir)
 
 
 if __name__ == '__main__':
@@ -127,6 +130,7 @@ if __name__ == '__main__':
     parser.add_argument('--stages', choices=('reformat', 'vectors', 'compose'),
                         required=True, nargs='+')
     parser.add_argument('--percent', default=100, type=int)
+    parser.add_argument('--repeat', default=1, type=int)
     args = parser.parse_args()
-    compute_and_write_vectors(args.stages, args.percent)
+    compute_and_write_vectors(args.stages, args.percent, args.repeat)
 
