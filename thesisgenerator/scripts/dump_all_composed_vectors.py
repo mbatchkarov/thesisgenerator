@@ -16,7 +16,7 @@ from discoutils.io_utils import write_vectors_to_disk
 
 def compose_and_write_vectors(unigram_vectors_path, short_vector_dataset_name, classification_corpora,
                               composer_classes, pretrained_Baroni_composer_file=None,
-                              output_dir='.'):
+                              output_dir='.', gzipped=True):
     """
     Extracts all composable features from a labelled classification corpus and dumps a composed vector for each of them
     to disk. The output file will also contain all unigram vectors that were passed in, and only unigrams!
@@ -85,4 +85,5 @@ def compose_and_write_vectors(unigram_vectors_path, short_vector_dataset_name, c
         rows2idx = {i: DocumentFeature.from_string(x) for (x, i) in rows.items()}
         write_vectors_to_disk(mat.tocoo(), rows2idx, cols, events_path,
                               features_path=features_path, entries_path=entries_path,
-                              entry_filter=lambda x: x.type in {'AN', 'NN', '1-GRAM'})
+                              entry_filter=lambda x: x.type in {'AN', 'NN', '1-GRAM'},
+                              gzipped=gzipped)

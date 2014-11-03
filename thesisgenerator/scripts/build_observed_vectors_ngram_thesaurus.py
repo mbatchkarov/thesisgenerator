@@ -79,7 +79,8 @@ def do_work(corpus, features, svd_dims):
     # mat, cols, rows = th.to_sparse_matrix() # if there are only NPs do this
     # rows = [DocumentFeature.from_string(x) for x in rows]
     write_vectors_to_disk(mat.tocoo(), rows, cols, vectors_file, features_file, entries_file,
-                          entry_filter=lambda feature: feature.type in {'AN', 'NN', '1-GRAM'})
+                          entry_filter=lambda feature: feature.type in {'AN', 'NN', '1-GRAM'},
+                          gzipped=True)
 
     logging.info(vectors_file)
     logging.info(entries_file)
@@ -178,8 +179,7 @@ def do_work_socher(baronify):
         composed_phrases,
         ['RAE-feat%d' % i for i in range(100)],  # Socher provides 100-dimensional vectors
         vectors_file,
-        # features_file, # only the vectors file is really needed, unless we are building a Byblo thesaurus
-        # entries_file
+        gzipped=True
     )
 
     # if baronify:
