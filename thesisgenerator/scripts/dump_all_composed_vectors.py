@@ -53,7 +53,8 @@ def compose_and_write_vectors(unigram_vectors_path, short_vector_dataset_name, c
         # composers do not need any ngram vectors contain in this file, they may well be
         # observed ones
         vectors = Vectors.from_tsv(unigram_vectors_path,
-                                   row_filter=lambda x, y: y.tokens[0].pos in {'N', 'J'} and y.type == '1-GRAM')
+                                   row_filter=lambda x, y: y.tokens[0].pos in {'N', 'J'} and y.type == '1-GRAM',
+                                   gzipped=True)
 
     # doing this loop in parallel isn't worth it as pickling or shelving `vectors` is so slow
     # it negates any gains from using multiple cores
