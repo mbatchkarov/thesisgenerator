@@ -19,6 +19,7 @@ class Vectors(pw.Model):
     unlabelled = pw.CharField(null=True)  # path to unlabelled corpus that data was used, if I did it
     path = pw.CharField(null=True)  # where on disk the vectors are stored
     composer = pw.CharField()  # what composer was used to build phrasal vectors (if any)
+    rep = pw.IntegerField(default=0) # if the same vectors have been built multiple times, an explicit identifier
 
     modified = pw.DateField(null=True, default=None)  # when was the file last modifier
     size = pw.IntegerField(null=True, default=None)  # file size in MB
@@ -28,7 +29,7 @@ class Vectors(pw.Model):
         database = db
 
     def __str__(self):
-        return 'Vectors: ' + ','.join(str(x) for x in [self.algorithm, self.composer, self.dimensionality])
+        return 'Vectors: ' + ','.join(str(x) for x in [self.algorithm, self.composer, self.dimensionality, self.rep])
 
 
 class ClassificationExperiment(pw.Model):

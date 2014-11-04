@@ -19,11 +19,12 @@ use this script to generate the conf files required to run them through the clas
 '''
 
 
-def vectors_from_settings(unlab_name, algorithm, composer_name, svd_dims, percent=100):
+def vectors_from_settings(unlab_name, algorithm, composer_name, svd_dims, percent=100, rep=0):
     v = db.Vectors.select().where((db.Vectors.dimensionality == svd_dims) &
                                   (db.Vectors.unlabelled == unlab_name) &
                                   (db.Vectors.composer == composer_name) &
                                   (db.Vectors.algorithm == algorithm) &
+                                  (db.Vectors.rep == rep) &
                                   (db.Vectors.unlabelled_percentage == percent))
     return v[0]
 
@@ -126,6 +127,15 @@ def word2vec_with_less_data_on_r2():
                                                                           svd_dims, percent))
             experiments.append(e)
 
+def word2vec_repeats_on_r2():
+    for unlab, algo, composer, svd_dims in word2vec_vector_settings():
+        for rep in range(1, 3):
+            # only the second and third run of word2vec on the entire data set, the first was done above
+            e = db.ClassificationExperiment(labelled=r2_corpus,
+                                            vectors=vectors_from_settings(unlab, algo, composer,
+                                                                          svd_dims, rep=rep))
+            experiments.append(e)
+
 prefix = '/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data'
 techtc_corpora = list(os.path.join(*x.split(os.sep)[-2:]) \
                       for x in glob('%s/techtc100-clean/*' % prefix) \
@@ -143,24 +153,25 @@ hybrid_experiments()
 use_similarity_experiments()
 an_only_nn_only_experiments_r2()
 word2vec_with_less_data_on_r2()
+word2vec_repeats_on_r2()
 
 # re-order experiments so that the hard ones (high-memory, long-running) come first
 def _myorder(item):
     """
-    If the thing is AM move it to the from of the sorted list, sort
-    all other items lexicographically
+    If the thing is AM move it to the from of the sorted list, leave
+    all other items in the order they were in
     :param item:
     :return:
     """
-    data = getattr(item, 'labelled')
-    if 'amazon' in data:
-        return chr(1)
-    return data
+    lab = getattr(item[1], 'labelled')
+    if 'amazon' in lab:
+        return chr(1), item[0]
+    return 'whatever', item[0]
 
 
-sorted_experiments = sorted(experiments, key=_myorder)
+sorted_experiments = sorted(enumerate(experiments), key=_myorder)
 experiments = []
-for new_id, e in enumerate(sorted_experiments, 1):
+for new_id, (old_id, e) in enumerate(sorted_experiments, 1):
     e.id = new_id
     experiments.append(e)
 for e in experiments:
