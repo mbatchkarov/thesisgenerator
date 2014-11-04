@@ -221,3 +221,19 @@ for exp in experiments:
 
     with open(base_conf_file, 'wb') as inf:
         conf.write(inf)
+
+    # we've just written a conf file to a directory that may have contained results from before
+    # check those results were done with the same configuration we just created. This is needed
+    # because as we reorder experiments existing results may end up with a different ID
+    # otherwise the experiment will have to be re-run
+    # only checking some of the important parameters
+    previous_conf_file = 'conf/exp{0}/exp{0}_base-variants/exp{0}-0.conf'.format(exp.id)
+    if os.path.exists(previous_conf_file):
+        old_conf, _ = parse_config_file(previous_conf_file)
+        for a, b in [(old_conf['vector_sources']['neighbours_file'],
+                      conf['vector_sources']['neighbours_file']),
+                     (old_conf['feature_extraction']['decode_token_handler'],
+                      conf['feature_extraction']['decode_token_handler']),
+                     (conf['training_data'], old_conf['training_data'])]:
+            if a != b:
+                print('Exp: %d, was %r, is now %r' % (exp.id, a, b))
