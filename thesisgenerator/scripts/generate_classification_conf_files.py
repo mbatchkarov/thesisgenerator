@@ -10,7 +10,7 @@ sys.path.append('..')
 sys.path.append('../..')
 from discoutils.misc import Bunch
 from thesisgenerator.composers.vectorstore import *
-from thesisgenerator.utils.conf_file_utils import set_in_conf_file
+from thesisgenerator.utils.conf_file_utils import parse_config_file
 from thesisgenerator.utils import db
 
 '''
@@ -127,6 +127,7 @@ def word2vec_with_less_data_on_r2():
                                                                           svd_dims, percent))
             experiments.append(e)
 
+
 def word2vec_repeats_on_r2():
     for unlab, algo, composer, svd_dims in word2vec_vector_settings():
         for rep in range(1, 3):
@@ -135,6 +136,7 @@ def word2vec_repeats_on_r2():
                                             vectors=vectors_from_settings(unlab, algo, composer,
                                                                           svd_dims, rep=rep))
             experiments.append(e)
+
 
 prefix = '/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data'
 techtc_corpora = list(os.path.join(*x.split(os.sep)[-2:]) \
@@ -190,31 +192,32 @@ for exp in experiments:
         os.mkdir(experiment_dir)
 
     base_conf_file = os.path.join(experiment_dir, 'exp%d_base.conf' % exp.id)
-    shutil.copy(megasuperbase_conf_file, base_conf_file)
+    conf, _ = parse_config_file(megasuperbase_conf_file)
 
     if exp.vectors is None and 'Base' in exp.decode_handler:
         # signifier baseline, not using a thesaurus, so shouldn't do any feature selection based on the thesaurus
-        set_in_conf_file(base_conf_file, ['feature_selection', 'must_be_in_thesaurus'], False)
+        conf['feature_selection']['must_be_in_thesaurus'] = False
 
-    set_in_conf_file(base_conf_file, ['training_data'], os.path.join(prefix, exp.labelled))
-    set_in_conf_file(base_conf_file, ['feature_extraction', 'decode_token_handler'],
-                     'thesisgenerator.plugins.bov_feature_handlers.%s' % exp.decode_handler)
-    set_in_conf_file(base_conf_file, ['feature_extraction', 'random_neighbour_thesaurus'],
-                     exp.vectors is not None and exp.vectors.algorithm == 'random')
-    set_in_conf_file(base_conf_file, ['vector_sources', 'neighbours_file'],
-                     exp.vectors.path if exp.vectors else '')
-    set_in_conf_file(base_conf_file, ['output_dir'], './conf/exp%d/output' % exp.id)
-    set_in_conf_file(base_conf_file, ['name'], 'exp%d' % exp.id)
+    conf['training_data'] = os.path.join(prefix, exp.labelled)
+    conf['feature_extraction']['decode_token_handler'] = \
+        'thesisgenerator.plugins.bov_feature_handlers.%s' % exp.decode_handler
+    conf['feature_extraction']['random_neighbour_thesaurus'] = \
+        exp.vectors is not None and exp.vectors.algorithm == 'random'
+    conf['vector_sources']['neighbours_file'] = exp.vectors.path if exp.vectors else ''
+    conf['output_dir'] = './conf/exp%d/output' % exp.id
+    conf['name'] = 'exp%d' % exp.id
 
     requested_features = exp.document_features.split('_')
     for doc_feature_type in ['AN', 'NN', 'VO', 'SVO']:
-        set_in_conf_file(base_conf_file, ['feature_extraction', 'extract_%s_features' % doc_feature_type],
-                         doc_feature_type in requested_features)
+        conf['feature_extraction']['extract_%s_features' % doc_feature_type] = doc_feature_type in requested_features
 
     # do not allow lexical overlap to prevent Left and Right from relying on word identity
-    set_in_conf_file(base_conf_file, ['vector_sources', 'allow_lexical_overlap'], False)
+    conf['vector_sources']['allow_lexical_overlap'] = False
 
     if exp.use_similarity:
-        set_in_conf_file(base_conf_file, ['feature_extraction', 'sim_compressor'], 'thesisgenerator.utils.misc.unit')
+        conf['feature_extraction']['sim_compressor'] = 'thesisgenerator.utils.misc.unit'
     else:
-        set_in_conf_file(base_conf_file, ['feature_extraction', 'sim_compressor'], 'thesisgenerator.utils.misc.one')
+        conf['feature_extraction']['sim_compressor'] = 'thesisgenerator.utils.misc.one'
+
+    with open(base_conf_file, 'wb') as inf:
+        conf.write(inf)
