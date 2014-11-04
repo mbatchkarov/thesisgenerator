@@ -29,7 +29,6 @@ def go(tr_path, ev_path):
     )
 
     tokenizer = load_tokenizer(
-        joblib_caching=True,
         normalise_entities=False,
         use_pos=True,
         coarse_pos=True,
