@@ -180,7 +180,8 @@ def gzip_single_thesaurus(conf_file):
             logging.info('Symlinking %s', th)
             force_symlink(th, th + '.gz')
         else:
-            run_and_log_output('gzip --force --keep --best {0}'.format(th))
+            # don't modify old file
+            run_and_log_output('gzip --force --best -c {0} > {0}.gz'.format(th))
     else:
         logging.warning('Thesaurus does not exist: %s', th)
 
