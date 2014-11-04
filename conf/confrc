@@ -1,6 +1,6 @@
 name=string() # used to identify output files
 debug=boolean(default=False) #if true, pipelines will be pickled and feature vectors will be dumped as csv
-joblib_caching=boolean(default=False) # for tokenizer, the whole  corpus can be loaded from disk
+gzip_resources=boolean(default=False) # try to use gzipped version of labelled corpora and vectors
 shuffle_targets=boolean(default=False) # randomly change the labels of all documents, sanity check
 
 training_data=string(default='')

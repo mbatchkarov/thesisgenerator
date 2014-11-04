@@ -4,6 +4,7 @@ import logging
 import os
 import random
 import sys
+import magic
 
 sys.path.append('.')
 sys.path.append('..')
@@ -19,6 +20,7 @@ from joblib import Parallel, delayed
 from sklearn.datasets import load_files
 from thesisgenerator.plugins.tokenizers import XmlTokenizer, GzippedJsonTokenizer
 from thesisgenerator.utils.conf_file_utils import parse_config_file
+from thesisgenerator.utils.misc import force_symlink
 from thesisgenerator.composers.vectorstore import DummyThesaurus
 
 
@@ -135,7 +137,7 @@ def get_thesaurus(conf):
             # single we are running single-threaded, might as well read this in now
             # returning a delayed() will cause the file to be read for each CV fold
             # thesaurus = Delayed(Vectors, Vectors.from_tsv, path, **params)
-            thesaurus = Vectors.from_tsv(path, gzipped=conf['joblib_caching'], **params)
+            thesaurus = Vectors.from_tsv(path, gzipped=conf['gzip_resources'], **params)
     if not thesaurus:
         # if a vector source has not been passed in and has not been initialised, then init it to avoid
         # accessing empty things
@@ -172,7 +174,13 @@ def gzip_single_thesaurus(conf_file):
     th = conf['vector_sources']['neighbours_file']
 
     if os.path.exists(th):
-        run_and_log_output('gzip -k {0}'.format(th))
+        # need force in case output file exists
+        if b'gzip compressed data' in magic.from_file(th):
+            # file is already gzipped, just symlink
+            logging.info('Symlinking %s', th)
+            force_symlink(th, th + '.gz')
+        else:
+            run_and_log_output('gzip --force --keep --best {0}'.format(th))
     else:
         logging.warning('Thesaurus does not exist: %s', th)
 

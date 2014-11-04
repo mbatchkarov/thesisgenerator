@@ -1,5 +1,7 @@
 import inspect
+import os
 from configobj import ConfigObj
+import errno
 from thesisgenerator.utils.reflection_utils import get_named_object
 import logging
 import numpy as np
@@ -139,3 +141,14 @@ def update_dict_according_to_mask(v, mask):
     new_indices = {old_index: new_index for new_index, old_index in enumerate(sorted(v.values()))}
     # update indices in vocabulary
     return {feature: new_indices[index] for feature, index in v.items()}
+
+
+def force_symlink(src, dest):
+    try:
+        os.symlink(src, dest)
+    except OSError as e:
+        if e.errno == errno.EEXIST:
+            os.remove(dest)
+            os.symlink(src, dest)
+        else:
+            raise e
