@@ -208,6 +208,5 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO, format="%(levelname)s:\t%(message)s")
 
     prefix = '/mnt/lustre/scratch/inf/mmb28/thesisgenerator'
-    # consolidate_single_experiment(prefix, 0)
-    for expid in range(1, 277):
+    for expid in range(1, 1000): # just brute force it
         consolidate_single_experiment(prefix, expid)

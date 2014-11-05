@@ -79,7 +79,7 @@ db.Vectors.create(algorithm='turian', an_build=False, dimensionality=100,
                   unlabelled='turian', path=path, composer='Socher',
                   modified=modified, size=size, gz_size=gz_size)
 
-# Socher's vectors with simple composition
+# Socher's 2011 vectors with simple composition
 for composer_class in [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer, RightmostWordComposer]:
     composer_name = composer_class.name
     pattern = '{prefix}/exp12-14bAN_NN_neuro_{composer_name}/AN_NN_neuro_{composer_name}.events.filtered.strings'
@@ -87,6 +87,18 @@ for composer_class in [AdditiveComposer, MultiplicativeComposer, LeftmostWordCom
     modified, size, gz_size = get_size(thesaurus_file)
     v = db.Vectors.create(algorithm='turian',
                           dimensionality=100, unlabelled='turian',
+                          path=thesaurus_file, composer=composer_name,
+                          modified=modified, size=size, gz_size=gz_size)
+    print(v)
+
+# GloVe vectors with simple composition
+for composer_class in [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer, RightmostWordComposer]:
+    composer_name = composer_class.name
+    pattern = '{prefix}/glove/AN_NN_glove-gigaw_{composer_name}.events.filtered.strings'
+    thesaurus_file = pattern.format(**locals())
+    modified, size, gz_size = get_size(thesaurus_file)
+    v = db.Vectors.create(algorithm='glove',
+                          dimensionality=100, unlabelled='gigaw',
                           path=thesaurus_file, composer=composer_name,
                           modified=modified, size=size, gz_size=gz_size)
     print(v)

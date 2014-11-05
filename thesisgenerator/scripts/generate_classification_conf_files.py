@@ -68,6 +68,14 @@ def word2vec_vector_settings():
         yield unlab, algo, c.name, 100
 
 
+def glove_vector_settings():
+    unlab = 'gigaw'
+    algo = 'glove'
+    composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer, RightmostWordComposer]
+    for c in composer_algos:
+        yield unlab, algo, c.name, 100
+
+
 def all_vector_settings():
     yield from dependency_vector_settings()
     yield from window_vector_settings()
@@ -138,10 +146,16 @@ def word2vec_repeats_on_r2():
             experiments.append(e)
 
 
+def glove_vectors_r2():
+    for s in glove_vector_settings():
+        e = db.ClassificationExperiment(labelled=r2_corpus, vectors=vectors_from_settings(*s))
+        experiments.append(e)
+
+
 prefix = '/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data'
-techtc_corpora = list(os.path.join(*x.split(os.sep)[-2:]) \
-                      for x in glob('%s/techtc100-clean/*' % prefix) \
-                      if not x.endswith('.gz'))
+techtc_corpora = sorted(list(os.path.join(*x.split(os.sep)[-2:]) \
+                             for x in glob('%s/techtc100-clean/*' % prefix) \
+                             if not x.endswith('.gz')))
 r2_corpus = 'reuters21578/r8-tagged-grouped'
 mr_corpus = 'movie-reviews-tagged'
 am_corpus = 'amazon_grouped-tagged'
@@ -156,6 +170,7 @@ use_similarity_experiments()
 an_only_nn_only_experiments_r2()
 word2vec_with_less_data_on_r2()
 word2vec_repeats_on_r2()
+glove_vectors_r2()
 
 # re-order experiments so that the hard ones (high-memory, long-running) come first
 def _myorder(item):
