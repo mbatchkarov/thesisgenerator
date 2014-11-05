@@ -153,9 +153,9 @@ def glove_vectors_r2():
 
 
 prefix = '/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data'
-techtc_corpora = list(os.path.join(*x.split(os.sep)[-2:]) \
-                      for x in glob('%s/techtc100-clean/*' % prefix) \
-                      if not x.endswith('.gz'))
+techtc_corpora = sorted(list(os.path.join(*x.split(os.sep)[-2:]) \
+                             for x in glob('%s/techtc100-clean/*' % prefix) \
+                             if not x.endswith('.gz')))
 r2_corpus = 'reuters21578/r8-tagged-grouped'
 mr_corpus = 'movie-reviews-tagged'
 am_corpus = 'amazon_grouped-tagged'
