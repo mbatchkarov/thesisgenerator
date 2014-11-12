@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import argparse
-import os, sys
+import os, sys, math
 from os.path import join
 import gensim, logging, errno
 
@@ -89,11 +89,11 @@ def compute_and_write_vectors(stages, percent, repeat):
             class MySentences(object):
                 def __init__(self, dirname, file_percentage):
                     self.dirname = dirname
-                    self.limit = file_percentage
+                    self.limit = file_percentage / 10
 
                 def __iter__(self):
-                    files = [x for x in os.listdir(self.dirname) if not x.startswith('.')]
-                    count = int(self.limit * len(files))
+                    files = [x for x in sorted(os.listdir(self.dirname)) if not x.startswith('.')]
+                    count = math.ceil(self.limit * len(files))
                     for fname in files[:count]:
                         for line in open(join(self.dirname, fname)):
                             yield line.split()
