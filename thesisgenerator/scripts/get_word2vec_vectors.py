@@ -89,7 +89,7 @@ def compute_and_write_vectors(stages, percent, repeat):
             class MySentences(object):
                 def __init__(self, dirname, file_percentage):
                     self.dirname = dirname
-                    self.limit = file_percentage / 10
+                    self.limit = file_percentage / 100
 
                 def __iter__(self):
                     files = [x for x in sorted(os.listdir(self.dirname)) if not x.startswith('.')]
