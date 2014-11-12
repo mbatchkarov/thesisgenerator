@@ -85,9 +85,13 @@ def all_vector_settings():
 
 def baselines():
     # random-neighbour experiments. These include an "random_neighbour_thesaurus=True" option in the conf file
-    random_vectors = db.Vectors.get(db.Vectors.algorithm == 'random')
+    random_neigh = db.Vectors.get(db.Vectors.algorithm == 'random_neigh')
+    random_vect = db.Vectors.get(db.Vectors.algorithm == 'random_vect')
     for corpus in all_corpora:
-        e = db.ClassificationExperiment(labelled=corpus, vectors=random_vectors)
+        e = db.ClassificationExperiment(labelled=corpus, vectors=random_neigh)
+        experiments.append(e)
+
+        e = db.ClassificationExperiment(labelled=corpus, vectors=random_vect)
         experiments.append(e)
 
         # signifier experiments (bag-of-words)
@@ -217,7 +221,7 @@ for exp in experiments:
     conf['feature_extraction']['decode_token_handler'] = \
         'thesisgenerator.plugins.bov_feature_handlers.%s' % exp.decode_handler
     conf['feature_extraction']['random_neighbour_thesaurus'] = \
-        exp.vectors is not None and exp.vectors.algorithm == 'random'
+        exp.vectors is not None and exp.vectors.algorithm == 'random_neigh'
     conf['vector_sources']['neighbours_file'] = exp.vectors.path if exp.vectors else ''
     conf['output_dir'] = './conf/exp%d/output' % exp.id
     conf['name'] = 'exp%d' % exp.id
