@@ -1,3 +1,4 @@
+from collections import ChainMap
 import os
 import sys
 
@@ -106,14 +107,24 @@ for composer_class in [AdditiveComposer, MultiplicativeComposer, LeftmostWordCom
 # word2vec composed with various simple algorithms, including varying amounts of unlabelled data
 pattern = '{prefix}/word2vec_vectors/composed/AN_NN_word2vec_{percent}percent-rep{rep}_' \
           '{composer}.events.filtered.strings'
-for percent in range(100, 9, -10):
+
+
+def _do_w2v_vectors():
+    global composer_class, composer, modified, size, gz_size, rep, thesaurus_file, v, prefix
     for composer_class in [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer, RightmostWordComposer]:
         composer = composer_class.name
         modified, size, gz_size = get_size(thesaurus_file)
         for rep in range(1 if percent < 100 else 3):
-            thesaurus_file = pattern.format(**locals())
+            thesaurus_file = pattern.format(**ChainMap(locals(), globals()))
             v = db.Vectors.create(algorithm='word2vec', dimensionality=100,
                                   unlabelled='gigaw', path=thesaurus_file, unlabelled_percentage=percent,
                                   composer=composer, modified=modified, size=size, gz_size=gz_size,
                                   rep=rep)
             print(v)
+
+
+for percent in range(100, 9, -10):
+    _do_w2v_vectors()
+
+for percent in range(1, 11):
+    _do_w2v_vectors()
