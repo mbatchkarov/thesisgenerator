@@ -7,8 +7,6 @@ from thesisgenerator.utils.data_utils import get_tokenized_data, get_tokenizer_s
 from thesisgenerator.utils.conf_file_utils import parse_config_file
 import numpy as np
 
-logging.basicConfig(level=logging.INFO,
-                    format="%(asctime)s\t%(module)s.%(funcName)s ""(line %(lineno)d)\t%(levelname)s : %(""message)s")
 
 def get_all_NPs():
     all_nps = set()

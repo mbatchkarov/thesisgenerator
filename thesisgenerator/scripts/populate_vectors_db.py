@@ -33,9 +33,9 @@ reduced_obs_pattern = '{prefix}/exp{unlab_num}-{thesf_num}bAN_NN_{unlab_name:.5}
                       'exp{unlab_num}-SVD{svd_dims}.events.filtered.strings'
 
 # random neighbours composer for use in baselines
-v = db.Vectors.create(algorithm='random',
+v = db.Vectors.create(algorithm='random_neigh',
                       dimensionality=None, unlabelled_percentage=None,
-                      unlabelled=None, composer='random')
+                      unlabelled=None, composer='random_neigh')
 
 
 def get_size(thesaurus_file):
@@ -48,6 +48,13 @@ def get_size(thesaurus_file):
     gz_file = thesaurus_file + '.gz'
     gz_size = os.stat(gz_file).st_size >> 20 if os.path.exists(gz_file) else None
     return modified, size, gz_size
+
+# random VECTORS for use in baseline
+path = '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/random_vectors.gz'
+modified, size, gz_size = get_size(path)
+v = db.Vectors.create(algorithm='random_vect', composer='random_vect', path=path,
+                      dimensionality=None, unlabelled_percentage=None,
+                      modified=modified, size=size, gz_size=gz_size)
 
 # standard windows/dependency thesauri that I built back in the day
 for thesf_num, thesf_name in zip([12, 13], ['dependencies', 'windows']):
