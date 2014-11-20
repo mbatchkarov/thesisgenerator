@@ -1,3 +1,5 @@
+import sys
+sys.path.append('.')
 import logging
 from discoutils.thesaurus_loader import Vectors
 from thesisgenerator.scripts.extract_NPs_from_labelled_data import get_all_NPs
