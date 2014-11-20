@@ -27,8 +27,9 @@ def get_all_NPs():
                                    extract_SVO_features=False, extract_VO_features=False,
                                    unigram_feature_pos_tags=set('NJ'))
         data_matrix, voc = vect.fit_transform(x_tr, np.ones(len(x_tr)))
-        logging.info('Found a total of %d document features', len(voc))
+        logging.info('Found %d document features in this corpus', len(voc))
         all_nps |= voc.keys()  # set intersection
+    logging.info('Found a total of %d features in all corpora', len(all_nps))
     return all_nps
 
 
