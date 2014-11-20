@@ -10,71 +10,80 @@ import numpy as np
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s\t%(module)s.%(funcName)s ""(line %(lineno)d)\t%(levelname)s : %(""message)s")
 
-all_nps = set()
-for corpus_path, conf_file in get_all_corpora().items():
-    logging.info('Processing corpus %s', corpus_path)
-    conf, _ = parse_config_file(conf_file)
-    x_tr, _, _, _ = get_tokenized_data(conf['training_data'] + '.gz',
-                                       get_tokenizer_settings_from_conf(conf),
-                                       test_data=conf['test_data'])
-    assert len(x_tr) > 0
-    logging.info('Documents in this corpus: %d', len(x_tr))
+def get_all_NPs():
+    all_nps = set()
+    for corpus_path, conf_file in get_all_corpora().items():
+        logging.info('Processing corpus %s', corpus_path)
+        conf, _ = parse_config_file(conf_file)
+        x_tr, _, _, _ = get_tokenized_data(conf['training_data'] + '.gz',
+                                           get_tokenizer_settings_from_conf(conf),
+                                           test_data=conf['test_data'])
+        assert len(x_tr) > 0
+        logging.info('Documents in this corpus: %d', len(x_tr))
 
-    # this will include vectors for all unigrams that occur in the labelled set in the output file
-    # the composition code for other methods (in dump_all_composed_vectors.py) include vectors for all
-    # unigrams that occur in the UNLABELLED set. This shouldn't make a difference as during classification we search for
-    # neighbours of each doc feature among the features the occur in BOTH the labelled and unlabelled set
-    vect = ThesaurusVectorizer(min_df=1, ngram_range=(1, 1),
-                               extract_SVO_features=False, extract_VO_features=False,
-                               unigram_feature_pos_tags=set('NJ'))
-    data_matrix, voc = vect.fit_transform(x_tr, np.ones(len(x_tr)))
-    logging.info('Found a total of %d document features', len(voc))
-    all_nps |= voc.keys()  # set intersection
+        # this will include vectors for all unigrams that occur in the labelled set in the output file
+        # the composition code for other methods (in dump_all_composed_vectors.py) include vectors for all
+        # unigrams that occur in the UNLABELLED set. This shouldn't make a difference as during classification we search for
+        # neighbours of each doc feature among the features the occur in BOTH the labelled and unlabelled set
+        vect = ThesaurusVectorizer(min_df=1, ngram_range=(1, 1),
+                                   extract_SVO_features=False, extract_VO_features=False,
+                                   unigram_feature_pos_tags=set('NJ'))
+        data_matrix, voc = vect.fit_transform(x_tr, np.ones(len(x_tr)))
+        logging.info('Found a total of %d document features', len(voc))
+        all_nps |= voc.keys()  # set intersection
+    return all_nps
 
-# (ROOT
-# (NP (NN acquisition) (NN pact)))
-#
-# (ROOT
-# (NP (JJ pacific) (NN stock)))
-stanford_NP_pattern = '(ROOT\n (NP ({} {}) ({} {})))\n\n'
 
-# (ROOT
-# (NP (NN roads)))
-# I checked that this extracts the neural word embedding for the word
-stanford_unigram_pattern = '(ROOT\n (NP ({} {})))\n\n'
+if __name__ == '__main__':
+    logging.basicConfig(level=logging.INFO,
+                        format="%(asctime)s\t%(module)s.%(funcName)s ""(line %(lineno)d)\t%(levelname)s : %(""message)s")
 
-seen_modifiers = set()
-with open('r2-mr-technion-am-ANs-NNs-julie.txt', 'w') as outf_julie, \
-        open('r2-mr-technion-am-ANs-NNs-socher.txt', 'w') as outf_socher, \
-        open('r2-mr-technion-am-modifiers.txt', 'w') as outf_mods:
-    for item in all_nps:
-        if item.type in {'AN', 'NN'}:
-            first = str(item.tokens[0])
-            second = str(item.tokens[1])
 
-            # write just the modifier separately
-            if first not in seen_modifiers:
-                outf_mods.write('%s\n' % first)
-                seen_modifiers.add(first)
+    # (ROOT
+    # (NP (NN acquisition) (NN pact)))
+    #
+    # (ROOT
+    # (NP (JJ pacific) (NN stock)))
+    stanford_NP_pattern = '(ROOT\n (NP ({} {}) ({} {})))\n\n'
 
-            # write the phrase in Julie's format
-            if item.type == 'AN':
-                string = '{}:amod-HEAD:{}\n'.format(first, second)
-            else:
-                string = '{}:nn-DEP:{}\n'.format(second, first)
-            outf_julie.write(string)
+    # (ROOT
+    # (NP (NN roads)))
+    # I checked that this extracts the neural word embedding for the word
+    stanford_unigram_pattern = '(ROOT\n (NP ({} {})))\n\n'
 
-            # write the phrase in Socher's format
-            string = stanford_NP_pattern.format(item.tokens[0].pos * 2, item.tokens[0].text,
-                                                item.tokens[1].pos * 2, item.tokens[1].text)
-            outf_socher.write(string)
-        elif item.type == '1-GRAM':
-            string = stanford_unigram_pattern.format(item.tokens[0].pos * 2, item.tokens[0].text)
-            outf_socher.write(string)
-        else:  # there shouldn't be any other features
-            raise ValueError('Item %r has the wrong feature type: %s' % (item, item.type))
+    seen_modifiers = set()
+    with open('r2-mr-technion-am-ANs-NNs-julie.txt', 'w') as outf_julie, \
+            open('r2-mr-technion-am-ANs-NNs-socher.txt', 'w') as outf_socher, \
+            open('r2-mr-technion-am-modifiers.txt', 'w') as outf_mods:
+        all_nps = get_all_NPs()
+        for item in all_nps:
+            if item.type in {'AN', 'NN'}:
+                first = str(item.tokens[0])
+                second = str(item.tokens[1])
 
-logging.info('Done')
+                # write just the modifier separately
+                if first not in seen_modifiers:
+                    outf_mods.write('%s\n' % first)
+                    seen_modifiers.add(first)
+
+                # write the phrase in Julie's format
+                if item.type == 'AN':
+                    string = '{}:amod-HEAD:{}\n'.format(first, second)
+                else:
+                    string = '{}:nn-DEP:{}\n'.format(second, first)
+                outf_julie.write(string)
+
+                # write the phrase in Socher's format
+                string = stanford_NP_pattern.format(item.tokens[0].pos * 2, item.tokens[0].text,
+                                                    item.tokens[1].pos * 2, item.tokens[1].text)
+                outf_socher.write(string)
+            elif item.type == '1-GRAM':
+                string = stanford_unigram_pattern.format(item.tokens[0].pos * 2, item.tokens[0].text)
+                outf_socher.write(string)
+            else:  # there shouldn't be any other features
+                raise ValueError('Item %r has the wrong feature type: %s' % (item, item.type))
+
+    logging.info('Done')
 
 
 
