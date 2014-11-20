@@ -1,8 +1,5 @@
 import logging
 from discoutils.thesaurus_loader import Vectors
-from thesisgenerator.composers.vectorstore import AdditiveComposer
-from thesisgenerator.scripts.dump_all_composed_vectors import compose_and_write_vectors
-from thesisgenerator.utils.data_utils import get_all_corpora
 from thesisgenerator.scripts.extract_NPs_from_labelled_data import get_all_NPs
 import numpy as np
 
@@ -13,6 +10,7 @@ DIMENSIONALITY = 10 # because why not
 out_file = '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/random_vectors.gz'
 
 logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
+np.random.seed(0)
 d = dict()
 feats = ['rand%d' % i for i in range(DIMENSIONALITY)]
 for phrase in get_all_NPs():
