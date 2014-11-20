@@ -22,8 +22,9 @@ logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=lo
 prefix = '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit'
 conll_data_dir = join(prefix, 'data/gigaword-afe-split-tagged-parsed/gigaword/')
 pos_only_data_dir = join(prefix, 'data/gigaword-afe-split-pos/gigaword/')
+pos_only_data_dir = join(prefix, 'data/gigaword-afe-split-pos/gigaword-small-files/')
 # outputs
-unigram_events_file = join(prefix, 'word2vec_vectors/word2vec-%dperc.unigr.strings')
+unigram_events_file = join(prefix, 'word2vec_vectors/word2vec-%.5fperc.unigr.strings')
 composed_output_dir = join(prefix, 'word2vec_vectors', 'composed')
 
 # unigram extraction parameters
@@ -94,6 +95,7 @@ def compute_and_write_vectors(stages, percent, repeat):
                 def __iter__(self):
                     files = [x for x in sorted(os.listdir(self.dirname)) if not x.startswith('.')]
                     count = math.ceil(self.limit * len(files))
+                    logging.info('Will use %d files for training', count)
                     for fname in files[:count]:
                         for line in open(join(self.dirname, fname)):
                             yield line.split()
@@ -129,8 +131,12 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--stages', choices=('reformat', 'vectors', 'compose'),
                         required=True, nargs='+')
+    # percent of files to use. SGE makes it easy for this to be 1, 2, ...
     parser.add_argument('--percent', default=100, type=int)
+    # multiplier for args.percent. Set to 0.1 to use fractional percentages of corpus
+    parser.add_argument('--multiplier', default=1., type=float)
+
     parser.add_argument('--repeat', default=1, type=int)
     args = parser.parse_args()
-    compute_and_write_vectors(args.stages, args.percent, args.repeat)
+    compute_and_write_vectors(args.stages, args.percent * args.multiplier, args.repeat)
 
