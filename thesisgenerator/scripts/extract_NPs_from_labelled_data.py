@@ -7,8 +7,6 @@ from thesisgenerator.utils.data_utils import get_tokenized_data, get_tokenizer_s
 from thesisgenerator.utils.conf_file_utils import parse_config_file
 import numpy as np
 
-logging.basicConfig(level=logging.INFO,
-                    format="%(asctime)s\t%(module)s.%(funcName)s ""(line %(lineno)d)\t%(levelname)s : %(""message)s")
 
 def get_all_NPs():
     all_nps = set()
@@ -29,8 +27,9 @@ def get_all_NPs():
                                    extract_SVO_features=False, extract_VO_features=False,
                                    unigram_feature_pos_tags=set('NJ'))
         data_matrix, voc = vect.fit_transform(x_tr, np.ones(len(x_tr)))
-        logging.info('Found a total of %d document features', len(voc))
+        logging.info('Found %d document features in this corpus', len(voc))
         all_nps |= voc.keys()  # set intersection
+    logging.info('Found a total of %d features in all corpora', len(all_nps))
     return all_nps
 
 

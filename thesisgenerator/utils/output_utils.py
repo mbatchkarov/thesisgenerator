@@ -35,13 +35,15 @@ def get_cv_scores_single_experiment(n, classifier):
 def get_scores(exp_ids, classifier='MultinomialNB'):
     data = []
     folds = []
+    success = []
     for exp_number in exp_ids:
         scores = get_cv_scores_single_experiment(exp_number, classifier)
         if scores:
             cv_folds = len(scores)
             folds.extend(range(cv_folds))
             data.extend(scores)
-    return data, folds
+            success.append(exp_number)
+    return data, folds, success
 
 
 # data, folds = get_scores([11, 12])

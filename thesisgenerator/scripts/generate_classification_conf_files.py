@@ -85,9 +85,9 @@ def all_vector_settings():
 
 def baselines():
     # random-neighbour experiments. These include an "random_neighbour_thesaurus=True" option in the conf file
-    random_vectors = db.Vectors.get(db.Vectors.algorithm == 'random')
+    random_neigh = db.Vectors.get(db.Vectors.algorithm == 'random_neigh')
     for corpus in all_corpora:
-        e = db.ClassificationExperiment(labelled=corpus, vectors=random_vectors)
+        e = db.ClassificationExperiment(labelled=corpus, vectors=random_neigh)
         experiments.append(e)
 
         # signifier experiments (bag-of-words)
@@ -151,6 +151,10 @@ def glove_vectors_r2():
         e = db.ClassificationExperiment(labelled=r2_corpus, vectors=vectors_from_settings(*s))
         experiments.append(e)
 
+def random_vectors_on_r2():
+    random_vect = db.Vectors.get(db.Vectors.algorithm == 'random_vect')
+    e = db.ClassificationExperiment(labelled=r2_corpus, vectors=random_vect)
+    experiments.append(e)
 
 prefix = '/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data'
 techtc_corpora = sorted(list(os.path.join(*x.split(os.sep)[-2:]) \
@@ -172,6 +176,7 @@ word2vec_with_less_data_on_r2(10, 91, 10)
 word2vec_repeats_on_r2()
 glove_vectors_r2()
 word2vec_with_less_data_on_r2(1, 10, 1) # these were added later
+random_vectors_on_r2()
 
 # re-order experiments so that the hard ones (high-memory, long-running) come first
 def _myorder(item):
@@ -218,7 +223,7 @@ for exp in experiments:
     conf['feature_extraction']['decode_token_handler'] = \
         'thesisgenerator.plugins.bov_feature_handlers.%s' % exp.decode_handler
     conf['feature_extraction']['random_neighbour_thesaurus'] = \
-        exp.vectors is not None and exp.vectors.algorithm == 'random'
+        exp.vectors is not None and exp.vectors.algorithm == 'random_neigh'
     conf['vector_sources']['neighbours_file'] = exp.vectors.path if exp.vectors else ''
     conf['output_dir'] = './conf/exp%d/output' % exp.id
     conf['name'] = 'exp%d' % exp.id
