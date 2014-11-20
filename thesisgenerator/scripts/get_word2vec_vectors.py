@@ -24,7 +24,7 @@ conll_data_dir = join(prefix, 'data/gigaword-afe-split-tagged-parsed/gigaword/')
 pos_only_data_dir = join(prefix, 'data/gigaword-afe-split-pos/gigaword/')
 pos_only_data_dir = join(prefix, 'data/gigaword-afe-split-pos/gigaword-small-files/')
 # outputs
-unigram_events_file = join(prefix, 'word2vec_vectors/word2vec-%.5fperc.unigr.strings')
+unigram_events_file = join(prefix, 'word2vec_vectors/word2vec-%.2fperc.unigr.strings')
 composed_output_dir = join(prefix, 'word2vec_vectors', 'composed')
 
 # unigram extraction parameters
