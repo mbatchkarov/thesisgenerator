@@ -126,10 +126,10 @@ def an_only_nn_only_experiments_r2():
             experiments.append(e)
 
 
-def word2vec_with_less_data_on_r2(start, stop, step):
+def word2vec_with_less_data_on_r2(percentages):
     for unlab, algo, composer, svd_dims in word2vec_vector_settings():
         # only up to 90%, 100% was done separately above
-        for percent in range(start, stop, step):
+        for percent in percentages:
             e = db.ClassificationExperiment(labelled=r2_corpus,
                                             vectors=vectors_from_settings(unlab, algo, composer,
                                                                           svd_dims, percent))
@@ -172,11 +172,12 @@ all_standard_experiments()
 hybrid_experiments()
 use_similarity_experiments()
 an_only_nn_only_experiments_r2()
-word2vec_with_less_data_on_r2(10, 91, 10)
+word2vec_with_less_data_on_r2(range(10, 91, 10))
 word2vec_repeats_on_r2()
 glove_vectors_r2()
-word2vec_with_less_data_on_r2(1, 10, 1) # these were added later
+word2vec_with_less_data_on_r2(range(1, 10, 1)) # these were added later
 random_vectors_on_r2()
+word2vec_with_less_data_on_r2(np.arange(0.01, 0.92, .1))
 
 # re-order experiments so that the hard ones (high-memory, long-running) come first
 def _myorder(item):
