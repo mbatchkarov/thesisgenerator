@@ -138,7 +138,7 @@ if __name__ == '__main__':
     for percent in range(100, 9, -10):
         _do_w2v_vectors()
 
-    for percent in range(1, 11):
+    for percent in range(1, 10):
         _do_w2v_vectors()
 
     for percent in np.arange(0.01, 0.92, .1):
