@@ -112,10 +112,10 @@ for composer_class in [AdditiveComposer, MultiplicativeComposer, LeftmostWordCom
     print(v)
 
 # word2vec composed with various simple algorithms, including varying amounts of unlabelled data
-pattern1 = '{prefix}/word2vec_vectors/composed/AN_NN_word2vec_{percent}percent-rep{rep}_' \
+pattern2 = '{prefix}/word2vec_vectors/composed/AN_NN_word2vec_{percent}percent-rep{rep}_' \
           '{composer}.events.filtered.strings'
 # some files were created with this format (float percent representation instead of int)
-pattern2 = '{prefix}/word2vec_vectors/composed/AN_NN_word2vec_{percent:.2f}percent-rep{rep}_' \
+pattern1 = '{prefix}/word2vec_vectors/composed/AN_NN_word2vec_{percent:.2f}percent-rep{rep}_' \
           '{composer}.events.filtered.strings'
 
 
@@ -141,5 +141,6 @@ for percent in range(100, 9, -10):
 
 for percent in range(1, 11):
     _do_w2v_vectors()
+
 for percent in np.arange(0.01, 0.92, .1):
     _do_w2v_vectors()
