@@ -25,7 +25,7 @@ def vectors_from_settings(unlab_name, algorithm, composer_name, svd_dims, percen
                                   (db.Vectors.composer == composer_name) &
                                   (db.Vectors.algorithm == algorithm) &
                                   (db.Vectors.rep == rep) &
-                                  (db.Vectors.unlabelled_percentage == percent))
+                                  (abs(db.Vectors.unlabelled_percentage - percent)) < 1e-6)
     return v[0]
 
 
@@ -151,10 +151,12 @@ def glove_vectors_r2():
         e = db.ClassificationExperiment(labelled=r2_corpus, vectors=vectors_from_settings(*s))
         experiments.append(e)
 
+
 def random_vectors_on_r2():
     random_vect = db.Vectors.get(db.Vectors.algorithm == 'random_vect')
     e = db.ClassificationExperiment(labelled=r2_corpus, vectors=random_vect)
     experiments.append(e)
+
 
 prefix = '/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data'
 techtc_corpora = sorted(list(os.path.join(*x.split(os.sep)[-2:]) \
@@ -175,7 +177,7 @@ an_only_nn_only_experiments_r2()
 word2vec_with_less_data_on_r2(range(10, 91, 10))
 word2vec_repeats_on_r2()
 glove_vectors_r2()
-word2vec_with_less_data_on_r2(range(1, 10, 1)) # these were added later
+word2vec_with_less_data_on_r2(range(1, 10, 1))  # these were added later
 random_vectors_on_r2()
 word2vec_with_less_data_on_r2(np.arange(0.01, 0.92, .1))
 
