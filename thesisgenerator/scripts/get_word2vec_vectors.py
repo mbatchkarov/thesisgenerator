@@ -121,7 +121,7 @@ def compute_and_write_vectors(stages, percent, repeat):
             # if we'll also be composing we don't have to write the unigram vectors to disk
             # just to read them back later.
             compose_and_write_vectors(vectors if 'vectors' in stages else unigram_events_file + '.rep%d' % i,
-                                      'word2vec_%dpercent-rep%d' % (percent, i),
+                                      'word2vec_%.2fpercent-rep%d' % (percent, i),
                                       get_all_corpora(),  # todo it is redundant to read in all corpora
                                       composer_algos,
                                       output_dir=composed_output_dir)
