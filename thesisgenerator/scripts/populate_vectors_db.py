@@ -123,11 +123,11 @@ if __name__ == '__main__':
         global prefix
         for composer_class in [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer, RightmostWordComposer]:
             composer = composer_class.name
-            modified, size, gz_size = get_size(thesaurus_file)
             for rep in range(1 if percent < 100 else 3):
                 thesaurus_file = pattern1.format(**ChainMap(locals(), globals()))
                 if not os.path.exists(thesaurus_file):
                     thesaurus_file = pattern2.format(**ChainMap(locals(), globals()))
+                modified, size, gz_size = get_size(thesaurus_file)
                 v = db.Vectors.create(algorithm='word2vec', dimensionality=100,
                                       unlabelled='gigaw', path=thesaurus_file, unlabelled_percentage=percent,
                                       composer=composer, modified=modified, size=size, gz_size=gz_size,
