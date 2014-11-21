@@ -141,5 +141,5 @@ for percent in range(100, 9, -10):
 
 for percent in range(1, 11):
     _do_w2v_vectors()
-for percent in np.arange(0.01, 0.91, .1):
+for percent in np.arange(0.01, 0.92, .1):
     _do_w2v_vectors()
