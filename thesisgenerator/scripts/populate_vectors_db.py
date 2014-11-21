@@ -120,7 +120,7 @@ if __name__ == '__main__':
 
 
     def _do_w2v_vectors():
-        global composer_class, composer, modified, size, gz_size, rep, thesaurus_file, v, prefix
+        global prefix
         for composer_class in [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer, RightmostWordComposer]:
             composer = composer_class.name
             modified, size, gz_size = get_size(thesaurus_file)
