@@ -7,7 +7,7 @@ from datetime import datetime as dt
 from discoutils.misc import Bunch
 from thesisgenerator.utils import db
 from thesisgenerator.composers.vectorstore import *
-
+import numpy as np
 
 # populate database
 
@@ -112,8 +112,12 @@ for composer_class in [AdditiveComposer, MultiplicativeComposer, LeftmostWordCom
     print(v)
 
 # word2vec composed with various simple algorithms, including varying amounts of unlabelled data
-pattern = '{prefix}/word2vec_vectors/composed/AN_NN_word2vec_{percent}percent-rep{rep}_' \
+pattern1 = '{prefix}/word2vec_vectors/composed/AN_NN_word2vec_{percent}percent-rep{rep}_' \
           '{composer}.events.filtered.strings'
+# some files were created with this format (float percent representation instead of int)
+pattern2 = '{prefix}/word2vec_vectors/composed/AN_NN_word2vec_{percent:.2f}percent-rep{rep}_' \
+          '{composer}.events.filtered.strings'
+
 
 
 def _do_w2v_vectors():
@@ -122,7 +126,9 @@ def _do_w2v_vectors():
         composer = composer_class.name
         modified, size, gz_size = get_size(thesaurus_file)
         for rep in range(1 if percent < 100 else 3):
-            thesaurus_file = pattern.format(**ChainMap(locals(), globals()))
+            thesaurus_file = pattern1.format(**ChainMap(locals(), globals()))
+            if not os.path.exists(thesaurus_file):
+                thesaurus_file = pattern2.format(**ChainMap(locals(), globals()))
             v = db.Vectors.create(algorithm='word2vec', dimensionality=100,
                                   unlabelled='gigaw', path=thesaurus_file, unlabelled_percentage=percent,
                                   composer=composer, modified=modified, size=size, gz_size=gz_size,
@@ -134,4 +140,7 @@ for percent in range(100, 9, -10):
     _do_w2v_vectors()
 
 for percent in range(1, 11):
+    _do_w2v_vectors()
+
+for percent in np.arange(.01, .091, 10):
     _do_w2v_vectors()
