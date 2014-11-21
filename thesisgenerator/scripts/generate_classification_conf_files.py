@@ -24,9 +24,12 @@ def vectors_from_settings(unlab_name, algorithm, composer_name, svd_dims, percen
                                   (db.Vectors.unlabelled == unlab_name) &
                                   (db.Vectors.composer == composer_name) &
                                   (db.Vectors.algorithm == algorithm) &
-                                  (db.Vectors.rep == rep) &
-                                  (abs(db.Vectors.unlabelled_percentage - percent)) < 1e-6)
-    return v[0]
+                                  (db.Vectors.rep == rep))
+    # peewee cant easily do selects that contain checks of float values
+    # lets do a post-filter
+    results = [res for res in v if abs(res.unlabelled_percentage - percent) < 1e-6]
+    assert len(results) == 1
+    return list(results)[0]
 
 
 def window_vector_settings():
