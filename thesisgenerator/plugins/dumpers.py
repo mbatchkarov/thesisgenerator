@@ -172,7 +172,7 @@ def insert_full_results_to_database(expid):
         vals = pivoted.loc[key].to_dict()
         vals['classifier'] = clf
         vals['cv_fold'] = fold
-        vals['id'] = 1  # experiment number
+        vals['id'] = expid  # experiment number
         r = db.FullResults(**vals)
         r.save(force_insert=True)
 
