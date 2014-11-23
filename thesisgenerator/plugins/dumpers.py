@@ -109,7 +109,7 @@ class ConsolidatedResultsCsvWriter(object):
         writer
         A single thesaurus must be used in each experiment
         """
-        print('Consolidating results from %s' % conf_dir)
+        logging.info('Consolidating results from %s to csv' % conf_dir)
 
         try:
             conf_file = glob(os.path.join(conf_dir, '*.conf'))[0]
@@ -119,7 +119,7 @@ class ConsolidatedResultsCsvWriter(object):
             # checks in this functions won't be triggered
             logging.error('Experiment in %s never started', conf_dir)
             raise FileNotFoundError # let the caller worry about that
-        print('Processing file %s' % conf_file)
+        logging.info('Processing file %s' % conf_file)
 
         config_obj, configspec_file = parse_config_file(conf_file)
 
@@ -156,6 +156,27 @@ class ConsolidatedResultsCsvWriter(object):
                 score_my_std])
 
 
+def insert_full_results_to_database(expid):
+    # there's a notebook for this
+    logging.info('Adding full results to database')
+    df = pd.read_csv('conf/exp{0}/output/exp{0}-0.out-raw.csv'.format(expid))
+    df.drop(df.columns[0], axis=1, inplace=True)
+    myset = {'microavg_rec', 'macroavg_rec',
+             'microavg_prec', 'macroavg_prec',
+             'microavg_f1', 'macroavg_f1', 'accuracy_score'}
+    df = df[df.metric.isin(myset)]
+    pivoted = df.pivot_table(columns='metric', index=['classifier', 'cv_no'], values='score')
+    pivoted.reset_index(inplace=False).head()
+    for key in pivoted.index:
+        clf, fold = key
+        vals = pivoted.loc[key].to_dict()
+        vals['classifier'] = clf
+        vals['cv_fold'] = fold
+        vals['id'] = 1  # experiment number
+        r = db.FullResults(**vals)
+        r.save(force_insert=True)
+
+
 def consolidate_single_experiment(prefix, expid):
     output_dir = '%s/conf/exp%d/output/' % (prefix, expid)
     conf_dir = '%s/conf/exp%d/exp%d_base-variants' % (prefix, expid, expid)
@@ -163,6 +184,7 @@ def consolidate_single_experiment(prefix, expid):
         csv_out_fh = open(os.path.join(output_dir, "summary%d.csv" % expid), "w")
         writer = ConsolidatedResultsCsvWriter(csv_out_fh)
         writer.consolidate_results(conf_dir, output_dir)
+        insert_full_results_to_database(expid)
     except FileNotFoundError:
         logging.error('output file missing for exp %s', expid)
         logging.error('-----------------------------------')
@@ -175,6 +197,7 @@ def consolidate_single_experiment(prefix, expid):
 
     output_db_conn = get_susx_mysql_conn()
     if output_db_conn:
+        logging.info('Writing short results to database')
         # do some SQL-fu here
         output_file = os.path.join(output_dir, 'exp%d-0.out.csv' % expid)
         df = pd.read_csv(output_file)
@@ -208,5 +231,5 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO, format="%(levelname)s:\t%(message)s")
 
     prefix = '/mnt/lustre/scratch/inf/mmb28/thesisgenerator'
-    for expid in range(1, 1000): # just brute force it
+    for expid in range(1, 5): # just brute force it
         consolidate_single_experiment(prefix, expid)

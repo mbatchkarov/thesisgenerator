@@ -19,7 +19,7 @@ class Vectors(pw.Model):
     unlabelled = pw.CharField(null=True)  # path to unlabelled corpus that data was used, if I did it
     path = pw.CharField(null=True)  # where on disk the vectors are stored
     composer = pw.CharField()  # what composer was used to build phrasal vectors (if any)
-    rep = pw.IntegerField(default=0) # if the same vectors have been built multiple times, an explicit identifier
+    rep = pw.IntegerField(default=0)  # if the same vectors have been built multiple times, an explicit identifier
 
     modified = pw.DateField(null=True, default=None)  # when was the file last modifier
     size = pw.IntegerField(null=True, default=None)  # file size in MB
@@ -67,11 +67,29 @@ class Results(pw.Model):
         primary_key = pw.CompositeKey('id', 'classifier')
 
 
+class FullResults(pw.Model):
+    id = pw.ForeignKeyField(ClassificationExperiment)
+    classifier = pw.CharField(null=False)
+    cv_fold = pw.IntegerField(null=False)
+    accuracy_score = pw.DoubleField(null=False)
+    macroavg_f1 = pw.DoubleField(null=False)
+    microavg_f1 = pw.DoubleField(null=False)
+    macroavg_rec = pw.DoubleField(null=False)
+    microavg_rec = pw.DoubleField(null=False)
+    microavg_prec = pw.DoubleField(null=False)
+    macroavg_prec = pw.DoubleField(null=False)
+
+    class Meta:
+        database = db
+        primary_key = pw.CompositeKey('id', 'cv_fold', 'classifier')
+
+
 if __name__ == '__main__':
     Results.drop_table()
+    FullResults.drop_table()
     ClassificationExperiment.drop_table()
     Vectors.drop_table()
-    pw.create_model_tables([Results, ClassificationExperiment, Vectors])
+    pw.create_model_tables([FullResults, Results, ClassificationExperiment, Vectors])
 
     # print(1)
     # v = Vectors.create(can_build=False, dimensionality=100, unlabelled='wtf')
