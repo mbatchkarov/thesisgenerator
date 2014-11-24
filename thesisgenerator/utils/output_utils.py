@@ -4,8 +4,9 @@ A set of utilities for manipulating/querying the output of thesisgenerator's cla
 import logging
 import os
 import itertools
+from operator import attrgetter
 import pandas as pd
-from thesisgenerator.utils.db import ClassificationExperiment
+from thesisgenerator.utils.db import ClassificationExperiment, FullResults
 
 METRIC_DB = 'macrof1'
 METRIC_CSV_FILE = 'macroavg_f1'
@@ -22,15 +23,10 @@ def get_vectors_field(exp_ids, field_name, cv_folds=25):
 
 
 def get_cv_scores_single_experiment(n, classifier):
-    outfile = '../thesisgenerator/conf/exp{0}/output/exp{0}-0.out-raw.csv'.format(n)
-    if not os.path.exists(outfile):
-        logging.info('Output file for exp %d missing' % n)
-        return []
-    scores = pd.read_csv(outfile)
-    mask = (scores.classifier == classifier) & (scores.metric == METRIC_CSV_FILE)
-    ordered_scores = scores.score[mask].tolist()
-    return ordered_scores
-
+    rows = FullResults.select().where(FullResults.id == n,
+                                      FullResults.classifier == classifier)
+    rows = sorted(rows, key=attrgetter('cv_fold'))
+    return [getattr(x, METRIC_CSV_FILE) for x in rows]
 
 def get_scores(exp_ids, classifier='MultinomialNB'):
     data = []

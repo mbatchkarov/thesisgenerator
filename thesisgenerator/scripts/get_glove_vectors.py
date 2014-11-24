@@ -51,7 +51,6 @@ def compute_and_write_vectors(stages):
         logging.info('Loading labelled corpora and composing phrase vectors therein')
         compose_and_write_vectors(formatted_vectors_file,
                                   'glove-gigaw',
-                                  get_all_corpora(),
                                   composer_algos,
                                   output_dir=glove_dir)
 
