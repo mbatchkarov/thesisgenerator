@@ -111,9 +111,9 @@ def calculate_log_odds(X, y):
     log_odds = np.empty(X.shape[1])
     class0_indices = y == sorted(set(y))[0]
     for idx in range(X.shape[1]):
-        all_counts = X[:, idx].A  # document counts of this feature
-        total_counts = np.count_nonzero(all_counts)  # how many docs the feature occurs in
-        count_in_class0 = np.count_nonzero(all_counts[class0_indices])  # how many of them are class 0
+        all_counts = X[:, idx]  # document counts of this feature
+        total_counts = np.count_nonzero(all_counts.data)  # how many docs the feature occurs in
+        count_in_class0 = np.count_nonzero(all_counts[class0_indices].data)  # how many of them are class 0
 
         # p = float(count_in_class0) / total_counts
         # smoothing to avoid taking log(0) below
