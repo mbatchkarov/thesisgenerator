@@ -161,6 +161,22 @@ def random_vectors_on_r2():
     experiments.append(e)
 
 
+def amazon_learning_curve_w2v():
+    for settings in word2vec_vector_settings():
+        for percent in [0.01, 0.51, 1., 5, 10, 50, 100]:
+            e = db.ClassificationExperiment(labelled=am_corpus,
+                                            vectors=vectors_from_settings(*settings, percent=percent))
+            experiments.append(e)
+
+
+def varying_k_with_w2v_on_r2():
+    for k in [1, 3, 5]:
+        for settings in word2vec_vector_settings():
+            e = db.ClassificationExperiment(labelled=r2_corpus, vectors=vectors_from_settings(*settings),
+                                            k=k)
+            experiments.append(e)
+
+
 if __name__ == '__main__':
     prefix = '/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data'
     techtc_corpora = sorted(list(os.path.join(*x.split(os.sep)[-2:]) \
@@ -184,6 +200,8 @@ if __name__ == '__main__':
     word2vec_with_less_data_on_r2(range(1, 10, 1))  # these were added later
     random_vectors_on_r2()
     word2vec_with_less_data_on_r2(np.arange(0.01, 0.92, .1))
+    amazon_learning_curve_w2v()
+    varying_k_with_w2v_on_r2()
 
     # re-order experiments so that the hard ones (high-memory, long-running) come first
     def _myorder(item):
@@ -234,10 +252,11 @@ if __name__ == '__main__':
         conf['vector_sources']['neighbours_file'] = exp.vectors.path if exp.vectors else ''
         conf['output_dir'] = './conf/exp%d/output' % exp.id
         conf['name'] = 'exp%d' % exp.id
-
+        conf['feature_extraction']['k'] = exp.k
         requested_features = exp.document_features.split('_')
         for doc_feature_type in ['AN', 'NN', 'VO', 'SVO']:
-            conf['feature_extraction']['extract_%s_features' % doc_feature_type] = doc_feature_type in requested_features
+            conf['feature_extraction'][
+                'extract_%s_features' % doc_feature_type] = doc_feature_type in requested_features
 
         # do not allow lexical overlap to prevent Left and Right from relying on word identity
         conf['vector_sources']['allow_lexical_overlap'] = False

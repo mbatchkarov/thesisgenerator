@@ -40,6 +40,7 @@ class ClassificationExperiment(pw.Model):
     decode_handler = pw.CharField(default='SignifiedOnlyFeatureHandler')  # signifier, signified, hybrid
     vectors = pw.ForeignKeyField(Vectors, null=True, default=None, on_delete='SET NULL')
     labelled = pw.CharField()  # name/path of labelled corpus used
+    k = pw.IntegerField(default=3) # how many neighbours entries are replaced with at decode time
 
     date_ran = pw.DateField(null=True, default=None)
     git_hash = pw.CharField(null=True, default=None)
