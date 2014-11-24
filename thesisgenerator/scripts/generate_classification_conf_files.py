@@ -176,6 +176,12 @@ def varying_k_with_w2v_on_r2():
                                             k=k)
             experiments.append(e)
 
+def different_neighbour_strategies():
+    for strat in ('linear', 'skipping'):
+        for settings in word2vec_vector_settings():
+            e = db.ClassificationExperiment(labelled=r2_corpus, vectors=vectors_from_settings(*settings),
+                                            neighbour_strategy=strat)
+            experiments.append(e)
 
 if __name__ == '__main__':
     prefix = '/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data'
@@ -260,6 +266,7 @@ if __name__ == '__main__':
 
         # do not allow lexical overlap to prevent Left and Right from relying on word identity
         conf['vector_sources']['allow_lexical_overlap'] = False
+        conf['vector_sources']['neighbour_strategy'] = exp.neighbour_strategy
 
         if exp.use_similarity:
             conf['feature_extraction']['sim_compressor'] = 'thesisgenerator.utils.misc.unit'
