@@ -1,5 +1,6 @@
 import sys
 import logging
+from discoutils.tokens import DocumentFeature
 
 sys.path.append('.')
 from thesisgenerator.plugins.bov import ThesaurusVectorizer
@@ -8,7 +9,17 @@ from thesisgenerator.utils.conf_file_utils import parse_config_file
 import numpy as np
 
 
-def get_all_NPs():
+def get_all_NPs(path_to_existing='NPs_in_R2_MR_technion/r2-mr-technion-am-ANsNNs.txt'):
+    """
+    Finds all noun, adjective, noun-nouns and adj-noun in all labelled corpora
+    mentioned in the conf files.
+    :param path_to_existing: Path to the output of this when it was last ran. Can save a fair bit of time.
+    :rtype: set of DocumentFeature
+    """
+    if path_to_existing:
+        with open(path_to_existing) as infile:
+            return set(DocumentFeature.from_string(line.strip()) for line in infile)
+
     all_nps = set()
     for corpus_path, conf_file in get_all_corpora().items():
         logging.info('Processing corpus %s', corpus_path)
@@ -53,10 +64,14 @@ if __name__ == '__main__':
     seen_modifiers = set()
     with open('r2-mr-technion-am-ANs-NNs-julie.txt', 'w') as outf_julie, \
             open('r2-mr-technion-am-ANs-NNs-socher.txt', 'w') as outf_socher, \
-            open('r2-mr-technion-am-modifiers.txt', 'w') as outf_mods:
-        all_nps = get_all_NPs()
+            open('r2-mr-technion-am-modifiers.txt', 'w') as outf_mods, \
+            open('r2-mr-technion-am-ANsNNs.txt', 'w') as outf_plain:
+        all_nps = get_all_NPs(path_to_existing=False)
         for item in all_nps:
             if item.type in {'AN', 'NN'}:
+                # write in my underscore-separated format
+                outf_plain.write(item.tokens_as_str())
+                outf_plain.write('\n')
                 first = str(item.tokens[0])
                 second = str(item.tokens[1])
 
