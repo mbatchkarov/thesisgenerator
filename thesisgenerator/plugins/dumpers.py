@@ -156,10 +156,11 @@ class ConsolidatedResultsCsvWriter(object):
                 score_my_std])
 
 
-def insert_full_results_to_database(expid):
+def insert_full_results_to_database(prefix, expid):
     # there's a notebook for this
     logging.info('Adding full results to database')
-    df = pd.read_csv('conf/exp{0}/output/exp{0}-0.out-raw.csv'.format(expid))
+    df = pd.read_csv(os.path.join(prefix,
+                                  'conf/exp{0}/output/exp{0}-0.out-raw.csv'.format(expid)))
     df.drop(df.columns[0], axis=1, inplace=True)
     myset = {'microavg_rec', 'macroavg_rec',
              'microavg_prec', 'macroavg_prec',
@@ -184,7 +185,7 @@ def consolidate_single_experiment(prefix, expid):
         csv_out_fh = open(os.path.join(output_dir, "summary%d.csv" % expid), "w")
         writer = ConsolidatedResultsCsvWriter(csv_out_fh)
         writer.consolidate_results(conf_dir, output_dir)
-        insert_full_results_to_database(expid)
+        insert_full_results_to_database(prefix, expid)
     except FileNotFoundError:
         logging.error('output file missing for exp %s', expid)
         logging.error('-----------------------------------')

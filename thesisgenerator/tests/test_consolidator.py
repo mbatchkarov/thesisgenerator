@@ -26,7 +26,7 @@ class TestConsolidator(TestCase):
         """
         Remove the debug files produced by this test
         """
-        files = chain(glob('./PostVectDump_tests-exp0*csv'), glob('tests-*-pipeline.pickle'))
+        files = chain(glob('./PostVectDump_exp0*csv'), glob('tests-*-pipeline.pickle'))
         for f in files:
             os.remove(f)
 
@@ -83,5 +83,5 @@ class TestConsolidator(TestCase):
         res = cursor.fetchall()
         # three data sizes, three output files
         for i in range(3):
-            self.assertEqual(res[i][0], 'tests-exp0-{}'.format(i))
+            self.assertEqual(res[i][0], 'exp0-{}'.format(i))
 
