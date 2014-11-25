@@ -129,13 +129,14 @@ class MetadataStripper(BaseEstimator, TransformerMixin):
      defensive checks
     """
 
-    def fit(self, X, y, vector_source=None):
+    def fit(self, X, y, vector_source=None, strategy='linear'):
         matrix, self.voc = X  # store voc, may be handy for for debugging
         self.vector_source = vector_source
         if isinstance(self.vector_source, Vectors):
             # the vector source can be either a Thesaurus or Vectors. Both can provide nearest neighbours,
             # but the latter needs this method to be called first
-            self.vector_source.init_sims([foo.tokens_as_str() for foo in self.voc.keys()])
+            self.vector_source.init_sims([foo.tokens_as_str() for foo in self.voc.keys()],
+                                         strategy=strategy)
         return self
 
     def transform(self, X):

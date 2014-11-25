@@ -170,7 +170,7 @@ def amazon_learning_curve_w2v():
 
 
 def varying_k_with_w2v_on_r2():
-    for k in [1, 3, 5]:
+    for k in [1, 5]:
         for settings in word2vec_vector_settings():
             e = db.ClassificationExperiment(labelled=r2_corpus, vectors=vectors_from_settings(*settings),
                                             k=k)
