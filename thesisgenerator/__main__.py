@@ -232,6 +232,7 @@ def _cv_loop(log_dir, config, cv_i, score_func, test_idx, train_idx, vector_sour
                                            config['output_dir'],
                                            config['debug'],
                                            exp_name=config['name'])
+    fit_params['stripper__strategy'] = config['vector_sources']['neighbour_strategy']
     # code below is a simplified version of sklearn's _cross_val_score
     train_text = [X[idx] for idx in train_idx]
     test_text = [X[idx] for idx in test_idx]
