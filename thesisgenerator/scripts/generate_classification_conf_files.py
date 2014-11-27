@@ -208,6 +208,7 @@ if __name__ == '__main__':
     word2vec_with_less_data_on_r2(np.arange(0.01, 0.92, .1))
     amazon_learning_curve_w2v()
     varying_k_with_w2v_on_r2()
+    different_neighbour_strategies()
 
     # re-order experiments so that the hard ones (high-memory, long-running) come first
     def _myorder(item):
