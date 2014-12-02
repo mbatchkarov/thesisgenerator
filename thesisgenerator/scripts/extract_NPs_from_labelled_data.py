@@ -17,6 +17,7 @@ def get_all_NPs(path_to_existing='NPs_in_R2_MR_tech_am/r2-mr-technion-am-ANsNNs.
     :rtype: set of DocumentFeature
     """
     if path_to_existing:
+        logging.info('Returning precompiled list of NPs from %s', path_to_existing)
         with open(path_to_existing) as infile:
             return set(DocumentFeature.from_string(line.strip()) for line in infile)
 
