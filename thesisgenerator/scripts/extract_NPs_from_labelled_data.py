@@ -9,7 +9,7 @@ from thesisgenerator.utils.conf_file_utils import parse_config_file
 import numpy as np
 
 
-def get_all_NPs(path_to_existing='NPs_in_R2_MR_technion/r2-mr-technion-am-ANsNNs.txt'):
+def get_all_NPs(path_to_existing='NPs_in_R2_MR_tech_am/r2-mr-technion-am-ANsNNs.txt'):
     """
     Finds all noun, adjective, noun-nouns and adj-noun in all labelled corpora
     mentioned in the conf files.
