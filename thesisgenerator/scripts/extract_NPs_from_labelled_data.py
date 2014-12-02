@@ -23,11 +23,13 @@ def get_all_NPs(path_to_existing='NPs_in_R2_MR_tech_am/r2-mr-technion-am-ANsNNs.
 
     all_nps = set()
     for corpus_path, conf_file in get_all_corpora().items():
+        logging.info('--------------------')
         logging.info('Processing corpus %s', corpus_path)
         conf, _ = parse_config_file(conf_file)
         x_tr, _, _, _ = get_tokenized_data(conf['training_data'] + '.gz',
                                            get_tokenizer_settings_from_conf(conf),
                                            test_data=conf['test_data'])
+        assert not conf['test_data']
         assert len(x_tr) > 0
         logging.info('Documents in this corpus: %d', len(x_tr))
 
@@ -40,7 +42,7 @@ def get_all_NPs(path_to_existing='NPs_in_R2_MR_tech_am/r2-mr-technion-am-ANsNNs.
                                    unigram_feature_pos_tags=set('NJ'))
         data_matrix, voc = vect.fit_transform(x_tr, np.ones(len(x_tr)))
         logging.info('Found %d document features in this corpus', len(voc))
-        all_nps |= voc.keys()  # set intersection
+        all_nps |= voc.keys()  # set union
     logging.info('Found a total of %d features in all corpora', len(all_nps))
     return all_nps
 
