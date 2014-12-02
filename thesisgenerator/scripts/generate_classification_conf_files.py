@@ -1,8 +1,7 @@
+from functools import wraps
 from glob import glob
 import os
-import shutil
 import sys
-import time
 from itertools import chain
 
 sys.path.append('.')
@@ -12,6 +11,16 @@ from discoutils.misc import Bunch
 from thesisgenerator.composers.vectorstore import *
 from thesisgenerator.utils.conf_file_utils import parse_config_file
 from thesisgenerator.utils import db
+
+
+def printing_decorator(f):
+    @wraps(f)
+    def wrapper(*args, **kwds):
+        print('Before function %s: %d experiments' % (f.__name__, len(experiments)))
+        return f(*args, **kwds)
+
+    return wrapper
+
 
 '''
 Once all thesauri with ngram entries (obtained using different composition methods) have been built offline,
@@ -86,6 +95,7 @@ def all_vector_settings():
     yield from word2vec_vector_settings()
 
 
+@printing_decorator
 def baselines():
     # random-neighbour experiments. These include an "random_neighbour_thesaurus=True" option in the conf file
     random_neigh = db.Vectors.get(db.Vectors.algorithm == 'random_neigh')
@@ -98,6 +108,7 @@ def baselines():
         experiments.append(e)
 
 
+@printing_decorator
 def all_standard_experiments():
     for s in all_vector_settings():
         for labelled_corpus in all_corpora:
@@ -105,6 +116,7 @@ def all_standard_experiments():
             experiments.append(e)
 
 
+@printing_decorator
 def hybrid_experiments():
     handler = 'SignifierSignifiedFeatureHandler'
 
@@ -114,6 +126,7 @@ def hybrid_experiments():
         experiments.append(e)
 
 
+@printing_decorator
 def use_similarity_experiments():
     for s in chain(word2vec_vector_settings(), turian_vector_settings()):
         e = db.ClassificationExperiment(labelled=r2_corpus, vectors=vectors_from_settings(*s),
@@ -121,6 +134,7 @@ def use_similarity_experiments():
         experiments.append(e)
 
 
+@printing_decorator
 def an_only_nn_only_experiments_r2():
     for feature_type in ['AN', 'NN']:
         for s in chain(word2vec_vector_settings(), turian_vector_settings()):
@@ -129,6 +143,7 @@ def an_only_nn_only_experiments_r2():
             experiments.append(e)
 
 
+@printing_decorator
 def word2vec_with_less_data_on_r2(percentages):
     for unlab, algo, composer, svd_dims in word2vec_vector_settings():
         # only up to 90%, 100% was done separately above
@@ -139,6 +154,7 @@ def word2vec_with_less_data_on_r2(percentages):
             experiments.append(e)
 
 
+@printing_decorator
 def word2vec_repeats_on_r2():
     for unlab, algo, composer, svd_dims in word2vec_vector_settings():
         for rep in range(1, 3):
@@ -149,18 +165,21 @@ def word2vec_repeats_on_r2():
             experiments.append(e)
 
 
+@printing_decorator
 def glove_vectors_r2():
     for s in glove_vector_settings():
         e = db.ClassificationExperiment(labelled=r2_corpus, vectors=vectors_from_settings(*s))
         experiments.append(e)
 
 
+@printing_decorator
 def random_vectors_on_r2():
     random_vect = db.Vectors.get(db.Vectors.algorithm == 'random_vect')
     e = db.ClassificationExperiment(labelled=r2_corpus, vectors=random_vect)
     experiments.append(e)
 
 
+@printing_decorator
 def amazon_learning_curve_w2v():
     for settings in word2vec_vector_settings():
         for percent in [0.01, 0.51, 1., 5, 10, 50, 100]:
@@ -169,6 +188,7 @@ def amazon_learning_curve_w2v():
             experiments.append(e)
 
 
+@printing_decorator
 def varying_k_with_w2v_on_r2():
     for k in [1, 5]:
         for settings in word2vec_vector_settings():
@@ -176,12 +196,15 @@ def varying_k_with_w2v_on_r2():
                                             k=k)
             experiments.append(e)
 
+
+@printing_decorator
 def different_neighbour_strategies():
-    for strat in ('linear', 'skipping'):
-        for settings in word2vec_vector_settings():
-            e = db.ClassificationExperiment(labelled=r2_corpus, vectors=vectors_from_settings(*settings),
-                                            neighbour_strategy=strat)
-            experiments.append(e)
+    strat = 'skipping'
+    for settings in word2vec_vector_settings():
+        e = db.ClassificationExperiment(labelled=r2_corpus, vectors=vectors_from_settings(*settings),
+                                        neighbour_strategy=strat)
+        experiments.append(e)
+
 
 if __name__ == '__main__':
     prefix = '/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data'
@@ -226,7 +249,9 @@ if __name__ == '__main__':
 
     sorted_experiments = sorted(enumerate(experiments), key=_myorder)
     experiments = []
+    print('Here is how experiments were reordered:')
     for new_id, (old_id, e) in enumerate(sorted_experiments, 1):
+        print('%d --> %d' % (old_id, new_id))
         e.id = new_id
         experiments.append(e)
     for e in experiments:
