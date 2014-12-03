@@ -10,7 +10,7 @@ from thesisgenerator.utils.conf_file_utils import parse_config_file
 import numpy as np
 
 
-def get_all_NPs(path_to_existing='NPs_in_R2_MR_tech_am/r2-mr-technion-am-ANsNNs.txt',
+def get_all_NPs(path_to_existing='NPs_in_R2_MR_tech_am/r2-mr-technion-am-ANsNNsUnigrams.txt',
                 include_unigrams=False):
     """
     Finds all noun-noun and adj-noun compounds (and optionally adjs and nouns) in all labelled corpora
