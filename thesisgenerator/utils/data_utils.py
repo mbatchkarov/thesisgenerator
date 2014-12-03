@@ -4,7 +4,6 @@ import logging
 import os
 import random
 import sys
-import magic
 
 sys.path.append('.')
 sys.path.append('..')
@@ -12,6 +11,7 @@ sys.path.append('../..')
 from discoutils.thesaurus_loader import Vectors
 from discoutils.tokens import Token
 from discoutils.cmd_utils import run_and_log_output
+from discoutils.misc import is_gzipped
 import numpy as np
 import json
 import gzip
@@ -175,7 +175,7 @@ def gzip_single_thesaurus(conf_file):
 
     if os.path.exists(th):
         # need force in case output file exists
-        if b'gzip compressed data' in magic.from_file(th):
+        if is_gzipped(th):
             # file is already gzipped, just symlink
             logging.info('Symlinking %s', th)
             force_symlink(th, th + '.gz')

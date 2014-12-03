@@ -1,3 +1,4 @@
+import copy
 from configobj import ConfigObj
 import peewee as pw
 
@@ -40,8 +41,8 @@ class ClassificationExperiment(pw.Model):
     decode_handler = pw.CharField(default='SignifiedOnlyFeatureHandler')  # signifier, signified, hybrid
     vectors = pw.ForeignKeyField(Vectors, null=True, default=None, on_delete='SET NULL')
     labelled = pw.CharField()  # name/path of labelled corpus used
-    k = pw.IntegerField(default=3) # how many neighbours entries are replaced with at decode time
-    neighbour_strategy = pw.CharField(default='linear') # how neighbours are found- linear or skipping strategy
+    k = pw.IntegerField(default=3)  # how many neighbours entries are replaced with at decode time
+    neighbour_strategy = pw.CharField(default='linear')  # how neighbours are found- linear or skipping strategy
 
     date_ran = pw.DateField(null=True, default=None)
     git_hash = pw.CharField(null=True, default=None)
@@ -52,6 +53,29 @@ class ClassificationExperiment(pw.Model):
     def __str__(self):
         basic_settings = ','.join((str(x) for x in [self.labelled, self.vectors]))
         return '%s: %s' % (self.id, basic_settings)
+
+    def get_important_fields(self):
+        return
+
+    def __eq__(self, other):
+        if not isinstance(other, ClassificationExperiment):
+            return False
+        return (
+            self.document_features == other.document_features and
+            self.use_similarity == other.use_similarity and
+            self.use_random_neighbours == other.use_random_neighbours and
+            self.decode_handler == other.decode_handler and
+            self.vectors.id == other.vectors.id and
+            self.labelled == other.labelled and
+            self.k == other.k and
+            self.neighbour_strategy == other.neighbour_strategy
+        )
+
+    def __hash__(self):
+        return hash((self.document_features, self.use_similarity,
+                     self.use_random_neighbours, self.decode_handler,
+                     self.vectors.id, self.labelled,
+                     self.k, self.neighbour_strategy))
 
 
 class Results(pw.Model):

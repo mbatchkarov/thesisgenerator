@@ -15,7 +15,7 @@ logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=lo
 np.random.seed(0)
 d = dict()
 feats = ['rand%d' % i for i in range(DIMENSIONALITY)]
-for phrase in get_all_NPs():
+for phrase in get_all_NPs(include_unigrams=True):
     vector = np.random.random(DIMENSIONALITY)
     d[phrase.tokens_as_str()] = zip(feats, vector)
 

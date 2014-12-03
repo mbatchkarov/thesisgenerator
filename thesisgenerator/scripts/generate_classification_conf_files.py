@@ -183,6 +183,9 @@ def random_vectors_on_r2():
 def amazon_learning_curve_w2v():
     for settings in word2vec_vector_settings():
         for percent in [0.01, 0.51, 1., 5, 10, 50, 100]:
+            # todo this generates 4 duplicate experiments, but removing them would
+            # reorder many other amazon experiments, which will have to be re-done (taking days)
+            # I'll leaving this as it is for now
             e = db.ClassificationExperiment(labelled=am_corpus,
                                             vectors=vectors_from_settings(*settings, percent=percent))
             experiments.append(e)
@@ -254,6 +257,7 @@ if __name__ == '__main__':
         print('%d --> %d' % (old_id, new_id))
         e.id = new_id
         experiments.append(e)
+    sys.exit(0)
     for e in experiments:
         e.save(force_insert=True)
         print('%s,' % e)

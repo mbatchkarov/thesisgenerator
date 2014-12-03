@@ -1,6 +1,7 @@
 from glob import glob
 import os
 import sys
+from discoutils.misc import is_gzipped
 
 sys.path.append('.')
 sys.path.append('..')
@@ -36,7 +37,7 @@ def compose_and_write_vectors(unigram_vectors_path, short_vector_dataset_name,
         # observed ones
         vectors = Vectors.from_tsv(unigram_vectors_path,
                                    row_filter=lambda x, y: y.tokens[0].pos in {'N', 'J'} and y.type == '1-GRAM',
-                                   gzipped=True)
+                                   gzipped=is_gzipped(unigram_vectors_path))
 
     # doing this loop in parallel isn't worth it as pickling or shelving `vectors` is so slow
     # it negates any gains from using multiple cores
@@ -48,7 +49,7 @@ def compose_and_write_vectors(unigram_vectors_path, short_vector_dataset_name,
             composer = composer_class(vectors)
 
         # compose_all returns all unigrams and composed phrases
-        mat, cols, rows = composer.compose_all(vocabulary.keys())
+        mat, cols, rows = composer.compose_all(vocabulary)
 
         events_path = os.path.join(output_dir,
                                    'AN_NN_%s_%s.events.filtered.strings' % (short_vector_dataset_name, composer.name))
