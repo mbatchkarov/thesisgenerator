@@ -1,3 +1,4 @@
+from collections import Counter
 import sys
 import logging
 from discoutils.tokens import DocumentFeature
@@ -9,17 +10,25 @@ from thesisgenerator.utils.conf_file_utils import parse_config_file
 import numpy as np
 
 
-def get_all_NPs(path_to_existing='NPs_in_R2_MR_tech_am/r2-mr-technion-am-ANsNNs.txt'):
+def get_all_NPs(path_to_existing='NPs_in_R2_MR_tech_am/r2-mr-technion-am-ANsNNs.txt',
+                include_unigrams=False):
     """
-    Finds all noun, adjective, noun-nouns and adj-noun in all labelled corpora
+    Finds all noun-noun and adj-noun compounds (and optionally adjs and nouns) in all labelled corpora
     mentioned in the conf files.
-    :param path_to_existing: Path to the output of this when it was last ran. Can save a fair bit of time.
+    :param path_to_existing: Path to the output of this when it was last ran. Can save lots of time.
+    :param include_unigrams: if False, only NPs will be returned
     :rtype: set of DocumentFeature
     """
+    accepted_df_types = {'AN', 'NN', '1-GRAM'} if include_unigrams else {'AN', 'NN'}
     if path_to_existing:
         logging.info('Returning precompiled list of NPs from %s', path_to_existing)
+        result = set()
         with open(path_to_existing) as infile:
-            return set(DocumentFeature.from_string(line.strip()) for line in infile)
+            for line in infile:
+                df = DocumentFeature.from_string(line.strip())
+                if df.type in accepted_df_types:
+                    result.add(df)
+            return result
 
     all_nps = set()
     for corpus_path, conf_file in get_all_corpora().items():
@@ -42,8 +51,9 @@ def get_all_NPs(path_to_existing='NPs_in_R2_MR_tech_am/r2-mr-technion-am-ANsNNs.
                                    unigram_feature_pos_tags=set('NJ'))
         data_matrix, voc = vect.fit_transform(x_tr, np.ones(len(x_tr)))
         logging.info('Found %d document features in this corpus', len(voc))
-        all_nps |= voc.keys()  # set union
+        all_nps |= set(foo for foo in voc.keys() if foo.type in accepted_df_types)  # set union
     logging.info('Found a total of %d features in all corpora', len(all_nps))
+    logging.info('Their types are %r', Counter(df.type for df in all_nps))
     return all_nps
 
 
@@ -68,13 +78,13 @@ if __name__ == '__main__':
     with open('r2-mr-technion-am-ANs-NNs-julie.txt', 'w') as outf_julie, \
             open('r2-mr-technion-am-ANs-NNs-socher.txt', 'w') as outf_socher, \
             open('r2-mr-technion-am-modifiers.txt', 'w') as outf_mods, \
-            open('r2-mr-technion-am-ANsNNs.txt', 'w') as outf_plain:
-        all_nps = get_all_NPs(path_to_existing=False)
+            open('r2-mr-technion-am-ANsNNsUnigrams.txt', 'w') as outf_plain:
+        all_nps = get_all_NPs(path_to_existing=False, include_unigrams=True)
         for item in all_nps:
+            outf_plain.write(item.tokens_as_str())
+            outf_plain.write('\n')
             if item.type in {'AN', 'NN'}:
                 # write in my underscore-separated format
-                outf_plain.write(item.tokens_as_str())
-                outf_plain.write('\n')
                 first = str(item.tokens[0])
                 second = str(item.tokens[1])
 
