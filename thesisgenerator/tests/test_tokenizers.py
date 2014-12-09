@@ -239,6 +239,7 @@ class Test_tokenizer(TestCase):
         # todo tests for dependency-parsed input data
 
     def test_document_feature_from_string(self):
+        DocumentFeature.recompile_pattern()
         x = DocumentFeature.from_string('big/J_cat/N')
         y = DocumentFeature('AN', (Token('big', 'J'), Token('cat', 'N')))
         self.assertEqual(y, x)
@@ -256,6 +257,11 @@ class Test_tokenizer(TestCase):
         self.assertEqual(
             DocumentFeature('NN', (Token('dog', 'N'), Token('cat', 'N'))),
             DocumentFeature.from_string('dog/N_cat/N')
+        )
+
+        self.assertEqual( # test with lowercase PoS tags
+            DocumentFeature('NN', (Token('dog', 'N'), Token('cat', 'N'))),
+            DocumentFeature.from_string('dog/n_cat/n')
         )
 
         self.assertEqual(
@@ -288,6 +294,7 @@ class Test_tokenizer(TestCase):
             )
 
     def test_document_feature_slicing(self):
+        DocumentFeature.recompile_pattern()
         x = DocumentFeature.from_string('big/J_cat/N')
         self.assertEqual(x[0], DocumentFeature.from_string('big/J'))
         self.assertEqual(x[1], DocumentFeature.from_string('cat/N'))
@@ -298,3 +305,19 @@ class Test_tokenizer(TestCase):
         self.assertEqual(x[0], DocumentFeature.from_string('cat/N'))
         self.assertEqual(x[0:], DocumentFeature.from_string('cat/N'))
         self.assertEqual(x[:], DocumentFeature.from_string('cat/N'))
+
+    def test_with_different_separators(self):
+        DocumentFeature.recompile_pattern(pos_separator='_', ngram_separator='!')
+        self.assertEqual(
+            DocumentFeature('2-GRAM', (Token('very', 'RB'), Token('big', 'J'))),
+            DocumentFeature.from_string('very_RB!big_J')
+        )
+        DocumentFeature.recompile_pattern(pos_separator='-', ngram_separator=' ')
+        self.assertEqual(
+            DocumentFeature('1-GRAM', (Token('very', 'RB'),)),
+            DocumentFeature.from_string('very-RB')
+        )
+        self.assertEqual(
+            DocumentFeature('2-GRAM', (Token('very', 'RB'), Token('big', 'J'))),
+            DocumentFeature.from_string('very-RB big-J')
+        )
