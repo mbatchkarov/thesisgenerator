@@ -253,11 +253,18 @@ if __name__ == '__main__':
     sorted_experiments = sorted(enumerate(experiments), key=_myorder)
     experiments = []
     print('Here is how experiments were reordered:')
-    for new_id, (old_id, e) in enumerate(sorted_experiments, 1):
+    new_id = 1
+    prev_exp = None
+    for old_id, e in sorted_experiments:
         print('%d --> %d' % (old_id, new_id))
         e.id = new_id
         experiments.append(e)
-    sys.exit(0)
+        new_id += 1
+        if hasattr(prev_exp, 'labelled') and 'amazon' in prev_exp.labelled and 'amazon' not in e.labelled:
+            new_id = 500
+        prev_exp = e
+
+    # sys.exit(0)
     for e in experiments:
         e.save(force_insert=True)
         print('%s,' % e)
