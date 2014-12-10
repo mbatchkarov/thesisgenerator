@@ -117,17 +117,19 @@ def all_standard_experiments():
 
 
 @printing_decorator
-def hybrid_experiments():
+def hybrid_experiments_r2_amazon_turian_word2vec():
     handler = 'SignifierSignifiedFeatureHandler'
 
     for s in chain(word2vec_vector_settings(), turian_vector_settings()):
-        e = db.ClassificationExperiment(labelled=r2_corpus, vectors=vectors_from_settings(*s),
-                                        decode_handler=handler)
+        for labelled in [r2_corpus, am_corpus]:
+            e = db.ClassificationExperiment(labelled=labelled,
+                                            vectors=vectors_from_settings(*s),
+                                            decode_handler=handler)
         experiments.append(e)
 
 
 @printing_decorator
-def use_similarity_experiments():
+def use_similarity_experiments_r2():
     for s in chain(word2vec_vector_settings(), turian_vector_settings()):
         e = db.ClassificationExperiment(labelled=r2_corpus, vectors=vectors_from_settings(*s),
                                         use_similarity=True)
@@ -155,14 +157,15 @@ def word2vec_with_less_data_on_r2(percentages):
 
 
 @printing_decorator
-def word2vec_repeats_on_r2():
+def word2vec_repeats_on_r2_amazon():
     for unlab, algo, composer, svd_dims in word2vec_vector_settings():
         for rep in range(1, 3):
-            # only the second and third run of word2vec on the entire data set, the first was done above
-            e = db.ClassificationExperiment(labelled=r2_corpus,
-                                            vectors=vectors_from_settings(unlab, algo, composer,
-                                                                          svd_dims, rep=rep))
-            experiments.append(e)
+            for labelled in [r2_corpus, am_corpus]:
+                # only the second and third run of word2vec on the entire data set, the first was done above
+                e = db.ClassificationExperiment(labelled=labelled,
+                                                vectors=vectors_from_settings(unlab, algo, composer,
+                                                                              svd_dims, rep=rep))
+                experiments.append(e)
 
 
 @printing_decorator
@@ -223,11 +226,11 @@ if __name__ == '__main__':
     experiments = []
     baselines()
     all_standard_experiments()
-    hybrid_experiments()
-    use_similarity_experiments()
+    hybrid_experiments_r2_amazon_turian_word2vec()
+    use_similarity_experiments_r2()
     an_only_nn_only_experiments_r2()
     word2vec_with_less_data_on_r2(range(10, 91, 10))
-    word2vec_repeats_on_r2()
+    word2vec_repeats_on_r2_amazon()
     glove_vectors_r2()
     word2vec_with_less_data_on_r2(range(1, 10, 1))  # these were added later
     random_vectors_on_r2()
