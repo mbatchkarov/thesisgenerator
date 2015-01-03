@@ -4,12 +4,9 @@ try:
     from cStringIO import StringIO
 except ImportError:
     from io import StringIO
-from thesisgenerator.plugins.dumpers import ConsolidatedResultsCsvWriter, ConsolidatedResultsSqlWriter
+from thesisgenerator.plugins.dumpers import ConsolidatedResultsCsvWriter
 import thesisgenerator.plugins.dumpers as d
-from thesisgenerator.utils.misc import get_susx_mysql_conn
 
-header_list = [x[0] for x in d.columns]
-header_str = ','.join(header_list)
 
 
 class TestConsolidatedResultsCsvWriter(TestCase):
@@ -20,55 +17,8 @@ class TestConsolidatedResultsCsvWriter(TestCase):
         self.writer = ConsolidatedResultsCsvWriter(self.fh)
 
     def test_header(self):
+        header_list = [x[0] for x in d.columns]
+        header_str = ','.join(header_list)
         self.assertEqual(header_str, self.fh.getvalue().strip())
 
 
-class TestConsolidatedResultsSqlWriter(TestCase):
-    def setUp(self):
-        self.db_conn = get_susx_mysql_conn()
-
-        if not self.db_conn:
-            self.fail("DB connection parameters file is missing. This is "
-                      "quite important")
-
-        # create a writer and write header
-        self.writer = ConsolidatedResultsSqlWriter(0, self.db_conn)
-
-    def test_header(self):
-        """
-        Test if the results table for an experiment is emptied by the
-        creation of a new SQL writer
-        """
-        q = 'SELECT * FROM data0;'
-        cur = self.db_conn.cursor()
-        cur.execute('SELECT * FROM data0;')
-        res = cur.fetchall()
-        self.assertEqual(0, len(res))
-
-    def test_insert(self):
-        """
-        Test that items are correctly inserted into the database
-        """
-        self.writer.writerow(range(len(header_list)))
-
-        cur = self.db_conn.cursor()
-        cur.execute('SELECT * FROM data0;')
-        rows = cur.fetchall()
-        self.assertEqual(1, len(rows))
-        self.assertEqual(len(header_list), len(rows[0]))
-        self.assertEqual(rows[0][0], 1)  # auto-increment field
-        for i, val in enumerate(rows[0][1:]):
-            if i == 2:
-                # the third column is a timestamp, cannot convert to float
-                continue
-            self.assertEqual(float(i) + 1, float(val))
-
-    def test_mysql(self):
-        con = get_susx_mysql_conn()
-
-        with con:
-            cur = con.cursor()
-            cur.execute("SELECT * FROM data0")
-            rows = cur.fetchall()
-            for row in rows:
-                print(row)

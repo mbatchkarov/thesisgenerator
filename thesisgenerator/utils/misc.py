@@ -1,6 +1,6 @@
 import inspect
 import os
-from configobj import ConfigObj
+import sqlite3
 import errno
 from thesisgenerator.utils.reflection_utils import get_named_object
 import logging
@@ -14,22 +14,7 @@ def get_susx_mysql_conn():
      - the db-credentials is not present
     :return:
     """
-    try:
-        import pymysql as mdb
-    except ImportError:
-        logging.warning('pymysql not installed')
-        return None
-
-    config = ConfigObj('thesisgenerator/db-credentials')
-    if not config:
-        logging.warning('File thesisgenerator/db-credentials file not found. This is '
-                        'needed for a MySQL connection. Check your working directory.')
-        return None
-
-    return mdb.connect(config['server'],
-                       config['user'],
-                       config['pass'],
-                       config['db'])
+    return sqlite3.connect('./db.sqlite')
 
 
 def linear_compress(x):

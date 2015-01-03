@@ -1,15 +1,6 @@
-import copy
-from configobj import ConfigObj
 import peewee as pw
 
-
-config = ConfigObj('thesisgenerator/db-credentials')
-settings = {'user': config['user'],
-            'passwd': config['pass'],
-            'host': config['server'],
-            'port': 3306}
-
-db = pw.MySQLDatabase(config['db'], **settings)
+db = pw.SqliteDatabase('db.sqlite')
 db.connect()
 
 
