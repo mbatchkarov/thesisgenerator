@@ -2,13 +2,12 @@
 from itertools import chain
 import logging
 import os
-from unittest import TestCase, skip
+from unittest import TestCase
 from glob import glob
 from discoutils.thesaurus_loader import Thesaurus
 from thesisgenerator.plugins.dumpers import consolidate_single_experiment
 
 from thesisgenerator.plugins.experimental_utils import run_experiment
-from thesisgenerator.utils.misc import get_susx_mysql_conn
 
 __author__ = 'mmb28'
 
