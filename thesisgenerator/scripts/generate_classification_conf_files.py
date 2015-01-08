@@ -253,7 +253,13 @@ if __name__ == '__main__':
             return chr(1), item[0]
         return 'whatever', item[0]
 
-
+    # assign ID's starting from 500 to all fast experiments
+    # I can now add slow experiments at will without messing up the order of the slow ones
+    # e.g. experiment numbers will be 1, 2, 3..., 75, 500, 501, ...
+    # which group into slow and fast (1, 2, 3..., 75), (500, 501, ...)
+    # this is a little buggy in that the first fast exp is in the slow group
+    # i.e. (1, 2, 3..., 74), (75, 500, 501, ...)
+    # but whatever, not worth my time
     sorted_experiments = sorted(enumerate(experiments), key=_myorder)
     experiments = []
     print('Here is how experiments were reordered:')
