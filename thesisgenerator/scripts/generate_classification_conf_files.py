@@ -176,9 +176,9 @@ def glove_vectors_r2():
 
 
 @printing_decorator
-def random_vectors_on_r2():
+def random_vectors(corpus):
     random_vect = db.Vectors.get(db.Vectors.algorithm == 'random_vect')
-    e = db.ClassificationExperiment(labelled=r2_corpus, vectors=random_vect)
+    e = db.ClassificationExperiment(labelled=corpus, vectors=random_vect)
     experiments.append(e)
 
 
@@ -233,11 +233,12 @@ if __name__ == '__main__':
     word2vec_repeats_on_r2_amazon()
     glove_vectors_r2()
     word2vec_with_less_data_on_r2(range(1, 10, 1))  # these were added later
-    random_vectors_on_r2()
+    random_vectors(r2_corpus)
     word2vec_with_less_data_on_r2(np.arange(0.01, 0.92, .1))
     amazon_learning_curve_w2v()
     varying_k_with_w2v_on_r2()
     different_neighbour_strategies()
+    random_vectors(am_corpus)
 
     # re-order experiments so that the hard ones (high-memory, long-running) come first
     def _myorder(item):
