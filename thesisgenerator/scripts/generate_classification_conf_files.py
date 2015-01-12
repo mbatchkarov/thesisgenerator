@@ -125,7 +125,7 @@ def hybrid_experiments_r2_amazon_turian_word2vec():
             e = db.ClassificationExperiment(labelled=labelled,
                                             vectors=vectors_from_settings(*s),
                                             decode_handler=handler)
-        experiments.append(e)
+            experiments.append(e)
 
 
 @printing_decorator
@@ -266,7 +266,7 @@ if __name__ == '__main__':
     new_id = 1
     prev_exp = None
     for old_id, e in sorted_experiments:
-        print('%d --> %d' % (old_id, new_id))
+        # print('%d --> %d' % (old_id, new_id))
         e.id = new_id
         experiments.append(e)
         new_id += 1
