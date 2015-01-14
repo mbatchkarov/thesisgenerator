@@ -96,10 +96,12 @@ def all_vector_settings():
 
 
 @printing_decorator
-def baselines():
+def baselines(corpora=None):
     # random-neighbour experiments. These include an "random_neighbour_thesaurus=True" option in the conf file
+    if not corpora:
+        corpora = all_corpora
     random_neigh = db.Vectors.get(db.Vectors.algorithm == 'random_neigh')
-    for corpus in all_corpora:
+    for corpus in corpora:
         e = db.ClassificationExperiment(labelled=corpus, vectors=random_neigh)
         experiments.append(e)
 
@@ -109,9 +111,11 @@ def baselines():
 
 
 @printing_decorator
-def all_standard_experiments():
-    for s in all_vector_settings():
-        for labelled_corpus in all_corpora:
+def all_standard_experiments(corpora=None):
+    if not corpora:
+        corpora = all_corpora
+    for s in all_vector_settings():  # yields 28 times
+        for labelled_corpus in corpora:
             e = db.ClassificationExperiment(labelled=labelled_corpus, vectors=vectors_from_settings(*s))
             experiments.append(e)
 
@@ -220,6 +224,8 @@ if __name__ == '__main__':
     r2_corpus = 'reuters21578/r8-tagged-grouped'
     mr_corpus = 'movie-reviews-tagged'
     am_corpus = 'amazon_grouped-tagged'
+    maas_corpus = 'aclImdb-tagged'
+    # havent added maas to all_corpora to avoid changing the ids of long running amazon jobs
     all_corpora = techtc_corpora + [r2_corpus, mr_corpus, am_corpus]
 
     db.ClassificationExperiment.raw('TRUNCATE TABLE `classificationexperiment`;')
@@ -239,11 +245,16 @@ if __name__ == '__main__':
     varying_k_with_w2v_on_r2()
     different_neighbour_strategies()
     random_vectors(am_corpus)
+    # maas IMDB sentiment experiments
+    baselines(corpora=[maas_corpus])
+    random_vectors(maas_corpus)
+    all_standard_experiments(corpora=[maas_corpus])
 
+    print('Total experiments: %d' % len(experiments))
     # re-order experiments so that the hard ones (high-memory, long-running) come first
     def _myorder(item):
         """
-        If the thing is AM move it to the from of the sorted list, leave
+        If the thing is AM/Maas move it to the from of the sorted list, leave
         all other items in the order they were in
         :param item:
         :return:
@@ -251,6 +262,8 @@ if __name__ == '__main__':
         lab = getattr(item[1], 'labelled')
         if 'amazon' in lab:
             return chr(1), item[0]
+        if 'aclImdb' in lab:
+            return chr(2), item[0]
         return 'whatever', item[0]
 
     # assign ID's starting from 500 to all fast experiments
@@ -270,7 +283,9 @@ if __name__ == '__main__':
         e.id = new_id
         experiments.append(e)
         new_id += 1
-        if hasattr(prev_exp, 'labelled') and 'amazon' in prev_exp.labelled and 'amazon' not in e.labelled:
+        if hasattr(prev_exp, 'labelled') and \
+                        prev_exp.labelled in [am_corpus, maas_corpus] and \
+                        e.labelled not in [am_corpus, maas_corpus]:
             new_id = 500
         prev_exp = e
 

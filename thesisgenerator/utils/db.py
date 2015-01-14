@@ -102,14 +102,9 @@ class FullResults(pw.Model):
 
 
 if __name__ == '__main__':
+    print('Clearing database')
     Results.drop_table()
     FullResults.drop_table()
     ClassificationExperiment.drop_table()
     Vectors.drop_table()
     pw.create_model_tables([FullResults, Results, ClassificationExperiment, Vectors])
-
-    # print(1)
-    # v = Vectors.create(can_build=False, dimensionality=100, unlabelled='wtf')
-    # ClassificationExperiment.create(document_features='AN', use_similarity=False, use_random_neighbours=False,
-    # decode_handler='Hybrid', vectors=v)
-    # print(Vectors.select().where(Vectors.unlabelled=='wtf').get())
