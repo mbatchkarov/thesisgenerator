@@ -363,6 +363,6 @@ if __name__ == '__main__':
                           conf['vector_sources']['neighbours_file']),
                          (old_conf['feature_extraction']['decode_token_handler'],
                           conf['feature_extraction']['decode_token_handler']),
-                         (conf['training_data'], old_conf['training_data'])]:
+                         (old_conf['training_data'], conf['training_data'])]:
                 if a != b:
                     print('Exp: %d, was %r, is now %r' % (exp.id, a, b))
