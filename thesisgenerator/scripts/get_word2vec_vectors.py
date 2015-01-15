@@ -103,11 +103,11 @@ def reformat_data(conll_data_dir, pos_only_data_dir):
     files such as
 
     ```
-    1	Anarchism	Anarchism	NNP	MISC	5	nsubj
-    2	is	be	VBZ	O	5	cop
-    3	a	a	DT	O	5	det
-    4	political	political	JJ	O	5	amod
-    5	philosophy	philosophy	NN	O	0	root
+    1   Anarchism   Anarchism   NNP MISC    5   nsubj
+    2   is  be  VBZ O   5   cop
+    3   a   a   DT  O   5   det
+    4   political   political   JJ  O   5   amod
+    5   philosophy  philosophy  NN  O   0   root
     ```
 
     and convert them to pos-augmented format (using coarse tags like Petrov's):
@@ -214,4 +214,5 @@ if __name__ == '__main__':
     args = get_args_from_cmd_line()
     logging.info('Params are: %r', args)
     compute_and_write_vectors(args.corpus, args.stages, args.percent, args.repeat)
+
 
