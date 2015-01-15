@@ -12,7 +12,6 @@ from discoutils.tokens import DocumentFeature
 from discoutils.thesaurus_loader import Vectors
 from thesisgenerator.plugins.tokenizers import pos_coarsification_map
 from thesisgenerator.scripts.dump_all_composed_vectors import compose_and_write_vectors
-from thesisgenerator.utils.data_utils import get_all_corpora
 from thesisgenerator.composers.vectorstore import (AdditiveComposer, MultiplicativeComposer,
                                                    LeftmostWordComposer, RightmostWordComposer)
 
@@ -23,8 +22,11 @@ prefix = '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit'
 conll_data_dir = join(prefix, 'data/gigaword-afe-split-tagged-parsed/gigaword/')
 pos_only_data_dir = join(prefix, 'data/gigaword-afe-split-pos/gigaword/')
 pos_only_data_dir = join(prefix, 'data/gigaword-afe-split-pos/gigaword-small-files/')
+# pos_only_data_dir = join(prefix, 'data/wikipedia-tagged-pos/wikipedia/')
+
 # outputs
 unigram_events_file = join(prefix, 'word2vec_vectors/word2vec-%.2fperc.unigr.strings')
+# unigram_events_file = join(prefix, 'word2vec_vectors/word2vec-wiki-%.2fperc.unigr.strings')
 composed_output_dir = join(prefix, 'word2vec_vectors', 'composed')
 
 # unigram extraction parameters
@@ -122,6 +124,7 @@ def compute_and_write_vectors(stages, percent, repeat):
             # just to read them back later.
             compose_and_write_vectors(vectors if 'vectors' in stages else unigram_events_file + '.rep%d' % i,
                                       'word2vec_%.2fpercent-rep%d' % (percent, i),
+                                      # 'word2vec-wiki_%.2fpercent-rep%d' % (percent, i),
                                       composer_algos,
                                       output_dir=composed_output_dir)
 
