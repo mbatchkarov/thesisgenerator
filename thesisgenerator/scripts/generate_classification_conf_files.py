@@ -260,10 +260,8 @@ if __name__ == '__main__':
         :return:
         """
         lab = getattr(item[1], 'labelled')
-        if 'amazon' in lab:
+        if 'amazon' in lab or 'aclImdb' in lab:
             return chr(1), item[0]
-        if 'aclImdb' in lab:
-            return chr(2), item[0]
         return 'whatever', item[0]
 
     # assign ID's starting from 500 to all fast experiments
