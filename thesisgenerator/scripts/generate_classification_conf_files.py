@@ -216,6 +216,19 @@ def different_neighbour_strategies():
         experiments.append(e)
 
 
+@printing_decorator
+def wikipedia_thesauri():
+    unlab = 'wiki'
+    for p in [15, 50]:
+        for _, algo, composer_name, dims in word2vec_vector_settings():
+            e = db.ClassificationExperiment(labelled=am_corpus, vectors=vectors_from_settings(unlab,
+                                                                                              algo,
+                                                                                              composer_name,
+                                                                                              dims,
+                                                                                              percent=p))
+            experiments.append(e)
+
+
 if __name__ == '__main__':
     prefix = '/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data'
     techtc_corpora = sorted(list(os.path.join(*x.split(os.sep)[-2:]) \
@@ -245,6 +258,8 @@ if __name__ == '__main__':
     varying_k_with_w2v_on_r2()
     different_neighbour_strategies()
     random_vectors(am_corpus)
+    # wikipedia experiments on amazon
+    wikipedia_thesauri()
     # maas IMDB sentiment experiments
     baselines(corpora=[maas_corpus])
     random_vectors(maas_corpus)

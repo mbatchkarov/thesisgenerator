@@ -116,10 +116,13 @@ if __name__ == '__main__':
     # some files were created with this format (float percent representation instead of int)
     pattern1 = '{prefix}/word2vec_vectors/composed/AN_NN_word2vec_{percent:.2f}percent-rep{rep}_' \
               '{composer}.events.filtered.strings'
+    # and some files were done on Wikipedia and have a different naming scheme
+    pattern3 = '{prefix}/word2vec_vectors/composed/AN_NN_word2vec-wiki_{percent:.2f}percent-rep{rep}_' \
+              '{composer}.events.filtered.strings'
 
 
 
-    def _do_w2v_vectors():
+    def _do_w2v_vectors(unlabelled='gigaw'):
         global prefix
         for composer_class in [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer, RightmostWordComposer]:
             composer = composer_class.name
@@ -127,9 +130,12 @@ if __name__ == '__main__':
                 thesaurus_file = pattern1.format(**ChainMap(locals(), globals()))
                 if not os.path.exists(thesaurus_file):
                     thesaurus_file = pattern2.format(**ChainMap(locals(), globals()))
+                if unlabelled=='wiki':
+                    thesaurus_file = pattern3.format(**ChainMap(locals(), globals()))
+
                 modified, size, gz_size = get_size(thesaurus_file)
                 v = db.Vectors.create(algorithm='word2vec', dimensionality=100,
-                                      unlabelled='gigaw', path=thesaurus_file, unlabelled_percentage=percent,
+                                      unlabelled=unlabelled, path=thesaurus_file, unlabelled_percentage=percent,
                                       composer=composer, modified=modified, size=size, gz_size=gz_size,
                                       rep=rep)
                 print(v)
@@ -143,3 +149,6 @@ if __name__ == '__main__':
 
     for percent in np.arange(0.01, 0.92, .1):
         _do_w2v_vectors()
+
+    for percent in [15, 50]:
+        _do_w2v_vectors('wiki')
