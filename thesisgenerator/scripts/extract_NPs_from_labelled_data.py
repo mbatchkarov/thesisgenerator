@@ -10,7 +10,7 @@ from thesisgenerator.utils.conf_file_utils import parse_config_file
 import numpy as np
 
 
-def get_all_NPs(path_to_existing='NPs_in_R2_MR_tech_am/r2-mr-technion-am-ANsNNsUnigrams.txt',
+def get_all_NPs(path_to_existing='NPs_in_R2_MR_tech_am_mass/r2-mr-technion-am-mass-ANsNNsUnigrams.txt',
                 include_unigrams=False):
     """
     Finds all noun-noun and adj-noun compounds (and optionally adjs and nouns) in all labelled corpora
@@ -75,10 +75,10 @@ if __name__ == '__main__':
     stanford_unigram_pattern = '(ROOT\n (NP ({} {})))\n\n'
 
     seen_modifiers = set()
-    with open('r2-mr-technion-am-ANs-NNs-julie.txt', 'w') as outf_julie, \
-            open('r2-mr-technion-am-ANs-NNs-socher.txt', 'w') as outf_socher, \
-            open('r2-mr-technion-am-modifiers.txt', 'w') as outf_mods, \
-            open('r2-mr-technion-am-ANsNNsUnigrams.txt', 'w') as outf_plain:
+    with open('r2-mr-technion-am-maas-ANs-NNs-julie.txt', 'w') as outf_julie, \
+            open('r2-mr-technion-am-maas-ANs-NNs-socher.txt', 'w') as outf_socher, \
+            open('r2-mr-technion-am-maas-modifiers.txt', 'w') as outf_mods, \
+            open('r2-mr-technion-am-maas-ANsNNsUnigrams.txt', 'w') as outf_plain:
         all_nps = get_all_NPs(path_to_existing=False, include_unigrams=True)
         for item in all_nps:
             outf_plain.write(item.tokens_as_str())
