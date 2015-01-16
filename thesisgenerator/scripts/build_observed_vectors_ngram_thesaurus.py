@@ -11,6 +11,7 @@ import os
 from discoutils.tokens import DocumentFeature
 from discoutils.thesaurus_loader import Thesaurus, Vectors
 from discoutils.io_utils import write_vectors_to_disk
+from discoutils.misc import is_gzipped
 import thesisgenerator.scripts.build_phrasal_thesauri_offline as offline
 from thesisgenerator.utils.misc import noop
 import numpy as np
@@ -63,7 +64,8 @@ def do_work(corpus, features, svd_dims):
 
     # do the actual writing
     if svd_dims:
-        th = Vectors.from_tsv(observed_ngram_vectors_file, lowercasing=False)
+        th = Vectors.from_tsv(observed_ngram_vectors_file, lowercasing=False,
+                              gzipped=is_gzipped(observed_ngram_vectors_file))
     else:
         # th = Vectors.from_tsv([observed_ngram_vectors_file, observed_unigram_vectors_file])
         # read and merge unigram and n-gram vectors files
