@@ -10,6 +10,7 @@ from glob import glob
 import shutil
 import argparse
 from discoutils.io_utils import write_vectors_to_disk
+from discoutils.misc import is_gzipped
 from discoutils.misc import Bunch
 from discoutils.cmd_utils import (set_stage_in_byblo_conf_file, run_byblo, parse_byblo_conf_file,
                                   reindex_all_byblo_vectors, run_and_log_output,
@@ -384,7 +385,8 @@ def build_full_composed_thesauri_with_baroni_and_svd(corpus, features, stages, u
 
         if 'baroni' in stages:
             # do the actual training
-            thes = Vectors.from_tsv(all_reduced_vectors, lowercasing=False)
+            thes = Vectors.from_tsv(all_reduced_vectors, lowercasing=False,
+                                    gzipped=is_gzipped(all_reduced_vectors))
             thes.to_tsv(baroni_training_heads,
                         entry_filter=lambda x: x.type == '1-GRAM' and x.tokens[0].pos == 'N')
 
