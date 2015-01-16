@@ -69,8 +69,8 @@ def do_work(corpus, features, svd_dims):
     else:
         # th = Vectors.from_tsv([observed_ngram_vectors_file, observed_unigram_vectors_file])
         # read and merge unigram and n-gram vectors files
-        th0 = Vectors.from_tsv(observed_unigram_vectors_file)
-        th1 = Vectors.from_tsv(observed_ngram_vectors_file)
+        th0 = Vectors.from_tsv(observed_unigram_vectors_file, gzipped=is_gzipped(observed_unigram_vectors_file))
+        th1 = Vectors.from_tsv(observed_ngram_vectors_file, gzipped=is_gzipped(observed_ngram_vectors_file))
         data0 = th0._obj
         data0.update(th1._obj)
         th = Vectors(data0)
