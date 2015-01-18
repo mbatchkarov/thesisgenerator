@@ -23,6 +23,7 @@ class ComposerMixin(object):
     def compose_all(self, phrases):
         """
         Composes all `phrases` and returns all unigrams and `phrases` as a matrix. Does NOT store the composed vectors.
+        Unigram vectors must be brought in by extending classes.
         :param phrases: iterable of `str` or `DocumentFeature`
         :return: a tuple of :
             1) `csr_matrix` containing all vectors, unigram and composed
