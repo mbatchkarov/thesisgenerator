@@ -6,6 +6,7 @@ import os
 import itertools
 from operator import attrgetter
 import pandas as pd
+import numpy as np
 from thesisgenerator.utils.db import ClassificationExperiment, FullResults
 
 METRIC_DB = 'macrof1'
@@ -17,8 +18,13 @@ def get_single_vectors_field(exp_id, field_name):
     return getattr(vectors, field_name) if vectors else None
 
 
-def get_vectors_field(exp_ids, field_name, cv_folds=25):
-    x = [[get_single_vectors_field(exp_id, field_name)] * cv_folds for exp_id in exp_ids]
+def get_cv_fold_count(ids):
+    return [FullResults.select().where(FullResults.id == id).count() // 2 for id in ids]
+
+
+def get_vectors_field(exp_ids, field_name):
+    return np.repeat([get_single_vectors_field(exp_id, field_name) for exp_id in exp_ids],
+                     get_cv_fold_count(exp_ids))
     return list(itertools.chain.from_iterable(x))
 
 
@@ -27,6 +33,7 @@ def get_cv_scores_single_experiment(n, classifier):
                                       FullResults.classifier == classifier)
     rows = sorted(rows, key=attrgetter('cv_fold'))
     return [getattr(x, METRIC_CSV_FILE) for x in rows]
+
 
 def get_scores(exp_ids, classifier='MultinomialNB'):
     data = []
