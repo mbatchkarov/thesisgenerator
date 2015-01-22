@@ -17,18 +17,6 @@ from thesisgenerator.composers.vectorstore import (AdditiveComposer, Multiplicat
 
 logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
 
-# inputs
-prefix = '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit'
-conll_data_dir = join(prefix, 'data/gigaword-afe-split-tagged-parsed/gigaword/')
-pos_only_data_dir = join(prefix, 'data/gigaword-afe-split-pos/gigaword/')
-pos_only_data_dir = join(prefix, 'data/gigaword-afe-split-pos/gigaword-small-files/')
-# pos_only_data_dir = join(prefix, 'data/wikipedia-tagged-pos/wikipedia/')
-
-# outputs
-unigram_events_file = join(prefix, 'word2vec_vectors/word2vec-%.2fperc.unigr.strings')
-# unigram_events_file = join(prefix, 'word2vec_vectors/word2vec-wiki-%.2fperc.unigr.strings')
-composed_output_dir = join(prefix, 'word2vec_vectors', 'composed')
-
 # unigram extraction parameters
 MIN_COUNT = 50
 WORKERS = 10
@@ -37,8 +25,29 @@ WORKERS = 10
 composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer, RightmostWordComposer]
 
 
-def compute_and_write_vectors(stages, percent, repeat):
-    # <markdowncell>
+def compute_and_write_vectors(corpus_name, stages, percent, repeat):
+    prefix = '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit'
+    composed_output_dir = join(prefix, 'word2vec_vectors', 'composed')
+
+    if corpus_name == 'gigaw':
+        # inputs
+        conll_data_dir = join(prefix, 'data/gigaword-afe-split-tagged-parsed/gigaword/')
+        # pos_only_data_dir = join(prefix, 'data/gigaword-afe-split-pos/gigaword/')
+        pos_only_data_dir = join(prefix, 'data/gigaword-afe-split-pos/gigaword-small-files/')
+        # outputs
+        # todo some older files use %d formatting here. I should really delete them
+        unigram_events_file = join(prefix, 'word2vec_vectors/word2vec-%.2fperc.unigr.strings')
+    elif corpus_name == 'wiki':
+        conll_data_dir = None # wiki data is already in the right format, no point in reformatting
+        pos_only_data_dir = join(prefix, 'data/wikipedia-tagged-pos/wikipedia/')
+        unigram_events_file = join(prefix, 'word2vec_vectors/word2vec-wiki-%.2fperc.unigr.strings')
+    else:
+        raise ValueError('Unknown corpus %s' % corpus_name)
+
+    unigram_events_file = unigram_events_file % percent # fill in percentage information
+
+    if percent < 100 and repeat > 1:
+        repeat = 1  # only repeat when using the entire corpus
 
     # Data formatting
     # =========
@@ -59,11 +68,6 @@ def compute_and_write_vectors(stages, percent, repeat):
     # ```
     # Anarchism/N is/V a/DET ....
     # ```
-
-    # <codecell>
-    global unigram_events_file
-    unigram_events_file = unigram_events_file % percent
-
     if 'reformat' in stages:
         try:
             os.makedirs(pos_only_data_dir)
@@ -84,8 +88,7 @@ def compute_and_write_vectors(stages, percent, repeat):
                     idx, word, lemma, pos, ner, dep, _ = line.strip().split('\t')
                     outfile.write('%s/%s ' % (lemma.lower(), pos_coarsification_map[pos]))
 
-    if percent < 100 and repeat > 1:
-        repeat = 1  # only repeat when using the entire corpus
+    # -----------------------------------------------------------------------
     for i in range(repeat):
         if 'vectors' in stages:
             # train a word2vec model
@@ -118,7 +121,7 @@ def compute_and_write_vectors(stages, percent, repeat):
                 vectors[word] = zip(dimension_names, model[word])
             vectors = Vectors(vectors)
             vectors.to_tsv(unigram_events_file + '.rep%d' % i, gzipped=True)
-
+        # -----------------------------------------------------------------------
         if 'compose' in stages:
             # if we'll also be composing we don't have to write the unigram vectors to disk
             # just to read them back later.
@@ -133,12 +136,12 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--stages', choices=('reformat', 'vectors', 'compose'),
                         required=True, nargs='+')
+    parser.add_argument('--corpus', choices=('gigaw', 'wiki'), required=True)
     # percent of files to use. SGE makes it easy for this to be 1, 2, ...
     parser.add_argument('--percent', default=100, type=int)
     # multiplier for args.percent. Set to 0.1 to use fractional percentages of corpus
     parser.add_argument('--multiplier', default=1., type=float)
-
     parser.add_argument('--repeat', default=1, type=int)
     args = parser.parse_args()
-    compute_and_write_vectors(args.stages, args.percent * args.multiplier, args.repeat)
+    compute_and_write_vectors(args.corpus, args.stages, args.percent * args.multiplier, args.repeat)
 
