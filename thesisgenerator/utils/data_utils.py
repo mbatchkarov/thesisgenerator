@@ -201,7 +201,7 @@ def gzip_all_thesauri(n_jobs):
     Parallel(n_jobs=n_jobs)(delayed(gzip_single_thesaurus)(conf_file) for conf_file in thesauri.values())
 
 
-def jsonify_single_labelled_corpus(conf_file):
+def jsonify_single_labelled_corpus(corpus):
     """
     Tokenizes an entire XML corpus (sentence segmented and dependency parsed), incl test and train chunk,
     and writes its content to a single JSON gzip-ed file,
@@ -209,16 +209,8 @@ def jsonify_single_labelled_corpus(conf_file):
      the document, and the rest are JSON representation of the dependency parse trees of
      each sentence in the document. The resultant document can be loaded with a GzippedJsonTokenizer.
 
-    :param conf_file: A conf file. If this is specified, the other params will not be used, but
-     will be read from the conf file instead
-    :param tokenizer_conf: a dict to configure the tokenizer
-    :param train_set: path to the training set in XML format
-    :param test_set: test set. If this is present, it will be written to the same file as the training set.
+    :param corpus: path to the corpus
     """
-    conf, _ = parse_config_file(conf_file)
-    train_set = conf['training_data']
-    test_set = conf['test_data']
-    tokenizer_conf = get_tokenizer_settings_from_conf_file(conf_file)
 
     def _token_encode(t):
         if isinstance(t, Token):
@@ -237,35 +229,38 @@ def jsonify_single_labelled_corpus(conf_file):
             outfile.write(bytes('\n', 'UTF8'))
 
     # always load the dataset from XML
-    x_tr, y_tr, x_test, y_test = get_tokenized_data(train_set,
+    tokenizer_conf = get_tokenizer_settings_from_conf_file('conf/exp1-superbase.conf')
+    x_tr, y_tr, x_test, y_test = get_tokenized_data(corpus,
                                                     tokenizer_conf,
-                                                    test_data=test_set, gzip_json=False)
-    with gzip.open('%s.gz' % train_set, 'wb') as outfile:
+                                                    gzip_json=False)
+    with gzip.open('%s.gz' % corpus, 'wb') as outfile:
         _write_corpus_to_json(x_tr, y_tr, outfile)
-        logging.info('Writing %s to gzip json', train_set)
+        logging.info('Writing %s to gzip json', corpus)
         if x_test:
             _write_corpus_to_json(x_test, y_test, outfile)
 
 
 def get_all_corpora():
     """
-    Returns a dict of {corpus_path: conf_file}, where conf file is one of
-    the conf files that uses that corpus
-    :rtype: dict
+    Returns a manually compiled list of all corpora used in experiments
+    :rtype: list
     """
-    all_conf_files = glob('conf/exp*/exp*_base.conf')
-    corpora = dict()
-    for conf_file in all_conf_files:
-        conf, _ = parse_config_file(conf_file)
-        corpus = conf['training_data']
-        corpora[corpus] = conf_file
-    if not corpora:
-        raise ValueError('Could not find any labelled corpora')
-    return corpora
+    return [
+        '/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data/techtc100-clean/Exp_47456_497201-tagged',
+        '/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data/techtc100-clean/Exp_324745_85489-tagged',
+        '/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data/techtc100-clean/Exp_69753_85489-tagged',
+        '/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data/techtc100-clean/Exp_186330_94142-tagged',
+        '/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data/techtc100-clean/Exp_22294_25575-tagged',
+
+        '/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data/reuters21578/r8-tagged-grouped',
+        '/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data/movie-reviews-tagged',
+        '/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data/amazon_grouped-tagged',
+        '/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data/aclImdb-tagged',
+    ]
 
 
 def jsonify_all_labelled_corpora(n_jobs):
     corpora = get_all_corpora()
     logging.info(corpora)
-    Parallel(n_jobs=n_jobs)(delayed(jsonify_single_labelled_corpus)(conf_file) for conf_file in corpora.values())
+    Parallel(n_jobs=n_jobs)(delayed(jsonify_single_labelled_corpus)(corpus) for corpus in corpora)
 

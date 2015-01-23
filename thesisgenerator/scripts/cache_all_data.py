@@ -20,7 +20,7 @@ if __name__ == '__main__':
 
     parameters = parser.parse_args()
     if parameters.jobs:
-        gzip_all_thesauri(parser.parse_args().jobs)
+        # gzip_all_thesauri(parser.parse_args().jobs)
         jsonify_all_labelled_corpora(parser.parse_args().jobs)
     else:
         gzip_single_thesaurus('conf/exp{0}/exp{0}_base.conf'.format(parameters.experiment))
