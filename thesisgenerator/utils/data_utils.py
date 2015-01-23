@@ -22,6 +22,7 @@ from thesisgenerator.plugins.tokenizers import XmlTokenizer, GzippedJsonTokenize
 from thesisgenerator.utils.conf_file_utils import parse_config_file
 from thesisgenerator.utils.misc import force_symlink
 from thesisgenerator.composers.vectorstore import DummyThesaurus
+from thesisgenerator.utils.db import Vectors
 
 
 def tokenize_data(data, tokenizer, corpus_ids):
@@ -169,21 +170,18 @@ def load_and_shelve_thesaurus(path, **kwargs):
     return Delayed(Vectors, Vectors.from_shelf_readonly, filename, **kwargs)
 
 
-def gzip_single_thesaurus(conf_file):
-    conf, _ = parse_config_file(conf_file)
-    th = conf['vector_sources']['neighbours_file']
-
-    if os.path.exists(th):
+def gzip_single_thesaurus(vectors_path):
+    if os.path.exists(vectors_path):
         # need force in case output file exists
-        if is_gzipped(th):
+        if is_gzipped(vectors_path):
             # file is already gzipped, just symlink
-            logging.info('Symlinking %s', th)
-            force_symlink(th, th + '.gz')
+            logging.info('Symlinking %s', vectors_path)
+            force_symlink(vectors_path, vectors_path + '.gz')
         else:
             # don't modify old file
-            run_and_log_output('gzip --force --best -c {0} > {0}.gz'.format(th))
+            run_and_log_output('gzip --force --best -c {0} > {0}.gz'.format(vectors_path))
     else:
-        logging.warning('Thesaurus does not exist: %s', th)
+        logging.warning('Thesaurus does not exist: %s', vectors_path)
 
 
 def gzip_all_thesauri(n_jobs):
@@ -191,14 +189,8 @@ def gzip_all_thesauri(n_jobs):
     Loads, parses and shelves all thesauri used in experiments.
     """
     # make sure thesauri that are used in multiple experiments are only shelved once
-    all_conf_files = glob('conf/exp*/exp*_base.conf')
-    thesauri = dict()
-    for conf_file in all_conf_files:
-        conf, _ = parse_config_file(conf_file)
-        thes_file = conf['vector_sources']['neighbours_file']
-        thesauri[thes_file] = conf_file
-
-    Parallel(n_jobs=n_jobs)(delayed(gzip_single_thesaurus)(conf_file) for conf_file in thesauri.values())
+    vector_paths = set(v.path for v in Vectors.select() if v.path)
+    Parallel(n_jobs=n_jobs)(delayed(gzip_single_thesaurus)(conf_file) for conf_file in vector_paths)
 
 
 def jsonify_single_labelled_corpus(corpus):
