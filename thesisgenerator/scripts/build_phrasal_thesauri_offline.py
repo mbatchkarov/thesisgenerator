@@ -1,4 +1,4 @@
-import os
+import os, sys
 
 sys.path.append('.')
 sys.path.append('..')
@@ -16,7 +16,7 @@ from discoutils.cmd_utils import (set_stage_in_byblo_conf_file, run_byblo, parse
 from discoutils.reduce_dimensionality import do_svd
 from thesisgenerator.scripts import dump_all_composed_vectors as dump
 from thesisgenerator.composers.vectorstore import *
-from thesisgenerator.utils.misc import noop
+from thesisgenerator.utils.misc import noop, force_symlink
 
 
 def calculate_unigram_vectors(thesaurus_dir):
@@ -126,10 +126,13 @@ def do_second_part_without_base_thesaurus(byblo_conf_file, output_dir, vectors_f
     mkdirs_if_not_exists(output_dir)
 
     for f in [vectors_file, entries_file, features_file]:
-        shutil.copy(f, output_dir)  # todo this should be a symlink
+        if os.path.exists(f):
+            force_symlink(vectors_file, os.path.join(output_dir, os.path.basename(f)))
+        else:
+            logging.warning('File does not exists, cant symlink to it:%s', f)
 
     final_conf_file = os.path.join(output_dir, os.path.basename(byblo_conf_file))
-    shutil.copy(byblo_conf_file, output_dir)
+    force_symlink(byblo_conf_file, os.path.join(output_dir, os.path.basename(byblo_conf_file)))
     # restore indices from strings
 
     thes_prefix = os.path.commonprefix(glob(os.path.join(output_dir, '*strings')))[:-1]
@@ -154,7 +157,7 @@ def baronify_files(entries_file, features_file, vectors_file):
     """
     # read the entries
     # todo hardcoded file
-    baroni_entries_file = '/mnt/lustre/scratch/inf/mmb28/FeatureExtractionToolkit/exp10-12-composed-ngrams-MR-R2-tech' \
+    baroni_entries_file = '/mnt/lustre/scratch/inf/mmb28/FeatureExtractionToolkit/exp10-12-composed-ngrams' \
                           '/AN_NN_gigaw-100_Baroni.entries.filtered.strings'
     logging.info('Filtering out entries not in %s', baroni_entries_file)
     with open(baroni_entries_file) as infile:
@@ -220,7 +223,7 @@ def build_unreduced_AN_NN_thesauri(corpus, corpus_name, features,
                                                          'exp%d-%db' % (corpus, features)))  # input 1
 
     ngram_vectors_dir = os.path.join(byblo_base_dir, '..',
-                                     'exp%d-%d-composed-ngrams-MR-R2-tech' % (corpus, features))  # output 1
+                                     'exp%d-%d-composed-ngrams' % (corpus, features))  # output 1
     # output 2 is a set of directories <output1>*
 
     apdt_composed_vectors = os.path.join(byblo_base_dir, '..', 'apdt_vectors',
@@ -229,7 +232,7 @@ def build_unreduced_AN_NN_thesauri(corpus, corpus_name, features,
     if external_embeddings:
         external_events_file = os.path.join(byblo_base_dir, '..',
                                             '%s_vectors' % external_embeddings,
-                                            'thesaurus',
+                                            'composed',
                                             '%s.events.filtered.strings' % external_embeddings)
         byblo_conf_external_embeddings = os.path.join(byblo_base_dir, '..',
                                                       '%s_vectors' % external_embeddings,
@@ -302,7 +305,8 @@ def build_unreduced_AN_NN_thesauri(corpus, corpus_name, features,
 
         mkdirs_if_not_exists(unigram_thesaurus_dir)
         if external_embeddings:
-            shutil.copy(byblo_conf_external_embeddings, unigram_thesaurus_dir)
+            force_symlink(byblo_conf_external_embeddings,
+                          os.path.join(unigram_thesaurus_dir,  os.path.basename(byblo_conf_external_embeddings)))
         build_thesauri_out_of_composed_vectors(composer_algos, corpus_name, ngram_vectors_dir,
                                                unigram_thesaurus_dir, False)  # can't baronify non-reduced thesauri
     else:
@@ -324,7 +328,7 @@ def build_full_composed_thesauri_with_baroni_and_svd(corpus, features, stages, u
                                          'exp%d-%d_AN_NNvectors-cleaned' % (corpus, features))
 
     ngram_vectors_dir = os.path.join(byblo_base_dir, '..',
-                                     'exp%d-%d-composed-ngrams-MR-R2-tech' % (corpus, features))  # output 1
+                                     'exp%d-%d-composed-ngrams' % (corpus, features))  # output 1
     composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
                       RightmostWordComposer, BaroniComposer]
 
@@ -437,8 +441,7 @@ def build_full_composed_thesauri_with_baroni_and_svd(corpus, features, stages, u
                                                                                                                 x))
                     if not os.path.exists(actual_file):
                         raise ValueError('File %s not found' % actual_file)
-                    if not os.path.exists(expected_vectors_file):
-                        os.symlink(actual_file, expected_vectors_file)
+                    force_symlink(actual_file, expected_vectors_file)
 
             build_thesauri_out_of_composed_vectors(composer_algos, tmp_dataset_name,
                                                    ngram_vectors_dir, unigram_thesaurus_dir, baronify)
@@ -490,29 +493,26 @@ def get_cmd_parser():
 
 
 if __name__ == '__main__':
-    import sys
-
     logging.basicConfig(level=logging.INFO,
                         format="%(asctime)s\t%(module)s.%(funcName)s (line %(lineno)d)\t%(levelname)s : %(message)s")
-
     parameters = get_cmd_parser().parse_args()
     logging.info(parameters)
+
     if parameters.features != 'dependencies' and parameters.use_apdt:
         raise ValueError('APDT only works with dependency features!')
-
     corpus_name = parameters.corpus[:5]  # human-readable corpus name
     # here 'neuro' stands for Socher(2011) for historical reasons
     corpus = {'gigaword': 10, 'wikipedia': 11, 'neuro': 12, 'word2vec': 13}
     features = {'dependencies': 12, 'windows': 13, 'neuro': 14, 'word2vec': 15}
-
     if 'thesauri' not in parameters.stages and 'symlink' in parameters.stages:
         logging.warning('You requested SYMLINK stage without THESAURI stage. This is implemented by running '
                         'thesaurus-stage after monkey-patching the functions that do the heavy work')
         # this is needed as the symlinking code is too heavily intertwined into the thesaurus-running code
         run_byblo = noop
         reindex_all_byblo_vectors = noop
+        set_output_in_byblo_conf_file = noop
+        set_stage_in_byblo_conf_file = noop
         parameters.stages.append('thesauri')
-
     if parameters.use_svd:
         logging.info('Starting pipeline with SVD and Baroni composer')
         build_full_composed_thesauri_with_baroni_and_svd(corpus[parameters.corpus], features[parameters.features],
@@ -521,3 +521,4 @@ if __name__ == '__main__':
         logging.info('Starting pipeline without SVD')
         build_unreduced_AN_NN_thesauri(corpus[parameters.corpus], corpus_name, features[parameters.features],
                                        parameters.stages, parameters.use_apdt, parameters.external_embeddings)
+

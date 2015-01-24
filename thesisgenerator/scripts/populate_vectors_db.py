@@ -80,7 +80,7 @@ if __name__ == '__main__':
                     print(v)
 
     # Socher (2011)'s paraphrase model
-    path = os.path.join(prefix, 'socher_vectors/thesaurus/socher.events.filtered.strings')
+    path = os.path.join(prefix, 'socher_vectors/composed/socher.events.filtered.strings')
     modified, size, gz_size = get_size(path)
     db.Vectors.create(algorithm='turian', an_build=False, dimensionality=100,
                       unlabelled='turian', path=path, composer='Socher',
