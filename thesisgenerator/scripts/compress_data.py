@@ -29,8 +29,8 @@ if __name__ == '__main__':
 
     group.add_argument('--id', type=int,
                        help='If labelled data, compress just the labelled corpus at this position '
-                            'in the predefined list. Otherwise compress just '
-                            'this thesaurus id in the database')
+                            'in the predefined list. If unlabelled compress just '
+                            'this thesaurus id in the database (must have been populated)')
 
     parameters = parser.parse_args()
     if parameters.data == 'labelled':
