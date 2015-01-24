@@ -7,7 +7,7 @@ from itertools import chain
 sys.path.append('.')
 sys.path.append('..')
 sys.path.append('../..')
-from discoutils.misc import Bunch
+from discoutils.misc import Bunch, mkdirs_if_not_exists
 from thesisgenerator.composers.vectorstore import *
 from thesisgenerator.utils.conf_file_utils import parse_config_file
 from thesisgenerator.utils import db
@@ -315,8 +315,7 @@ if __name__ == '__main__':
             print('Writing exp %d' % exp.id)
         # sanity check
         experiment_dir = 'conf/exp%d' % exp.id
-        if not os.path.exists(experiment_dir):
-            os.mkdir(experiment_dir)
+        mkdirs_if_not_exists(experiment_dir)
 
         base_conf_file = os.path.join(experiment_dir, 'exp%d_base.conf' % exp.id)
         conf, _ = parse_config_file(megasuperbase_conf_file)

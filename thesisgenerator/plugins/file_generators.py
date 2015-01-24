@@ -3,6 +3,7 @@ import itertools
 import os
 import shutil
 import logging
+from discoutils.misc import mkdirs_if_not_exists
 from thesisgenerator.utils.conf_file_utils import set_in_conf_file, parse_config_file
 
 __author__ = 'mmb28'
@@ -126,8 +127,7 @@ def _prepare_conf_files(base_conf_file, exp_id, run_id):
     """
     name, ext = os.path.splitext(base_conf_file)
     name = '%s-variants' % name
-    if not os.path.exists(name):
-        os.mkdir(name)
+    mkdirs_if_not_exists(name)
     new_conf_file = os.path.join(name, 'exp%d-%d%s' % (exp_id, run_id, ext))
     log_file = os.path.join(name, '..', 'logs')
     shutil.copy(base_conf_file, new_conf_file)

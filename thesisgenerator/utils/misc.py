@@ -128,12 +128,16 @@ def update_dict_according_to_mask(v, mask):
     return {feature: new_indices[index] for feature, index in v.items()}
 
 
-def force_symlink(src, dest):
+def force_symlink(existing_file, link_name):
+    """
+    Created a symlink. If `link_name` exists it is deleted first. Take care!
+    :raise e:
+    """
     try:
-        os.symlink(src, dest)
+        os.symlink(existing_file, link_name)
     except OSError as e:
         if e.errno == errno.EEXIST:
-            os.remove(dest)
-            os.symlink(src, dest)
+            os.remove(link_name)
+            os.symlink(existing_file, link_name)
         else:
             raise e

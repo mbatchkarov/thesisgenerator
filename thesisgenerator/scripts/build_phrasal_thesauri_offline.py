@@ -1,6 +1,4 @@
-import logging
 import os
-import sys
 
 sys.path.append('.')
 sys.path.append('..')
@@ -10,7 +8,7 @@ from glob import glob
 import shutil
 import argparse
 from discoutils.io_utils import write_vectors_to_disk
-from discoutils.misc import is_gzipped
+from discoutils.misc import is_gzipped, mkdirs_if_not_exists
 from discoutils.misc import Bunch
 from discoutils.cmd_utils import (set_stage_in_byblo_conf_file, run_byblo, parse_byblo_conf_file,
                                   reindex_all_byblo_vectors, run_and_log_output,
@@ -19,7 +17,6 @@ from discoutils.reduce_dimensionality import do_svd
 from thesisgenerator.scripts import dump_all_composed_vectors as dump
 from thesisgenerator.composers.vectorstore import *
 from thesisgenerator.utils.misc import noop
-from thesisgenerator.utils.data_utils import get_all_corpora
 
 
 def calculate_unigram_vectors(thesaurus_dir):
@@ -126,8 +123,7 @@ def do_second_part_without_base_thesaurus(byblo_conf_file, output_dir, vectors_f
     :param entries_file:
     :param features_file:
     '''
-    if not os.path.exists(output_dir):
-        os.mkdir(output_dir)
+    mkdirs_if_not_exists(output_dir)
 
     for f in [vectors_file, entries_file, features_file]:
         shutil.copy(f, output_dir)  # todo this should be a symlink
@@ -242,8 +238,7 @@ def build_unreduced_AN_NN_thesauri(corpus, corpus_name, features,
     composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
                       RightmostWordComposer]  # observed done through a separate script
 
-    if not os.path.exists(ngram_vectors_dir):
-        os.mkdir(ngram_vectors_dir)
+    mkdirs_if_not_exists(ngram_vectors_dir)
 
     # EXTRACT UNIGRAM VECTORS WITH BYBLO
     if 'unigrams' in stages and (not external_embeddings):
@@ -305,8 +300,8 @@ def build_unreduced_AN_NN_thesauri(corpus, corpus_name, features,
                 os.remove(target_events_file)
             os.symlink(apdt_composed_vectors, target_events_file)
 
-        if external_embeddings and (not os.path.exists(unigram_thesaurus_dir)):
-            os.mkdir(unigram_thesaurus_dir)
+        mkdirs_if_not_exists(unigram_thesaurus_dir)
+        if external_embeddings:
             shutil.copy(byblo_conf_external_embeddings, unigram_thesaurus_dir)
         build_thesauri_out_of_composed_vectors(composer_algos, corpus_name, ngram_vectors_dir,
                                                unigram_thesaurus_dir, False)  # can't baronify non-reduced thesauri
@@ -337,8 +332,7 @@ def build_full_composed_thesauri_with_baroni_and_svd(corpus, features, stages, u
     dataset_name = 'gigaw' if corpus == 10 else 'wiki'  # short name of input corpus
     baroni_training_phrase_types = {'AN', 'NN'}  # what kind of NPs to train Baroni composer for
 
-    if not os.path.exists(ngram_vectors_dir):
-        os.mkdir(ngram_vectors_dir)
+    mkdirs_if_not_exists(ngram_vectors_dir)
 
     # EXTRACT UNIGRAM VECTORS WITH BYBLO
     if 'unigrams' in stages:
