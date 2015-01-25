@@ -26,16 +26,9 @@ def do_work(corpus, features, svd_dims):
     # where are the observed n-gram vectors in tsv format, must be underscore-separated already
     name = 'wiki' if corpus == 11 else 'gigaw'
 
-
-    # where's the byblo conf file
-    unigram_thesaurus_dir = '%s/exp%d-%db' % (prefix, corpus, features)
-    # where's the byblo executable
-    byblo_base_dir = '%s/Byblo-2.2.0/' % prefix
-
     if svd_dims == 0:
         observed_ngram_vectors_file = '%s/observed_vectors/exp%d-%d_AN_NNvectors-cleaned' % (prefix, corpus, features)
-        unigram_thesaurus_dir = os.path.abspath(os.path.join(byblo_base_dir, '..',
-                                                             'exp%d-%db' % (corpus, features)))
+        unigram_thesaurus_dir = os.path.join(prefix, 'exp%d-%db' % (corpus, features))
         observed_unigram_vectors_file = offline._find_events_file(unigram_thesaurus_dir)
     else:
         # contain SVD-reduced N,J and NP observed vectors
@@ -81,11 +74,6 @@ def do_work(corpus, features, svd_dims):
 
     logging.info(vectors_file)
     logging.info(entries_file)
-
-    # BUILD A THESAURUS FROM THESE FILES
-    os.chdir(byblo_base_dir)
-    offline.do_second_part_without_base_thesaurus(offline._find_conf_file(unigram_thesaurus_dir), outdir,
-                                                  vectors_file, entries_file, features_file)
 
 
 def get_cmd_parser():

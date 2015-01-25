@@ -9,6 +9,9 @@ from discoutils.tokens import DocumentFeature
 from discoutils.io_utils import write_vectors_to_disk
 from discoutils.cmd_utils import run_and_log_output
 from discoutils.misc import temp_chdir, mkdirs_if_not_exists, Bunch
+from thesisgenerator.composers.vectorstore import (MultiplicativeComposer, AdditiveComposer,
+                                                   RightmostWordComposer, LeftmostWordComposer)
+from thesisgenerator.scripts.dump_all_composed_vectors import compose_and_write_vectors
 from thesisgenerator.utils.misc import force_symlink
 
 # SET UP A FEW REQUIRED PATHS
@@ -28,6 +31,10 @@ socher_input_file = os.path.join(socher_base_dir, 'parsed.txt')
 socher_output_phrases_file = os.path.join(socher_base_dir, 'phrases.txt')
 socher_output_vectors_file = os.path.join(socher_base_dir, 'outVectors.txt')
 
+# output of reformat stage
+output_dir = os.path.join(socher_base_dir, 'composed')
+vectors_file = os.path.join(output_dir, 'socher.events.filtered.strings')
+
 
 def run_socher_code():
     # symlink the file Socher's code expects to where the list of phrases I'm interested is
@@ -45,9 +52,6 @@ def reformat_socher_vectors():
     be composed with Socher's matlab code. See note "Socher vectors" in Evernote.
 
     """
-    output_dir = os.path.join(socher_base_dir, 'composed')
-    mkdirs_if_not_exists(output_dir)
-
     logging.info('Using phrases events file %s', socher_output_vectors_file)
 
     an_regex = re.compile("\(NP \(JJ (\S+)\) \(NN (\S+)\)\)\)")
@@ -98,7 +102,7 @@ def reformat_socher_vectors():
     assert len(composed_phrases) == mat.shape[0]  # same number of rows
 
     # CREATE BYBLO EVENTS/FEATURES/ENTRIES FILE FROM INPUT
-    vectors_file = os.path.join(output_dir, 'socher.events.filtered.strings')
+    mkdirs_if_not_exists(output_dir)
 
     # do the actual writing
     write_vectors_to_disk(
@@ -107,6 +111,8 @@ def reformat_socher_vectors():
         ['RAE-feat%d' % i for i in range(100)],  # Socher provides 100-dimensional vectors
         vectors_file,
         gzipped=True)
+
+    return vectors_file
 
 
 if __name__ == '__main__':
@@ -128,14 +134,12 @@ if __name__ == '__main__':
     if 'format' in args.stages:
         reformat_socher_vectors()
     if 'simple-compose' in args.stages:
-        args = Bunch(corpus='neuro', features='neuro',
-                     stages=['compose', 'symlink'],
-                     external_embeddings='socher',
-                     use_apdt=False,
-                     use_svd=False,
-        )
-        # some real hacky monkey-patching is done at the module level in the script below
-        # easiest thing to do it just fork it
-        run_and_log_output('python thesisgenerator/scripts/build_phrasal_thesauri_offline.py '
-                           '--corpus neuro --features neuro --stages compose symlink --external-embeddings socher')
-        # out file:FeatureExtrationToolkit/exp12-14-composed-ngrams/AN_NN_neuro_Right.events.filtered.strings
+        composers = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
+                     RightmostWordComposer]
+        # todo writing file there is messy but needs to be this way for backwards compat
+        ngram_vectors_dir = os.path.join(prefix,
+                                         'exp12-14-composed-ngrams')
+        compose_and_write_vectors(vectors_file,
+                                  'turian',  # todo this param is useless
+                                  composers,
+                                  output_dir=ngram_vectors_dir)

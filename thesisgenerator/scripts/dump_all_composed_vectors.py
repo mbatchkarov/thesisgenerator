@@ -29,9 +29,8 @@ def compose_and_write_vectors(unigram_vectors, short_vector_dataset_name,
     """
 
     phrases_to_compose = get_all_NPs()
-    if isinstance(unigram_vectors, Vectors):
-        unigram_vectors = unigram_vectors
-    else:
+    # if this isn't a Vectors object assume it's the name of a file containing vectors and load them
+    if not isinstance(unigram_vectors, Vectors):
         # ensure there's only unigrams in the set of unigram vectors
         # composers do not need any ngram vectors contain in this file, they may well be
         # observed ones
