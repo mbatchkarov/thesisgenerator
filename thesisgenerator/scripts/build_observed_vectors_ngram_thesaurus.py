@@ -3,6 +3,7 @@ import logging
 import re
 import sys
 from discoutils.reduce_dimensionality import filter_out_infrequent_entries
+from thesisgenerator.utils.misc import force_symlink
 
 sys.path.append('.')
 sys.path.append('..')
@@ -11,51 +12,33 @@ import os
 from discoutils.thesaurus_loader import Vectors
 from discoutils.io_utils import write_vectors_to_disk
 from discoutils.misc import is_gzipped
-import thesisgenerator.scripts.build_phrasal_thesauri_offline as offline
-from thesisgenerator.utils.misc import noop
+
 
 '''
-Build a thesaurus of ngrams using observed vectors for the engrams
+If using SVD, symlink the reduced vectors for all unigrams and NPs (done by build_phrasal_..
+as as part of training Baroni) to the right location.
+Otherwise add unigram vectors (must exists) to ngram observed vectors (must exist)
+and write to a single file in e.g. exp10-13-composed-vectors
 '''
 
 
 def do_work(corpus, features, svd_dims):
-    # SET UP A FEW REQUIRED PATHS
-
     prefix = '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit'
-    # where are the observed n-gram vectors in tsv format, must be underscore-separated already
     name = 'wiki' if corpus == 11 else 'gigaw'
 
+    # where should output be written
+    svd_appendage = '' if svd_dims == 0 else '-%d' % svd_dims
+    output_file = os.path.join(prefix,
+                               'exp%d-%d-composed-ngrams' % (corpus, features),
+                               'AN_NN_%s%s_Observed.events.filtered.strings' % (name, svd_appendage))
+
     if svd_dims == 0:
-        observed_ngram_vectors_file = '%s/observed_vectors/exp%d-%d_AN_NNvectors-cleaned' % (prefix, corpus, features)
-        unigram_thesaurus_dir = os.path.join(prefix, 'exp%d-%db' % (corpus, features))
-        observed_unigram_vectors_file = offline._find_events_file(unigram_thesaurus_dir)
-    else:
-        # contain SVD-reduced N,J and NP observed vectors
-        observed_ngram_vectors_file = '%s/exp%d-%db/exp%d-with-obs-phrases-SVD%d.events.filtered.strings' % \
-                                      (prefix, corpus, features, corpus, svd_dims)
+        observed_ngram_vectors_file = '%s/observed_vectors/%s_NPs_wins_observed' % (prefix, name)
+        observed_unigram_vectors_file = os.path.join(prefix, 'exp%d-%db' % (corpus, features),
+                                                     'exp%d.events.filtered.strings' % corpus)
+        logging.info('Mergin unigram events file %s and NP events file %s',
+                     observed_unigram_vectors_file, observed_ngram_vectors_file)
 
-    logging.info('Using observed events file %s ', observed_ngram_vectors_file)
-    # where should the output go
-    if svd_dims == 0:
-        outdir = '%s/exp%d-%dbAN_NN_%s_Observed' % (prefix, corpus, features, name)
-    else:
-        outdir = '%s/exp%d-%dbAN_NN_%s-%d_Observed' % (prefix, corpus, features, name, svd_dims)
-
-    # CREATE BYBLO EVENTS/FEATURES/ENTRIES FILE FROM INPUT
-    # where should these be written
-    svd_appendage = '' if svd_dims == 0 else '-SVD%d' % svd_dims
-    observed_vector_dir = os.path.dirname(observed_ngram_vectors_file)
-    vectors_file = os.path.join(observed_vector_dir, 'exp%d%s.events.filtered.strings' % (corpus, svd_appendage))
-    entries_file = os.path.join(observed_vector_dir, 'exp%d%s.entries.filtered.strings' % (corpus, svd_appendage))
-    features_file = os.path.join(observed_vector_dir, 'exp%d%s.features.filtered.strings' % (corpus, svd_appendage))
-
-    # do the actual writing
-    if svd_dims:
-        th = Vectors.from_tsv(observed_ngram_vectors_file, lowercasing=False,
-                              gzipped=is_gzipped(observed_ngram_vectors_file))
-    else:
-        # th = Vectors.from_tsv([observed_ngram_vectors_file, observed_unigram_vectors_file])
         # read and merge unigram and n-gram vectors files
         th0 = Vectors.from_tsv(observed_unigram_vectors_file, gzipped=is_gzipped(observed_unigram_vectors_file))
         th1 = Vectors.from_tsv(observed_ngram_vectors_file, gzipped=is_gzipped(observed_ngram_vectors_file))
@@ -64,16 +47,15 @@ def do_work(corpus, features, svd_dims):
         th = Vectors(data0)
         del th0, th1
 
-    desired_counts_per_feature_type = [('N', 20000), ('V', 0), ('J', 10000), ('RB', 0), ('AN', 1e10), ('NN', 1e10)]
-    mat, pos_tags, rows, cols = filter_out_infrequent_entries(desired_counts_per_feature_type, th)
-    # mat, cols, rows = th.to_sparse_matrix() # if there are only NPs do this
-    # rows = [DocumentFeature.from_string(x) for x in rows]
-    write_vectors_to_disk(mat.tocoo(), rows, cols, vectors_file, features_file, entries_file,
-                          entry_filter=lambda feature: feature.type in {'AN', 'NN', '1-GRAM'},
-                          gzipped=True)
+        write_vectors_to_disk(th.matrix.tocoo(), th.row_names, th.columns, output_file,
+                              # entry_filter=lambda feature: feature.type in {'AN', 'NN', '1-GRAM'},
+                              gzipped=True)
+    else:
+        # contains SVD-reduced N,J and NP observed vectors, built by other script
+        vectors_file = '%s/exp%d-%db/exp%d-with-obs-phrases-SVD%d.events.filtered.strings' % \
+                                      (prefix, corpus, features, corpus, svd_dims)
+        force_symlink(vectors_file, output_file)
 
-    logging.info(vectors_file)
-    logging.info(entries_file)
 
 
 def get_cmd_parser():
@@ -94,9 +76,6 @@ if __name__ == '__main__':
 
     parameters = get_cmd_parser().parse_args()
     logging.info(parameters)
-
-    offline.run_byblo = noop
-    offline.reindex_all_byblo_vectors = noop
 
     corpus = 10 if parameters.corpus == 'gigaword' else 11
     features = 12 if parameters.features == 'dependencies' else 13

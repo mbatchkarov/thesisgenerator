@@ -14,9 +14,10 @@ from discoutils.reduce_dimensionality import do_svd
 from discoutils.misc import temp_chdir
 from thesisgenerator.scripts import dump_all_composed_vectors as dump
 from thesisgenerator.composers.vectorstore import *
-from thesisgenerator.utils.misc import noop
 
-
+"""
+Composed wiki/gigaw dependency/window vectors and writes them to FeatureExtrationToolkit/exp10-13-composed-ngrams
+"""
 prefix = '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/'
 byblo_base_dir = os.path.join(prefix, 'Byblo-2.2.0')
 
@@ -56,7 +57,6 @@ def _find_output_prefix(thesaurus_dir):
         [x for x in glob(os.path.join(thesaurus_dir, '*filtered*')) if 'svd' not in x.lower()])[:-1]
 
 
-# todo there's a symlink here that I've removed, to unigram_thesaurus_dir
 def build_unreduced_counting_thesauri(corpus, corpus_name, features,
                                       stages):
     """
@@ -103,16 +103,16 @@ def build_full_composed_thesauri_with_baroni_and_svd(corpus, features, stages):
     unigram_thesaurus_dir = os.path.join(prefix, 'exp%d-%db' % (corpus, features))
 
     # INPUT 2: A FILE, TSV, underscore-separated observed vectors for ANs and NNs
+    target_dimensionality = [100]
+    dataset_name = 'gigaw' if corpus == 10 else 'wiki'  # short name of input corpus
+    features_name = 'wins' if features == 13 else 'deps'  # short name of input corpus
+    baroni_training_phrase_types = {'AN', 'NN'}  # what kind of NPs to train Baroni composer for
     baroni_training_phrases = os.path.join(prefix, 'observed_vectors',
-                                           'exp%d-%d_AN_NNvectors-cleaned' % (corpus, features))
+                                           '%s_NPs_%s_observed' % (dataset_name, features_name))
     ngram_vectors_dir = os.path.join(prefix,
                                      'exp%d-%d-composed-ngrams' % (corpus, features))  # output 1
     composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
                       RightmostWordComposer, BaroniComposer]
-
-    target_dimensionality = [100]
-    dataset_name = 'gigaw' if corpus == 10 else 'wiki'  # short name of input corpus
-    baroni_training_phrase_types = {'AN', 'NN'}  # what kind of NPs to train Baroni composer for
 
     mkdirs_if_not_exists(ngram_vectors_dir)
 
@@ -129,9 +129,10 @@ def build_full_composed_thesauri_with_baroni_and_svd(corpus, features, stages):
     # together and put the output into the same file
     unreduced_unigram_events_file = _find_events_file(unigram_thesaurus_dir)
     # ...exp6-12/exp6.events.filtered.strings --> ...exp6-12/exp6
-    reduced_file_prefix = '.'.join(unreduced_unigram_events_file.split('.')[:-3]) + '-with-obs-phrases'
+    reduced_file_prefix = os.path.join(unigram_thesaurus_dir,
+                                       'exp%d-with-obs-phrases' % corpus)
     # only keep the most frequent types per PoS tag to speed things up
-    counts = [('N', 20000), ('V', 0), ('J', 10000), ('RB', 00), ('AN', 0), ('NN', 0)]
+    counts = [('N', 20000), ('V', 0), ('J', 10000), ('RB', 0), ('AN', 0), ('NN', 0)]
     if 'svd' in stages:
         do_svd(unreduced_unigram_events_file, reduced_file_prefix,
                desired_counts_per_feature_type=counts, reduce_to=target_dimensionality,
@@ -208,11 +209,7 @@ def get_cmd_parser():
                              '1) unigrams: extract unigram vectors from unlabelled corpus '
                              '2) svd: reduce noun and adj matrix, apply to NP matrix '
                              '3) baroni: train Baroni composer '
-                             '4) compose: compose all possible NP vectors with all composers '
-                        # todo symlink needs to be re-implemented simply
-                        # '5) symlink: link composed files to where thesauri stage assumes they are. This runs '
-                        # 'automatically as a part of the thesauri stage, but can also be run separately.'
-    )
+                             '4) compose: compose all possible NP vectors with all composers ')
     parser.add_argument('--use-svd', action='store_true',
                         help='If set, SVD will be performed and a Baroni composer will be trained. Otherwise the'
                              'svd part of the pipeline is skipped.')
@@ -228,15 +225,6 @@ if __name__ == '__main__':
     corpus_name = parameters.corpus[:5]  # human-readable corpus name
     corpus = {'gigaword': 10, 'wikipedia': 11}
     features = {'dependencies': 12, 'windows': 13}
-    # if 'thesauri' not in parameters.stages and 'symlink' in parameters.stages:
-    # logging.warning('You requested SYMLINK stage without THESAURI stage. This is implemented by running '
-    # 'thesaurus-stage after monkey-patching the functions that do the heavy work')
-    #     # this is needed as the symlinking code is too heavily intertwined into the thesaurus-running code
-    #     run_byblo = noop
-    #     reindex_all_byblo_vectors = noop
-    #     set_output_in_byblo_conf_file = noop
-    #     set_stage_in_byblo_conf_file = noop
-    #     parameters.stages.append('thesauri')
     if parameters.use_svd:
         logging.info('Starting pipeline with SVD and Baroni composer')
         build_full_composed_thesauri_with_baroni_and_svd(corpus[parameters.corpus], features[parameters.features],
