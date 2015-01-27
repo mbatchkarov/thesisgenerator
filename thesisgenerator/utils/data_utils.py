@@ -193,7 +193,7 @@ def gzip_all_thesauri(n_jobs):
     Parallel(n_jobs=n_jobs)(delayed(gzip_single_thesaurus)(conf_file) for conf_file in vector_paths)
 
 
-def jsonify_single_labelled_corpus(corpus):
+def jsonify_single_labelled_corpus(corpus_path):
     """
     Tokenizes an entire XML corpus (sentence segmented and dependency parsed), incl test and train chunk,
     and writes its content to a single JSON gzip-ed file,
@@ -201,7 +201,7 @@ def jsonify_single_labelled_corpus(corpus):
      the document, and the rest are JSON representation of the dependency parse trees of
      each sentence in the document. The resultant document can be loaded with a GzippedJsonTokenizer.
 
-    :param corpus: path to the corpus
+    :param corpus_path: path to the corpus
     """
 
     def _token_encode(t):
@@ -222,12 +222,12 @@ def jsonify_single_labelled_corpus(corpus):
 
     # always load the dataset from XML
     tokenizer_conf = get_tokenizer_settings_from_conf_file('conf/exp1-superbase.conf')
-    x_tr, y_tr, x_test, y_test = get_tokenized_data(corpus,
+    x_tr, y_tr, x_test, y_test = get_tokenized_data(corpus_path,
                                                     tokenizer_conf,
                                                     gzip_json=False)
-    with gzip.open('%s.gz' % corpus, 'wb') as outfile:
+    with gzip.open('%s.gz' % corpus_path, 'wb') as outfile:
         _write_corpus_to_json(x_tr, y_tr, outfile)
-        logging.info('Writing %s to gzip json', corpus)
+        logging.info('Writing %s to gzip json', corpus_path)
         if x_test:
             _write_corpus_to_json(x_test, y_test, outfile)
 
