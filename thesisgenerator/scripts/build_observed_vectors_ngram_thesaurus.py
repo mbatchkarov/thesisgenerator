@@ -1,17 +1,14 @@
 import argparse
 import logging
-import re
 import sys
-from discoutils.reduce_dimensionality import filter_out_infrequent_entries
-from thesisgenerator.utils.misc import force_symlink
+import os
 
 sys.path.append('.')
 sys.path.append('..')
 sys.path.append('../..')
-import os
-from discoutils.thesaurus_loader import Vectors
-from discoutils.io_utils import write_vectors_to_disk
-from discoutils.misc import is_gzipped
+
+from discoutils.cmd_utils import run_and_log_output
+from thesisgenerator.utils.misc import force_symlink
 
 
 '''
@@ -40,16 +37,8 @@ def do_work(corpus, features, svd_dims):
                      observed_unigram_vectors_file, observed_ngram_vectors_file)
 
         # read and merge unigram and n-gram vectors files
-        th0 = Vectors.from_tsv(observed_unigram_vectors_file, gzipped=is_gzipped(observed_unigram_vectors_file))
-        th1 = Vectors.from_tsv(observed_ngram_vectors_file, gzipped=is_gzipped(observed_ngram_vectors_file))
-        data0 = th0._obj
-        data0.update(th1._obj)
-        th = Vectors(data0)
-        del th0, th1
+        run_and_log_output('cat {} {} > {}', observed_unigram_vectors_file, observed_ngram_vectors_file, output_file)
 
-        write_vectors_to_disk(th.matrix.tocoo(), th.row_names, th.columns, output_file,
-                              # entry_filter=lambda feature: feature.type in {'AN', 'NN', '1-GRAM'},
-                              gzipped=True)
     else:
         # contains SVD-reduced N,J and NP observed vectors, built by other script
         vectors_file = '%s/exp%d-%db/exp%d-with-obs-phrases-SVD%d.events.filtered.strings' % \
