@@ -67,6 +67,8 @@ if __name__ == '__main__':
     logging.info(parameters)
 
     corpus = 10 if parameters.corpus == 'gigaword' else 11
-    features = 12 if parameters.features == 'dependencies' else 13
+    if parameters.features == 'dependencies':
+        raise ValueError('Observed dependency vectors for NPs do not exist')
+    features = 13
     for dims in parameters.svd:
         do_work(corpus, features, dims)
