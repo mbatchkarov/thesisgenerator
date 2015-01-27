@@ -114,8 +114,13 @@ def build_full_composed_thesauri_with_baroni_and_svd(corpus, features, stages):
                                            '%s_NPs_%s_observed' % (dataset_name, features_name))
     ngram_vectors_dir = os.path.join(prefix,
                                      'exp%d-%d-composed-ngrams' % (corpus, features))  # output 1
-    composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
-                      RightmostWordComposer, BaroniComposer]
+    if features_name == 'wins':
+        composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
+                          RightmostWordComposer, BaroniComposer]
+    else:
+        # can't train Baroni on deps because I don't have observed vectors for phrases
+        composer_algos = [AdditiveComposer, MultiplicativeComposer,
+                          LeftmostWordComposer, RightmostWordComposer]
 
     mkdirs_if_not_exists(ngram_vectors_dir)
 
@@ -137,9 +142,18 @@ def build_full_composed_thesauri_with_baroni_and_svd(corpus, features, stages):
     # only keep the most frequent types per PoS tag to speed things up
     counts = [('N', 20000), ('V', 0), ('J', 10000), ('RB', 0), ('AN', 0), ('NN', 0)]
     if 'svd' in stages:
-        do_svd(unreduced_unigram_events_file, reduced_file_prefix,
-               desired_counts_per_feature_type=counts, reduce_to=target_dimensionality,
-               apply_to=baroni_training_phrases)
+        if features_name == 'deps':
+            # havent got observed vectors for these, do SVD on the unigrams only
+            do_svd(unreduced_unigram_events_file, reduced_file_prefix,
+                   desired_counts_per_feature_type=counts, reduce_to=target_dimensionality,
+                   write=1)
+        else:
+            # in this case the name exp%d-with-obs-phrases is massively misleading because
+            # there aren't any obs phrase vectors
+            # let's just do SVD on the unigram phrases so we can compose them simply later
+            do_svd(unreduced_unigram_events_file, reduced_file_prefix,
+                   desired_counts_per_feature_type=counts, reduce_to=target_dimensionality,
+                   apply_to=baroni_training_phrases)
     else:
         logging.warning('Skipping SVD stage. Assuming output is at %s-SVD*', reduced_file_prefix)
 
@@ -158,7 +172,7 @@ def build_full_composed_thesauri_with_baroni_and_svd(corpus, features, stages):
         trained_composer_file = trained_composer_prefix + '.composer.pkl'
         trained_composer_files.append(trained_composer_file)
 
-        if 'baroni' in stages:
+        if 'baroni' in stages and features_name != 'deps':
             # do the actual training
             thes = Vectors.from_tsv(all_reduced_vectors, lowercasing=False,
                                     gzipped=is_gzipped(all_reduced_vectors))
