@@ -8,7 +8,7 @@ import scipy.sparse as sp
 from discoutils.tokens import DocumentFeature
 from discoutils.io_utils import write_vectors_to_disk
 from discoutils.cmd_utils import run_and_log_output
-from discoutils.misc import temp_chdir, mkdirs_if_not_exists, Bunch
+from discoutils.misc import temp_chdir, mkdirs_if_not_exists
 from thesisgenerator.composers.vectorstore import (MultiplicativeComposer, AdditiveComposer,
                                                    RightmostWordComposer, LeftmostWordComposer)
 from thesisgenerator.scripts.dump_all_composed_vectors import compose_and_write_vectors
@@ -33,7 +33,8 @@ socher_output_vectors_file = os.path.join(socher_base_dir, 'outVectors.txt')
 
 # output of reformat stage
 output_dir = os.path.join(socher_base_dir, 'composed')
-vectors_file = os.path.join(output_dir, 'socher.events.filtered.strings')
+mkdirs_if_not_exists(output_dir)
+vectors_file = os.path.join(output_dir, 'AN_NN_turian_Socher.events.filtered.strings')
 
 
 def run_socher_code():
@@ -52,7 +53,8 @@ def reformat_socher_vectors():
     be composed with Socher's matlab code. See note "Socher vectors" in Evernote.
 
     """
-    logging.info('Using phrases events file %s', socher_output_vectors_file)
+    logging.info('Reformatting events file %s to %s',
+                 socher_output_vectors_file, vectors_file)
 
     an_regex = re.compile("\(NP \(JJ (\S+)\) \(NN (\S+)\)\)\)")
     nn_regex = re.compile("\(NP \(NN (\S+)\) \(NN (\S+)\)\)\)")
@@ -101,9 +103,6 @@ def reformat_socher_vectors():
     mat = mat[success, :]
     assert len(composed_phrases) == mat.shape[0]  # same number of rows
 
-    # CREATE BYBLO EVENTS/FEATURES/ENTRIES FILE FROM INPUT
-    mkdirs_if_not_exists(output_dir)
-
     # do the actual writing
     write_vectors_to_disk(
         sp.coo_matrix(mat),
@@ -136,10 +135,7 @@ if __name__ == '__main__':
     if 'simple-compose' in args.stages:
         composers = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
                      RightmostWordComposer]
-        # todo writing file there is messy but needs to be this way for backwards compat
-        ngram_vectors_dir = os.path.join(prefix,
-                                         'exp12-14-composed-ngrams')
         compose_and_write_vectors(vectors_file,
-                                  'turian',  # todo this param is useless
+                                  'turian',
                                   composers,
-                                  output_dir=ngram_vectors_dir)
+                                  output_dir=output_dir)
