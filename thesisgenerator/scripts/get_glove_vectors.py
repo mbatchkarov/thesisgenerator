@@ -16,7 +16,7 @@ from thesisgenerator.composers.vectorstore import (RightmostWordComposer, Leftmo
                                                    compose_and_write_vectors)
 
 
-prefix = '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit'
+prefix = '/mnt/lustre/scratch/inf/mmb28/FeatureExtractionToolkit'
 glove_dir = join(prefix, 'glove')
 glove_script = join(glove_dir, 'demo_miro.sh')  # set param in that script
 pos_only_data_dir = join(prefix, 'data/gigaword-afe-split-pos/gigaword/')

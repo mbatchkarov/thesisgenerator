@@ -23,7 +23,7 @@ if __name__ == '__main__':
 
     features_file = 'exp10' if args.corpus == 'gigaw' else 'exp11'  # the output of FET
     prefix = '/mnt/lustre/scratch/inf/mmb28/'
-    byblo_base_dir = join(prefix, 'FeatureExtrationToolkit/', 'Byblo-2.2.0')
+    byblo_base_dir = join(prefix, 'FeatureExtractionToolkit/', 'Byblo-2.2.0')
     discoutils = join(prefix, 'DiscoUtils')
     modifiers = join(prefix, 'thesisgenerator',
                      'NPs_in_R2_MR_tech_am_maas',
@@ -34,7 +34,7 @@ if __name__ == '__main__':
     # Find all NPs in unlabelled corpus whose modifier is in labelled corpus,
     # and which appear more than thresh=100 times in unlabelled corpus
     script = join(discoutils, 'discoutils', 'find_all_NPs.py')
-    byblo_features_file = join(prefix, 'FeatureExtrationToolkit',
+    byblo_features_file = join(prefix, 'FeatureExtractionToolkit',
                                'feoutput-deppars', features_file)
     out1 = join(discoutils, '%s_NPs_in_MR_R2_TechTC_am_maas.txt' % args.corpus)
     out2 = join(discoutils, '%s_NPs_in_MR_R2_TechTC_am_maas.uniq.%d.txt' % (args.corpus, min_corpus_freq))

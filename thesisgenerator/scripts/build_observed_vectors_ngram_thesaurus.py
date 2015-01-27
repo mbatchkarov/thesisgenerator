@@ -23,7 +23,7 @@ and write to a single file in e.g. exp10-13-composed-vectors
 
 
 def do_work(corpus, features, svd_dims):
-    prefix = '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit'
+    prefix = '/mnt/lustre/scratch/inf/mmb28/FeatureExtractionToolkit'
     name = 'wiki' if corpus == 11 else 'gigaw'
 
     # where should output be written

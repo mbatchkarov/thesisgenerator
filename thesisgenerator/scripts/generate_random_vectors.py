@@ -9,7 +9,7 @@ import numpy as np
 Generates a random vector for each NP in all labelled corpora
 """
 DIMENSIONALITY = 100
-out_file = '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/random_vectors.gz'
+out_file = '/mnt/lustre/scratch/inf/mmb28/FeatureExtractionToolkit/random_vectors.gz'
 
 logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
 np.random.seed(0)

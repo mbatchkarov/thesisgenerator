@@ -19,9 +19,9 @@ from thesisgenerator.composers.vectorstore import (AdditiveComposer, Multiplicat
                                                    BaroniComposer, compose_and_write_vectors)
 
 """
-Composed wiki/gigaw dependency/window vectors and writes them to FeatureExtrationToolkit/exp10-13-composed-ngrams
+Composed wiki/gigaw dependency/window vectors and writes them to FeatureExtractionToolkit/exp10-13-composed-ngrams
 """
-prefix = '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/'
+prefix = '/mnt/lustre/scratch/inf/mmb28/FeatureExtractionToolkit/'
 byblo_base_dir = os.path.join(prefix, 'Byblo-2.2.0')
 
 

@@ -26,7 +26,7 @@ composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer
 
 
 def compute_and_write_vectors(corpus_name, stages, percent, repeat):
-    prefix = '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit'
+    prefix = '/mnt/lustre/scratch/inf/mmb28/FeatureExtractionToolkit'
     composed_output_dir = join(prefix, 'word2vec_vectors', 'composed')
 
     if corpus_name == 'gigaw':

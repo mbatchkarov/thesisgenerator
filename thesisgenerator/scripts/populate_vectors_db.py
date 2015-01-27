@@ -22,7 +22,7 @@ def get_size(thesaurus_file):
     return modified, size, gz_size
 
 if __name__ == '__main__':
-    prefix = '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit'
+    prefix = '/mnt/lustre/scratch/inf/mmb28/FeatureExtractionToolkit'
     composer_algos = [AdditiveComposer, MultiplicativeComposer,
                       LeftmostWordComposer, RightmostWordComposer,
                       BaroniComposer, Bunch(name='Observed')]
@@ -49,7 +49,7 @@ if __name__ == '__main__':
 
 
     # random VECTORS for use in baseline
-    path = '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit/random_vectors.gz'
+    path = '/mnt/lustre/scratch/inf/mmb28/FeatureExtractionToolkit/random_vectors.gz'
     modified, size, gz_size = get_size(path)
     v = db.Vectors.create(algorithm='random_vect', composer='random_vect', path=path,
                           dimensionality=None, unlabelled_percentage=None,
