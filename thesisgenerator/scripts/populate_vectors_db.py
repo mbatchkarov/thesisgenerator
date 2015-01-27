@@ -21,26 +21,20 @@ def get_size(thesaurus_file):
     gz_size = os.stat(gz_file).st_size >> 20 if os.path.exists(gz_file) else None
     return modified, size, gz_size
 
+
 if __name__ == '__main__':
     prefix = '/mnt/lustre/scratch/inf/mmb28/FeatureExtractionToolkit'
     composer_algos = [AdditiveComposer, MultiplicativeComposer,
                       LeftmostWordComposer, RightmostWordComposer,
                       BaroniComposer, Bunch(name='Observed')]
 
-    # e.g. exp10-13bAN_NN_gigaw_Left/AN_NN_gigaw_Left.events.filtered.strings
-    unred_pattern = '{prefix}/exp{unlab_num}-{thesf_num}bAN_NN_{unlab_name:.5}_{composer_name}/' \
+    # e.g. exp10-12-composed-ngrams/AN_NN_gigaw_Add.events.filtered.strings
+    unred_pattern = '{prefix}/exp{unlab_num}-{thesf_num}-composed-ngrams/' \
                     'AN_NN_{unlab_name:.5}_{composer_name}.events.filtered.strings'
 
-    # e.g. exp10-13bAN_NN_gigaw_Observed/exp10.events.filtered.strings
-    unred_obs_pattern = '{prefix}/exp{unlab_num}-{thesf_num}bAN_NN_{unlab_name:.5}_{composer_name}/' \
-                        'exp{unlab_num}.events.filtered.strings'
-
-    # e.g. exp10-12bAN_NN_gigaw-30_Mult/AN_NN_gigaw-30_Mult.events.filtered.strings
-    reduced_pattern = '{prefix}/exp{unlab_num}-{thesf_num}bAN_NN_{unlab_name:.5}-{svd_dims}_{composer_name}/' \
+    # e.g. exp10-12-composed-ngrams/AN_NN_gigaw-100_Add.events.filtered.strings
+    reduced_pattern = '{prefix}/exp{unlab_num}-{thesf_num}-composed-ngrams/' \
                       'AN_NN_{unlab_name:.5}-{svd_dims}_{composer_name}.events.filtered.strings'
-    # e.g. exp10-12bAN_NN_gigaw-30_Observed/exp10-SVD30.events.filtered.strings
-    reduced_obs_pattern = '{prefix}/exp{unlab_num}-{thesf_num}bAN_NN_{unlab_name:.5}-{svd_dims}_{composer_name}/' \
-                          'exp{unlab_num}-SVD{svd_dims}.events.filtered.strings'
 
     # random neighbours composer for use in baselines
     v = db.Vectors.create(algorithm='random_neigh',
@@ -66,11 +60,8 @@ if __name__ == '__main__':
                         continue  # not training Baroni without SVD
                     if thesf_name == 'dependencies' and composer_name in ['Baroni', 'Observed']:
                         continue  # can't easily run Julie's observed vectors code, so pretend it doesnt exist
-                    if composer_name == 'Observed':
-                        pattern = unred_obs_pattern if svd_dims < 1 else reduced_obs_pattern
-                    else:
-                        pattern = unred_pattern if svd_dims < 1 else reduced_pattern
 
+                    pattern = unred_pattern if svd_dims < 1 else reduced_pattern
                     thesaurus_file = pattern.format(**locals())
                     modified, size, gz_size = get_size(thesaurus_file)
                     v = db.Vectors.create(algorithm='count_' + thesf_name, can_build=True,
@@ -79,21 +70,16 @@ if __name__ == '__main__':
                                           modified=modified, size=size, gz_size=gz_size)
                     print(v)
 
-    # Socher (2011)'s paraphrase model
-    path = os.path.join(prefix, 'socher_vectors/composed/socher.events.filtered.strings')
-    modified, size, gz_size = get_size(path)
-    db.Vectors.create(algorithm='turian', an_build=False, dimensionality=100,
-                      unlabelled='turian', path=path, composer='Socher',
-                      modified=modified, size=size, gz_size=gz_size)
-
-    # Socher's 2011 vectors with simple composition
-    for composer_class in [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer, RightmostWordComposer]:
+    # Socher (2011)'s paraphrase model, and the same with simple composition
+    for composer_class in [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
+                           RightmostWordComposer, Bunch(name='Socher')]:
         composer_name = composer_class.name
-        pattern = '{prefix}/exp12-14bAN_NN_neuro_{composer_name}/AN_NN_neuro_{composer_name}.events.filtered.strings'
+        pattern = '{prefix}/socher_vectors/composed/AN_NN_turian_{composer_name}.events.filtered.strings'
         thesaurus_file = pattern.format(**locals())
         modified, size, gz_size = get_size(thesaurus_file)
         v = db.Vectors.create(algorithm='turian',
-                              dimensionality=100, unlabelled='turian',
+                              dimensionality=100,
+                              unlabelled='turian' if composer_name == 'Socher' else 'gigaw',
                               path=thesaurus_file, composer=composer_name,
                               modified=modified, size=size, gz_size=gz_size)
         print(v)
@@ -112,14 +98,13 @@ if __name__ == '__main__':
 
     # word2vec composed with various simple algorithms, including varying amounts of unlabelled data
     pattern2 = '{prefix}/word2vec_vectors/composed/AN_NN_word2vec_{percent}percent-rep{rep}_' \
-              '{composer}.events.filtered.strings'
+               '{composer}.events.filtered.strings'
     # some files were created with this format (float percent representation instead of int)
     pattern1 = '{prefix}/word2vec_vectors/composed/AN_NN_word2vec_{percent:.2f}percent-rep{rep}_' \
-              '{composer}.events.filtered.strings'
+               '{composer}.events.filtered.strings'
     # and some files were done on Wikipedia and have a different naming scheme
     pattern3 = '{prefix}/word2vec_vectors/composed/AN_NN_word2vec-wiki_{percent:.2f}percent-rep{rep}_' \
-              '{composer}.events.filtered.strings'
-
+               '{composer}.events.filtered.strings'
 
 
     def _do_w2v_vectors(unlabelled='gigaw'):
@@ -130,7 +115,7 @@ if __name__ == '__main__':
                 thesaurus_file = pattern1.format(**ChainMap(locals(), globals()))
                 if not os.path.exists(thesaurus_file):
                     thesaurus_file = pattern2.format(**ChainMap(locals(), globals()))
-                if unlabelled=='wiki':
+                if unlabelled == 'wiki':
                     thesaurus_file = pattern3.format(**ChainMap(locals(), globals()))
 
                 modified, size, gz_size = get_size(thesaurus_file)
