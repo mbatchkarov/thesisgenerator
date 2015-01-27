@@ -11,9 +11,9 @@ sys.path.append('../..')
 from discoutils.tokens import DocumentFeature
 from discoutils.thesaurus_loader import Vectors
 from thesisgenerator.plugins.tokenizers import pos_coarsification_map
-from thesisgenerator.scripts.dump_all_composed_vectors import compose_and_write_vectors
 from thesisgenerator.composers.vectorstore import (AdditiveComposer, MultiplicativeComposer,
-                                                   LeftmostWordComposer, RightmostWordComposer)
+                                                   LeftmostWordComposer, RightmostWordComposer,
+                                                   compose_and_write_vectors)
 
 logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
 

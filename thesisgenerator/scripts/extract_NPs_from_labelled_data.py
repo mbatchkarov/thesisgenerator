@@ -43,7 +43,7 @@ def get_all_NPs(path_to_existing='NPs_in_R2_MR_tech_am_maas/r2-mr-technion-am-ma
         logging.info('Documents in this corpus: %d', len(x_tr))
 
         # this will include vectors for all unigrams that occur in the labelled set in the output file
-        # the composition code for other methods (in dump_all_composed_vectors.py) include vectors for all
+        # the composition code for other methods (in vectorstore.py) include vectors for all
         # unigrams that occur in the UNLABELLED set. This shouldn't make a difference as during classification we search for
         # neighbours of each doc feature among the features the occur in BOTH the labelled and unlabelled set
         vect = ThesaurusVectorizer(min_df=1, ngram_range=(1, 1),

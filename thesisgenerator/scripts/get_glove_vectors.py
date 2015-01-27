@@ -11,9 +11,9 @@ from scipy import sparse as sp
 from discoutils.cmd_utils import run_and_log_output
 from discoutils.misc import temp_chdir
 from discoutils.io_utils import write_vectors_to_disk
-from thesisgenerator.scripts.dump_all_composed_vectors import compose_and_write_vectors
 from thesisgenerator.composers.vectorstore import (RightmostWordComposer, LeftmostWordComposer,
-                                                   MultiplicativeComposer, AdditiveComposer)
+                                                   MultiplicativeComposer, AdditiveComposer,
+                                                   compose_and_write_vectors)
 
 
 prefix = '/mnt/lustre/scratch/inf/mmb28/FeatureExtrationToolkit'

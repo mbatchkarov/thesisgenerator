@@ -7,13 +7,16 @@ sys.path.append('../..')
 from dissect_scripts.load_translated_byblo_space import train_baroni_composer
 from glob import glob
 import argparse
-from discoutils.misc import is_gzipped, mkdirs_if_not_exists
+import logging
+from discoutils.misc import mkdirs_if_not_exists, is_gzipped
 from discoutils.cmd_utils import (set_stage_in_byblo_conf_file, run_byblo, parse_byblo_conf_file,
                                   unindex_all_byblo_vectors)
 from discoutils.reduce_dimensionality import do_svd
 from discoutils.misc import temp_chdir
-from thesisgenerator.scripts import dump_all_composed_vectors as dump
-from thesisgenerator.composers.vectorstore import *
+from discoutils.thesaurus_loader import Vectors
+from thesisgenerator.composers.vectorstore import (AdditiveComposer, MultiplicativeComposer,
+                                                   LeftmostWordComposer, RightmostWordComposer,
+                                                   BaroniComposer, compose_and_write_vectors)
 
 """
 Composed wiki/gigaw dependency/window vectors and writes them to FeatureExtrationToolkit/exp10-13-composed-ngrams
@@ -88,10 +91,10 @@ def build_unreduced_counting_thesauri(corpus, corpus_name, features,
     # COMPOSE ALL AN/NN VECTORS IN LABELLED SET
     if 'compose' in stages:
         unigram_vectors_file = _find_events_file(unigram_thesaurus_dir)
-        dump.compose_and_write_vectors(unigram_vectors_file,
-                                       corpus_name,
-                                       composer_algos,
-                                       output_dir=ngram_vectors_dir)
+        compose_and_write_vectors(unigram_vectors_file,
+                                  corpus_name,
+                                  composer_algos,
+                                  output_dir=ngram_vectors_dir)
     else:
         logging.warning('Skipping composition stage. Assuming output is at %s', ngram_vectors_dir)
 
@@ -180,11 +183,11 @@ def build_full_composed_thesauri_with_baroni_and_svd(corpus, features, stages):
                 in zip(target_dimensionality, baroni_training_data, trained_composer_files):
             # it is OK for the first parameter to contain phrase vectors, there is explicit filtering coming up
             # the assumption is these are actually observed phrasal vectors
-            dump.compose_and_write_vectors(all_reduced_vectors,
-                                           '%s-%s' % (dataset_name, svd_dims),
-                                           composer_algos,
-                                           pretrained_Baroni_composer_file=trained_composer_file,
-                                           output_dir=ngram_vectors_dir)
+            compose_and_write_vectors(all_reduced_vectors,
+                                      '%s-%s' % (dataset_name, svd_dims),
+                                      composer_algos,
+                                      pretrained_Baroni_composer_file=trained_composer_file,
+                                      output_dir=ngram_vectors_dir)
     else:
         logging.warning('Skipping composition stage. Assuming output is at %s', ngram_vectors_dir)
 

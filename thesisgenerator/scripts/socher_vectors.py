@@ -10,8 +10,8 @@ from discoutils.io_utils import write_vectors_to_disk
 from discoutils.cmd_utils import run_and_log_output
 from discoutils.misc import temp_chdir, mkdirs_if_not_exists
 from thesisgenerator.composers.vectorstore import (MultiplicativeComposer, AdditiveComposer,
-                                                   RightmostWordComposer, LeftmostWordComposer)
-from thesisgenerator.scripts.dump_all_composed_vectors import compose_and_write_vectors
+                                                   RightmostWordComposer, LeftmostWordComposer,
+                                                   compose_and_write_vectors)
 from thesisgenerator.utils.misc import force_symlink
 
 # SET UP A FEW REQUIRED PATHS
