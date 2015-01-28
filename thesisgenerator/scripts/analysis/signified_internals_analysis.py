@@ -314,7 +314,7 @@ def correlate_similarities(classificational_vectors, inv_voc, thes):
         second = inv_voc[j]
         dist_sim, class_sim = 0, 0
         # when first and second are not neighbours in the thesaurus set their sim to 0
-        tmp = thes.cos_similarity(first, second)
+        tmp = thes.euclidean_distance(first, second)
         if tmp:
             dist_sim = tmp
 
