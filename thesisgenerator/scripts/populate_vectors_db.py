@@ -79,7 +79,7 @@ if __name__ == '__main__':
         modified, size, gz_size = get_size(thesaurus_file)
         v = db.Vectors.create(algorithm='turian',
                               dimensionality=100,
-                              unlabelled='turian' if composer_name == 'Socher' else 'gigaw',
+                              unlabelled='turian',
                               path=thesaurus_file, composer=composer_name,
                               modified=modified, size=size, gz_size=gz_size)
         print(v)
