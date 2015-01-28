@@ -235,16 +235,13 @@ if __name__ == '__main__':
     baselines()
     all_standard_experiments()
     hybrid_experiments_r2_amazon_turian_word2vec()
-    an_only_nn_only_experiments_r2()
     word2vec_with_less_data_on_r2(range(10, 91, 10))
     word2vec_repeats_on_r2_amazon()
-    glove_vectors_r2()
     word2vec_with_less_data_on_r2(range(1, 10, 1))  # these were added later
     random_vectors(r2_corpus)
     word2vec_with_less_data_on_r2(np.arange(0.01, 0.92, .1))
     amazon_learning_curve_w2v()
     varying_k_with_w2v_on_r2()
-    different_neighbour_strategies()
     random_vectors(am_corpus)
     # wikipedia experiments on amazon
     wikipedia_thesauri()
@@ -252,6 +249,11 @@ if __name__ == '__main__':
     baselines(corpora=[maas_corpus])
     random_vectors(maas_corpus)
     all_standard_experiments(corpora=[maas_corpus])
+
+    # various other experiments that aren't as interesting
+    # an_only_nn_only_experiments_r2()
+    # glove_vectors_r2()
+    # different_neighbour_strategies()
 
     print('Total experiments: %d' % len(experiments))
     # re-order experiments so that the hard ones (high-memory, long-running) come first
