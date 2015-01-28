@@ -133,14 +133,6 @@ def hybrid_experiments_r2_amazon_turian_word2vec():
 
 
 @printing_decorator
-def use_similarity_experiments_r2():
-    for s in chain(word2vec_vector_settings(), turian_vector_settings()):
-        e = db.ClassificationExperiment(labelled=r2_corpus, vectors=vectors_from_settings(*s),
-                                        use_similarity=True)
-        experiments.append(e)
-
-
-@printing_decorator
 def an_only_nn_only_experiments_r2():
     for feature_type in ['AN', 'NN']:
         for s in chain(word2vec_vector_settings(), turian_vector_settings()):
@@ -246,7 +238,6 @@ if __name__ == '__main__':
     baselines()
     all_standard_experiments()
     hybrid_experiments_r2_amazon_turian_word2vec()
-    use_similarity_experiments_r2()
     an_only_nn_only_experiments_r2()
     word2vec_with_less_data_on_r2(range(10, 91, 10))
     word2vec_repeats_on_r2_amazon()
