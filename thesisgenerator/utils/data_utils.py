@@ -22,7 +22,6 @@ from thesisgenerator.plugins.tokenizers import XmlTokenizer, GzippedJsonTokenize
 from thesisgenerator.utils.conf_file_utils import parse_config_file
 from thesisgenerator.utils.misc import force_symlink
 from thesisgenerator.composers.vectorstore import DummyThesaurus
-from thesisgenerator.utils.db import Vectors
 
 
 def tokenize_data(data, tokenizer, corpus_ids):
