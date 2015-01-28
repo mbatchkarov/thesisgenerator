@@ -217,6 +217,7 @@ def _build_classifiers(classifiers_conf):
 
 
 def _cv_loop(log_dir, config, cv_i, score_func, test_idx, train_idx, vector_source:Delayed, X, y):
+    logging.info('Starting CV fold %d', cv_i)
     _config_logger(log_dir,
                    name='{}-cv{}'.format(config['name'], cv_i),
                    debug=config['debug'])
