@@ -228,7 +228,7 @@ if __name__ == '__main__':
     am_corpus = 'amazon_grouped-tagged'
     maas_corpus = 'aclImdb-tagged'
     # havent added maas to all_corpora to avoid changing the ids of long running amazon jobs
-    all_corpora = techtc_corpora + [r2_corpus, mr_corpus, am_corpus, maas_corpus]
+    all_corpora = techtc_corpora + [r2_corpus, mr_corpus, am_corpus]
 
     db.ClassificationExperiment.raw('TRUNCATE TABLE `classificationexperiment`;')
     experiments = []
@@ -248,8 +248,10 @@ if __name__ == '__main__':
     random_vectors(am_corpus)
     # wikipedia experiments on amazon
     wikipedia_thesauri()
-    # maas IMDB sentiment experiments- now included in baselines() and all_standard_experiments()
+    # maas IMDB sentiment experiments
+    baselines(corpora=[maas_corpus])
     random_vectors(maas_corpus)
+    all_standard_experiments(corpora=[maas_corpus])
 
     print('Total experiments: %d' % len(experiments))
     # re-order experiments so that the hard ones (high-memory, long-running) come first
