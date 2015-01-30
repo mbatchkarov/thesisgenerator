@@ -9,7 +9,6 @@ import numpy as np
 import scipy.sparse as sp
 import six
 from discoutils.io_utils import write_vectors_to_disk
-from discoutils.misc import is_gzipped
 from discoutils.thesaurus_loader import Thesaurus, Vectors
 from discoutils.tokens import DocumentFeature
 
@@ -281,8 +280,7 @@ def compose_and_write_vectors(unigram_vectors, short_vector_dataset_name,
         # composers do not need any ngram vectors contain in this file, they may well be
         # observed ones
         unigram_vectors = Vectors.from_tsv(unigram_vectors,
-                                           row_filter=lambda x, y: y.tokens[0].pos in {'N', 'J'} and y.type == '1-GRAM',
-                                           gzipped=is_gzipped(unigram_vectors))
+                                           row_filter=lambda x, y: y.tokens[0].pos in {'N', 'J'} and y.type == '1-GRAM')
 
     # doing this loop in parallel isn't worth it as pickling or shelving `vectors` is so slow
     # it negates any gains from using multiple cores

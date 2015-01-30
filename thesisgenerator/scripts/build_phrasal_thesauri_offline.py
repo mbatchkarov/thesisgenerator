@@ -174,8 +174,7 @@ def build_full_composed_thesauri_with_baroni_and_svd(corpus, features, stages):
 
         if 'baroni' in stages and features_name != 'deps':
             # do the actual training
-            thes = Vectors.from_tsv(all_reduced_vectors, lowercasing=False,
-                                    gzipped=is_gzipped(all_reduced_vectors))
+            thes = Vectors.from_tsv(all_reduced_vectors, lowercasing=False)
             thes.to_tsv(baroni_training_heads,
                         entry_filter=lambda x: x.type == '1-GRAM' and x.tokens[0].pos == 'N')
 

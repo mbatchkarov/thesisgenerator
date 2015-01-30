@@ -64,12 +64,17 @@ def run_experiment(expid, num_workers=1,
     if not thesaurus:
         thesaurus = get_thesaurus(conf)
 
-    suffix = '.gz' if conf['gzip_resources'] else ''
-    test_path = conf['test_data'] + suffix if conf['test_data'] else ''
-    tokenised_data = get_tokenized_data(conf['training_data'] + suffix,
+    test_path = ''
+    if conf['test_data']:
+        gz = conf['test_data'] + '.gz'
+        test_path = gz if os.path.exists(gz) else conf['test_data']
+    tr_data = conf['training_data']
+    gz = tr_data + '.gz'
+    if os.path.exists(gz):
+        tr_data = gz
+    tokenised_data = get_tokenized_data(tr_data,
                                         get_tokenizer_settings_from_conf(conf),
-                                        test_data=test_path,
-                                        gzip_json=conf['gzip_resources'])
+                                        test_data=test_path)
     # run data through the pipeline
     return [go(new_conf_file, log_dir, tokenised_data, thesaurus, n_jobs=num_workers)
             for new_conf_file, log_dir in conf_file_iterator]

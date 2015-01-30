@@ -67,7 +67,16 @@ def get_tokenizer_settings_from_conf_file(conf_file):
 
 
 def get_tokenized_data(training_path, tokenizer_conf, shuffle_targets=False,
-                       test_data='', gzip_json=True, *args, **kwargs):
+                       test_data='', gzip_json=None, *args, **kwargs):
+    """
+    Loads data from either XML or compressed JSON
+    :param gzip_json: set to True of False to force this method to read XML/JSON. Otherwise the type of
+     input data is determined by the presence or absence of a .gz extension on the training_path
+    :param args:
+    """
+    if gzip_json is None:
+        gzip_json = training_path.endswith('.gz')
+
     if gzip_json:
         tokenizer = GzippedJsonTokenizer(**tokenizer_conf)
         x_tr, y_tr = tokenizer.tokenize_corpus(training_path)
@@ -137,7 +146,7 @@ def get_thesaurus(conf):
             # single we are running single-threaded, might as well read this in now
             # returning a delayed() will cause the file to be read for each CV fold
             # thesaurus = Delayed(Vectors, Vectors.from_tsv, path, **params)
-            thesaurus = Vectors.from_tsv(path, gzipped=conf['gzip_resources'], **params)
+            thesaurus = Vectors.from_tsv(path, **params)
     if not thesaurus:
         # if a vector source has not been passed in and has not been initialised, then init it to avoid
         # accessing empty things

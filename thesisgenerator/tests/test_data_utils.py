@@ -14,10 +14,10 @@ def test_jsonify_XML_corpus():
     tk = get_tokenizer_settings_from_conf(conf)
 
     # parse the XML directly
-    x_tr, y_tr, _, _ = get_tokenized_data(train_set, tk, gzip_json=False)
+    x_tr, y_tr, _, _ = get_tokenized_data(train_set, tk)
 
     jsonify_single_labelled_corpus(train_set)
-    x_tr1, y_tr1, _, _ = get_tokenized_data(json_train_set, tk, gzip_json=True)
+    x_tr1, y_tr1, _, _ = get_tokenized_data(json_train_set, tk)
 
     # because the process of converting to json merges the train and test set, if a test set exists,
     # we need to merge them too in this test.
