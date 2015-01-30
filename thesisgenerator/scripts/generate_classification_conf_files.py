@@ -218,6 +218,13 @@ def wikipedia_thesauri():
             experiments.append(e)
 
 
+def corrupted_w2v_on_amazon():
+    for noise in np.arange(.2, 2.1, .2):
+        v = vectors_from_settings('gigaw', 'word2vec', 'Add', 100, percent=100)
+        e = db.ClassificationExperiment(labelled=am_corpus, vectors=v, noise=noise)
+        experiments.append(e)
+
+
 if __name__ == '__main__':
     prefix = '/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data'
     techtc_corpora = sorted(list(os.path.join(*x.split(os.sep)[-2:]) \
@@ -249,6 +256,7 @@ if __name__ == '__main__':
     baselines(corpora=[maas_corpus])
     random_vectors(maas_corpus)
     all_standard_experiments(corpora=[maas_corpus])
+    corrupted_w2v_on_amazon()
 
     # various other experiments that aren't as interesting
     # an_only_nn_only_experiments_r2()

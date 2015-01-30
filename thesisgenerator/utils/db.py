@@ -34,6 +34,7 @@ class ClassificationExperiment(pw.Model):
     labelled = pw.CharField()  # name/path of labelled corpus used
     k = pw.IntegerField(default=3)  # how many neighbours entries are replaced with at decode time
     neighbour_strategy = pw.CharField(default='linear')  # how neighbours are found- linear or skipping strategy
+    noise = pw.FloatField(default=0)
 
     date_ran = pw.DateField(null=True, default=None)
     git_hash = pw.CharField(null=True, default=None)

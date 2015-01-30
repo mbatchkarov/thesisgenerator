@@ -71,6 +71,7 @@ min_train_features = float() # these need to be a float when using similarity sc
     max_neighbours = integer(default=99999999999999) # how many neighbours of each entry to keep in memory
     use_shelf = boolean(default=False) # whether to use the shelve module to persist thesauri/vectors to disk in an attempt to reduce memory usage
     neighbour_strategy = option('linear', 'skipping', default='linear') # how to find nearest neighbours. Linear means just the usual way- sorting all neighbours by sim ans yielding from this list. Skipping means the i+1-th returned neighbour is the top neighbour of the i-th neighbour.
+    noise=float(default=0) # proportion of mean value of non-zero entries in vector to add as noise
 		
 [crossvalidation]
 	run=boolean()
