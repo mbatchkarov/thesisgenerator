@@ -328,6 +328,7 @@ if __name__ == '__main__':
         conf['feature_extraction']['random_neighbour_thesaurus'] = \
             exp.vectors is not None and exp.vectors.algorithm == 'random_neigh'
         conf['vector_sources']['neighbours_file'] = exp.vectors.path if exp.vectors else ''
+        conf['vector_sources']['noise'] = exp.noise
         conf['output_dir'] = './conf/exp%d/output' % exp.id
         conf['name'] = 'exp%d' % exp.id
         conf['feature_extraction']['k'] = exp.k
