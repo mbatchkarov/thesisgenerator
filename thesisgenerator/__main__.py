@@ -110,8 +110,8 @@ def _build_crossvalidation_iterator(config, y_train, y_test=None):
     return iterator, y_train
 
 
-def _build_vectorizer(id, vector_source, init_args, fit_args, feature_extraction_conf, pipeline_list,
-                      output_dir, exp_name=''):
+def _build_vectorizer(vector_source, init_args, fit_args, feature_extraction_conf,
+                      pipeline_list, exp_name=''):
     """
     Builds a vectorized that converts raw text to feature vectors. The
     parameters for the vectorizer are specified in the *feature extraction*
@@ -176,8 +176,8 @@ def _build_pipeline(cv_i, vector_source, feature_extr_conf, feature_sel_conf, ou
     init_args, fit_args = {}, {}
     pipeline_list = []
 
-    _build_vectorizer(cv_i, vector_source, init_args, fit_args, feature_extr_conf,
-                      pipeline_list, output_dir, exp_name=exp_name)
+    _build_vectorizer(vector_source, init_args, fit_args, feature_extr_conf,
+                      pipeline_list, exp_name=exp_name)
 
     _build_feature_selector(vector_source, init_args, fit_args, feature_sel_conf, pipeline_list)
 
@@ -278,6 +278,9 @@ def _cv_loop(log_dir, config, cv_i, score_func, test_idx, train_idx, vector_sour
     y_test = y_test[to_keep_test]
 
     for clf in _build_classifiers(config['classifiers']):
+        if not (np.count_nonzero(to_keep_train) and np.count_nonzero(to_keep_test)):
+            logging.error('There isnt enough data for a proper evaluation, skipping this fold!!!')
+            continue  # if there's no training data or test data just ignore the fold
         logging.info('Starting training of %s', clf)
         clf = clf.fit(tr_matrix, y_train)
         predictions = clf.predict(test_matrix)
