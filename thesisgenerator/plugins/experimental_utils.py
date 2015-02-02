@@ -14,7 +14,7 @@ import os
 import logging
 from thesisgenerator.utils.data_utils import get_thesaurus, get_tokenized_data, get_tokenizer_settings_from_conf
 from thesisgenerator.utils.conf_file_utils import parse_config_file
-from thesisgenerator.plugins.file_generators import _vary_training_size_file_iterator
+from thesisgenerator.plugins.file_generators import vary_training_size_file_iterator
 from thesisgenerator.__main__ import go
 from thesisgenerator.plugins.dumpers import consolidate_single_experiment
 
@@ -57,7 +57,7 @@ def run_experiment(expid, num_workers=1,
         sizes = predefined_sized
 
     base_conf_file = '%s/conf/exp%d/exp%d_base.conf' % (prefix, expid, expid)
-    conf_file_iterator = _vary_training_size_file_iterator(sizes, expid, base_conf_file)
+    conf_file_iterator = vary_training_size_file_iterator(sizes, expid, base_conf_file)
 
     _clear_old_files(expid, prefix)
     conf, configspec_file = parse_config_file(base_conf_file)
