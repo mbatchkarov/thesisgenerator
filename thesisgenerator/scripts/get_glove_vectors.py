@@ -5,6 +5,7 @@ sys.path.append('..')
 sys.path.append('../..')
 import argparse
 import logging
+import re
 from os.path import join
 import pandas as pd
 from scipy import sparse as sp
@@ -21,8 +22,8 @@ glove_dir = join(prefix, 'glove')
 glove_script = join(glove_dir, 'demo_miro.sh')  # set param in that script
 pos_only_data_dir = join(prefix, 'data/gigaword-afe-split-pos/gigaword/')
 unlabelled_data = join(prefix, 'data/gigaword-afe-split-pos/gigaword.oneline')
-raw_vectors_file = join(glove_dir, 'vectors.txt') # what GloVe produces
-formatted_vectors_file = join(glove_dir, 'vectors.miro.gz') # unigram vectors in my format
+raw_vectors_file = join(glove_dir, 'vectors.txt')  # what GloVe produces
+formatted_vectors_file = join(glove_dir, 'vectors.miro.gz')  # unigram vectors in my format
 composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer, RightmostWordComposer]
 
 
@@ -38,7 +39,15 @@ def compute_and_write_vectors(stages):
     if 'vectors' in stages:
         logging.info('Starting training')
         with temp_chdir(glove_dir):
+            cost = 0
             run_and_log_output('sh {} {}'.format(glove_script, unlabelled_data))
+        # for line in run_and_log_output('sh {} {}'.format(glove_script, unlabelled_data)):
+        #         cost_str = re.findall('cost: ([\d\.]+)', line)
+        #         if cost_str:
+        #             cost = list(map(float, cost_str))[-1]
+        #             print(line)
+        #             print(cost)
+        # logging.info('Best recorded cost is %f', cost)
         logging.info('Done training, converting to Byblo-compatible gzip')
 
         # convert their format to ours

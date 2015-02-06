@@ -25,6 +25,43 @@ WORKERS = 10
 composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer, RightmostWordComposer]
 
 
+def _train_model(percent, data_dir):
+    # train a word2vec model
+    class MySentences(object):
+        def __init__(self, dirname, file_percentage):
+            self.dirname = dirname
+            self.limit = file_percentage / 100
+
+        def __iter__(self):
+            files = [x for x in sorted(os.listdir(self.dirname)) if not x.startswith('.')]
+            count = math.ceil(self.limit * len(files))
+            logging.info('Will use %d files for training', count)
+            for fname in files[:count]:
+                for line in open(join(self.dirname, fname)):
+                    yield line.split()
+
+    logging.info('Training word2vec on %d percent of %s', percent, data_dir)
+    sentences = MySentences(data_dir, percent)
+    model = gensim.models.Word2Vec(sentences, workers=WORKERS, min_count=MIN_COUNT)
+    return model
+
+
+def _vectors_to_tsv(i, model, unigram_events_file):
+    # get word2vec vectors for each word, write to TSV
+    vectors = dict()
+    dimension_names = ['f%02d' % i for i in range(100)]  # word2vec produces 100-dim vectors
+    for word in model.vocab.keys():
+        # watch for non-DocumentFeatures, these break to_tsv
+        # also ignore words with non-ascii characters
+        if DocumentFeature.from_string(word).type == 'EMPTY':
+            logging.info('Ignoring vector for %s', word)
+            continue
+        vectors[word] = zip(dimension_names, model[word])
+    vectors = Vectors(vectors)
+    vectors.to_tsv(unigram_events_file + '.rep%d' % i, gzipped=True)
+    return vectors
+
+
 def compute_and_write_vectors(corpus_name, stages, percent, repeat):
     prefix = '/mnt/lustre/scratch/inf/mmb28/FeatureExtractionToolkit'
     composed_output_dir = join(prefix, 'word2vec_vectors', 'composed')
@@ -89,48 +126,27 @@ def compute_and_write_vectors(corpus_name, stages, percent, repeat):
                     outfile.write('%s/%s ' % (lemma.lower(), pos_coarsification_map[pos]))
 
     # -----------------------------------------------------------------------
+    if 'average' in stages:
+        models = []
     for i in range(repeat):
         if 'vectors' in stages:
-            # train a word2vec model
-            class MySentences(object):
-                def __init__(self, dirname, file_percentage):
-                    self.dirname = dirname
-                    self.limit = file_percentage / 100
-
-                def __iter__(self):
-                    files = [x for x in sorted(os.listdir(self.dirname)) if not x.startswith('.')]
-                    count = math.ceil(self.limit * len(files))
-                    logging.info('Will use %d files for training', count)
-                    for fname in files[:count]:
-                        for line in open(join(self.dirname, fname)):
-                            yield line.split()
-
-            logging.info('Training word2vec on %d percent of %s', percent, pos_only_data_dir)
-            sentences = MySentences(pos_only_data_dir, percent)
-            model = gensim.models.Word2Vec(sentences, workers=WORKERS, min_count=MIN_COUNT)
-
-            # get word2vec vectors for each word, write to TSV
-            vectors = dict()
-            dimension_names = ['f%02d' % i for i in range(100)]  # word2vec produces 100-dim vectors
-            for word in model.vocab.keys():
-                # watch for non-DocumentFeatures, these break to_tsv
-                # also ignore words with non-ascii characters
-                if DocumentFeature.from_string(word).type == 'EMPTY':
-                    logging.info('Ignoring vector for %s', word)
-                    continue
-                vectors[word] = zip(dimension_names, model[word])
-            vectors = Vectors(vectors)
-            vectors.to_tsv(unigram_events_file + '.rep%d' % i, gzipped=True)
+            model = _train_model(percent, pos_only_data_dir)
+            print(model.vocab['finnish/J'].index)
+            print(model.vocab['large/J'].index)
+            print(model.vocab['computer/N'].index)
+            if 'average' in stages:
+                models.append(model)
+            vectors = _vectors_to_tsv(i, model, unigram_events_file)
         # -----------------------------------------------------------------------
         if 'compose' in stages:
             # if we'll also be composing we don't have to write the unigram vectors to disk
             # just to read them back later.
             compose_and_write_vectors(vectors if 'vectors' in stages else unigram_events_file + '.rep%d' % i,
                                       'word2vec_%.2fpercent-rep%d' % (percent, i),
-                                      # 'word2vec-wiki_%.2fpercent-rep%d' % (percent, i),
                                       composer_algos,
                                       output_dir=composed_output_dir)
-
+    if 'average' in stages:
+        pass
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -140,8 +156,7 @@ if __name__ == '__main__':
     # percent of files to use. SGE makes it easy for this to be 1, 2, ...
     parser.add_argument('--percent', default=100, type=int)
     # multiplier for args.percent. Set to 0.1 to use fractional percentages of corpus
-    parser.add_argument('--multiplier', default=1., type=float)
     parser.add_argument('--repeat', default=1, type=int)
     args = parser.parse_args()
-    compute_and_write_vectors(args.corpus, args.stages, args.percent * args.multiplier, args.repeat)
+    compute_and_write_vectors(args.corpus, args.stages, args.percent, args.repeat)
 
