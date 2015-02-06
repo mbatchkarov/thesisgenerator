@@ -64,7 +64,7 @@ if __name__ == '__main__':
                     pattern = unred_pattern if svd_dims < 1 else reduced_pattern
                     thesaurus_file = pattern.format(**locals())
                     modified, size, gz_size = get_size(thesaurus_file)
-                    v = db.Vectors.create(algorithm='count_' + thesf_name, can_build=True,
+                    v = db.Vectors.create(algorithm='count_' + thesf_name,
                                           dimensionality=svd_dims, unlabelled=unlab_name,
                                           path=thesaurus_file, composer=composer_name,
                                           modified=modified, size=size, gz_size=gz_size)
@@ -137,3 +137,20 @@ if __name__ == '__main__':
 
     for percent in [15, 50]:
         _do_w2v_vectors('wiki')
+
+    # count vectors with PPMI, no SVD
+    ppmi_file_pattern = '{prefix}/exp{unlab_num}-{thesf_num}-composed-ngrams-ppmi/' \
+                        'AN_NN_{unlab_name:.5}_{composer_name}.events.filtered.strings'
+    for composer_class in [AdditiveComposer, MultiplicativeComposer,
+                           LeftmostWordComposer, RightmostWordComposer]:
+        for thesf_num, thesf_name in zip([12, 13], ['dependencies', 'windows']):
+            for unlab_num, unlab_name in zip([10], ['gigaw']):
+                composer_name = composer_class.name
+
+                thesaurus_file = ppmi_file_pattern.format(**locals())
+                modified, size, gz_size = get_size(thesaurus_file)
+                v = db.Vectors.create(algorithm='count_' + thesf_name, use_ppmi=True,
+                                      dimensionality=0, unlabelled=unlab_name,
+                                      path=thesaurus_file, composer=composer_name,
+                                      modified=modified, size=size, gz_size=gz_size)
+                print(v)

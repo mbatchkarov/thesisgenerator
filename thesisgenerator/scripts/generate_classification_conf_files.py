@@ -28,12 +28,13 @@ use this script to generate the conf files required to run them through the clas
 '''
 
 
-def vectors_from_settings(unlab_name, algorithm, composer_name, svd_dims, percent=100, rep=0):
+def vectors_from_settings(unlab_name, algorithm, composer_name, svd_dims, percent=100, rep=0, ppmi=0):
     v = db.Vectors.select().where((db.Vectors.dimensionality == svd_dims) &
                                   (db.Vectors.unlabelled == unlab_name) &
                                   (db.Vectors.composer == composer_name) &
                                   (db.Vectors.algorithm == algorithm) &
-                                  (db.Vectors.rep == rep))
+                                  (db.Vectors.rep == rep) &
+                                  (db.Vectors.use_ppmi == ppmi))
     # peewee cant easily do selects that contain checks of float values
     # lets do a post-filter
     results = [res for res in v if abs(res.unlabelled_percentage - percent) < 1e-6]
@@ -217,12 +218,24 @@ def wikipedia_thesauri():
                                                                                               percent=p))
             experiments.append(e)
 
-
+@printing_decorator
 def corrupted_w2v_on_amazon():
     for noise in np.arange(.2, 2.1, .2):
         v = vectors_from_settings('gigaw', 'word2vec', 'Add', 100, percent=100)
         e = db.ClassificationExperiment(labelled=am_corpus, vectors=v, noise=noise)
         experiments.append(e)
+
+@printing_decorator
+def count_ppmi_experiments(corpus=None):
+    if not corpus:
+        corpus = am_corpus
+
+    for composer in [AdditiveComposer, MultiplicativeComposer,
+                     LeftmostWordComposer, RightmostWordComposer]:
+        for algo in ['count_dependencies', 'count_windows']:
+            v = vectors_from_settings('gigaw', algo, composer.name, 0, ppmi=True)
+            e = db.ClassificationExperiment(labelled=corpus, vectors=v)
+            experiments.append(e)
 
 
 if __name__ == '__main__':
@@ -257,6 +270,7 @@ if __name__ == '__main__':
     random_vectors(maas_corpus)
     all_standard_experiments(corpora=[maas_corpus])
     corrupted_w2v_on_amazon()
+    count_ppmi_experiments()
 
     # various other experiments that aren't as interesting
     # an_only_nn_only_experiments_r2()

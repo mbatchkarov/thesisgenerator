@@ -12,6 +12,7 @@ class Vectors(pw.Model):
     path = pw.CharField(null=True)  # where on disk the vectors are stored
     composer = pw.CharField()  # what composer was used to build phrasal vectors (if any)
     rep = pw.IntegerField(default=0)  # if the same vectors have been built multiple times, an explicit identifier
+    use_ppmi = pw.BooleanField(default=0)
 
     modified = pw.DateField(null=True, default=None)  # when was the file last modifier
     size = pw.IntegerField(null=True, default=None)  # file size in MB
