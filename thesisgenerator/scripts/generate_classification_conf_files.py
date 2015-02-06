@@ -166,9 +166,9 @@ def word2vec_repeats_on_r2_amazon():
 
 
 @printing_decorator
-def glove_vectors_r2():
+def glove_vectors_amazon():
     for s in glove_vector_settings():
-        e = db.ClassificationExperiment(labelled=r2_corpus, vectors=vectors_from_settings(*s))
+        e = db.ClassificationExperiment(labelled=am_corpus, vectors=vectors_from_settings(*s))
         experiments.append(e)
 
 
@@ -226,7 +226,7 @@ def corrupted_w2v_on_amazon():
         experiments.append(e)
 
 @printing_decorator
-def count_ppmi_experiments(corpus=None):
+def count_ppmi_experiments_amazon(corpus=None):
     if not corpus:
         corpus = am_corpus
 
@@ -270,11 +270,11 @@ if __name__ == '__main__':
     random_vectors(maas_corpus)
     all_standard_experiments(corpora=[maas_corpus])
     corrupted_w2v_on_amazon()
-    count_ppmi_experiments()
+    count_ppmi_experiments_amazon()
+    glove_vectors_amazon()
 
     # various other experiments that aren't as interesting
     # an_only_nn_only_experiments_r2()
-    # glove_vectors_r2()
     # different_neighbour_strategies()
 
     print('Total experiments: %d' % len(experiments))
