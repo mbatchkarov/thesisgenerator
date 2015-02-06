@@ -8,9 +8,10 @@ from dissect_scripts.load_translated_byblo_space import train_baroni_composer
 from glob import glob
 import argparse
 import logging
-from discoutils.misc import mkdirs_if_not_exists, is_gzipped
+from discoutils.misc import mkdirs_if_not_exists
 from discoutils.cmd_utils import (set_stage_in_byblo_conf_file, run_byblo, parse_byblo_conf_file,
                                   unindex_all_byblo_vectors)
+from discoutils.reweighting import ppmi_sparse_matrix
 from discoutils.reduce_dimensionality import do_svd
 from discoutils.misc import temp_chdir
 from discoutils.thesaurus_loader import Vectors
@@ -60,8 +61,14 @@ def _find_output_prefix(thesaurus_dir):
         [x for x in glob(os.path.join(thesaurus_dir, '*filtered*')) if 'svd' not in x.lower()])[:-1]
 
 
+def _do_ppmi(vectors_path, output_dir):
+    v = Vectors.from_tsv(vectors_path)
+    ppmi_sparse_matrix(v.matrix)
+    v.to_tsv(os.path.join(output_dir, os.path.basename(vectors_path)), gzipped=True)
+
+
 def build_unreduced_counting_thesauri(corpus, corpus_name, features,
-                                      stages):
+                                      stages, use_ppmi):
     """
     required files: a Byblo conf file, a labelled classification data set
     created files:  composed vector files in a dir, thesauri of NPs
@@ -69,16 +76,22 @@ def build_unreduced_counting_thesauri(corpus, corpus_name, features,
 
     # SET UP A FEW REQUIRED PATHS
     unigram_thesaurus_dir = os.path.abspath(os.path.join(prefix,
-                                                         'exp%d-%db' % (corpus, features)))  # input 1
+                                                         'exp%d-%db' % (corpus, features)))
+
+    unigram_thesaurus_dir_ppmi = os.path.abspath(os.path.join(prefix,
+                                                              'exp%d-%db-ppmi' % (corpus, features)))
+    mkdirs_if_not_exists(unigram_thesaurus_dir_ppmi)
 
     ngram_vectors_dir = os.path.join(prefix,
-                                     'exp%d-%d-composed-ngrams' % (corpus, features))  # output 1
-    # output 2 is a set of directories <output1>*
+                                     'exp%d-%d-composed-ngrams' % (corpus, features))
+    ngram_vectors_dir_ppmi = os.path.join(prefix,
+                                          'exp%d-%d-composed-ngrams-ppmi' % (corpus, features))
 
     composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
                       RightmostWordComposer]  # observed done through a separate script
 
     mkdirs_if_not_exists(ngram_vectors_dir)
+    mkdirs_if_not_exists(ngram_vectors_dir_ppmi)
 
     # EXTRACT UNIGRAM VECTORS WITH BYBLO
     if 'unigrams' in stages:
@@ -88,13 +101,19 @@ def build_unreduced_counting_thesauri(corpus, corpus_name, features,
         logging.warning('Skipping unigrams stage. Assuming output is at %s',
                         _find_events_file(unigram_thesaurus_dir))
 
+    if 'ppmi' in stages:
+        _do_ppmi(_find_events_file(unigram_thesaurus_dir),
+                 unigram_thesaurus_dir_ppmi)
+
     # COMPOSE ALL AN/NN VECTORS IN LABELLED SET
     if 'compose' in stages:
-        unigram_vectors_file = _find_events_file(unigram_thesaurus_dir)
+        unigram_vectors_file = _find_events_file(unigram_thesaurus_dir) if use_ppmi else \
+            _find_events_file(unigram_thesaurus_dir_ppmi)
+        outdir = ngram_vectors_dir if use_ppmi else ngram_vectors_dir_ppmi
         compose_and_write_vectors(unigram_vectors_file,
                                   corpus_name,
                                   composer_algos,
-                                  output_dir=ngram_vectors_dir)
+                                  output_dir=outdir)
     else:
         logging.warning('Skipping composition stage. Assuming output is at %s', ngram_vectors_dir)
 
@@ -217,18 +236,21 @@ def get_corpus_features_cmd_parser():
 def get_cmd_parser():
     parser = argparse.ArgumentParser(parents=[get_corpus_features_cmd_parser()])
     # add options specific to this script here
-    parser.add_argument('--stages', choices=('unigrams', 'svd', 'baroni', 'compose', 'symlink'),
+    parser.add_argument('--stages', choices=('unigrams', 'ppmi', 'svd', 'baroni', 'compose', 'symlink'),
                         required=True,
                         nargs='+',
                         help='What parts of the pipeline to run. Each part is independent, the pipeline can be '
                              'run incrementally. The stages are: '
                              '1) unigrams: extract unigram vectors from unlabelled corpus '
-                             '2) svd: reduce noun and adj matrix, apply to NP matrix '
-                             '3) baroni: train Baroni composer '
-                             '4) compose: compose all possible NP vectors with all composers ')
+                             '2) ppmi: perform PPMI reweighting on feature counts '
+                             '3) svd: reduce noun and adj matrix, apply to NP matrix '
+                             '4) baroni: train Baroni composer '
+                             '5) compose: compose all possible NP vectors with all composers ')
     parser.add_argument('--use-svd', action='store_true',
                         help='If set, SVD will be performed and a Baroni composer will be trained. Otherwise the'
                              'svd part of the pipeline is skipped.')
+    parser.add_argument('--use-ppmi', action='store_true',
+                        help='If set, PPMI will be performed. Currently this is only implemented without SVD')
     return parser
 
 
@@ -248,5 +270,5 @@ if __name__ == '__main__':
     else:
         logging.info('Starting pipeline without SVD')
         build_unreduced_counting_thesauri(corpus[parameters.corpus], corpus_name, features[parameters.features],
-                                          parameters.stages)
+                                          parameters.stages, parameters.use_ppmi)
 
