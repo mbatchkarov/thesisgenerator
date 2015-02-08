@@ -5,7 +5,6 @@ sys.path.append('..')
 sys.path.append('../..')
 import argparse
 import logging
-import re
 from os.path import join
 import pandas as pd
 from scipy import sparse as sp
@@ -39,15 +38,7 @@ def compute_and_write_vectors(stages):
     if 'vectors' in stages:
         logging.info('Starting training')
         with temp_chdir(glove_dir):
-            cost = 0
             run_and_log_output('sh {} {}'.format(glove_script, unlabelled_data))
-        # for line in run_and_log_output('sh {} {}'.format(glove_script, unlabelled_data)):
-        #         cost_str = re.findall('cost: ([\d\.]+)', line)
-        #         if cost_str:
-        #             cost = list(map(float, cost_str))[-1]
-        #             print(line)
-        #             print(cost)
-        # logging.info('Best recorded cost is %f', cost)
         logging.info('Done training, converting to Byblo-compatible gzip')
 
         # convert their format to ours
