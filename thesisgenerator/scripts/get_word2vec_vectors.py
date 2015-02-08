@@ -2,7 +2,9 @@
 import argparse
 import os, sys, math
 from os.path import join
+from functools import reduce
 import gensim, logging, errno
+import numpy as np
 
 sys.path.append('.')
 sys.path.append('..')
@@ -46,11 +48,11 @@ def _train_model(percent, data_dir):
     return model
 
 
-def _vectors_to_tsv(i, model, unigram_events_file):
+def _vectors_to_tsv(model, vocab, output_path):
     # get word2vec vectors for each word, write to TSV
     vectors = dict()
     dimension_names = ['f%02d' % i for i in range(100)]  # word2vec produces 100-dim vectors
-    for word in model.vocab.keys():
+    for word in vocab:
         # watch for non-DocumentFeatures, these break to_tsv
         # also ignore words with non-ascii characters
         if DocumentFeature.from_string(word).type == 'EMPTY':
@@ -58,8 +60,52 @@ def _vectors_to_tsv(i, model, unigram_events_file):
             continue
         vectors[word] = zip(dimension_names, model[word])
     vectors = Vectors(vectors)
-    vectors.to_tsv(unigram_events_file + '.rep%d' % i, gzipped=True)
+    vectors.to_tsv(output_path, gzipped=True)
+    del model
     return vectors
+
+
+def reformat_data(conll_data_dir, pos_only_data_dir):
+    """
+    Data formatting
+    =========
+    `word2vec` produces vectors for words, such as `computer`, whereas the rest of my experiments assume there are
+    augmented with a PoS tag, e.g. `computer/N`. To get around that, start with a directory of conll-formatted
+    files such as
+
+    ```
+    1	Anarchism	Anarchism	NNP	MISC	5	nsubj
+    2	is	be	VBZ	O	5	cop
+    3	a	a	DT	O	5	det
+    4	political	political	JJ	O	5	amod
+    5	philosophy	philosophy	NN	O	0	root
+    ```
+
+    and convert them to pos-augmented format (using coarse tags like Petrov's):
+
+    ```
+    Anarchism/N is/V a/DET ....
+    ```
+    :param conll_data_dir: input directory in CONLL format
+    :param pos_only_data_dir: output directory
+    """
+    try:
+        os.makedirs(pos_only_data_dir)
+    except OSError as exc:
+        if exc.errno == errno.EEXIST and os.path.isdir(pos_only_data_dir):
+            pass
+        else:
+            raise
+    for filename in os.listdir(conll_data_dir):
+        outfile_name = join(pos_only_data_dir, filename)
+        logging.info('Reformatting %s to %s', filename, outfile_name)
+        with open(join(conll_data_dir, filename)) as infile, open(outfile_name, 'w') as outfile:
+            for line in infile:
+                if not line.strip():  # conll empty line = sentence boundary
+                    outfile.write('.\n')
+                    continue
+                idx, word, lemma, pos, ner, dep, _ = line.strip().split('\t')
+                outfile.write('%s/%s ' % (lemma.lower(), pos_coarsification_map[pos]))
 
 
 def compute_and_write_vectors(corpus_name, stages, percent, repeat):
@@ -72,85 +118,62 @@ def compute_and_write_vectors(corpus_name, stages, percent, repeat):
         # pos_only_data_dir = join(prefix, 'data/gigaword-afe-split-pos/gigaword/')
         pos_only_data_dir = join(prefix, 'data/gigaword-afe-split-pos/gigaword-small-files/')
         # outputs
-        # todo some older files use %d formatting here. I should really delete them
-        unigram_events_file = join(prefix, 'word2vec_vectors/word2vec-%.2fperc.unigr.strings')
+        unigram_events_file = join(prefix, 'word2vec_vectors/word2vec-%dperc.unigr.strings')
     elif corpus_name == 'wiki':
-        conll_data_dir = None # wiki data is already in the right format, no point in reformatting
+        conll_data_dir = None  # wiki data is already in the right format, no point in reformatting
         pos_only_data_dir = join(prefix, 'data/wikipedia-tagged-pos/wikipedia/')
-        unigram_events_file = join(prefix, 'word2vec_vectors/word2vec-wiki-%.2fperc.unigr.strings')
+        unigram_events_file = join(prefix, 'word2vec_vectors/word2vec-wiki-%dperc.unigr.strings')
     else:
         raise ValueError('Unknown corpus %s' % corpus_name)
 
-    unigram_events_file = unigram_events_file % percent # fill in percentage information
+    unigram_events_file = unigram_events_file % percent  # fill in percentage information
 
     if percent < 100 and repeat > 1:
         repeat = 1  # only repeat when using the entire corpus
 
-    # Data formatting
-    # =========
-    # `word2vec` produces vectors for words, such as `computer`, whereas the rest of my experiments assume there are
-    # augmented with a PoS tag, e.g. `computer/N`. To get around that, start with a directory of conll-formatted
-    # files such as
-    #
-    # ```
-    # 1	Anarchism	Anarchism	NNP	MISC	5	nsubj
-    # 2	is	be	VBZ	O	5	cop
-    # 3	a	a	DT	O	5	det
-    # 4	political	political	JJ	O	5	amod
-    # 5	philosophy	philosophy	NN	O	0	root
-    # ```
-    #
-    # and convert them to pos-augmented format (using coarse tags like Petrov's):
-    #
-    # ```
-    # Anarchism/N is/V a/DET ....
-    # ```
     if 'reformat' in stages:
-        try:
-            os.makedirs(pos_only_data_dir)
-        except OSError as exc:
-            if exc.errno == errno.EEXIST and os.path.isdir(pos_only_data_dir):
-                pass
-            else:
-                raise
+        reformat_data(conll_data_dir, pos_only_data_dir)
 
-        for filename in os.listdir(conll_data_dir):
-            outfile_name = join(pos_only_data_dir, filename)
-            logging.info('Reformatting %s to %s', filename, outfile_name)
-            with open(join(conll_data_dir, filename)) as infile, open(outfile_name, 'w') as outfile:
-                for line in infile:
-                    if not line.strip():  # conll empty line = sentence boundary
-                        outfile.write('.\n')
-                        continue
-                    idx, word, lemma, pos, ner, dep, _ = line.strip().split('\t')
-                    outfile.write('%s/%s ' % (lemma.lower(), pos_coarsification_map[pos]))
-
-    # -----------------------------------------------------------------------
-    if 'average' in stages:
+    if 'vectors' in stages:
         models = []
-    for i in range(repeat):
-        if 'vectors' in stages:
+        for i in range(repeat):
             model = _train_model(percent, pos_only_data_dir)
-            print(model.vocab['finnish/J'].index)
-            print(model.vocab['large/J'].index)
-            print(model.vocab['computer/N'].index)
-            if 'average' in stages:
-                models.append(model)
-            vectors = _vectors_to_tsv(i, model, unigram_events_file)
-        # -----------------------------------------------------------------------
-        if 'compose' in stages:
+            models.append(model)
+            vocab = model.vocab.keys()
+
+        vectors = []
+        if 'average' in stages:
+            # average vectors and prepend to list to be written
+            output_path = unigram_events_file + '.avg%d' % repeat
+            model = {}
+            for k in vocab:
+                model[k] = reduce(np.add, [m[k] for m in models])
+            vectors.append(_vectors_to_tsv(model, vocab, output_path))
+        # write the output of each run separately
+        for i in range(repeat):
+            output_path = unigram_events_file + '.rep%d' % i
+            vectors.append(_vectors_to_tsv(model, vocab, output_path))
+
+    if 'compose' in stages:
+        for i, v in enumerate(vectors):
             # if we'll also be composing we don't have to write the unigram vectors to disk
             # just to read them back later.
-            compose_and_write_vectors(vectors if 'vectors' in stages else unigram_events_file + '.rep%d' % i,
-                                      'word2vec_%.2fpercent-rep%d' % (percent, i),
+            if 'average' in stages and i == 0:
+                out_path = 'word2vec_%dpercent-avg%d' % (percent, repeat)
+                input = v if 'vectors' in stages else unigram_events_file + '.avg%d' % repeat
+            else:
+                # i-1 because otherwise rep0 vectors will be composed as rep1 (average prepended)
+                out_path = 'word2vec_%dpercent-rep%d' % (percent, i - 1)
+                input = v if 'vectors' in stages else unigram_events_file + '.rep%d' % i
+            compose_and_write_vectors(input,
+                                      out_path,
                                       composer_algos,
                                       output_dir=composed_output_dir)
-    if 'average' in stages:
-        pass
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--stages', choices=('reformat', 'vectors', 'compose'),
+    parser.add_argument('--stages', choices=('reformat', 'vectors', 'average', 'compose'),
                         required=True, nargs='+')
     parser.add_argument('--corpus', choices=('gigaw', 'wiki'), required=True)
     # percent of files to use. SGE makes it easy for this to be 1, 2, ...
