@@ -159,11 +159,11 @@ def compute_and_write_vectors(corpus_name, stages, percent, repeat):
             # if we'll also be composing we don't have to write the unigram vectors to disk
             # just to read them back later.
             if 'average' in stages and i == 0:
-                out_path = 'word2vec_%dpercent-avg%d' % (percent, repeat)
+                out_path = 'word2vec-%s_%dpercent-avg%d' % (corpus_name, percent, repeat)
                 input = v if 'vectors' in stages else unigram_events_file + '.avg%d' % repeat
             else:
                 # i-1 because otherwise rep0 vectors will be composed as rep1 (average prepended)
-                out_path = 'word2vec_%dpercent-rep%d' % (percent, i - 1)
+                out_path = 'word2vec-%s_%dpercent-rep%d' % (corpus_name, percent, i - 1)
                 input = v if 'vectors' in stages else unigram_events_file + '.rep%d' % i
             compose_and_write_vectors(input,
                                       out_path,
