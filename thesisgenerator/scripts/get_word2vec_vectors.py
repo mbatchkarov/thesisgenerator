@@ -118,7 +118,7 @@ def compute_and_write_vectors(corpus_name, stages, percent, repeat):
         # pos_only_data_dir = join(prefix, 'data/gigaword-afe-split-pos/gigaword/')
         pos_only_data_dir = join(prefix, 'data/gigaword-afe-split-pos/gigaword-small-files/')
         # outputs
-        unigram_events_file = join(prefix, 'word2vec_vectors/word2vec-%dperc.unigr.strings')
+        unigram_events_file = join(prefix, 'word2vec_vectors/word2vec-gigaw-%dperc.unigr.strings')
     elif corpus_name == 'wiki':
         conll_data_dir = None  # wiki data is already in the right format, no point in reformatting
         pos_only_data_dir = join(prefix, 'data/wikipedia-tagged-pos/wikipedia/')
@@ -142,30 +142,31 @@ def compute_and_write_vectors(corpus_name, stages, percent, repeat):
             vocab = model.vocab.keys()
 
         vectors = []
-        if 'average' in stages:
-            # average vectors and prepend to list to be written
+        # write the output of each run separately
+        for i in range(repeat):
+            output_path = unigram_events_file + '.rep%d' % i
+            vectors.append(_vectors_to_tsv(model, vocab, output_path))
+
+        if 'average' in stages and repeat > 1:
+            # average vectors and append to list to be written
             output_path = unigram_events_file + '.avg%d' % repeat
             model = {}
             for k in vocab:
                 model[k] = reduce(np.add, [m[k] for m in models])
-            vectors.append(_vectors_to_tsv(model, vocab, output_path))
-        # write the output of each run separately
-        for i in range(repeat):
-            output_path = unigram_events_file + '.rep%d' % i
             vectors.append(_vectors_to_tsv(model, vocab, output_path))
 
     if 'compose' in stages:
         for i, v in enumerate(vectors):
             # if we'll also be composing we don't have to write the unigram vectors to disk
             # just to read them back later.
-            if 'average' in stages and i == 0:
+            if 'average' in stages and i == (len(vectors) - 1) and len(vectors) > 1:
+                # last set of vectors in the list, these are the averages ones
                 out_path = 'word2vec-%s_%dpercent-avg%d' % (corpus_name, percent, repeat)
-                input = v if 'vectors' in stages else unigram_events_file + '.avg%d' % repeat
+                input_thing = v if 'vectors' in stages else unigram_events_file + '.avg%d' % repeat
             else:
-                # i-1 because otherwise rep0 vectors will be composed as rep1 (average prepended)
-                out_path = 'word2vec-%s_%dpercent-rep%d' % (corpus_name, percent, i - 1)
-                input = v if 'vectors' in stages else unigram_events_file + '.rep%d' % i
-            compose_and_write_vectors(input,
+                out_path = 'word2vec-%s_%dpercent-rep%d' % (corpus_name, percent, i)
+                input_thing = v if 'vectors' in stages else unigram_events_file + '.rep%d' % i
+            compose_and_write_vectors(input_thing,
                                       out_path,
                                       composer_algos,
                                       output_dir=composed_output_dir)
@@ -181,5 +182,6 @@ if __name__ == '__main__':
     # multiplier for args.percent. Set to 0.1 to use fractional percentages of corpus
     parser.add_argument('--repeat', default=1, type=int)
     args = parser.parse_args()
+    logging.info('Params are: %r', args)
     compute_and_write_vectors(args.corpus, args.stages, args.percent, args.repeat)
 
