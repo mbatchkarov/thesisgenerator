@@ -255,9 +255,9 @@ if __name__ == '__main__':
     # wikipedia experiments on amazon
     wikipedia_w2v_amazon()
     # maas IMDB sentiment experiments
-    baselines(corpora=[maas_corpus])
-    random_vectors(maas_corpus)
-    all_standard_experiments(corpora=[maas_corpus])
+    # baselines(corpora=[maas_corpus])
+    # random_vectors(maas_corpus)
+    # all_standard_experiments(corpora=[maas_corpus])
     # other more recent stuff
     corrupted_w2v_amazon()
     count_with_ppmi_no_svd_amazon()
