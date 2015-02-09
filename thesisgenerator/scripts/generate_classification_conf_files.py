@@ -1,6 +1,6 @@
 from functools import wraps
 from glob import glob
-import os
+from collections import Counter
 import sys
 from itertools import chain
 
@@ -28,7 +28,7 @@ use this script to generate the conf files required to run them through the clas
 '''
 
 
-def vectors_from_settings(unlab_name, algorithm, composer_name, svd_dims, percent=100, rep=0, ppmi=0):
+def vectors_from_settings(unlab_name, algorithm, composer_name, svd_dims, percent=100, rep=0, ppmi=False):
     v = db.Vectors.select().where((db.Vectors.dimensionality == svd_dims) &
                                   (db.Vectors.unlabelled == unlab_name) &
                                   (db.Vectors.composer == composer_name) &
@@ -143,26 +143,15 @@ def an_only_nn_only_experiments_r2():
 
 
 @printing_decorator
-def word2vec_with_less_data_on_r2(percentages):
+def word2vec_repeated_runs_on_amazon():
+    labelled = am_corpus
     for unlab, algo, composer, svd_dims in word2vec_vector_settings():
-        # only up to 90%, 100% was done separately above
-        for percent in percentages:
-            e = db.ClassificationExperiment(labelled=r2_corpus,
+        for rep in [-1, 1, 2]: # 0 done as part of "standard experiments"
+            # only the second and third run of word2vec on the entire data set, the first was done above
+            e = db.ClassificationExperiment(labelled=labelled,
                                             vectors=vectors_from_settings(unlab, algo, composer,
-                                                                          svd_dims, percent))
+                                                                          svd_dims, rep=rep))
             experiments.append(e)
-
-
-@printing_decorator
-def word2vec_repeats_on_r2_amazon():
-    for unlab, algo, composer, svd_dims in word2vec_vector_settings():
-        for rep in range(1, 3):
-            for labelled in [r2_corpus, am_corpus]:
-                # only the second and third run of word2vec on the entire data set, the first was done above
-                e = db.ClassificationExperiment(labelled=labelled,
-                                                vectors=vectors_from_settings(unlab, algo, composer,
-                                                                              svd_dims, rep=rep))
-                experiments.append(e)
 
 
 @printing_decorator
@@ -180,9 +169,10 @@ def random_vectors(corpus):
 
 
 @printing_decorator
-def amazon_learning_curve_w2v():
+def w2v_learning_curve_amazon():
     for settings in word2vec_vector_settings():
-        for percent in [0.01, 0.51, 1., 5, 10, 50]:
+        # only up to 90% to avoid dupliting w2v-gigaw-100% (part of "standard experiments")
+        for percent in [1] + list(range(10, 91, 10)):
             e = db.ClassificationExperiment(labelled=am_corpus,
                                             vectors=vectors_from_settings(*settings, percent=percent))
             experiments.append(e)
@@ -198,7 +188,7 @@ def varying_k_with_w2v_on_r2():
 
 
 @printing_decorator
-def different_neighbour_strategies():
+def different_neighbour_strategies_r2():
     strat = 'skipping'
     for settings in word2vec_vector_settings():
         e = db.ClassificationExperiment(labelled=r2_corpus, vectors=vectors_from_settings(*settings),
@@ -207,7 +197,7 @@ def different_neighbour_strategies():
 
 
 @printing_decorator
-def wikipedia_thesauri():
+def wikipedia_w2v_amazon():
     unlab = 'wiki'
     for p in [15, 50]:
         for _, algo, composer_name, dims in word2vec_vector_settings():
@@ -218,22 +208,24 @@ def wikipedia_thesauri():
                                                                                               percent=p))
             experiments.append(e)
 
+
 @printing_decorator
-def corrupted_w2v_on_amazon():
+def corrupted_w2v_amazon():
     for noise in np.arange(.2, 2.1, .2):
         v = vectors_from_settings('gigaw', 'word2vec', 'Add', 100, percent=100)
         e = db.ClassificationExperiment(labelled=am_corpus, vectors=v, noise=noise)
         experiments.append(e)
 
+
 @printing_decorator
-def count_ppmi_experiments_amazon(corpus=None):
+def count_with_ppmi_no_svd_amazon(corpus=None):
     if not corpus:
         corpus = am_corpus
 
     for composer in [AdditiveComposer, MultiplicativeComposer,
                      LeftmostWordComposer, RightmostWordComposer]:
         for algo in ['count_dependencies', 'count_windows']:
-            v = vectors_from_settings('gigaw', algo, composer.name, 0, ppmi=True)
+            v = vectors_from_settings('gigaw', algo, composer.name, svd_dims=0, ppmi=True)
             e = db.ClassificationExperiment(labelled=corpus, vectors=v)
             experiments.append(e)
 
@@ -255,29 +247,31 @@ if __name__ == '__main__':
     baselines()
     all_standard_experiments()
     hybrid_experiments_r2_amazon_turian_word2vec()
-    word2vec_with_less_data_on_r2(range(10, 91, 10))
-    word2vec_repeats_on_r2_amazon()
-    word2vec_with_less_data_on_r2(range(1, 10, 1))  # these were added later
+    word2vec_repeated_runs_on_amazon()
     random_vectors(r2_corpus)
-    word2vec_with_less_data_on_r2(np.arange(0.01, 0.92, .1))
-    amazon_learning_curve_w2v()
+    w2v_learning_curve_amazon()
     varying_k_with_w2v_on_r2()
     random_vectors(am_corpus)
     # wikipedia experiments on amazon
-    wikipedia_thesauri()
+    wikipedia_w2v_amazon()
     # maas IMDB sentiment experiments
     baselines(corpora=[maas_corpus])
     random_vectors(maas_corpus)
     all_standard_experiments(corpora=[maas_corpus])
-    corrupted_w2v_on_amazon()
-    count_ppmi_experiments_amazon()
+    # other more recent stuff
+    corrupted_w2v_amazon()
+    count_with_ppmi_no_svd_amazon()
     glove_vectors_amazon()
 
     # various other experiments that aren't as interesting
     # an_only_nn_only_experiments_r2()
     # different_neighbour_strategies()
-
     print('Total experiments: %d' % len(experiments))
+
+    # verify experiments aren't being duplicated
+    if len(set(experiments)) != len(experiments):
+        raise ValueError('Duplicated experiments exist: %s' % Counter(experiments).most_common(5))
+
     # re-order experiments so that the hard ones (high-memory, long-running) come first
     def _myorder(item):
         """
@@ -300,7 +294,6 @@ if __name__ == '__main__':
     # but whatever, not worth my time
     sorted_experiments = sorted(enumerate(experiments), key=_myorder)
     experiments = []
-    print('Here is how experiments were reordered:')
     new_id = 1
     prev_exp = None
     for old_id, e in sorted_experiments:
@@ -317,13 +310,12 @@ if __name__ == '__main__':
     # sys.exit(0)
     for e in experiments:
         e.save(force_insert=True)
-        print('%s,' % e)
 
     # sys.exit(0)
     print('Writing conf files')
     megasuperbase_conf_file = 'conf/exp1-superbase.conf'
     for exp in experiments:
-        if exp.id % 20 == 0:
+        if exp.id % 50 == 0:
             print('Writing exp %d' % exp.id)
         # sanity check
         experiment_dir = 'conf/exp%d' % exp.id

@@ -97,26 +97,22 @@ if __name__ == '__main__':
         print(v)
 
     # word2vec composed with various simple algorithms, including varying amounts of unlabelled data
-    pattern2 = '{prefix}/word2vec_vectors/composed/AN_NN_word2vec_{percent}percent-rep{rep}_' \
-               '{composer}.events.filtered.strings'
-    # some files were created with this format (float percent representation instead of int)
-    pattern1 = '{prefix}/word2vec_vectors/composed/AN_NN_word2vec_{percent:.2f}percent-rep{rep}_' \
-               '{composer}.events.filtered.strings'
+    gigaw_rep_pattern = '{prefix}/word2vec_vectors/composed/' \
+                        'AN_NN_word2vec-{unlabelled}_{percent}percent-rep{rep}_{composer}.events.filtered.strings'
+    gigaw_avg_pattern = '{prefix}/word2vec_vectors/composed/' \
+                        'AN_NN_word2vec-gigaw_100percent-avg3_{composer}.events.filtered.strings'
     # and some files were done on Wikipedia and have a different naming scheme
-    pattern3 = '{prefix}/word2vec_vectors/composed/AN_NN_word2vec-wiki_{percent:.2f}percent-rep{rep}_' \
-               '{composer}.events.filtered.strings'
-
+    wiki_pattern = '{prefix}/word2vec_vectors/composed/' \
+                   'AN_NN_word2vec-wiki_{percent:d}percent-rep0_{composer}.events.filtered.strings'
 
     def _do_w2v_vectors(unlabelled='gigaw'):
         global prefix
         for composer_class in [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer, RightmostWordComposer]:
             composer = composer_class.name
             for rep in range(1 if percent < 100 else 3):
-                thesaurus_file = pattern1.format(**ChainMap(locals(), globals()))
-                if not os.path.exists(thesaurus_file):
-                    thesaurus_file = pattern2.format(**ChainMap(locals(), globals()))
+                thesaurus_file = gigaw_rep_pattern.format(**ChainMap(locals(), globals()))
                 if unlabelled == 'wiki':
-                    thesaurus_file = pattern3.format(**ChainMap(locals(), globals()))
+                    thesaurus_file = wiki_pattern.format(**ChainMap(locals(), globals()))
 
                 modified, size, gz_size = get_size(thesaurus_file)
                 v = db.Vectors.create(algorithm='word2vec', dimensionality=100,
@@ -124,15 +120,16 @@ if __name__ == '__main__':
                                       composer=composer, modified=modified, size=size, gz_size=gz_size,
                                       rep=rep)
                 print(v)
+            if percent == 100:
+                # also include average of the three runs at 100% of all data
+                thesaurus_file = gigaw_avg_pattern.format(**ChainMap(locals(), globals()))
+                modified, size, gz_size = get_size(thesaurus_file)
+                v = db.Vectors.create(algorithm='word2vec', dimensionality=100,
+                                      unlabelled='gigaw', path=thesaurus_file, unlabelled_percentage=percent,
+                                      composer=composer, modified=modified, size=size, gz_size=gz_size,
+                                      rep=-1)  # -1 signify averaging across multiple runs
 
-
-    for percent in range(100, 9, -10):
-        _do_w2v_vectors()
-
-    for percent in range(1, 10):
-        _do_w2v_vectors()
-
-    for percent in np.arange(0.01, 0.92, .1):
+    for percent in [1] + list(range(10, 101, 10)):
         _do_w2v_vectors()
 
     for percent in [15, 50]:
@@ -154,3 +151,15 @@ if __name__ == '__main__':
                                       path=thesaurus_file, composer=composer_name,
                                       modified=modified, size=size, gz_size=gz_size)
                 print(v)
+
+    # verify vectors have been included just once
+    vectors = []
+    for v in db.Vectors.select():
+        data = v._data
+        del data['id']
+        del data['modified']
+        del data['size']
+        del data['gz_size']
+        vectors.append('_'.join(str(data[k]) for k in sorted(data.keys())))
+    if len(set(vectors)) != len(vectors):
+        raise ValueError('Duplicated vectors have been entered into database')
