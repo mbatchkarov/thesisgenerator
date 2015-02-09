@@ -107,9 +107,12 @@ def build_unreduced_counting_thesauri(corpus, corpus_name, features,
 
     # COMPOSE ALL AN/NN VECTORS IN LABELLED SET
     if 'compose' in stages:
-        unigram_vectors_file = _find_events_file(unigram_thesaurus_dir) if use_ppmi else \
-            _find_events_file(unigram_thesaurus_dir_ppmi)
-        outdir = ngram_vectors_dir if use_ppmi else ngram_vectors_dir_ppmi
+        if use_ppmi:
+            unigram_vectors_file = _find_events_file(unigram_thesaurus_dir_ppmi)
+            outdir = ngram_vectors_dir_ppmi
+        else:
+            unigram_vectors_file = _find_events_file(unigram_thesaurus_dir)
+            outdir = ngram_vectors_dir
         compose_and_write_vectors(unigram_vectors_file,
                                   corpus_name,
                                   composer_algos,
