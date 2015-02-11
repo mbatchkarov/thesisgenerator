@@ -1,25 +1,22 @@
 """
 A set of utilities for manipulating/querying the output of thesisgenerator's classification experiments
 """
-import logging
-import os
 import itertools
 from operator import attrgetter
-import pandas as pd
 import numpy as np
-from thesisgenerator.utils.db import ClassificationExperiment, FullResults
+from thesisgenerator.utils import db
 
 METRIC_DB = 'macrof1'
 METRIC_CSV_FILE = 'macroavg_f1'
 
 
 def get_single_vectors_field(exp_id, field_name):
-    vectors = ClassificationExperiment.get(id=exp_id).vectors
+    vectors = db.ClassificationExperiment.get(id=exp_id).vectors
     return getattr(vectors, field_name) if vectors else None
 
 
 def get_cv_fold_count(ids):
-    return [FullResults.select().where(FullResults.id == id).count() // 2 for id in ids]
+    return [db.FullResults.select().where(db.FullResults.id == id).count() // 2 for id in ids]
 
 
 def get_vectors_field(exp_ids, field_name):
@@ -29,8 +26,8 @@ def get_vectors_field(exp_ids, field_name):
 
 
 def get_cv_scores_single_experiment(n, classifier):
-    rows = FullResults.select().where(FullResults.id == n,
-                                      FullResults.classifier == classifier)
+    rows = db.FullResults.select().where(db.FullResults.id == n,
+                                      db.FullResults.classifier == classifier)
     rows = sorted(rows, key=attrgetter('cv_fold'))
     return [getattr(x, METRIC_CSV_FILE) for x in rows]
 
