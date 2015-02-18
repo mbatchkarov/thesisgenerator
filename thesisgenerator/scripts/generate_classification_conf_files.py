@@ -73,16 +73,14 @@ def turian_vector_settings():
         yield unlab, algo, c.name, 100
 
 
-def word2vec_vector_settings():
-    unlab = 'gigaw'
+def word2vec_vector_settings(unlab='gigaw'):
     algo = 'word2vec'
     composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer, RightmostWordComposer]
     for c in composer_algos:
         yield unlab, algo, c.name, 100
 
 
-def glove_vector_settings():
-    unlab = 'gigaw'
+def glove_vector_settings(unlab='gigaw'):
     algo = 'glove'
     composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer, RightmostWordComposer]
     for c in composer_algos:
@@ -146,7 +144,7 @@ def an_only_nn_only_experiments_r2():
 def word2vec_repeated_runs_on_amazon():
     labelled = am_corpus
     for unlab, algo, composer, svd_dims in word2vec_vector_settings():
-        for rep in [-1, 1, 2]: # 0 done as part of "standard experiments"
+        for rep in [-1, 1, 2]:  # 0 done as part of "standard experiments"
             # only the second and third run of word2vec on the entire data set, the first was done above
             e = db.ClassificationExperiment(labelled=labelled,
                                             vectors=vectors_from_settings(unlab, algo, composer,
@@ -169,8 +167,8 @@ def random_vectors(corpus):
 
 
 @printing_decorator
-def w2v_learning_curve_amazon():
-    for settings in word2vec_vector_settings():
+def w2v_learning_curve_amazon(unlab='gigaw'):
+    for settings in word2vec_vector_settings(unlab):
         # only up to 90% to avoid dupliting w2v-gigaw-100% (part of "standard experiments")
         for percent in [1] + list(range(10, 91, 10)):
             e = db.ClassificationExperiment(labelled=am_corpus,
@@ -212,7 +210,7 @@ def wikipedia_w2v_amazon():
 @printing_decorator
 def corrupted_w2v_amazon():
     for noise in np.arange(.2, 2.1, .2):
-        v = vectors_from_settings('gigaw', 'word2vec', 'Add', 100, percent=100)
+        v = vectors_from_settings('wiki', 'word2vec', 'Add', 100, percent=100)
         e = db.ClassificationExperiment(labelled=am_corpus, vectors=v, noise=noise)
         experiments.append(e)
 
@@ -262,6 +260,7 @@ if __name__ == '__main__':
     corrupted_w2v_amazon()
     count_with_ppmi_no_svd_amazon()
     glove_vectors_amazon()
+    w2v_learning_curve_amazon(unlab='wiki')
 
     # various other experiments that aren't as interesting
     # an_only_nn_only_experiments_r2()
