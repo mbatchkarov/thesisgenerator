@@ -22,8 +22,8 @@ class Vectors(pw.Model):
         database = db
 
     def __str__(self):
-        return 'Vectors: ' + ','.join(str(x) for x in [self.algorithm, self.composer, self.dimensionality,
-                                                       self.rep, self.unlabelled_percentage])
+        return 'Vectors: ' + ','.join(str(x) for x in [self.unlabelled, self.algorithm, self.composer,
+                                                       self.dimensionality, self.rep, self.unlabelled_percentage])
 
 
 class ClassificationExperiment(pw.Model):

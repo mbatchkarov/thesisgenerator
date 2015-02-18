@@ -91,7 +91,7 @@ if __name__ == '__main__':
         thesaurus_file = pattern.format(**locals())
         modified, size, gz_size = get_size(thesaurus_file)
         v = db.Vectors.create(algorithm='glove',
-                              dimensionality=100, unlabelled='gigaw',
+                              dimensionality=100, unlabelled='wiki',
                               path=thesaurus_file, composer=composer_name,
                               modified=modified, size=size, gz_size=gz_size)
         print(v)
@@ -120,19 +120,19 @@ if __name__ == '__main__':
                                       composer=composer, modified=modified, size=size, gz_size=gz_size,
                                       rep=rep)
                 print(v)
-            if percent == 100:
+            if percent == 100 and unlabelled == 'gigaw':
                 # also include average of the three runs at 100% of all data
                 thesaurus_file = gigaw_avg_pattern.format(**ChainMap(locals(), globals()))
                 modified, size, gz_size = get_size(thesaurus_file)
                 v = db.Vectors.create(algorithm='word2vec', dimensionality=100,
-                                      unlabelled='gigaw', path=thesaurus_file, unlabelled_percentage=percent,
+                                      unlabelled=unlabelled, path=thesaurus_file, unlabelled_percentage=percent,
                                       composer=composer, modified=modified, size=size, gz_size=gz_size,
                                       rep=-1)  # -1 signify averaging across multiple runs
 
     for percent in [1] + list(range(10, 101, 10)):
         _do_w2v_vectors()
 
-    for percent in [15, 50]:
+    for percent in [15, 50] + [1, 10, 20, 30, 40, 60, 70, 80, 90, 100]:
         _do_w2v_vectors('wiki')
 
     # count vectors with PPMI, no SVD
