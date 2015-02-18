@@ -19,8 +19,8 @@ from thesisgenerator.composers.vectorstore import (RightmostWordComposer, Leftmo
 prefix = '/mnt/lustre/scratch/inf/mmb28/FeatureExtractionToolkit'
 glove_dir = join(prefix, 'glove')
 glove_script = join(glove_dir, 'demo_miro.sh')  # set param in that script
-pos_only_data_dir = join(prefix, 'data/gigaword-afe-split-pos/gigaword/')
-unlabelled_data = join(prefix, 'data/gigaword-afe-split-pos/gigaword.oneline')
+pos_only_data_dir = join(prefix, 'data/wikipedia-tagged-pos/wikipedia/')
+unlabelled_data = join(prefix, 'data/wikipedia-tagged-pos/wikipedia.oneline')
 raw_vectors_file = join(glove_dir, 'vectors.txt')  # what GloVe produces
 formatted_vectors_file = join(glove_dir, 'vectors.miro.gz')  # unigram vectors in my format
 composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer, RightmostWordComposer]
