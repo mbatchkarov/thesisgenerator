@@ -49,7 +49,7 @@ def compute_and_write_vectors(stages):
     if 'compose' in stages:
         logging.info('Loading labelled corpora and composing phrase vectors therein')
         compose_and_write_vectors(formatted_vectors_file,
-                                  'glove-gigaw',
+                                  'glove-wiki',
                                   composer_algos,
                                   output_dir=glove_dir)
 
