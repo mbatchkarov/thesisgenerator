@@ -232,7 +232,7 @@ def count_wiki_with_ppmi_no_svd_amazon():
     for algo in ['count_windows', 'count_dependencies']:
         for composer in [AdditiveComposer, MultiplicativeComposer,
                          LeftmostWordComposer, RightmostWordComposer]:
-            v = vectors_from_settings('wiki', algo, composer.name, svd_dims=0, ppmi=True)
+            v = vectors_from_settings('wikipedia', algo, composer.name, svd_dims=0, ppmi=True)
             e = db.ClassificationExperiment(labelled=am_corpus, vectors=v)
             experiments.append(e)
 
