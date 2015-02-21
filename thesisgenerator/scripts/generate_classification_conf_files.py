@@ -227,6 +227,15 @@ def count_with_ppmi_no_svd_amazon(corpus=None):
             e = db.ClassificationExperiment(labelled=corpus, vectors=v)
             experiments.append(e)
 
+@printing_decorator
+def count_wiki_with_ppmi_no_svd_amazon():
+    for algo in ['count_windows', 'count_dependencies']:
+        for composer in [AdditiveComposer, MultiplicativeComposer,
+                         LeftmostWordComposer, RightmostWordComposer]:
+            v = vectors_from_settings('wiki', algo, composer.name, svd_dims=0, ppmi=True)
+            e = db.ClassificationExperiment(labelled=am_corpus, vectors=v)
+            experiments.append(e)
+
 
 if __name__ == '__main__':
     prefix = '/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data'
@@ -262,6 +271,7 @@ if __name__ == '__main__':
     glove_vectors_amazon()
     # 15, 50% done as a part of wikipedia_w2v_amazon()
     w2v_learning_curve_amazon(unlab='wiki', percent=[1, 10, 20, 30, 40, 60, 70, 80, 90, 100])
+    count_wiki_with_ppmi_no_svd_amazon()
 
     # various other experiments that aren't as interesting
     # an_only_nn_only_experiments_r2()
