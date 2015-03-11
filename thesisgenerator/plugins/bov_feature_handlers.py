@@ -82,7 +82,7 @@ class BaseFeatureHandler():
             values.append(self.sim_transformer(sim))
             # track the event
             event.extend([neighbour, sim])
-        stats.register_paraphrase(event)
+        stats.register_paraphrase(tuple(event))
 
 
 class SignifierSignifiedFeatureHandler(BaseFeatureHandler):

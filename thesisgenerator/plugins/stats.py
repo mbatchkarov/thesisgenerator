@@ -1,10 +1,11 @@
 import logging
 import gzip
+from collections import Counter
 from thesisgenerator.utils.misc import noop
 import pandas as pd
 
 
-def sum_up_token_counts(hdf_file):
+def sum_up_token_counts(filename):
     """
     Loads a pandas DataFrame from HDF storage and sums up duplicate rows.
      For example
@@ -18,14 +19,11 @@ def sum_up_token_counts(hdf_file):
 
      The extra columns is called 'count'
 
-    :param hdf_file: the file to load from
-    :type hdf_file: str
-    :param table_name: name of table (must be contained in the HDF file)
-    :type table_name: str
-    :return:
+    :param filename: the file to load from
+    :type filename: str
     :rtype: pd.DataFrame
     """
-    df = pd.read_csv(hdf_file, sep=', ')
+    df = pd.read_csv(filename, sep=', ')
     counts = df.groupby('feature').count()
     assert counts.IV.sum() == counts.IT.sum() == df.shape[0]  # no missing rows
     df = df.drop_duplicates()
@@ -41,12 +39,11 @@ class StatsRecorder(object):
     """
 
     def __init__(self, prefix, stage, cv_fold):
-        self.token_counts = []
-        self.paraphrases = []
+        self.token_counts = Counter()
+        self.paraphrases = Counter()
         self.prefix = prefix  # store data here instead of in memory
         self.stage = stage
         self.cv_fold = cv_fold
-        self.max_rows_in_memory = 1e5  # how many items to store before flushing to disk
 
         self.par_file = '%s.%s.csv.gz' % (self.prefix, 'par')
         self.tc_file = '%s.%s.csv.gz' % (self.prefix, 'tc')
@@ -54,12 +51,12 @@ class StatsRecorder(object):
         if cv_fold == 0 and stage == 0:
             # experiment just started, write header to output files
             with gzip.open(self.tc_file, 'wb') as outfile:
-                outfile.write(bytes('cv_fold, stage, feature, IV, IT\n', encoding='UTF8'))
+                outfile.write(bytes('cv_fold, stage, feature, IV, IT, count\n', encoding='UTF8'))
             with gzip.open(self.par_file, 'wb') as outfile:
                 header = 'cv_fold, stage, feature, available_replacements, ' \
                          'replacement1, replacement1_sim, ' \
                          'replacement2, replacement2_sim, ' \
-                         'replacement3, replacement3_sim\n'
+                         'replacement3, replacement3_sim, count\n'
                 outfile.write(bytes(header, encoding='UTF8'))
 
     def _flush_data_to_csv(self, filename, data):
@@ -67,16 +64,14 @@ class StatsRecorder(object):
             logging.info('Flushing %s statistics for fold %d to %s', self.stage, self.cv_fold, filename)
 
             with gzip.open(filename, 'ab') as store:
-                for line in data:
-                    store.write(bytes(', '.join(map(str, line)), encoding='UTF8'))
+                for value, count in data.items():
+                    s = ', '.join(map(str, value + (count,)))
+                    store.write(bytes(s, encoding='UTF8'))
                     store.write(bytes('\n', encoding='UTF8'))
 
 
     def register_token(self, feature, iv, it):
-        self.token_counts.append([self.cv_fold, self.stage, feature.tokens_as_str(), int(iv), int(it)])
-        if len(self.token_counts) > self.max_rows_in_memory:
-            self._flush_data_to_csv(self.tc_file, self.token_counts)
-            self.token_counts = []  # clear the chunk of data held in memory
+        self.token_counts[(self.cv_fold, self.stage, feature.tokens_as_str(), int(iv), int(it))] += 1
 
     def consolidate_stats(self):
         self._flush_data_to_csv(self.par_file, self.paraphrases)
@@ -95,11 +90,11 @@ class StatsRecorder(object):
             expected = 8
             if current >= expected:
                 break
-            event.extend(['NaN', 'NaN'])
-        self.paraphrases.append([self.cv_fold, self.stage] + event)
-        if len(self.paraphrases) > self.max_rows_in_memory:
-            self._flush_data_to_csv(self.par_file, self.paraphrases)
-            self.paraphrases = []  # clear the chunk of data held in memory
+            event += ('NaN', 'NaN')
+        self.paraphrases[(self.cv_fold, self.stage) + event] += 1
+        # if len(self.paraphrases) > self.max_rows_in_memory:
+        # self._flush_data_to_csv(self.par_file, self.paraphrases)
+        #     self.paraphrases = []  # clear the chunk of data held in memory
 
 
 class NoopStatsRecorder(StatsRecorder):
