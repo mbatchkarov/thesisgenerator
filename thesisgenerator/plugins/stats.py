@@ -1,8 +1,7 @@
 import logging
-import os
+import gzip
 from thesisgenerator.utils.misc import noop
 import pandas as pd
-
 
 
 def sum_up_token_counts(hdf_file):
@@ -41,40 +40,40 @@ class StatsRecorder(object):
     in-thesaurus and out-of-thesaurus tokens and types
     """
 
-    def __init__(self, prefix=None):
+    def __init__(self, prefix, stage, cv_fold):
         self.token_counts = []
         self.paraphrases = []
         self.prefix = prefix  # store data here instead of in memory
+        self.stage = stage
+        self.cv_fold = cv_fold
         self.max_rows_in_memory = 1e5  # how many items to store before flushing to disk
 
-        self.par_file = '%s.%s.csv' % (self.prefix, 'par')
-        self.tc_file = '%s.%s.csv' % (self.prefix, 'tc')
+        self.par_file = '%s.%s.csv.gz' % (self.prefix, 'par')
+        self.tc_file = '%s.%s.csv.gz' % (self.prefix, 'tc')
 
-        if os.path.exists(self.par_file):
-            os.unlink(self.par_file)
-        if os.path.exists(self.tc_file):
-            os.unlink(self.tc_file)
-
-        with open(self.tc_file, 'w') as outfile:
-            outfile.write('feature, IV, IT\n')
-        with open(self.par_file, 'w') as outfile:
-            outfile.write('feature, available_replacements, '
-                          'replacement1, replacement1_sim, '
-                          'replacement2, replacement2_sim, '
-                          'replacement3, replacement3_sim\n')
+        if cv_fold == 0 and stage == 0:
+            # experiment just started, write header to output files
+            with gzip.open(self.tc_file, 'wb') as outfile:
+                outfile.write(bytes('cv_fold, stage, feature, IV, IT\n', encoding='UTF8'))
+            with gzip.open(self.par_file, 'wb') as outfile:
+                header = 'cv_fold, stage, feature, available_replacements, ' \
+                         'replacement1, replacement1_sim, ' \
+                         'replacement2, replacement2_sim, ' \
+                         'replacement3, replacement3_sim\n'
+                outfile.write(bytes(header, encoding='UTF8'))
 
     def _flush_data_to_csv(self, filename, data):
         if data:
-            logging.info('Flushing statistics to %s', filename)
+            logging.info('Flushing %s statistics for fold %d to %s', self.stage, self.cv_fold, filename)
 
-            with open(filename, 'a') as store:
+            with gzip.open(filename, 'ab') as store:
                 for line in data:
-                    store.write(', '.join(map(str, line)))
-                    store.write('\n')
+                    store.write(bytes(', '.join(map(str, line)), encoding='UTF8'))
+                    store.write(bytes('\n', encoding='UTF8'))
 
 
     def register_token(self, feature, iv, it):
-        self.token_counts.append([feature.tokens_as_str(), iv, it])
+        self.token_counts.append([self.cv_fold, self.stage, feature.tokens_as_str(), int(iv), int(it)])
         if len(self.token_counts) > self.max_rows_in_memory:
             self._flush_data_to_csv(self.tc_file, self.token_counts)
             self.token_counts = []  # clear the chunk of data held in memory
@@ -97,7 +96,7 @@ class StatsRecorder(object):
             if current >= expected:
                 break
             event.extend(['NaN', 'NaN'])
-        self.paraphrases.append(event)
+        self.paraphrases.append([self.cv_fold, self.stage] + event)
         if len(self.paraphrases) > self.max_rows_in_memory:
             self._flush_data_to_csv(self.par_file, self.paraphrases)
             self.paraphrases = []  # clear the chunk of data held in memory
@@ -110,8 +109,8 @@ class NoopStatsRecorder(StatsRecorder):
     register_token = consolidate_stats = register_paraphrase = get_paraphrase_statistics = noop
 
 
-def get_stats_recorder(enabled, stats_file_prefix, suffix):
+def get_stats_recorder(enabled, stats_file_prefix, stage, cv_fold):
     if enabled and stats_file_prefix:
-        return StatsRecorder(prefix='%s%s' % (stats_file_prefix, suffix))
+        return StatsRecorder(stats_file_prefix, stage, cv_fold)
     else:
         return NoopStatsRecorder()

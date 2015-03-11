@@ -104,7 +104,8 @@ class ThesaurusVectorizer(TfidfVectorizer):
                                                   norm=norm,
                                                   dtype=dtype)
 
-    def fit_transform(self, raw_documents, y=None, vector_source=None, stats_hdf_file=None):
+    def fit_transform(self, raw_documents, y=None, vector_source=None, stats_hdf_file=None, cv_fold=-1):
+        self.cv_fold = cv_fold
         self._check_vocabulary()
         self.thesaurus = vector_source
         self.handler = get_token_handler(self.train_token_handler,
@@ -113,7 +114,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
                                          self.thesaurus)
         # requested stats that to go HDF, store the name so we can record stats to that name at decode time too
         self.stats_hdf_file_ = stats_hdf_file
-        self.stats = get_stats_recorder(self.record_stats, stats_hdf_file, '-tr')
+        self.stats = get_stats_recorder(self.record_stats, stats_hdf_file, 0, cv_fold)
         # a different stats recorder will be used for the testing data
 
         # ########## BEGIN super.fit_transform ##########
@@ -161,7 +162,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
         if not hasattr(self, 'vocabulary_') or len(self.vocabulary_) == 0:
             raise ValueError("Vocabulary wasn't fitted or is empty!")
         # record stats separately for the test set
-        self.stats = get_stats_recorder(self.record_stats, self.stats_hdf_file_, '-ev')
+        self.stats = get_stats_recorder(self.record_stats, self.stats_hdf_file_, 1, self.cv_fold)
 
         if self.random_neighbour_thesaurus:
             # this is a bit of hack and a waste of effort, since a thesaurus will have been loaded first

@@ -194,11 +194,12 @@ def _build_pipeline(cv_i, vector_source, feature_extr_conf, feature_sel_conf, ou
         fit_args['stripper__vector_source'] = vector_source
 
     if feature_extr_conf['record_stats']:
-        fit_args['vect__stats_hdf_file'] = 'statistics/stats-%s-cv%d' % (exp_name, cv_i)
+        fit_args['vect__stats_hdf_file'] = 'statistics/stats-%s' % exp_name
 
     pipeline = PicklingPipeline(pipeline_list, exp_name) if debug else Pipeline(pipeline_list)
     pipeline.set_params(**init_args)
 
+    fit_args['vect__cv_fold'] = cv_i
     logging.debug('Pipeline is:\n %s', pipeline)
     return pipeline, fit_args
 
@@ -289,7 +290,7 @@ def _cv_loop(log_dir, config, cv_i, score_func, test_idx, train_idx, vector_sour
         tr_set_scores = score_func(y_train, clf.predict(tr_matrix))
         logging.info('Training set scores: %r', tr_set_scores)
 
-        if config['feature_extraction']['record_stats']:
+        if config['debug']:
             # if a feature selectors exist, use its vocabulary
             # step_name = 'fs' if 'fs' in pipeline.named_steps else 'vect'
             with open('%s.%s.pkl' % (stats.prefix, clf.__class__.__name__.split('.')[-1]), 'wb') as outf:

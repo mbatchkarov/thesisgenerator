@@ -84,14 +84,12 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO,
                         format="%(asctime)s\t%(module)s.%(funcName)s (line %(lineno)d)\t%(levelname)s : %(message)s")
     if len(sys.argv) == 2:
-        i = int(sys.argv[1])  # full experiment id
+        i = int(sys.argv[1])  # experiment id, e.g. 1 or 2 or 1532
         run_experiment(i)
         prefix = '/mnt/lustre/scratch/inf/mmb28/thesisgenerator'
-        consolidate_single_experiment(prefix, i)
-    elif len(sys.argv) == 3:
-        i, j = list(map(int(sys.argv)))
-        run_experiment(i, subexpid=j)
+        if i:
+            consolidate_single_experiment(prefix, i)
     else:
-        print(('Expected one or two int parameters, got %s' % (sys.argv)))
+        print(('Expected one int parameter, got %s' % (sys.argv)))
 
 
