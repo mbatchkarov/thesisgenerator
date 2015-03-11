@@ -1,10 +1,15 @@
 # -*- coding: utf-8 -*-
 import argparse
-import os, sys, math
+import os
+import sys
+import math
+import random
 from os.path import join
 from functools import reduce
-import gensim, logging, errno
+import logging
+import errno
 import numpy as np
+import gensim
 
 sys.path.append('.')
 sys.path.append('..')
@@ -27,24 +32,33 @@ WORKERS = 10
 composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer, RightmostWordComposer]
 
 
-def _train_model(percent, data_dir):
+def _train_model(percent, data_dir, repeat_num):
     # train a word2vec model
     class MySentences(object):
         def __init__(self, dirname, file_percentage):
             self.dirname = dirname
             self.limit = file_percentage / 100
 
-        def __iter__(self):
             files = [x for x in sorted(os.listdir(self.dirname)) if not x.startswith('.')]
             count = math.ceil(self.limit * len(files))
-            logging.info('Will use %d files for training', count)
-            for fname in files[:count]:
+            if repeat_num == 0:
+                # always take the same files for the first repetition so we can plot a learning curve that shows the
+                # effect of adding a bit of extra data, e.g. going from 50% to 60% of corpus.
+                self.files = files[:count]
+            else:
+                # the other repetitions are over random samples, to quantify the effect of the sample, not its size
+                random.seed(repeat_num)
+                self.files = random.sample(files, count)
+            logging.info('Will use the following %d files for training\n %s', len(self.files), self.files)
+
+        def __iter__(self):
+            for fname in self.files:
                 for line in open(join(self.dirname, fname)):
                     yield line.split()
 
     logging.info('Training word2vec on %d percent of %s', percent, data_dir)
     sentences = MySentences(data_dir, percent)
-    model = gensim.models.Word2Vec(sentences, workers=WORKERS, min_count=MIN_COUNT)
+    model = gensim.models.Word2Vec(sentences, workers=WORKERS, min_count=MIN_COUNT, seed=repeat_num)
     return model
 
 
@@ -128,8 +142,10 @@ def compute_and_write_vectors(corpus_name, stages, percent, repeat):
 
     unigram_events_file = unigram_events_file % percent  # fill in percentage information
 
-    if percent < 100 and repeat > 1:
-        repeat = 1  # only repeat when using the entire corpus
+    if percent > 90 and repeat > 1:
+        raise ValueError('Repeating with a different sample of corpus only makes sense when '
+                         'the samples are sufficiently distinct. This requires that the sample'
+                         ' size is fairly small to minimise overlap between samples')
 
     if 'reformat' in stages:
         reformat_data(conll_data_dir, pos_only_data_dir)
@@ -137,7 +153,7 @@ def compute_and_write_vectors(corpus_name, stages, percent, repeat):
     if 'vectors' in stages:
         models = []
         for i in range(repeat):
-            model = _train_model(percent, pos_only_data_dir)
+            model = _train_model(percent, pos_only_data_dir, i)
             models.append(model)
             vocab = model.vocab.keys()
 
