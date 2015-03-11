@@ -22,38 +22,55 @@ def _get_size(thesaurus_file):
     return modified, size, gz_size
 
 
-def _do_w2v_vectors(percent, unlabelled='gigaw'):
-    """word2vec composed with various simple algorithms, including varying amounts of unlabelled data"""
-    gigaw_rep_pattern = '{prefix}/word2vec_vectors/composed/' \
-                        'AN_NN_word2vec-{unlabelled}_{percent}percent-rep{rep}_{composer}.events.filtered.strings'
-    gigaw_avg_pattern = '{prefix}/word2vec_vectors/composed/' \
-                        'AN_NN_word2vec-gigaw_100percent-avg3_{composer}.events.filtered.strings'
+def _do_w2v_vectors():
+    """
+    word2vec composed with various simple algorithms, including varying amounts of unlabelled data
+    """
+    gigaw_pattern = '{prefix}/word2vec_vectors/composed/' \
+                    'AN_NN_word2vec-gigaw_100percent-rep0_{composer}.events.filtered.strings'
     # and some files were done on Wikipedia and have a different naming scheme
-    wiki_pattern = '{prefix}/word2vec_vectors/composed/' \
-                   'AN_NN_word2vec-wiki_{percent:d}percent-rep0_{composer}.events.filtered.strings'
+    wiki_rep_pattern = '{prefix}/word2vec_vectors/composed/' \
+                       'AN_NN_word2vec-wiki_{percent:d}percent-rep{rep}_{composer}.events.filtered.strings'
+    wiki_avg_pattern = '{prefix}/word2vec_vectors/composed/' \
+                       'AN_NN_word2vec-wiki_{percent:d}percent-avg3_{composer}.events.filtered.strings'
 
+    # gigaword thesauri
     for composer_class in [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer, RightmostWordComposer]:
         composer = composer_class.name
-        for rep in range(1 if percent < 100 else 3):
-            thesaurus_file = gigaw_rep_pattern.format(**ChainMap(locals(), globals()))
-            if unlabelled == 'wiki':
-                thesaurus_file = wiki_pattern.format(**ChainMap(locals(), globals()))
+        thesaurus_file = gigaw_pattern.format(prefix=prefix, composer=composer)
+        modified, size, gz_size = _get_size(thesaurus_file)
+        v = db.Vectors.create(algorithm='word2vec', dimensionality=100,
+                              unlabelled='gigaw', path=thesaurus_file, unlabelled_percentage=100,
+                              composer=composer, modified=modified, size=size, gz_size=gz_size,
+                              rep=0)
+
+    # wikipedia thesauri, some with repetition and averaging over repeated runs
+    for composer_class in [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer, RightmostWordComposer]:
+        composer = composer_class.name
+        for percent in [1, 10, 20, 30, 40, 60, 70, 80, 90, 100]:
+            # note: 50 missing on purpose. These experiments were not repeated
+            rep = 0
+            thesaurus_file = wiki_rep_pattern.format(**ChainMap(locals(), globals()))
 
             modified, size, gz_size = _get_size(thesaurus_file)
             v = db.Vectors.create(algorithm='word2vec', dimensionality=100,
-                                  unlabelled=unlabelled, path=thesaurus_file, unlabelled_percentage=percent,
+                                  unlabelled='wiki', path=thesaurus_file, unlabelled_percentage=percent,
                                   composer=composer, modified=modified, size=size, gz_size=gz_size,
-                                  rep=rep)
+                                  rep=0)
             print(v)
-        if percent == 100 and unlabelled == 'gigaw':
-            # also include average of the three runs at 100% of all data
-            thesaurus_file = gigaw_avg_pattern.format(**ChainMap(locals(), globals()))
-            modified, size, gz_size = _get_size(thesaurus_file)
-            v = db.Vectors.create(algorithm='word2vec', dimensionality=100,
-                                  unlabelled=unlabelled, path=thesaurus_file, unlabelled_percentage=percent,
-                                  composer=composer, modified=modified, size=size, gz_size=gz_size,
-                                  rep=-1)  # -1 signifies averaging across multiple runs
+        for percent in [15, 50]:  # thesee are where repeats were done
+            for rep in [-1, 0, 1, 2]:  # -1 signifies averaging across multiple runs
+                if rep < 0:
+                    thesaurus_file = wiki_rep_pattern.format(**ChainMap(locals(), globals()))
+                else:
+                    thesaurus_file = wiki_avg_pattern.format(**ChainMap(locals(), globals()))
 
+                modified, size, gz_size = _get_size(thesaurus_file)
+                v = db.Vectors.create(algorithm='word2vec', dimensionality=100,
+                                      unlabelled='wiki', path=thesaurus_file, unlabelled_percentage=percent,
+                                      composer=composer, modified=modified, size=size, gz_size=gz_size,
+                                      rep=rep)
+                print(v)
 
 def _ppmi_vectors(unlab_nums, unlab_names):
     """ count vectors with PPMI, no SVD"""
@@ -142,14 +159,14 @@ def _turian_vectors():
 def _random_baselines():
     """random neighbours/vectors composer baselines"""
     db.Vectors.create(algorithm='random_neigh',
-                          dimensionality=None, unlabelled_percentage=None,
-                          unlabelled=None, composer='random_neigh')
+                      dimensionality=None, unlabelled_percentage=None,
+                      unlabelled=None, composer='random_neigh')
     # random VECTORS for use in baseline
     path = '/mnt/lustre/scratch/inf/mmb28/FeatureExtractionToolkit/random_vectors.gz'
     modified, size, gz_size = _get_size(path)
     db.Vectors.create(algorithm='random_vect', composer='random_vect', path=path,
-                          dimensionality=None, unlabelled_percentage=None,
-                          modified=modified, size=size, gz_size=gz_size)
+                      dimensionality=None, unlabelled_percentage=None,
+                      modified=modified, size=size, gz_size=gz_size)
 
 
 if __name__ == '__main__':
@@ -161,11 +178,7 @@ if __name__ == '__main__':
     _turian_vectors()
 
     _glove_vectors_wiki()
-    for percent in [1] + list(range(10, 101, 10)):
-        _do_w2v_vectors(percent)
-
-    for percent in [15, 50] + [1, 10, 20, 30, 40, 60, 70, 80, 90, 100]:
-        _do_w2v_vectors(percent, unlabelled='wiki')
+    _do_w2v_vectors()
 
     _ppmi_vectors([10], ['gigaw'])
     _ppmi_vectors([11], ['wikipedia'])

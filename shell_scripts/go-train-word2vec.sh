@@ -13,7 +13,7 @@
 #$ -q nlp-amd,inf.q,serial.q,eng-inf_himem.q,eng-inf_parallel.q
 
 # Define parallel environment for N cores
-#$ -pe openmp 10
+#$ -pe openmp 7
 
 # Send mail to. (Comma separated list)
 #$ -M mmb28@sussex.ac.uk
@@ -29,6 +29,20 @@
 
 #$ -N word2vec
 
-#$ -t 10-100:10
-#$ -tc 10
-python thesisgenerator/scripts/get_word2vec_vectors.py --stages vectors compose --percent $SGE_TASK_ID
+#$ -t 1-13
+#$ -tc 15
+
+SETTINGS_FILE=mmb28_w2v_settings.tmp.$RANDOM # python job below is invoked for each task in the jobs array, write to a separate file to avoid conflicts
+python -c "
+for i in [1, 15] + list(range(10, 101, 10)):
+    if i in [15, 50]:
+        print('--corpus wiki --stages vectors compose average --percent %d --repeat 3'%i)
+    else:
+        print('--corpus wiki --stages vectors compose --percent %d'%i)
+    
+print('--corpus gigaw --stages vectors compose --percent 100')
+" > $SETTINGS_FILE
+
+SEED=$(awk "NR==$SGE_TASK_ID" $SETTINGS_FILE) 
+echo $SEED
+python thesisgenerator/scripts/get_word2vec_vectors.py $SEED
