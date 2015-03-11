@@ -62,8 +62,10 @@ def _train_model(percent, data_dir, repeat_num):
     return model
 
 
-def _vectors_to_tsv(model, vocab, output_path):
+def _vectors_to_tsv(model, output_path, vocab=None):
     # get word2vec vectors for each word, write to TSV
+    if not vocab:
+        vocab = model.vocab.keys()
     vectors = dict()
     dimension_names = ['f%02d' % i for i in range(100)]  # word2vec produces 100-dim vectors
     for word in vocab:
@@ -151,25 +153,22 @@ def compute_and_write_vectors(corpus_name, stages, percent, repeat):
         reformat_data(conll_data_dir, pos_only_data_dir)
 
     if 'vectors' in stages:
-        models = []
-        for i in range(repeat):
-            model = _train_model(percent, pos_only_data_dir, i)
-            models.append(model)
-            vocab = model.vocab.keys()
+        models = [_train_model(percent, pos_only_data_dir, i) for i in range(repeat)]
 
         vectors = []
         # write the output of each run separately
         for i in range(repeat):
             output_path = unigram_events_file + '.rep%d' % i
-            vectors.append(_vectors_to_tsv(model, vocab, output_path))
+            vectors.append(_vectors_to_tsv(models[i], output_path))
 
         if 'average' in stages and repeat > 1:
             # average vectors and append to list to be written
+            shared_vocab = set.intersection(*[set(model.vocab.keys()) for model in models])
             output_path = unigram_events_file + '.avg%d' % repeat
             model = {}
-            for k in vocab:
+            for k in shared_vocab:
                 model[k] = reduce(np.add, [m[k] for m in models])
-            vectors.append(_vectors_to_tsv(model, vocab, output_path))
+            vectors.append(_vectors_to_tsv(model, output_path, vocab=shared_vocab))
 
     if 'compose' in stages:
         for i, v in enumerate(vectors):
