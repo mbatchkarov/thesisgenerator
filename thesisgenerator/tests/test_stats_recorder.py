@@ -7,7 +7,6 @@ from glob import glob
 import six
 from discoutils.thesaurus_loader import Thesaurus
 from discoutils.tokens import DocumentFeature
-from thesisgenerator.plugins.stats import sum_up_token_counts
 from thesisgenerator.plugins.experimental_utils import run_experiment
 
 
@@ -17,7 +16,7 @@ def _get_counter_ignoring_negatives(df, column_list):
 
 
 @pytest.fixture(scope="module")
-def stats_file(request):
+def stats_files(request):
     prefix = 'thesisgenerator/resources'
     # load a mock unigram thesaurus, bypassing the similarity calculation provided by CompositeVectorSource
     vector_source = Thesaurus.from_tsv('thesisgenerator/resources/exp0-0a.strings')
@@ -26,7 +25,7 @@ def stats_file(request):
                    prefix=prefix, thesaurus=vector_source)
 
     # setup goes like this:
-    #   for each sample size K (here set to [3])
+    # for each sample size K (here set to [3])
     #       repeat N times in parallel (crossvalidation)
     #           pick a sample of K training documents
     #           vectorize training and testing set
@@ -46,63 +45,63 @@ def stats_file(request):
     request.addfinalizer(fin)
 
     # prefix of all stats files that get produced
-    return 'statistics/stats-tests-exp1-0-cv0-ev'
+    return ['statistics/stats-tests-exp1-0.tc.csv.gz', 'statistics/stats-tests-exp1-0.par.csv.gz']
 
 
-def test_coverage_statistics(stats_file):
-    # decode time
-    df = sum_up_token_counts('%s.tc.csv' % stats_file)
-    assert df.shape == (5, 3)  # 5 types in the dataset
+def test_coverage_statistics(stats_files):
+    full_df = pd.read_csv(stats_files[0], sep=', ', compression='gzip')
+    df = full_df[(full_df.stage == 1) & (full_df.cv_fold == 0)]  # decode time
+    assert df.shape == (5, 6)  # 5 types in the dataset
     assert df['count'].sum() == 9.  # tokens
 
-    assert df.query('IV == 0 and IT == 0').shape == (2, 3)  # 2 types both OOV and OOT
+    assert df.query('IV == 0 and IT == 0').shape == (2, 6)  # 2 types both OOV and OOT
     assert df.query('IV == 0 and IT == 0')['count'].sum() == 4.0  # 4 tokens
 
-    assert df.query('IV == 0 and IT > 0').shape == (1, 3)
+    assert df.query('IV == 0 and IT > 0').shape == (1, 6)
     assert df.query('IV == 0 and IT > 0')['count'].sum() == 2.0
 
-    assert df.query('IV > 0 and IT == 0').shape == (0, 3)
+    assert df.query('IV > 0 and IT == 0').shape == (0, 6)
     assert df.query('IV > 0 and IT == 0')['count'].sum() == 0.0
 
-    assert df.query('IV > 0 and IT > 0').shape == (2, 3)
+    assert df.query('IV > 0 and IT > 0').shape == (2, 6)
     assert df.query('IV > 0 and IT > 0')['count'].sum() == 3.0
 
 
     # at train time everything must be in vocabulary (that's how it works)
     # and in thesaurus (the test thesaurus is set up this way)
-    df = sum_up_token_counts('%s.tc.csv' % stats_file.replace('-ev', '-tr'))
+    df = full_df[(full_df.stage == 0) & (full_df.cv_fold == 0)]
     print(df)
-    assert df.query('IV == 0 and IT == 0').shape == (0, 3)  # 2 types both OOV and OOT
+    assert df.query('IV == 0 and IT == 0').shape == (0, 6)  # 2 types both OOV and OOT
     assert df.query('IV == 0 and IT == 0')['count'].sum() == 0.0  # 4 tokens
 
-    assert df.query('IV == 0 and IT > 0').shape == (0, 3)
+    assert df.query('IV == 0 and IT > 0').shape == (0, 6)
     assert df.query('IV == 0 and IT > 0')['count'].sum() == 0.0
 
-    assert df.query('IV > 0 and IT > 0').shape == (6, 3)
+    assert df.query('IV > 0 and IT > 0').shape == (6, 6)
     assert df.query('IV > 0 and IT > 0')['count'].sum() == 9.0
 
-    assert df.query('IV > 0 and IT == 0').shape == (0, 3)
+    assert df.query('IV > 0 and IT == 0').shape == (0, 6)
     assert df.query('IV > 0 and IT == 0')['count'].sum() == 0.0
 
 
-def test_get_decode_time_paraphrase_statistics(stats_file):
+def test_get_decode_time_paraphrase_statistics(stats_files):
     """
     :param stats:
     :type stats: StatsRecorder
     """
 
     # this test uses a signifier-signified encoding, i.e. only OOV-IT items are looked up
-    df = pd.read_csv('%s.par.csv' % stats_file, sep=', ')
-    assert df.shape == (5, 8)
+    df = pd.read_csv(stats_files[1], sep=', ', compression='gzip')
+    assert df.shape == (6, 11)
 
     assert _get_counter_ignoring_negatives(df, ['replacement%d_sim' % (i + 1) for i in range(3)]) == \
-           Counter({.05: 2, .06: 2, .11: 2, .7: 1, .3: 1})  # 2 inserted items had a sim of .05, etc
+           Counter({.05: 2, .06: 2, .11: 2, .7: 2, .3: 2})  # 2 inserted items had a sim of .05, etc
 
     assert _get_counter_ignoring_negatives(df, ['available_replacements']) == \
-           Counter({1: 2, 2: 3})  # 2 items have had 1 replacement, etc
+           Counter({1: 2, 2: 4})  # 2 items have had 1 replacement, etc
 
     column_list = ['replacement%d' % (i + 1) for i in range(3)]
     # x>0 check filters out NaN-s
     types = [DocumentFeature.from_string(x).type for x in np.ravel(df.ix[:, column_list].values)
              if isinstance(x, six.string_types)]
-    assert Counter(types) == Counter({'1-GRAM': 8})  # 8 total replacements, all of them unigrams
+    assert Counter(types) == Counter({'1-GRAM': 10})  # 10 total replacements, all of them unigrams

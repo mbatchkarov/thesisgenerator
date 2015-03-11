@@ -2,34 +2,6 @@ import logging
 import gzip
 from collections import Counter
 from thesisgenerator.utils.misc import noop
-import pandas as pd
-
-
-def sum_up_token_counts(filename):
-    """
-    Loads a pandas DataFrame from HDF storage and sums up duplicate rows.
-     For example
-
-     cat True True
-     cat True True
-
-     becomes
-
-     cat True True 2
-
-     The extra columns is called 'count'
-
-    :param filename: the file to load from
-    :type filename: str
-    :rtype: pd.DataFrame
-    """
-    df = pd.read_csv(filename, sep=', ')
-    counts = df.groupby('feature').count()
-    assert counts.IV.sum() == counts.IT.sum() == df.shape[0]  # no missing rows
-    df = df.drop_duplicates()
-    df.set_index('feature', inplace=True)
-    df['count'] = counts.IV
-    return df
 
 
 class StatsRecorder(object):
@@ -92,9 +64,7 @@ class StatsRecorder(object):
                 break
             event += ('NaN', 'NaN')
         self.paraphrases[(self.cv_fold, self.stage) + event] += 1
-        # if len(self.paraphrases) > self.max_rows_in_memory:
-        # self._flush_data_to_csv(self.par_file, self.paraphrases)
-        #     self.paraphrases = []  # clear the chunk of data held in memory
+
 
 
 class NoopStatsRecorder(StatsRecorder):
