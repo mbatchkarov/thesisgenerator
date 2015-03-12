@@ -40,7 +40,7 @@ for i in [1, 15] + list(range(10, 101, 10)):
     else:
         print('--corpus wiki --stages vectors compose --percent %d'%i)
     
-print('--corpus gigaw --stages vectors compose --percent 100')
+print('--corpus gigaw --stages vectors compose average --percent 100 --repeat 3')
 " > $SETTINGS_FILE
 
 SEED=$(awk "NR==$SGE_TASK_ID" $SETTINGS_FILE) 
