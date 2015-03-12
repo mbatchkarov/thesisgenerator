@@ -22,7 +22,7 @@ def _get_size(thesaurus_file):
     return modified, size, gz_size
 
 
-def _do_w2v_vectors():
+def _w2v_vectors():
     """
     word2vec composed with various simple algorithms, including varying amounts of unlabelled data
     """
@@ -58,12 +58,12 @@ def _do_w2v_vectors():
                                   composer=composer, modified=modified, size=size, gz_size=gz_size,
                                   rep=0)
             print(v)
-        for percent in [15, 50]:  # thesee are where repeats were done
+        for percent in [15, 50]:  # these are where repeats were done
             for rep in [-1, 0, 1, 2]:  # -1 signifies averaging across multiple runs
                 if rep < 0:
-                    thesaurus_file = wiki_rep_pattern.format(**ChainMap(locals(), globals()))
-                else:
                     thesaurus_file = wiki_avg_pattern.format(**ChainMap(locals(), globals()))
+                else:
+                    thesaurus_file = wiki_rep_pattern.format(**ChainMap(locals(), globals()))
 
                 modified, size, gz_size = _get_size(thesaurus_file)
                 v = db.Vectors.create(algorithm='word2vec', dimensionality=100,
@@ -178,7 +178,7 @@ if __name__ == '__main__':
     _turian_vectors()
 
     _glove_vectors_wiki()
-    _do_w2v_vectors()
+    _w2v_vectors()
 
     _ppmi_vectors([10], ['gigaw'])
     _ppmi_vectors([11], ['wikipedia'])
