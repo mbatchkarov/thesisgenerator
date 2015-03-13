@@ -1,6 +1,14 @@
 import peewee as pw
+import socket
 
-db = pw.SqliteDatabase('db.sqlite')
+hostname = socket.gethostname()
+if 'node' in hostname or 'apollo' in hostname:
+    # keeping the DB on lustre is very slow, move to NFS
+    dbpath = '/home/m/mm/mmb28/db.sqlite'
+else:
+    dbpath = 'db.sqlite'
+
+db = pw.SqliteDatabase(dbpath)
 db.connect()
 
 
