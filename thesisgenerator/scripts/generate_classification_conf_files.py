@@ -110,7 +110,7 @@ def baselines(corpora=None):
 
 
 @printing_decorator
-def all_standard_experiments(corpora=None):
+def all_standard_gigaw_experiments(corpora=None):
     if not corpora:
         corpora = all_corpora
     for s in all_vector_settings():  # yields 28 times
@@ -139,17 +139,6 @@ def an_only_nn_only_experiments_r2():
                                             document_features=feature_type)
             experiments.append(e)
 
-
-@printing_decorator
-def word2vec_repeated_runs_on_amazon():
-    labelled = am_corpus
-    for unlab, algo, composer, svd_dims in word2vec_vector_settings():
-        for rep in [-1, 1, 2]:  # 0 done as part of "standard experiments"
-            # only the second and third run of word2vec on the entire data set, the first was done above
-            e = db.ClassificationExperiment(labelled=labelled,
-                                            vectors=vectors_from_settings(unlab, algo, composer,
-                                                                          svd_dims, rep=rep))
-            experiments.append(e)
 
 
 @printing_decorator
@@ -195,20 +184,22 @@ def different_neighbour_strategies_r2():
 
 
 @printing_decorator
-def wikipedia_w2v_amazon():
+def initial_wikipedia_w2v_amazon_with_repeats():
     unlab = 'wiki'
     for p in [15, 50]:
-        for _, algo, composer_name, dims in word2vec_vector_settings():
-            e = db.ClassificationExperiment(labelled=am_corpus, vectors=vectors_from_settings(unlab,
-                                                                                              algo,
-                                                                                              composer_name,
-                                                                                              dims,
-                                                                                              percent=p))
-            experiments.append(e)
+        for rep in [-1, 0, 1, 2]:
+            for _, algo, composer_name, dims in word2vec_vector_settings():
+                e = db.ClassificationExperiment(labelled=am_corpus, vectors=vectors_from_settings(unlab,
+                                                                                                  algo,
+                                                                                                  composer_name,
+                                                                                                  dims,
+                                                                                                  percent=p,
+                                                                                                  rep=rep))
+                experiments.append(e)
 
 
 @printing_decorator
-def corrupted_w2v_amazon():
+def corrupted_w2v_wiki_amazon():
     for noise in np.arange(.2, 2.1, .2):
         v = vectors_from_settings('wiki', 'word2vec', 'Add', 100, percent=100)
         e = db.ClassificationExperiment(labelled=am_corpus, vectors=v, noise=noise)
@@ -252,24 +243,23 @@ if __name__ == '__main__':
     db.ClassificationExperiment.raw('TRUNCATE TABLE `classificationexperiment`;')
     experiments = []
     baselines()
-    all_standard_experiments()
+    all_standard_gigaw_experiments()
     hybrid_experiments_r2_amazon_turian_word2vec()
-    word2vec_repeated_runs_on_amazon()
     random_vectors(r2_corpus)
     w2v_learning_curve_amazon()
     varying_k_with_w2v_on_r2()
     random_vectors(am_corpus)
     # wikipedia experiments on amazon
-    wikipedia_w2v_amazon()
+    initial_wikipedia_w2v_amazon_with_repeats()
     # maas IMDB sentiment experiments
     # baselines(corpora=[maas_corpus])
     # random_vectors(maas_corpus)
     # all_standard_experiments(corpora=[maas_corpus])
     # other more recent stuff
-    corrupted_w2v_amazon()
+    corrupted_w2v_wiki_amazon()
     count_with_ppmi_no_svd_amazon()
     glove_vectors_amazon()
-    # 15, 50% done as a part of wikipedia_w2v_amazon()
+    # 15, 50% done as a part of initial_wikipedia_w2v_amazon()
     w2v_learning_curve_amazon(unlab='wiki', percent=[1, 10, 20, 30, 40, 60, 70, 80, 90, 100])
     count_wiki_with_ppmi_no_svd_amazon()
 
