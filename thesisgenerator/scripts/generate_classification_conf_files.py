@@ -123,19 +123,19 @@ def all_standard_gigaw_experiments(corpora=None):
 def hybrid_experiments_r2_amazon_turian_word2vec():
     handler = 'SignifierSignifiedFeatureHandler'
 
-    for s in chain(word2vec_vector_settings(), turian_vector_settings()):
-        for labelled in [r2_corpus, am_corpus]:
-            e = db.ClassificationExperiment(labelled=labelled,
-                                            vectors=vectors_from_settings(*s),
-                                            decode_handler=handler)
-            experiments.append(e)
+    for s in chain(word2vec_vector_settings(unlab='wiki'), turian_vector_settings()):
+        e = db.ClassificationExperiment(labelled=am_corpus,
+                                        vectors=vectors_from_settings(*s),
+                                        decode_handler=handler)
+        experiments.append(e)
 
 
 @printing_decorator
-def an_only_nn_only_experiments_r2():
+def an_only_nn_only_experiments_amazon():
     for feature_type in ['AN', 'NN']:
-        for s in chain(word2vec_vector_settings(), turian_vector_settings()):
-            e = db.ClassificationExperiment(labelled=r2_corpus, vectors=vectors_from_settings(*s),
+        for s in word2vec_vector_settings():
+            e = db.ClassificationExperiment(vectors=vectors_from_settings(*s),
+                                            labelled=am_corpus,
                                             document_features=feature_type)
             experiments.append(e)
 
@@ -155,7 +155,7 @@ def random_vectors(corpus):
 
 
 @printing_decorator
-def w2v_learning_curve_amazon(unlab='gigaw', percent=[1, 10, 20, 30, 40, 50, 60, 70, 80, 90]):
+def w2v_learning_curve_amazon(unlab='wiki', percent=[1, 10, 20, 30, 40, 50, 60, 70, 80, 90]):
     for settings in word2vec_vector_settings(unlab):
         # only up to 90% to avoid dupliting w2v-gigaw-100% (part of "standard experiments")
         for p in percent:
@@ -167,7 +167,7 @@ def w2v_learning_curve_amazon(unlab='gigaw', percent=[1, 10, 20, 30, 40, 50, 60,
 @printing_decorator
 def varying_k_with_w2v_on_r2():
     for k in [1, 5]:
-        for settings in word2vec_vector_settings():
+        for settings in word2vec_vector_settings(unlab='wiki'):
             e = db.ClassificationExperiment(labelled=r2_corpus, vectors=vectors_from_settings(*settings),
                                             k=k)
             experiments.append(e)
@@ -247,14 +247,14 @@ if __name__ == '__main__':
     corrupted_w2v_wiki_amazon()
     glove_vectors_amazon()
     # 15, 50% done as a part of initial_wikipedia_w2v_amazon()
-    w2v_learning_curve_amazon(unlab='wiki', percent=[1, 10, 20, 30, 40, 60, 70, 80, 90, 100])
+    w2v_learning_curve_amazon(percent=[1, 10, 20, 30, 40, 60, 70, 80, 90, 100])
     # PPMI-no-SVD ones take days to classify, let's used SVD ones instead
     # currently can't do PPMI + SVD, and it probably doesn't make sense
     count_wiki_with_svd_no_ppmi_amazon()
+    an_only_nn_only_experiments_amazon()
 
     # various other experiments that aren't as interesting
-    # an_only_nn_only_experiments_r2()
-    # different_neighbour_strategies()
+    # different_neighbour_strategies() # this takes a long time
     print('Total experiments: %d' % len(experiments))
 
 
