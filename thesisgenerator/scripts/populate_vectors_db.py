@@ -72,6 +72,7 @@ def _w2v_vectors():
                                       rep=rep)
                 print(v)
 
+
 def _ppmi_vectors(unlab_nums, unlab_names):
     """ count vectors with PPMI, no SVD"""
     ppmi_file_pattern = '{prefix}/exp{unlab_num}-{thesf_num}-composed-ngrams-ppmi/' \
@@ -129,7 +130,10 @@ def _count_vectors_gigaw_wiki():
                         continue  # not training Baroni without SVD
                     if thesf_name == 'dependencies' and composer_name in ['Baroni', 'Observed']:
                         continue  # can't easily run Julie's observed vectors code, so pretend it doesnt exist
-
+                    if unlab_name == 'wiki' and svd_dims == 0 and composer_name != 'Observed':
+                        # unreduced wiki vectors are too large and take too long to classify
+                        # Observed is an exception as it tends to be small due to NP sparsity
+                        continue
                     pattern = unred_pattern if svd_dims < 1 else reduced_pattern
                     thesaurus_file = pattern.format(**ChainMap(locals(), globals()))
                     modified, size, gz_size = _get_size(thesaurus_file)
