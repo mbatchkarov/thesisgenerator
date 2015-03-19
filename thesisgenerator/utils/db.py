@@ -39,7 +39,8 @@ class ClassificationExperiment(pw.Model):
     use_similarity = pw.BooleanField(default=False)  # use phrase sim as pseudo term count
     use_random_neighbours = pw.BooleanField(default=False)
     decode_handler = pw.CharField(default='SignifiedOnlyFeatureHandler')  # signifier, signified, hybrid
-    vectors = pw.ForeignKeyField(Vectors, null=True, default=None, on_delete='SET NULL')
+    vectors = pw.ForeignKeyField(Vectors, null=True, default=None, on_delete='SET NULL', related_name='vectors')
+    entries_of = pw.ForeignKeyField(Vectors, null=True, default=None, on_delete='SET NULL', related_name='entries_of')
     labelled = pw.CharField()  # name/path of labelled corpus used
     k = pw.IntegerField(default=3)  # how many neighbours entries are replaced with at decode time
     neighbour_strategy = pw.CharField(default='linear')  # how neighbours are found- linear or skipping strategy
@@ -55,29 +56,23 @@ class ClassificationExperiment(pw.Model):
         basic_settings = ','.join((str(x) for x in [self.labelled, self.vectors]))
         return '%s: %s' % (self.id, basic_settings)
 
-    def get_important_fields(self):
-        return
+    def __key(self):
+        x = [self.document_features,
+             self.use_similarity,
+             self.use_random_neighbours,
+             self.decode_handler,
+             self.labelled, self.k,
+             self.neighbour_strategy,
+             self.noise,
+             self.vectors.id if self.vectors else None,
+             self.entries_of.id if self.entries_of else None]
+        return tuple(x)
 
-    def __eq__(self, other):
-        if not isinstance(other, ClassificationExperiment):
-            return False
-        return (
-            self.document_features == other.document_features and
-            self.use_similarity == other.use_similarity and
-            self.use_random_neighbours == other.use_random_neighbours and
-            self.decode_handler == other.decode_handler and
-            self.vectors.id == other.vectors.id and
-            self.labelled == other.labelled and
-            self.k == other.k and
-            self.neighbour_strategy == other.neighbour_strategy and
-            self.noise == other.noise
-        )
+    def __eq__(x, y):
+        return x.__key() == y.__key()
 
     def __hash__(self):
-        return hash((self.document_features, self.use_similarity,
-                     self.use_random_neighbours, self.decode_handler,
-                     self.labelled, self.k, self.neighbour_strategy,
-                     self.noise) + (self.vectors.id if self.vectors else None, ))
+        return hash(self.__key())
 
 
 class Results(pw.Model):

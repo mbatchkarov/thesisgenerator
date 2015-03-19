@@ -216,6 +216,24 @@ def count_wiki_with_svd_no_ppmi_amazon():
             e = db.ClassificationExperiment(labelled=am_corpus, vectors=v)
             experiments.append(e)
 
+@printing_decorator
+def equalised_coverage_experiments():
+    # w2v with 4 composers (high-coverage model) with coverage of corresponding count windows (low-coverage)
+    # CW add (high-coverage) with coverage of CW baroni (low-coverage)
+    algo = 'count_windows'
+    composers = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer, RightmostWordComposer]
+    for composer in composers:
+        regular_vect = vectors_from_settings('wiki', 'word2vec', composer.name, 100)
+        entries_of = vectors_from_settings('wiki', 'count_windows', composer.name, 100)
+        e = db.ClassificationExperiment(labelled=am_corpus, vectors=regular_vect, entries_of=entries_of)
+        experiments.append(e)
+
+        regular_vect = vectors_from_settings('wiki', 'count_windows', composer.name, 100)
+        entries_of = vectors_from_settings('wiki', 'count_windows', 'Baroni', 100)
+        e = db.ClassificationExperiment(labelled=am_corpus, vectors=regular_vect, entries_of=entries_of)
+        experiments.append(e)
+
+
 
 if __name__ == '__main__':
     prefix = '/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data'
@@ -252,11 +270,11 @@ if __name__ == '__main__':
     # currently can't do PPMI + SVD, and it probably doesn't make sense
     count_wiki_with_svd_no_ppmi_amazon()
     an_only_nn_only_experiments_amazon()
+    equalised_coverage_experiments()
 
     # various other experiments that aren't as interesting
     # different_neighbour_strategies() # this takes a long time
     print('Total experiments: %d' % len(experiments))
-
 
     # re-order experiments so that the hard ones (high-memory, long-running) come first
     def _myorder(item):
@@ -297,7 +315,7 @@ if __name__ == '__main__':
     for e in experiments:
         e.save(force_insert=True)
 
-        # verify experiments aren't being duplicated
+    # verify experiments aren't being duplicated
     if len(set(experiments)) != len(experiments):
         raise ValueError('Duplicated experiments exist: %s' % Counter(experiments).most_common(5))
 
@@ -336,6 +354,7 @@ if __name__ == '__main__':
         # do not allow lexical overlap to prevent Left and Right from relying on word identity
         conf['vector_sources']['allow_lexical_overlap'] = False
         conf['vector_sources']['neighbour_strategy'] = exp.neighbour_strategy
+        conf['vector_sources']['entries_of'] = exp.entries_of
 
         if exp.use_similarity:
             conf['feature_extraction']['sim_compressor'] = 'thesisgenerator.utils.misc.unit'
