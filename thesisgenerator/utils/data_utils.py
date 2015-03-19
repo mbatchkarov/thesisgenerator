@@ -137,6 +137,13 @@ def get_thesaurus(conf):
                              ' and must_be_in_thesaurus=%s' % (handler_, vectors_exist_))
 
         params = conf['vector_sources']
+
+        # set up a row filter, if needed
+        entries = conf['vector_sources']['entries_of']
+        if entries:
+            entries = get_thesaurus_entries(entries)
+            params['row_filter'] = lambda x, y: x in entries
+
         # delays the loading from disk/de-shelving until the resource is needed. The Delayed object also makes it
         # possible to get either Vectors or Thesaurus into the pipeline, and there is no need to pass any parameters
         # that relate to IO further down the pipeline
@@ -153,6 +160,31 @@ def get_thesaurus(conf):
         logging.warning('RETURNING AN EMPTY THESAURUS')
         thesaurus = []
     return thesaurus
+
+
+def get_thesaurus_entries(tsv_file):
+    """
+    Returns the set of entries contained in a thesaurus
+    Code blatantly lifted from Thesaurus.from_tsv
+    :param tsv_file: path to TSV thesaurus/vectors file
+    """
+    gzipped = is_gzipped(tsv_file)
+    if gzipped:
+        logging.info('Attempting to read a gzipped file')
+        fhandle = gzip.open(tsv_file)
+    else:
+        fhandle = open(tsv_file)
+
+    res = set()
+    with fhandle as infile:
+        for line in infile.readlines():
+            if gzipped:
+                # this is a byte steam, needs to be decoded
+                tokens = line.decode('UTF8').strip().split('\t')
+            else:
+                tokens = line.strip().split('\t')
+            res.add(tokens[0])
+    return res
 
 
 def load_and_shelve_thesaurus(path, **kwargs):
