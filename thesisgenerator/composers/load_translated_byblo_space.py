@@ -1,8 +1,9 @@
 import logging
-from composes.utils import io_utils
-from composes.composition.lexical_function import LexicalFunction
 from composes.semantic_space.peripheral_space import PeripheralSpace
 from composes.semantic_space.space import Space
+from composes.composition.full_additive import FullAdditive
+from composes.composition.lexical_function import LexicalFunction
+from composes.utils import io_utils
 from discoutils.thesaurus_loader import Vectors
 
 
@@ -22,7 +23,9 @@ def _translate_byblo_to_dissect(events_file, row_transform=lambda x: x):
     return output_file
 
 
-def train_baroni_composer(noun_events_file, ANs_events_file, output_path, row_transform=lambda x: x, threshold=10):
+def train_baroni_guevara_composers(noun_events_file, ANs_events_file,
+                          baroni_output_path, guevara_output_path,
+                          row_transform=lambda x: x, baroni_threshold=10):
     # prepare the input files to be fed into Dissect
     cleaned_nouns_file = _translate_byblo_to_dissect(noun_events_file, row_transform=row_transform)
     cleaned_an_file = _translate_byblo_to_dissect(ANs_events_file, row_transform=row_transform)
@@ -50,11 +53,9 @@ def train_baroni_composer(noun_events_file, ANs_events_file, output_path, row_tr
         all_data.append((adj, noun, '%s_%s' % (adj, noun)))
 
 
-    #train a lexical function model on the data
-    composer = LexicalFunction()
-    composer._MIN_SAMPLES = threshold  # ensure we have some a min number of training examples
-    composer.train(all_data, my_space, my_per_space)
-    # available_adjs = composer.function_space.id2row
-    io_utils.save(composer, output_path)
-    logging.info('Saved trained composer to %s', output_path)
-
+    # train a composition model on the data and save it
+    for composer, out_path in zip([LexicalFunction(min_samples=baroni_threshold), FullAdditive()],
+                                  [baroni_output_path, guevara_output_path]):
+        composer.train(all_data, my_space, my_per_space)
+        io_utils.save(composer, out_path)
+        logging.info('Saved trained composer to %s', out_path)

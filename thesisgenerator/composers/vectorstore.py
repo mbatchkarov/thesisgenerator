@@ -34,7 +34,7 @@ class ComposerMixin(object):
                feature is. Note: This is the opposite of what IO functions in discoutils expect
         """
         composable_phrases = [foo for foo in phrases if foo in self]
-        logging.info('Able to compose %d/%d phrases', len(composable_phrases), len(phrases))
+        logging.info('Composing... able to compose %d/%d phrases', len(composable_phrases), len(phrases))
         new_matrix = sp.vstack(self.get_vector(foo) for foo in composable_phrases)
         old_len = len(self.unigram_source.name2row)
         all_rows = deepcopy(self.unigram_source.name2row)  # can't mutate the unigram datastructure
@@ -145,7 +145,6 @@ class RightmostWordComposer(LeftmostWordComposer):
 
 
 class BaroniComposer(Vectors, ComposerMixin):
-    # BaroniComposer composes AN features
     entry_types = {'AN', 'NN'}
     name = 'Baroni'
 
@@ -176,7 +175,6 @@ class BaroniComposer(Vectors, ComposerMixin):
         # todo expand unit tests now that we have a real composer
         if feature.type not in self.entry_types:
             # ignore non-AN features
-            # print "%s is not a valid type" % feature.type
             return False
 
         modifier, head = feature.tokens
@@ -214,9 +212,44 @@ class BaroniComposer(Vectors, ComposerMixin):
         modifier = str(feature.tokens[0])
         head = str(feature.tokens[1])
         phrase = '{}_{}'.format(modifier, head)
-        x = self._composer.compose([(modifier, head, phrase)], self.dissect_core_space).cooccurrence_matrix.mat
-        # todo could also convert to dense 1D ndarray, vector.A.ravel()
+        x = self._composer.compose([(modifier, head, phrase)],
+                                   self.dissect_core_space).cooccurrence_matrix.mat
         return x
+
+
+class GuevaraComposer(BaroniComposer):
+    entry_types = {'AN', 'NN'}
+    name = 'Guevara'
+
+    def __init__(self, unigram_source, pretrained_model_file, *args):
+        self.unigram_source = check_vectors(unigram_source)
+        if not pretrained_model_file:
+            logging.error('Expected filename, got %s', pretrained_model_file)
+            raise ValueError('Model file required to perform composition.')
+        with open(pretrained_model_file, 'rb') as infile:
+            self._composer = load(infile)
+
+        assert unigram_source.columns == self._composer.composed_id2column
+        self.dissect_core_space = self.unigram_source.to_dissect_core_space()
+
+        # check composed space's columns matches core space's (=unigram source)'s columns
+        assert self.dissect_core_space.id2column == self._composer.composed_id2column
+
+    def __str__(self):
+        return '[GuevaraComposer with %d modifiers and %d heads]' % \
+               (len(self.available_modifiers), len(self.unigram_source))
+
+    def __contains__(self, feature):
+        # both head and modifier need to have unigram vectors.
+        # I don't see why the modifier needs a vector, given that we're using
+        # its matrix representation instead, but that is what dissect does
+        if isinstance(feature, six.string_types):
+            feature = DocumentFeature.from_string(feature)
+
+        if feature.type not in self.entry_types:
+            # no point in trying
+            return False
+        return all(f.tokens_as_str() in self.unigram_source for f in feature[:])
 
 
 class DummyThesaurus(Thesaurus):
@@ -257,8 +290,8 @@ class DummyThesaurus(Thesaurus):
         return True
 
 
-def compose_and_write_vectors(unigram_vectors, short_vector_dataset_name,
-                              composer_classes, pretrained_Baroni_composer_file=None,
+def compose_and_write_vectors(unigram_vectors, short_vector_dataset_name, composer_classes,
+                              pretrained_Baroni_composer_file=None, pretrained_Guevara_composer_file=None,
                               output_dir='.', gzipped=True):
     """
     Extracts all composable features from a labelled classification corpus and dumps a composed vector for each of them
@@ -273,6 +306,7 @@ def compose_and_write_vectors(unigram_vectors, short_vector_dataset_name,
     :type composer_classes: list
     """
     from thesisgenerator.scripts.extract_NPs_from_labelled_data import get_all_NPs
+
     phrases_to_compose = get_all_NPs()
     # if this isn't a Vectors object assume it's the name of a file containing vectors and load them
     if not isinstance(unigram_vectors, Vectors):
@@ -288,6 +322,9 @@ def compose_and_write_vectors(unigram_vectors, short_vector_dataset_name,
         if composer_class == BaroniComposer:
             assert pretrained_Baroni_composer_file is not None
             composer = BaroniComposer(unigram_vectors, pretrained_Baroni_composer_file)
+        elif composer_class == GuevaraComposer:
+            assert pretrained_Guevara_composer_file is not None
+            composer = GuevaraComposer(unigram_vectors, pretrained_Guevara_composer_file)
         else:
             composer = composer_class(unigram_vectors)
 
