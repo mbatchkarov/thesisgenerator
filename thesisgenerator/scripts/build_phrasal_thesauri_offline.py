@@ -162,7 +162,7 @@ def build_full_composed_thesauri_with_baroni_and_svd(corpus, features, stages):
     reduced_file_prefix = os.path.join(unigram_thesaurus_dir,
                                        'exp%d-with-obs-phrases' % corpus)
     # only keep the most frequent types per PoS tag to speed things up
-    counts = [('N', 20000), ('V', 0), ('J', 10000), ('RB', 0), ('AN', 0), ('NN', 0)]
+    counts = [('N', 200000), ('V', 0), ('J', 100000), ('RB', 0), ('AN', 0), ('NN', 0)]
     if 'svd' in stages:
         if features_name == 'deps':
             # havent got observed vectors for these, do SVD on the unigrams only
@@ -207,7 +207,7 @@ def build_full_composed_thesauri_with_baroni_and_svd(corpus, features, stages):
             train_baroni_composer(baroni_training_heads,
                                   baroni_training_only_phrases,
                                   trained_composer_prefix,
-                                  threshold=50)
+                                  threshold=5)
 
 
         else:

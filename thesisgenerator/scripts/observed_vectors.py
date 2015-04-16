@@ -28,8 +28,8 @@ if __name__ == '__main__':
     modifiers = join(prefix, 'thesisgenerator',
                      'NPs_in_R2_MR_tech_am_maas',
                      'r2-mr-technion-am-maas-modifiers.txt')
-    byblo_filter_thresholds = 200, 200, 100
-    min_corpus_freq, min_features = 100, 10
+    byblo_filter_thresholds = 100, 100, 50
+    min_corpus_freq, min_features = 50, 5
 
     # Find all NPs in unlabelled corpus whose modifier is in labelled corpus,
     # and which appear more than thresh=100 times in unlabelled corpus
