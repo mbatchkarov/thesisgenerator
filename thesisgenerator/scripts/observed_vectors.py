@@ -21,7 +21,7 @@ if __name__ == '__main__':
     parser.add_argument('--corpus', choices=('gigaw', 'wiki'), required=True)
     args = parser.parse_args()
 
-    features_file = 'exp10' if args.corpus == 'gigaw' else 'exp11'  # the output of FET
+    fet_output = 'exp10' if args.corpus == 'gigaw' else 'exp11'  # the output of Feature Extraction Toolkit
     prefix = '/mnt/lustre/scratch/inf/mmb28/'
     byblo_base_dir = join(prefix, 'FeatureExtractionToolkit/', 'Byblo-2.2.0')
     discoutils = join(prefix, 'DiscoUtils')
@@ -35,7 +35,7 @@ if __name__ == '__main__':
     # and which appear more than thresh=100 times in unlabelled corpus
     script = join(discoutils, 'discoutils', 'find_all_NPs.py')
     byblo_features_file = join(prefix, 'FeatureExtractionToolkit',
-                               'feoutput-deppars', features_file)
+                               'feoutput-deppars', fet_output)
     out1 = join(discoutils, '%s_NPs_in_MR_R2_TechTC_am_maas.txt' % args.corpus)
     out2 = join(discoutils, '%s_NPs_in_MR_R2_TechTC_am_maas.uniq.%d.txt' % (args.corpus, min_corpus_freq))
     out3 = join(discoutils,
@@ -43,24 +43,30 @@ if __name__ == '__main__':
                 '%s-obs-wins.fet' % args.corpus)
 
     with temp_chdir(discoutils):
-        cmd = 'python {} {} -o {} -s {}'
-        run_and_log_output(cmd, script, byblo_features_file, out1, modifiers)
+        # find all NPs in UNLABELLED corpus, whose modifier appears in the LABELLED corpora
+        run_and_log_output('python {} {} --output {} --whitelist {}',
+                           script, byblo_features_file, out1, modifiers)
 
+        # filter out those that occur infrequently in unlab data
         run_and_log_output("cat {} | sort | uniq -c | awk '$1>{} {print $2}' > {}",
                            out1, str(min_corpus_freq), out2)
 
         mkdirs_if_not_exists(join(discoutils,
                                   '%s-obs-wins' % args.corpus))
-        run_and_log_output('python discoutils/find_all_NPs.py {} -v -s {} -o {}',
+
+        # go through events file again and print features for the NPs that survive filtering
+        run_and_log_output('python discoutils/find_all_NPs.py {} --vectors --whitelist {} --output {}',
                            byblo_features_file, out2, out3)
 
     with temp_chdir(byblo_base_dir):
+        # collect features from all occurences of an NP into a single vector
         run_and_log_output('./byblo.sh -i {} -o {} -t 10 --stages enumerate,count,filter '
                            '--filter-entry-freq {} --filter-feature-freq {} --filter-event-freq {}',
                            out3, dirname(out3), *map(str, byblo_filter_thresholds))
         run_and_log_output('./unindex-all.sh {}', out3)
 
     with temp_chdir(dirname(out3)):
+        # remove NPs with too few features
         obs_vectors_dir = join(prefix, 'FeatureExtractionToolkit', 'observed_vectors')
         mkdirs_if_not_exists(obs_vectors_dir)
         run_and_log_output("awk 'NF>{}' {}-obs-wins.fet.events.filtered.strings >  {}",
