@@ -4,7 +4,6 @@ import sys
 sys.path.append('.')
 sys.path.append('..')
 sys.path.append('../..')
-from dissect_scripts.load_translated_byblo_space import train_baroni_composer
 from glob import glob
 import argparse
 import logging
@@ -18,6 +17,7 @@ from discoutils.thesaurus_loader import Vectors
 from thesisgenerator.composers.vectorstore import (AdditiveComposer, MultiplicativeComposer,
                                                    LeftmostWordComposer, RightmostWordComposer,
                                                    BaroniComposer, compose_and_write_vectors)
+from thesisgenerator.composers.load_translated_byblo_space import train_baroni_composer
 
 """
 Composed wiki/gigaw dependency/window vectors and writes them to FeatureExtractionToolkit/exp10-13-composed-ngrams
@@ -190,8 +190,7 @@ def build_full_composed_thesauri_with_baroni_and_svd(corpus, features, stages):
         # first set up paths
         baroni_training_heads = '%s-onlyN-SVD%s.tmp' % (baroni_training_phrases, svd_dims)
         baroni_training_only_phrases = '%s-onlyPhrases-SVD%s.tmp' % (baroni_training_phrases, svd_dims)
-        trained_composer_prefix = '%s-SVD%s' % (baroni_training_phrases, svd_dims)
-        trained_composer_file = trained_composer_prefix + '.composer.pkl'
+        trained_composer_file = '%s-SVD%s.baroni.composer.pkl' % (baroni_training_phrases, svd_dims)
         trained_composer_files.append(trained_composer_file)
 
         if 'baroni' in stages and features_name != 'deps':
@@ -206,7 +205,7 @@ def build_full_composed_thesauri_with_baroni_and_svd(corpus, features, stages):
 
             train_baroni_composer(baroni_training_heads,
                                   baroni_training_only_phrases,
-                                  trained_composer_prefix,
+                                  trained_composer_file,
                                   threshold=5)
 
 
