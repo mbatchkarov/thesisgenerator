@@ -32,32 +32,33 @@ WORKERS = 10
 composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer, RightmostWordComposer]
 
 
+class MySentences(object):
+    def __init__(self, dirname, file_percentage, repeat_num=0):
+        self.dirname = dirname
+        self.limit = file_percentage / 100
+
+        files = [x for x in sorted(os.listdir(self.dirname)) if not x.startswith('.')]
+        count = math.ceil(self.limit * len(files))
+        if repeat_num == 0:
+            # always take the same files for the first repetition so we can plot a learning curve that shows the
+            # effect of adding a bit of extra data, e.g. going from 50% to 60% of corpus.
+            self.files = files[:count]
+        else:
+            # the other repetitions are over random samples, to quantify the effect of the sample, not its size
+            random.seed(repeat_num)
+            self.files = random.sample(files, count)
+        logging.info('Will use the following %d files for training\n %s', len(self.files), self.files)
+
+    def __iter__(self):
+        for fname in self.files:
+            for line in open(join(self.dirname, fname)):
+                yield line.split()
+
+
 def _train_model(percent, data_dir, repeat_num):
     # train a word2vec model
-    class MySentences(object):
-        def __init__(self, dirname, file_percentage):
-            self.dirname = dirname
-            self.limit = file_percentage / 100
-
-            files = [x for x in sorted(os.listdir(self.dirname)) if not x.startswith('.')]
-            count = math.ceil(self.limit * len(files))
-            if repeat_num == 0:
-                # always take the same files for the first repetition so we can plot a learning curve that shows the
-                # effect of adding a bit of extra data, e.g. going from 50% to 60% of corpus.
-                self.files = files[:count]
-            else:
-                # the other repetitions are over random samples, to quantify the effect of the sample, not its size
-                random.seed(repeat_num)
-                self.files = random.sample(files, count)
-            logging.info('Will use the following %d files for training\n %s', len(self.files), self.files)
-
-        def __iter__(self):
-            for fname in self.files:
-                for line in open(join(self.dirname, fname)):
-                    yield line.split()
-
     logging.info('Training word2vec on %d percent of %s', percent, data_dir)
-    sentences = MySentences(data_dir, percent)
+    sentences = MySentences(data_dir, percent, repeat_num=repeat_num)
     model = gensim.models.Word2Vec(sentences, workers=WORKERS, min_count=MIN_COUNT, seed=repeat_num)
     return model
 
