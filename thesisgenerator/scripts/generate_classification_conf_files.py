@@ -46,11 +46,11 @@ def window_vector_settings():
     unlab = 'gigaw'
     algo = 'count_windows'
     composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
-                      RightmostWordComposer, BaroniComposer, Bunch(name='Observed')]
+                      RightmostWordComposer, BaroniComposer, GuevaraComposer, Bunch(name='Observed')]
     for c in composer_algos:
         for svd_dims in [0, 100]:
-            if svd_dims == 0 and c == BaroniComposer:
-                continue  # Baroni needs SVD
+            if svd_dims == 0 and c in (BaroniComposer, GuevaraComposer):
+                continue  # Baroni/Guevara needs SVD
             yield unlab, algo, c.name, svd_dims
 
 
@@ -216,6 +216,7 @@ def count_wiki_with_svd_no_ppmi_amazon():
             e = db.ClassificationExperiment(labelled=am_corpus, vectors=v)
             experiments.append(e)
 
+
 @printing_decorator
 def equalised_coverage_experiments():
     # w2v with 4 composers (high-coverage model) with coverage of corresponding count windows (low-coverage)
@@ -233,6 +234,32 @@ def equalised_coverage_experiments():
         e = db.ClassificationExperiment(labelled=am_corpus, vectors=regular_vect, entries_of=entries_of)
         experiments.append(e)
 
+
+@printing_decorator
+def with_unigrams_at_decode_time():
+    composers = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer, RightmostWordComposer]
+    for composer in composers:
+        vect = [vectors_from_settings('gigaw', 'word2vec', composer.name, svd_dims=100, percent=100),
+                vectors_from_settings('wiki', 'word2vec', composer.name, svd_dims=100, percent=15),
+                vectors_from_settings('wiki', 'word2vec', composer.name, svd_dims=100, percent=100),
+        ]
+        for v in vect:
+            e = db.ClassificationExperiment(vectors=v, labelled=am_corpus, document_features_ev='A+N+AN+NN')
+            experiments.append(e)
+
+
+@printing_decorator
+def with_lexical_overlap_and_unigrams_at_decode_time():
+    composers = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer, RightmostWordComposer]
+    for composer in composers:
+        vect = [vectors_from_settings('gigaw', 'word2vec', composer.name, svd_dims=100, percent=100),
+                vectors_from_settings('wiki', 'word2vec', composer.name, svd_dims=100, percent=15),
+                vectors_from_settings('wiki', 'word2vec', composer.name, svd_dims=100, percent=100),
+        ]
+        for v in vect:
+            e = db.ClassificationExperiment(vectors=v, labelled=am_corpus,
+                                            document_features_ev='A+N+AN+NN', allow_overlap=True)
+            experiments.append(e)
 
 
 if __name__ == '__main__':
@@ -271,6 +298,8 @@ if __name__ == '__main__':
     count_wiki_with_svd_no_ppmi_amazon()
     an_only_nn_only_experiments_amazon()
     equalised_coverage_experiments()
+    with_unigrams_at_decode_time()
+    with_lexical_overlap_and_unigrams_at_decode_time()
 
     # various other experiments that aren't as interesting
     # different_neighbour_strategies() # this takes a long time
@@ -355,6 +384,7 @@ if __name__ == '__main__':
             """
             res = ','.join(thing)
             return res if res else ','
+
         for time, requested_features in zip(['train', 'decode'],
                                             [exp.document_features_tr, exp.document_features_ev]):
             requested_features = requested_features.split('+')

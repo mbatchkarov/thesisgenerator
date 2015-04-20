@@ -8,7 +8,8 @@ from datetime import datetime as dt
 from discoutils.misc import Bunch
 from thesisgenerator.utils import db
 from thesisgenerator.composers.vectorstore import (AdditiveComposer, MultiplicativeComposer,
-                                                   LeftmostWordComposer, RightmostWordComposer, BaroniComposer)
+                                                   LeftmostWordComposer, RightmostWordComposer,
+                                                   BaroniComposer, GuevaraComposer)
 
 
 def _get_size(thesaurus_file):
@@ -110,7 +111,7 @@ def _count_vectors_gigaw_wiki():
     """ standard windows/dependency thesauri that I built back in the day"""
     composer_algos = [AdditiveComposer, MultiplicativeComposer,
                       LeftmostWordComposer, RightmostWordComposer,
-                      BaroniComposer, Bunch(name='Observed')]
+                      BaroniComposer, GuevaraComposer, Bunch(name='Observed')]
 
     # e.g. exp10-12-composed-ngrams/AN_NN_gigaw_Add.events.filtered.strings
     unred_pattern = '{prefix}/exp{unlab_num}-{thesf_num}-composed-ngrams/' \
@@ -126,8 +127,8 @@ def _count_vectors_gigaw_wiki():
                 for composer_class in composer_algos:
                     composer_name = composer_class.name
 
-                    if composer_name == 'Baroni' and svd_dims == 0:
-                        continue  # not training Baroni without SVD
+                    if composer_name in ['Baroni', 'Guevara'] and svd_dims == 0:
+                        continue  # not training Baroni/Guevara without SVD
                     if thesf_name == 'dependencies' and composer_name in ['Baroni', 'Observed']:
                         continue  # can't easily run Julie's observed vectors code, so pretend it doesnt exist
                     if unlab_name == 'wiki' and svd_dims == 0 and composer_name != 'Observed':
