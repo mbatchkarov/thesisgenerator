@@ -35,14 +35,15 @@ class Vectors(pw.Model):
 
 
 class ClassificationExperiment(pw.Model):
-    document_features_tr = pw.CharField(default='A_N_ANNN')  # AN+NN, AN only, NN only, ...
-    document_features_ev = pw.CharField(default='ANNN')
+    document_features_tr = pw.CharField(default='A+N+AN+NN')  # AN+NN, AN only, NN only, ...
+    document_features_ev = pw.CharField(default='AN+NN')
     use_similarity = pw.BooleanField(default=False)  # use phrase sim as pseudo term count
+    allow_overlap = pw.BooleanField(default=False)  # allow lexical overlap between features and its replacements
     use_random_neighbours = pw.BooleanField(default=False)
     decode_handler = pw.CharField(default='SignifiedOnlyFeatureHandler')  # signifier, signified, hybrid
+    labelled = pw.CharField()  # name/path of labelled corpus used
     vectors = pw.ForeignKeyField(Vectors, null=True, default=None, on_delete='SET NULL', related_name='vectors')
     entries_of = pw.ForeignKeyField(Vectors, null=True, default=None, on_delete='SET NULL', related_name='entries_of')
-    labelled = pw.CharField()  # name/path of labelled corpus used
     k = pw.IntegerField(default=3)  # how many neighbours entries are replaced with at decode time
     neighbour_strategy = pw.CharField(default='linear')  # how neighbours are found- linear or skipping strategy
     noise = pw.FloatField(default=0)
@@ -57,17 +58,24 @@ class ClassificationExperiment(pw.Model):
         basic_settings = ','.join((str(x) for x in [self.labelled, self.vectors]))
         return '%s: %s' % (self.id, basic_settings)
 
+    def __repr__(self):
+        return str(self)
+
     def __key(self):
-        x = [self.document_features_tr,
+        x = (self.document_features_tr,
+             self.document_features_ev,
              self.use_similarity,
+             self.allow_overlap,
              self.use_random_neighbours,
              self.decode_handler,
-             self.labelled, self.k,
+             self.labelled,
+             self.vectors.id if self.vectors else None,
+             self.entries_of.id if self.entries_of else None,
+             self.k,
              self.neighbour_strategy,
              self.noise,
-             self.vectors.id if self.vectors else None,
-             self.entries_of.id if self.entries_of else None]
-        return tuple(x)
+        )
+        return x
 
     def __eq__(x, y):
         return x.__key() == y.__key()

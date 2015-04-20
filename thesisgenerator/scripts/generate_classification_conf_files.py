@@ -136,7 +136,7 @@ def an_only_nn_only_experiments_amazon():
         for s in word2vec_vector_settings():
             e = db.ClassificationExperiment(vectors=vectors_from_settings(*s),
                                             labelled=am_corpus,
-                                            document_features=feature_type)
+                                            document_features_tr=feature_type)
             experiments.append(e)
 
 
@@ -346,13 +346,28 @@ if __name__ == '__main__':
         conf['output_dir'] = './conf/exp%d/output' % exp.id
         conf['name'] = 'exp%d' % exp.id
         conf['feature_extraction']['k'] = exp.k
-        requested_features = exp.document_features.split('_')
-        for doc_feature_type in ['AN', 'NN', 'VO', 'SVO']:
-            conf['feature_extraction'][
-                'extract_%s_features' % doc_feature_type] = doc_feature_type in requested_features
+
+        def myjoin(thing):
+            """
+            joins things by a comma, return a single comma if nothing to join
+            :param thing: list of things to join
+            :return:
+            """
+            res = ','.join(thing)
+            return res if res else ','
+        for time, requested_features in zip(['train', 'decode'],
+                                            [exp.document_features_tr, exp.document_features_ev]):
+            requested_features = requested_features.split('+')
+
+            unigram_feats = sorted([foo for foo in requested_features if len(foo) == 1])
+            conf['feature_extraction']['%s_time_opts' % time]['extract_unigram_features'] = myjoin(unigram_feats)
+
+            phrasal_feats = sorted([foo for foo in requested_features if len(foo) > 1])
+            conf['feature_extraction']['%s_time_opts' % time]['extract_phrase_features'] = myjoin(phrasal_feats)
+
 
         # do not allow lexical overlap to prevent Left and Right from relying on word identity
-        conf['vector_sources']['allow_lexical_overlap'] = False
+        conf['vector_sources']['allow_lexical_overlap'] = exp.allow_overlap
         conf['vector_sources']['neighbour_strategy'] = exp.neighbour_strategy
         conf['vector_sources']['entries_of'] = exp.entries_of
 
