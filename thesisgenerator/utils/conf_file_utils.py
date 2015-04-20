@@ -1,6 +1,7 @@
 from os import path as path
+from pprint import pprint
 import sys
-from configobj import ConfigObj
+from configobj import ConfigObj, flatten_errors
 import validate
 
 __author__ = 'mmb28'
@@ -32,11 +33,10 @@ def parse_config_file(conf_file):
     configspec_file = get_confrc(conf_file)
     config = ConfigObj(conf_file, configspec=configspec_file)
     validator = validate.Validator()
-    result = config.validate(validator)
-    # todo add a more helpful guide to what exactly went wrong with the conf
-    # object
-    if not result:
+    result = config.validate(validator, preserve_errors=True)
+    if result != True and len(result) > 0:
         print('Invalid configuration')
+        pprint(flatten_errors(config, result))
         sys.exit(1)
     return config, configspec_file
 

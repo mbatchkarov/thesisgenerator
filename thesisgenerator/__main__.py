@@ -280,7 +280,7 @@ def _cv_loop(log_dir, config, cv_i, score_func, test_idx, train_idx, vector_sour
 
     for clf in _build_classifiers(config['classifiers']):
         if not (np.count_nonzero(to_keep_train) and np.count_nonzero(to_keep_test)):
-            logging.error('There isnt enough data for a proper evaluation, skipping this fold!!!')
+            logging.error('There isnt enough test data for a proper evaluation, skipping this fold!!!')
             continue  # if there's no training data or test data just ignore the fold
         logging.info('Starting training of %s', clf)
         clf = clf.fit(tr_matrix, y_train)
@@ -334,6 +334,9 @@ def _analyze(scores, output_dir, name, class_names):
                                        val])
 
     # save raw results
+    if not cleaned_scores:
+        raise ValueError('Scores are missing for this experiment. This may be because feature selection removed all '
+                         'test documents for all folds, and accuracy could not be computed')
     df = DataFrame(cleaned_scores,
                    columns=['classifier', 'cv_no', 'metric', 'score'])
     csv = os.path.join(output_dir, '%s.out-raw.csv' % name)

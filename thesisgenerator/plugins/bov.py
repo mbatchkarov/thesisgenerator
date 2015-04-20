@@ -25,9 +25,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
                  input='content', encoding='utf-8', decode_error='strict',
                  strip_accents=None,
                  preprocessor=None, tokenizer=None, analyzer='ngram',
-                 stop_words=None, token_pattern=r"(?u)\b\w\w+\b", min_n=None,
-                 max_n=None, ngram_range=(1, 1),
-                 ngram_range_decode=None,
+                 stop_words=None, token_pattern=r"(?u)\b\w\w+\b",
                  max_df=1.0, min_df=2,
                  max_features=None, vocabulary=None, binary=False, dtype=float,
                  norm='l2', use_idf=True, smooth_idf=True,
@@ -36,11 +34,8 @@ class ThesaurusVectorizer(TfidfVectorizer):
                  sim_compressor='thesisgenerator.utils.misc.unit',
                  train_token_handler='thesisgenerator.plugins.bov_feature_handlers.BaseFeatureHandler',
                  decode_token_handler='thesisgenerator.plugins.bov_feature_handlers.BaseFeatureHandler',
-                 extract_AN_features=True,
-                 extract_NN_features=True,
-                 extract_VO_features=True,
-                 extract_SVO_features=True,
-                 unigram_feature_pos_tags=ContainsEverything(),
+                 train_time_opts={},
+                 decode_time_opts={},
                  remove_features_with_NER=False,
                  random_neighbour_thesaurus=False
 
@@ -55,8 +50,6 @@ class ThesaurusVectorizer(TfidfVectorizer):
         have not been established, make sure to check& establish them in
         fit_transform()
 
-        :param ngram_range: tuple(int,int), what n-grams to extract. If the range is (x,0), no n-ngrams of
-        consecutive words will be extracted.
         :param unigram_feature_pos_tags: for each extracted unigram, check that its PoS is contained here
         """
         self.use_tfidf = use_tfidf
@@ -67,14 +60,10 @@ class ThesaurusVectorizer(TfidfVectorizer):
         self.sim_compressor = sim_compressor
         self.train_token_handler = train_token_handler
         self.decode_token_handler = decode_token_handler
-        self.extract_AN_features = extract_AN_features
-        self.extract_NN_features = extract_NN_features
-        self.extract_VO_features = extract_VO_features
-        self.extract_SVO_features = extract_SVO_features
-        self.unigram_feature_pos_tags = unigram_feature_pos_tags
+        self.train_time_opts = train_time_opts
+        self.decode_time_opts = decode_time_opts
         self.remove_features_with_NER = remove_features_with_NER
         self.random_neighbour_thesaurus = random_neighbour_thesaurus
-        self.ngram_range_decode = ngram_range_decode if ngram_range_decode else ngram_range
 
         self.stats = None
         self.handler = None
@@ -90,9 +79,6 @@ class ThesaurusVectorizer(TfidfVectorizer):
                                                   analyzer=analyzer,
                                                   stop_words=stop_words,
                                                   token_pattern=token_pattern,
-                                                  # min_n=min_n,
-                                                  # max_n=max_n,
-                                                  ngram_range=ngram_range,
                                                   max_df=max_df,
                                                   min_df=min_df,
                                                   max_features=max_features,
@@ -106,7 +92,8 @@ class ThesaurusVectorizer(TfidfVectorizer):
 
     def fit_transform(self, raw_documents, y=None, vector_source=None, stats_hdf_file=None, cv_fold=-1):
         self.cv_fold = cv_fold
-        self._check_vocabulary()
+        self.extract_unigram_features = self.train_time_opts['extract_unigram_features']
+        self.extract_phrase_features = self.train_time_opts['extract_phrase_features']
         self.thesaurus = vector_source
         self.handler = get_token_handler(self.train_token_handler,
                                          self.k,
@@ -119,6 +106,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
 
         # ########## BEGIN super.fit_transform ##########
         # this is a modified version of super.fit_transform which works with an empty vocabulary
+        self._validate_vocabulary()
         max_df = self.max_df
         min_df = self.min_df
         max_features = self.max_features
@@ -156,6 +144,8 @@ class ThesaurusVectorizer(TfidfVectorizer):
         return X, self.vocabulary_
 
     def transform(self, raw_documents):
+        self.extract_unigram_features = self.decode_time_opts['extract_unigram_features']
+        self.extract_phrase_features = self.decode_time_opts['extract_phrase_features']
         if not hasattr(self, 'vocabulary_'):
             self._check_vocabulary()
 
@@ -170,8 +160,6 @@ class ThesaurusVectorizer(TfidfVectorizer):
             self.thesaurus.k = self.k
             self.thesaurus.vocab = list(self.vocabulary_.keys())
 
-        self.ngram_range = self.ngram_range_decode
-
         self.handler = get_token_handler(self.decode_token_handler,
                                          self.k,
                                          self.sim_compressor,
@@ -182,9 +170,9 @@ class ThesaurusVectorizer(TfidfVectorizer):
         # features that we do not know how to compose because these have not been removed by FS
         # if self.thesaurus:
         # logging.info('Populating vector source %s prior to transform', self.thesaurus)
-        #    self.thesaurus.populate_vector_space(self.vocabulary_.keys())
+        # self.thesaurus.populate_vector_space(self.vocabulary_.keys())
 
-        #  BEGIN a modified version of super.transform that works when vocabulary is empty
+        # BEGIN a modified version of super.transform that works when vocabulary is empty
         _, X = self._count_vocab(raw_documents, fixed_vocab=True)
         if self.binary:
             X.data.fill(1)
@@ -202,17 +190,17 @@ class ThesaurusVectorizer(TfidfVectorizer):
         return [f for f in features if not any(token.ner in self.entity_ner_tags for token in f.tokens)]
 
     def extract_features_from_dependency_tree(self, parse_tree):
-        # extract sentence-internal adjective-noun compounds
         new_features = []
 
-        if self.extract_AN_features:
+        # extract sentence-internal adjective-noun compounds
+        if 'AN' in self.extract_phrase_features:
             # get tuples of (head, dependent) for each amod relation in the tree
             # also enforce that head is a noun, dependent is an adjective
             for head, dep, data in parse_tree.edges(data=True):
                 if data['type'] == 'amod' and head.pos == 'N' and dep.pos == 'J':
                     new_features.append(DocumentFeature('AN', (dep, head)))
 
-        if self.extract_SVO_features or self.extract_VO_features:
+        if 'VO' in self.extract_phrase_features or 'SVO' in self.extract_phrase_features:
             # extract sentence-internal subject-verb-direct object compounds
             # todo how do we handle prepositional objects?
             verbs = [t for t in parse_tree.nodes() if t.pos == 'V']
@@ -220,7 +208,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
             objects = set([(head, dep) for head, dep, data in parse_tree.edges(data=True)
                            if data['type'] == 'dobj' and head.pos == 'V' and dep.pos == 'N'])
 
-        if self.extract_SVO_features:
+        if 'SVO' in self.extract_phrase_features:
             subjects = set([(head, dep) for head, dep, opts in parse_tree.edges(data=True) if
                             opts['type'] == 'nsubj' and head.pos == 'V' and dep.pos == 'N'])
 
@@ -229,12 +217,12 @@ class ThesaurusVectorizer(TfidfVectorizer):
             for s, v, o in subjverbobj:
                 new_features.append(DocumentFeature('SVO', (s, v, o)))
 
-        if self.extract_VO_features:
+        if 'SVO' in self.extract_phrase_features:
             verbobj = [(v, o[1]) for v in verbs for o in objects if o[0] == v]
             for v, o in verbobj:
                 new_features.append(DocumentFeature('VO', (v, o)))
 
-        if self.extract_NN_features:
+        if 'NN' in self.extract_phrase_features:
             for head, dep, data in parse_tree.edges(data=True):
                 if data['type'] == 'nn' and head.pos == 'N' and dep.pos == 'N':
                     new_features.append(DocumentFeature('NN', (dep, head)))
@@ -243,17 +231,20 @@ class ThesaurusVectorizer(TfidfVectorizer):
             return self._remove_features_containing_named_entities(new_features)
         return new_features
 
-    def my_feature_extractor(self, doc_sentences, ngram_range=(1, 1)):
+    def my_feature_extractor(self, doc_sentences):
         """
-        Turn a document( a list of tokens) into a sequence of features. These
-        include n-grams after stop words filtering,
-        suffix features and shape features
-        Based on sklearn.feature_extraction.text._word_ngrams
+        Turn a document( a list of tokens) into a sequence of features.
         """
         features = []
 
         # extract sentence-internal token n-grams
-        min_n, max_n = map(int, ngram_range)
+        if self.extract_unigram_features:
+            # this is just for compatibility with code that was lifted from sklearn a while back
+            # I no longer use min/max_n, but explicit list of PoS tags to be used as features
+            min_n, max_n = 1, 1
+        else:
+            min_n, max_n = 0, 0
+
         for parse_tree in doc_sentences:
             if not parse_tree:  # the sentence segmenter sometimes returns empty sentences
                 continue
@@ -269,7 +260,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
             if max_n == 1:
                 # just unigrams, can get away without sorting the tokens
                 for token in parse_tree.nodes_iter():
-                    if token.pos not in self.unigram_feature_pos_tags:
+                    if token.pos not in self.extract_unigram_features:
                         continue
                     features.append(DocumentFeature('1-GRAM', (token, )))
 
@@ -288,36 +279,19 @@ class ThesaurusVectorizer(TfidfVectorizer):
         for feature in features:
             for token in feature.tokens:
                 token.index = 'any'
-
-        return features  # + last_chars + shapes
-
-    def my_analyzer(self):
-        return lambda doc: self.my_feature_extractor(doc, None, None)
+        print(features)
+        return features
 
     def build_analyzer(self):
         """
         Return a callable that handles preprocessing,
-        tokenization and any additional feature extraction. Extends
-        sklearn.feature_extraction.text.CountVectorizer.build_analyzer() by
-        adding a 'better' option, which
-        invokes self.my_feature_extractor, a more general function than
-        CountVectorizer._word_ngrams()
+        tokenization and any additional feature extraction.
         """
         if hasattr(self.analyzer, '__call__'):
             return self.analyzer
 
-        preprocess = self.build_preprocessor()
-
-        if self.analyzer == 'better':
-            tokenize = tokenizers.get_tokenizer()
-            return lambda doc: self.my_feature_extractor(
-                tokenize(preprocess(self.decode(doc))), self.ngram_range)
-
-        elif self.analyzer == 'ngram':
-            # assume input already tokenized
-            return lambda token_list: self.my_feature_extractor(token_list, self.ngram_range)
-        else:
-            return super(ThesaurusVectorizer, self).build_analyzer()
+        # assume input already tokenized
+        return lambda token_list: self.my_feature_extractor(token_list)
 
 
     def _count_vocab(self, raw_documents, fixed_vocab):
@@ -358,11 +332,11 @@ class ThesaurusVectorizer(TfidfVectorizer):
 
                 # is_in_vocabulary = bool(feature_index_in_vocab is not None)
                 is_in_vocabulary = feature in vocabulary
-                #is_in_th = bool(self.thesaurus.get(feature))
+                # is_in_th = bool(self.thesaurus.get(feature))
                 is_in_th = feature in self.thesaurus if self.thesaurus else False
                 self.stats.register_token(feature, is_in_vocabulary, is_in_th)
 
-                #j_indices.append(feature_index_in_vocab) # todo this is the original code, also updates vocabulary
+                # j_indices.append(feature_index_in_vocab) # todo this is the original code, also updates vocabulary
 
                 params = {'doc_id': doc_id, 'feature': feature,
                           'feature_index_in_vocab': feature_index_in_vocab,

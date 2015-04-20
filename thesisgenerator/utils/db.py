@@ -35,7 +35,8 @@ class Vectors(pw.Model):
 
 
 class ClassificationExperiment(pw.Model):
-    document_features = pw.CharField(default='AN_NN')  # AN+NN, AN only, NN only, ...
+    document_features_tr = pw.CharField(default='A_N_ANNN')  # AN+NN, AN only, NN only, ...
+    document_features_ev = pw.CharField(default='ANNN')
     use_similarity = pw.BooleanField(default=False)  # use phrase sim as pseudo term count
     use_random_neighbours = pw.BooleanField(default=False)
     decode_handler = pw.CharField(default='SignifiedOnlyFeatureHandler')  # signifier, signified, hybrid
@@ -57,7 +58,7 @@ class ClassificationExperiment(pw.Model):
         return '%s: %s' % (self.id, basic_settings)
 
     def __key(self):
-        x = [self.document_features,
+        x = [self.document_features_tr,
              self.use_similarity,
              self.use_random_neighbours,
              self.decode_handler,
