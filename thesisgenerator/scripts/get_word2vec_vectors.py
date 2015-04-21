@@ -9,6 +9,7 @@ from functools import reduce
 import logging
 import errno
 import numpy as np
+from discoutils.misc import mkdirs_if_not_exists
 import gensim
 
 sys.path.append('.')
@@ -106,20 +107,14 @@ def reformat_data(conll_data_dir, pos_only_data_dir):
     :param conll_data_dir: input directory in CONLL format
     :param pos_only_data_dir: output directory
     """
-    try:
-        os.makedirs(pos_only_data_dir)
-    except OSError as exc:
-        if exc.errno == errno.EEXIST and os.path.isdir(pos_only_data_dir):
-            pass
-        else:
-            raise
+    mkdirs_if_not_exists(pos_only_data_dir)
     for filename in os.listdir(conll_data_dir):
         outfile_name = join(pos_only_data_dir, filename)
         logging.info('Reformatting %s to %s', filename, outfile_name)
         with open(join(conll_data_dir, filename)) as infile, open(outfile_name, 'w') as outfile:
             for line in infile:
                 if not line.strip():  # conll empty line = sentence boundary
-                    outfile.write('.\n')
+                    outfile.write('.\n') # todo why is this dor there???
                     continue
                 idx, word, lemma, pos, ner, dep, _ = line.strip().split('\t')
                 outfile.write('%s/%s ' % (lemma.lower(), pos_coarsification_map[pos]))
