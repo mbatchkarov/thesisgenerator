@@ -52,8 +52,9 @@ class MySentences(object):
 
     def __iter__(self):
         for fname in self.files:
-            for line in open(join(self.dirname, fname)):
-                yield line.split()
+            with open(join(self.dirname, fname)) as infile:
+                for line in infile:
+                    yield gensim.utils.tokenize(line, lower=True)
 
 
 def _train_model(percent, data_dir, repeat_num):
