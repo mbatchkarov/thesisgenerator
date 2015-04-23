@@ -46,7 +46,11 @@ class TestThesaurusVectorizer(TestCase):
             'record_stats': True,
             'k': 10,  # use all thesaurus entries
             'train_token_handler': 'thesisgenerator.plugins.bov_feature_handlers.BaseFeatureHandler',
-            'decode_token_handler': 'thesisgenerator.plugins.bov_feature_handlers.BaseFeatureHandler'
+            'decode_token_handler': 'thesisgenerator.plugins.bov_feature_handlers.BaseFeatureHandler',
+            'train_time_opts': dict(extract_unigram_features=['J', 'N', 'V'],
+                                    extract_phrase_features=[]),
+            'decode_time_opts': dict(extract_unigram_features=['J', 'N', 'V'],
+                                     extract_phrase_features=[])
         }
         self.feature_selection_conf = {
             'run': True,
@@ -145,7 +149,7 @@ class TestThesaurusVectorizer(TestCase):
                 if os.path.exists(f):
                     os.remove(f)
 
-    def test_baseline_use_all_features_signifier_only_23(self):
+    def test_baseline_use_all_features_signifier_only(self):
         self.feature_extraction_conf['vocab_from_thes'] = False
         self.tsv_file = 'thesisgenerator/resources/exp0-0b.strings'
         self._reload_thesaurus_and_tokenizer()
@@ -170,7 +174,7 @@ class TestThesaurusVectorizer(TestCase):
             )
         )
 
-    def test_baseline_ignore_nonthesaurus_features_signifier_only_22(self):
+    def test_baseline_ignore_nonthesaurus_features_signifier_only(self):
         self.feature_selection_conf['must_be_in_thesaurus'] = True
         self.tsv_file = 'thesisgenerator/resources/exp0-0b.strings'
         self._reload_thesaurus_and_tokenizer()
@@ -196,7 +200,7 @@ class TestThesaurusVectorizer(TestCase):
             )
         )
 
-    def test_baseline_use_all_features_with__signifier_signified_25(self):
+    def test_baseline_use_all_features_with__signifier_signified(self):
         self.feature_selection_conf['must_be_in_thesaurus'] = False
         self.feature_extraction_conf['decode_token_handler'] = \
             'thesisgenerator.plugins.bov_feature_handlers.SignifierSignifiedFeatureHandler'
@@ -226,7 +230,7 @@ class TestThesaurusVectorizer(TestCase):
             )
         )
 
-    def test_baseline_ignore_nonthesaurus_features_with_signifier_signified_24(self):
+    def test_baseline_ignore_nonthesaurus_features_with_signifier_signified(self):
         self.feature_selection_conf['must_be_in_thesaurus'] = True
         self.feature_extraction_conf['decode_token_handler'] = \
             'thesisgenerator.plugins.bov_feature_handlers.SignifierSignifiedFeatureHandler'
@@ -255,7 +259,7 @@ class TestThesaurusVectorizer(TestCase):
             )
         )
 
-    def test_baseline_use_all_features_with_signified_27(self):
+    def test_baseline_use_all_features_with_signified(self):
         self.feature_selection_conf['must_be_in_thesaurus'] = False
         self.feature_extraction_conf['decode_token_handler'] = \
             'thesisgenerator.plugins.bov_feature_handlers.SignifiedOnlyFeatureHandler'
@@ -285,7 +289,7 @@ class TestThesaurusVectorizer(TestCase):
             )
         )
 
-    def test_baseline_ignore_nonthesaurus_features_with_signified_26(self):
+    def test_baseline_ignore_nonthesaurus_features_with_signified(self):
         self.feature_selection_conf['must_be_in_thesaurus'] = True
         self.feature_extraction_conf['decode_token_handler'] = \
             'thesisgenerator.plugins.bov_feature_handlers.SignifiedOnlyFeatureHandler'
@@ -315,7 +319,7 @@ class TestThesaurusVectorizer(TestCase):
             )
         )
 
-    def test_baseline_use_all_features_with_signified_random_28(self):
+    def test_baseline_use_all_features_with_signified_random(self):
         self.feature_selection_conf['must_be_in_thesaurus'] = False
         self.feature_extraction_conf['decode_token_handler'] = \
             'thesisgenerator.plugins.bov_feature_handlers.SignifierRandomBaselineFeatureHandler'
@@ -347,7 +351,7 @@ class TestThesaurusVectorizer(TestCase):
         )
         # the thesaurus will always say the neighbour for something is
         # b/N with a similarity of 1, and we look up 11 tokens overall in
-        #  the test document
+        # the test document
         source.vocab = voc
         x1, x2, voc = self._vectorize_data(source)
         self.assertAlmostEqual(x2.sum(), 11.0)
@@ -355,4 +359,4 @@ class TestThesaurusVectorizer(TestCase):
         # seven tokens will be looked up, with random in-vocabulary neighbours
         # returned each time. Std>0 shows that it's not the same thing
         # returned each time
-        #print x2
+        # print x2

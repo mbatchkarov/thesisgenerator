@@ -11,8 +11,8 @@ min_train_features = float() # these need to be a float when using similarity sc
 [feature_extraction]
     run=boolean(default=True)
     vectorizer=string(default='thesisgenerator.plugins.bov.ThesaurusVectorizer') # class of vectorizer
-    min_df=integer
-    use_tfidf=boolean
+    min_df=integer(default=0)
+    use_tfidf=boolean(default=False)
     
     remove_features_with_NER=boolean(default=False) # whether to remove document features that contain a token with NER tag  ORG, PERS, LOC- these aren't composable
 
@@ -60,7 +60,7 @@ min_train_features = float() # these need to be a float when using similarity sc
 		
 [crossvalidation]
 	run=boolean(default=True)
-	type = option('kfold', 'skfold', 'loo', 'bootstrap', 'oracle', default='skfold')
+	type = option('kfold', 'skfold', 'loo', 'bootstrap', 'oracle', 'subsampled_test_set', default='skfold') # subsampled_test_set only used in unit tests
 	k=integer(min=1,max=100)
     random_state=integer(default=0)
 
@@ -70,7 +70,7 @@ min_train_features = float() # these need to be a float when using similarity sc
     scoring_function=string(default='') # if nothing is passed in, thesisgenereator will use chi2
     must_be_in_thesaurus=boolean(default=False)
     k=integer(default=99999999999999) # if doing feature selection by chi-squared, how many features to keep
-    min_log_odds_score=float() # features with a log odds score outside the range [-min_log_odds_score, min_log_odds_score] will be removed. If a non-positive value is provided here, log-odds filtering will not be used.
+    min_log_odds_score=float(default=0) # features with a log odds score outside the range [-min_log_odds_score, min_log_odds_score] will be removed. If a non-positive value is provided here, log-odds filtering will not be used.
 
 [classifiers]
     [[sklearn.naive_bayes.MultinomialNB]]
@@ -87,7 +87,7 @@ min_train_features = float() # these need to be a float when using similarity sc
 
     [[sklearn.linear_model.LogisticRegression]]
 		run=boolean(default=False)
-		C=float()
+		C=float(default=1)
 
     [[sklearn.svm.LinearSVC]]
     	run=boolean(default=False)

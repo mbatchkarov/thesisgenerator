@@ -9,7 +9,11 @@ from discoutils.thesaurus_loader import Thesaurus
 from discoutils.tokens import DocumentFeature
 from thesisgenerator.plugins.experimental_utils import run_experiment
 
-
+"""
+Run a full experiment with a simple dataset like
+ Cats like dogs
+ Kids play games
+"""
 def _get_counter_ignoring_negatives(df, column_list):
     c = Counter(np.ravel(df.ix[:, column_list].values))
     return Counter({k: v for k, v in c.items() if k >= 0})
@@ -49,6 +53,9 @@ def stats_files(request):
 
 
 def test_coverage_statistics(stats_files):
+    """
+    Check the number of features (unigram) in thesaurus and in vocabulary is right
+    """
     full_df = pd.read_csv(stats_files[0], sep=', ', compression='gzip')
     df = full_df[(full_df.stage == 1) & (full_df.cv_fold == 0)]  # decode time
     assert df.shape == (5, 6)  # 5 types in the dataset
@@ -86,8 +93,7 @@ def test_coverage_statistics(stats_files):
 
 def test_get_decode_time_paraphrase_statistics(stats_files):
     """
-    :param stats:
-    :type stats: StatsRecorder
+    Test the replacements made at decode time are right
     """
 
     # this test uses a signifier-signified encoding, i.e. only OOV-IT items are looked up

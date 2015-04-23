@@ -7,9 +7,7 @@ from operator import attrgetter
 import scipy.sparse as sp
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
-from discoutils.misc import ContainsEverything
 from thesisgenerator.classifiers import NoopTransformer
-from thesisgenerator.plugins import tokenizers
 from thesisgenerator.plugins.bov_feature_handlers import get_token_handler
 from discoutils.tokens import DocumentFeature
 from thesisgenerator.plugins.stats import get_stats_recorder
@@ -34,12 +32,14 @@ class ThesaurusVectorizer(TfidfVectorizer):
                  sim_compressor='thesisgenerator.utils.misc.unit',
                  train_token_handler='thesisgenerator.plugins.bov_feature_handlers.BaseFeatureHandler',
                  decode_token_handler='thesisgenerator.plugins.bov_feature_handlers.BaseFeatureHandler',
-                 train_time_opts={},
-                 decode_time_opts={},
+                 train_time_opts={'extract_unigram_features': ['J', 'N'],
+                                  'extract_phrase_features': ['AN', 'NN', 'VO', 'SVO']},
+                 decode_time_opts={'extract_unigram_features': '',
+                                   'extract_phrase_features': ['AN', 'NN']},
+                 standard_ngram_features=0,
                  remove_features_with_NER=False,
                  random_neighbour_thesaurus=False
-
-    ):
+                 ):
         """
         Builds a vectorizer the way a TfidfVectorizer is built, and takes one
         extra param specifying the path the the Byblo-generated thesaurus.
@@ -50,7 +50,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
         have not been established, make sure to check& establish them in
         fit_transform()
 
-        :param unigram_feature_pos_tags: for each extracted unigram, check that its PoS is contained here
+        :param standard_ngram_features: int. Extract standard (adjacent) ngram features up to this length
         """
         self.use_tfidf = use_tfidf
         self.pipe_id = pipe_id
@@ -64,6 +64,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
         self.decode_time_opts = decode_time_opts
         self.remove_features_with_NER = remove_features_with_NER
         self.random_neighbour_thesaurus = random_neighbour_thesaurus
+        self.standard_ngram_features = standard_ngram_features
 
         self.stats = None
         self.handler = None
@@ -179,10 +180,10 @@ class ThesaurusVectorizer(TfidfVectorizer):
             # END super.transform
 
         try:
-            #  try and close the shelf
+            # try and close the shelf
             self.d.close()
         except Exception:
-            #  may not be a shelf after all
+            # may not be a shelf after all
             pass
         return X, self.vocabulary_
 
@@ -231,19 +232,13 @@ class ThesaurusVectorizer(TfidfVectorizer):
             return self._remove_features_containing_named_entities(new_features)
         return new_features
 
-    def my_feature_extractor(self, doc_sentences):
+    def extract_features_from_token_list(self, doc_sentences):
         """
         Turn a document( a list of tokens) into a sequence of features.
         """
         features = []
 
         # extract sentence-internal token n-grams
-        if self.extract_unigram_features:
-            # this is just for compatibility with code that was lifted from sklearn a while back
-            # I no longer use min/max_n, but explicit list of PoS tags to be used as features
-            min_n, max_n = 1, 1
-        else:
-            min_n, max_n = 0, 0
 
         for parse_tree in doc_sentences:
             if not parse_tree:  # the sentence segmenter sometimes returns empty sentences
@@ -256,23 +251,23 @@ class ThesaurusVectorizer(TfidfVectorizer):
                 # just ignore that and extract all the features that can be extracted without it
                 logging.warning('Dependency tree not available')
 
-            # extract sentence-internal n-grams
-            if max_n == 1:
+            # extract sentence-internal n-grams of the right PoS tag
+            if self.extract_unigram_features:
                 # just unigrams, can get away without sorting the tokens
                 for token in parse_tree.nodes_iter():
                     if token.pos not in self.extract_unigram_features:
                         continue
                     features.append(DocumentFeature('1-GRAM', (token, )))
 
-            if max_n > 1:
+            # some tests use standard bigrams, extract them too
+            if self.standard_ngram_features > 1:
                 # the tokens are stored as nodes in the parse tree in ANY order, sort them
                 sentence = sorted(parse_tree.nodes(), key=attrgetter('index'))
                 n_tokens = len(sentence)
-                for n in range(min_n, min(max_n + 1, n_tokens + 1)):
+                for n in range(2, min(self.standard_ngram_features + 1, n_tokens + 1)):
                     for i in range(n_tokens - n + 1):
                         feature = DocumentFeature('%d-GRAM' % n, tuple(sentence[i: i + n]))
-                        if n == 1 and feature.tokens[0].pos not in self.unigram_feature_pos_tags:
-                            continue
+                        print(feature.type)
                         features.append(feature)
         # it doesn't matter where in the sentence/document these features were found
         # erase their index
@@ -291,7 +286,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
             return self.analyzer
 
         # assume input already tokenized
-        return lambda token_list: self.my_feature_extractor(token_list)
+        return lambda token_list: self.extract_features_from_token_list(token_list)
 
 
     def _count_vocab(self, raw_documents, fixed_vocab):
@@ -351,8 +346,6 @@ class ThesaurusVectorizer(TfidfVectorizer):
                 if not is_in_vocabulary and not is_in_th:
                     self.handler.handle_OOV_OOT_feature(**params)
                     #####################  end non-original code  #####################
-
-                    #print doc_id, feature, len(j_indices)
             indptr.append(len(j_indices))
 
         if not fixed_vocab:

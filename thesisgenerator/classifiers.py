@@ -62,44 +62,6 @@ class PicklingPipeline(Pipeline):
         return trained_pipeline
 
 
-class DataHashingClassifierMixin(object):
-    """
-    A classifier that keeps track of what is was trained and evaluated on
-    and when asked to predict return a hash of that data. Multiple instances
-    of this class can be used to verify if the same data is consistently
-    being passed in by crossvalidation iterators with a random element
-    """
-
-    def fit(self, X, y, *args, **kwargs):
-        self.train_data = X
-        return self
-
-    def fit_transform(self, X, y, *args, **kwargs):
-        self.train_data = X
-        return self
-
-    def predict(self, X):
-        h1 = hashing.hash(X.todense())
-        h1 = ''.join([str(ord(x)) for x in h1])
-
-        h2 = hashing.hash(self.train_data.todense())
-        h2 = ''.join([str(ord(x)) for x in h2])
-
-        return hash(h1 + h2)
-
-
-class DataHashingNaiveBayes(DataHashingClassifierMixin, MultinomialNB):
-    """
-    Dummy class, the current pipeline can only work with one instance of a
-    classifier type, so to get two identical classifiers we need to create
-    two different subclasses
-    """
-    pass
-
-
-class DataHashingLR(DataHashingClassifierMixin, LogisticRegression):
-    pass
-
 
 class MultinomialNBWithBinaryFeatures(MultinomialNB):
     """

@@ -12,10 +12,9 @@ from thesisgenerator.utils.data_utils import load_text_data_into_memory, tokeniz
 from thesisgenerator.plugins.tokenizers import XmlTokenizer
 
 
-training_matrix_signifier_bigrams = np.array(
-    [[1., 1., 0., 0., 1., 0., 1., 0., 1., 0.],
-     [1., 1., 0., 0., 1., 0., 1., 0., 1., 0.],
-     [0., 0., 1., 1., 0., 1., 0., 1., 0., 1.]])
+training_matrix_signifier_bigrams = np.array([[1., 1., 0., 0., 1., 0., 1., 0., 1., 0.],
+                                              [1., 1., 0., 0., 1., 0., 1., 0., 1., 0.],
+                                              [0., 0., 1., 1., 0., 1., 0., 1., 0., 1.]])
 
 
 def strip(mydict):
@@ -53,10 +52,21 @@ def _do_feature_selection(must_be_in_thesaurus, k, handler='Base', vector_source
         del unigrams_vect['kid/N']
         unigrams_vect.matrix = unigrams_vect.matrix[:, :-1]
 
+    if max_feature_len == 1:
+        # extract only unigram features
+        feat_extr_opts = {'extract_unigram_features': ['J', 'N', 'V'],
+                          'extract_phrase_features': []}
+        standard_ngram_features = 0
+    else:
+        feat_extr_opts = {'extract_unigram_features': ['J', 'N', 'V'],
+                          'extract_phrase_features': ['AN', 'NN', 'VO', 'SVO']}
+        standard_ngram_features = max_feature_len
     pipeline_list = [
         ('vect',
          ThesaurusVectorizer(min_df=1, use_tfidf=False,
-                             ngram_range=(1, max_feature_len),
+                             train_time_opts=feat_extr_opts,
+                             decode_time_opts=feat_extr_opts,
+                             standard_ngram_features=standard_ngram_features,
                              decode_token_handler=handler_pattern.format(handler))),
         ('fs', VectorBackedSelectKBest(must_be_in_thesaurus=must_be_in_thesaurus, k=k)),
         ('dumper', FeatureVectorsCsvDumper('fs-test'))
@@ -94,14 +104,12 @@ def test_unigrams_without_feature_selection():
     assert tr_voc == ev_voc
     assert tr_voc == voc
 
-    t.assert_array_equal(tr_matrix, np.array(
-        [[1., 1., 0., 0., 1., 0.],
-         [1., 1., 0., 0., 1., 0.],
-         [0., 0., 1., 1., 0., 1.]]))
-    t.assert_array_equal(ev_matrix, np.array(
-        [[0., 0., 0., 0., 1., 0.],
-         [0., 0., 0., 0., 1., 0.],
-         [0., 1., 0., 0., 0., 0.]]))
+    t.assert_array_equal(tr_matrix, np.array([[1., 1., 0., 0., 1., 0.],
+                                              [1., 1., 0., 0., 1., 0.],
+                                              [0., 0., 1., 1., 0., 1.]]))
+    t.assert_array_equal(ev_matrix, np.array([[0., 0., 0., 0., 1., 0.],
+                                              [0., 0., 0., 0., 1., 0.],
+                                              [0., 1., 0., 0., 0., 0.]]))
     _check_debug_file(ev_matrix, tr_matrix, voc)
 
 
@@ -116,7 +124,7 @@ def test_with_thesaurus_feature_selection_only():
         'cat/N': 0,
         'dog/N': 1,
         'game/N': 2,
-        #'kid/N': 3, # removed because vector is missing, this happens in _do_feature_selection
+        # 'kid/N': 3, # removed because vector is missing, this happens in _do_feature_selection
         'like/V': 3,
         'play/V': 4
     }
@@ -146,11 +154,11 @@ def test_unigrams_with_chi2_feature_selection_only():
     # feature scores at train time are [ 1.  1.  2.  2.  1.  2.]. These are provided by sklearn and I have not
     # verified them. Higher seems to be better (the textbook implementation of chi2 says lower is better)
     voc = {
-        #'cat/N': 0, # removed because their chi2 score is low
-        #'dog/N': 1,
+        # 'cat/N': 0, # removed because their chi2 score is low
+        # 'dog/N': 1,
         'game/N': 0,
         'kid/N': 1,
-        #'like/V': 4,
+        # 'like/V': 4,
         'play/V': 2
     }
     assert tr_voc == voc
@@ -176,11 +184,11 @@ def test_with_chi2_and_thesaurus_feature_selection():
 
     assert tr_voc == ev_voc
     voc = {
-        #'cat/N': 0, # removed because of low chi2 score
-        #'dog/N': 1,  # removed because of low chi2 score
+        # 'cat/N': 0, # removed because of low chi2 score
+        # 'dog/N': 1,  # removed because of low chi2 score
         'game/N': 0,
-        #'kid/N': 3, # removed because vector is missing
-        #'like/V': 4,  # removed because of low chi2 score
+        # 'kid/N': 3, # removed because vector is missing
+        # 'like/V': 4,  # removed because of low chi2 score
         'play/V': 1
     }
     # feature scores at train time are [ 1.  1.  2.  2.  1.  2.]
@@ -231,15 +239,15 @@ def test_simple_bigram_features_with_chi2_fs():
     assert ev_matrix.shape, (3, 5)
 
     # feature scores are [ 1.  1.  2.  2.  1.  2.  1.  2.  1.  2.]
-    assert tr_voc == {  #'cat/N': 0, # removed because of low chi2-score
-                        #'dog/N': 1,
+    assert tr_voc == {  # 'cat/N': 0, # removed because of low chi2-score
+                        # 'dog/N': 1,
                         'game/N': 0,
                         'kid/N': 1,
-                        #'like/V': 4,
+                        # 'like/V': 4,
                         'play/V': 2,
-                        #'cat/N like/V': 6,
+                        # 'cat/N like/V': 6,
                         'kid/N_play/V': 3,
-                        #'like/V dog/N': 8,
+                        # 'like/V dog/N': 8,
                         'play/V_game/N': 4}
     t.assert_array_equal(tr_matrix, np.array([[0., 0., 0., 0., 0.],
                                               [0., 0., 0., 0., 0.],
@@ -279,13 +287,13 @@ def _check_debug_file(ev_matrix, tr_matrix, voc):
         assert len(df.columns) == 4 + len(voc)
 
         # check that column names match the vocabulary (after stripping feature metadata)
-        #assertDictEqual(voc,
-        #                     {' '.join(v.split('(')[1].split(')')[0].split(', ')): i
-        #                      for i, v in enumerate(df.columns[4:])})
+        # assertDictEqual(voc,
+        # {' '.join(v.split('(')[1].split(')')[0].split(', ')): i
+        # for i, v in enumerate(df.columns[4:])})
 
         # too much work to convert the strings back to a DocumentFeature object, just check the length
         assert len(voc) == len(df.columns[4:])
-        #check that feature vectors are written correctly
+        # check that feature vectors are written correctly
         t.assert_array_equal(matrix, df.ix[:, 4:].as_matrix())
         os.remove(filename)
 

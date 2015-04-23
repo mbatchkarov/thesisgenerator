@@ -135,30 +135,3 @@ class TestUtils(TestCase):
         self.conf['type'] = 'subsampled_test_set'
         self.conf['sample_size'] = 120
         go(subsampling=True)
-
-    def test_seed_consistency(self):
-        """
-        Test that all estimators in a run receive the same data, so that their
-        results are comparable
-        """
-
-        from thesisgenerator.plugins.experimental_utils import run_experiment
-        from pandas import read_csv
-
-        run_experiment(14, num_workers=1, predefined_sized=[2],
-                       prefix='thesisgenerator/resources')
-
-        df = read_csv('thesisgenerator/resources/conf/exp14/output/tests-exp14-0.out-raw.csv',
-                      index_col=0)
-        grouped = df.groupby(['cv_no', 'metric'])
-        for name, group in grouped:
-            classifiers, scores = group['classifier'], group['score']
-
-            # only two classifier have been run
-            self.assertSetEqual(set(classifiers),
-                                set(['DataHashingNaiveBayes',
-                                     'DataHashingLR']))
-
-            # the hashes obtained by the two classifiers must be the same
-            score1, score2 = [score for score in scores.to_dict().values()]
-            self.assertEqual(score1, score2)
