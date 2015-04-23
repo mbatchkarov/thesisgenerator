@@ -75,12 +75,13 @@ def write_gensim_vectors_to_tsv(model, output_path, vocab=None):
         # watch for non-DocumentFeatures, these break to_tsv
         # also ignore words with non-ascii characters
         # if DocumentFeature.from_string(word).type == 'EMPTY': # todo assumes there is a PoS tag
-        #     logging.info('Ignoring vector for %s', word)
+        # logging.info('Ignoring vector for %s', word)
         #     continue
-        logging.error(word)
         vectors[word] = zip(dimension_names, model[word])
     vectors = Vectors(vectors)
-    vectors.to_tsv(output_path, gzipped=True)
+    vectors.to_tsv(output_path, gzipped=True,
+                   enforce_word_entry_pos_format=False,
+                   row_filter=lambda x, y: True)
     del model
     return vectors
 
@@ -116,7 +117,7 @@ def reformat_data(conll_data_dir, pos_only_data_dir):
         with open(join(conll_data_dir, filename)) as infile, open(outfile_name, 'w') as outfile:
             for line in infile:
                 if not line.strip():  # conll empty line = sentence boundary
-                    outfile.write('.\n') # todo why is this dor there???
+                    outfile.write('.\n')  # todo why is this dor there???
                     continue
                 idx, word, lemma, pos, ner, dep, _ = line.strip().split('\t')
                 outfile.write('%s/%s ' % (lemma.lower(), pos_coarsification_map[pos]))

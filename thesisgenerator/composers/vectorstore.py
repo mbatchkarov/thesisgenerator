@@ -294,7 +294,8 @@ class DummyThesaurus(Thesaurus):
 
 def compose_and_write_vectors(unigram_vectors, short_vector_dataset_name, composer_classes,
                               pretrained_Baroni_composer_file=None, pretrained_Guevara_composer_file=None,
-                              output_dir='.', gzipped=True):
+                              output_dir='.', gzipped=True,
+                              row_filter=lambda x, y: y.tokens[0].pos in {'N', 'J'} and y.type == '1-GRAM'):
     """
     Extracts all composable features from a labelled classification corpus and dumps a composed vector for each of them
     to disk. The output file will also contain all unigram vectors that were passed in, and only unigrams!
@@ -316,7 +317,8 @@ def compose_and_write_vectors(unigram_vectors, short_vector_dataset_name, compos
         # composers do not need any ngram vectors contain in this file, they may well be
         # observed ones
         unigram_vectors = Vectors.from_tsv(unigram_vectors,
-                                           row_filter=lambda x, y: y.tokens[0].pos in {'N', 'J'} and y.type == '1-GRAM')
+                                           row_filter=row_filter,
+                                           enforce_word_entry_pos_format=False)
 
     # doing this loop in parallel isn't worth it as pickling or shelving `vectors` is so slow
     # it negates any gains from using multiple cores

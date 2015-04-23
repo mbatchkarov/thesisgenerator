@@ -66,7 +66,7 @@ def main(corpus_name, stages, percent):
         unigram_events_file = join(prefix, 'lda_vectors/lda-gigaw-%dperc.unigr.strings' % percent)
         tmp_file_prefix = 'lda_gigaw_%dper' % percent
     elif corpus_name == 'wiki':
-        data_dir = join(prefix, 'data/wikipedia-tagged-pos/wikipedia/')  # todo use directory w/o PoS
+        data_dir = join(prefix, 'data/wikipedia-tagged/wikipedia/')
         unigram_events_file = join(prefix, 'lda_vectors/lda-wiki-%dperc.unigr.strings' % percent)
         tmp_file_prefix = 'lda_wiki_%dper' % percent
 
@@ -85,9 +85,10 @@ def main(corpus_name, stages, percent):
     if 'vectors' in stages:
         lda, dictionary, vectors = train_lda_model(data_dir, unigram_events_file, tmp_file_prefix)
     else:
-        lda, dictionary, vectors = LdaMulticore.load('%s_lda.model' % tmp_file_prefix)
+        logging.info('Not training LDA model, loading pretrained instead')
+        lda = LdaMulticore.load('%s_lda.model' % tmp_file_prefix)
         dictionary = Dictionary.load_from_text('%s_dict.txt' % tmp_file_prefix)
-        vectors = None
+        vectors = unigram_events_file
     lda.print_topics(10)
 
     if 'compose' in stages:
@@ -97,7 +98,8 @@ def main(corpus_name, stages, percent):
         compose_and_write_vectors(vectors,
                                   out_path,
                                   composer_algos,
-                                  output_dir=composed_output_dir)
+                                  output_dir=composed_output_dir,
+                                  row_filter=lambda x, y:True)
         # logging.info('Log perplexity is %f', lda.log_perplexity(corpus))
         # doc_bow = dictionary.doc2bow('return/V recur/V baker/N bustling/J'.split())
         # logging.info('LDA vectors is %r', lda[doc_bow])
@@ -115,7 +117,8 @@ def main(corpus_name, stages, percent):
 
 
 if __name__ == '__main__':
-    logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
+    logging.basicConfig(level=logging.INFO,
+                        format="%(asctime)s\t%(module)s.%(funcName)s (line %(lineno)d)\t%(levelname)s : %(message)s")
     args = get_args_from_cmd_line()
     main(args.corpus, args.stages, args.percent)
 
