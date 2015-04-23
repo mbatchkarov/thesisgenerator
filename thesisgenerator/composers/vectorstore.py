@@ -35,6 +35,8 @@ class ComposerMixin(object):
         """
         composable_phrases = [foo for foo in phrases if foo in self]
         logging.info('Composing... able to compose %d/%d phrases', len(composable_phrases), len(phrases))
+        if not composable_phrases:
+            raise ValueError('Cannot compose any of the provided phrases')
         new_matrix = sp.vstack(self.get_vector(foo) for foo in composable_phrases)
         old_len = len(self.unigram_source.name2row)
         all_rows = deepcopy(self.unigram_source.name2row)  # can't mutate the unigram datastructure

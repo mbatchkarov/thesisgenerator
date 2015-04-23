@@ -65,7 +65,7 @@ def _train_model(percent, data_dir, repeat_num):
     return model
 
 
-def _vectors_to_tsv(model, output_path, vocab=None):
+def write_gensim_vectors_to_tsv(model, output_path, vocab=None):
     # get word2vec vectors for each word, write to TSV
     if not vocab:
         vocab = model.vocab.keys()
@@ -74,9 +74,10 @@ def _vectors_to_tsv(model, output_path, vocab=None):
     for word in vocab:
         # watch for non-DocumentFeatures, these break to_tsv
         # also ignore words with non-ascii characters
-        if DocumentFeature.from_string(word).type == 'EMPTY':
-            logging.info('Ignoring vector for %s', word)
-            continue
+        # if DocumentFeature.from_string(word).type == 'EMPTY': # todo assumes there is a PoS tag
+        #     logging.info('Ignoring vector for %s', word)
+        #     continue
+        logging.error(word)
         vectors[word] = zip(dimension_names, model[word])
     vectors = Vectors(vectors)
     vectors.to_tsv(output_path, gzipped=True)
@@ -156,7 +157,7 @@ def compute_and_write_vectors(corpus_name, stages, percent, repeat):
         # write the output of each run separately
         for i in range(repeat):
             output_path = unigram_events_file + '.rep%d' % i
-            vectors.append(_vectors_to_tsv(models[i], output_path))
+            vectors.append(write_gensim_vectors_to_tsv(models[i], output_path))
 
         if 'average' in stages and repeat > 1:
             # average vectors and append to list to be written
@@ -165,7 +166,7 @@ def compute_and_write_vectors(corpus_name, stages, percent, repeat):
             model = {}
             for k in shared_vocab:
                 model[k] = reduce(np.add, [m[k] for m in models])
-            vectors.append(_vectors_to_tsv(model, output_path, vocab=shared_vocab))
+            vectors.append(write_gensim_vectors_to_tsv(model, output_path, vocab=shared_vocab))
 
     if 'compose' in stages:
         for i, v in enumerate(vectors):
@@ -184,7 +185,7 @@ def compute_and_write_vectors(corpus_name, stages, percent, repeat):
                                       output_dir=composed_output_dir)
 
 
-if __name__ == '__main__':
+def get_args_from_cmd_line():
     parser = argparse.ArgumentParser()
     parser.add_argument('--stages', choices=('reformat', 'vectors', 'average', 'compose'),
                         required=True, nargs='+')
@@ -193,7 +194,11 @@ if __name__ == '__main__':
     parser.add_argument('--percent', default=100, type=int)
     # multiplier for args.percent. Set to 0.1 to use fractional percentages of corpus
     parser.add_argument('--repeat', default=1, type=int)
-    args = parser.parse_args()
+    return parser.parse_args()
+
+
+if __name__ == '__main__':
+    args = get_args_from_cmd_line()
     logging.info('Params are: %r', args)
     compute_and_write_vectors(args.corpus, args.stages, args.percent, args.repeat)
 
