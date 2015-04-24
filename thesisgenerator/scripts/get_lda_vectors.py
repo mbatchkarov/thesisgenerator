@@ -20,7 +20,7 @@ class WordPosCorpusReader(TextCorpus):
         self.sentences = MySentences(dirname, file_percentage, repeat_num=repeat_num)
         self.dictionary = Dictionary(documents=self.get_texts())
         # todo more LDA params here
-        self.dictionary.filter_extremes(keep_n=20, no_above=.25)  # can keep size of vocab in check
+        self.dictionary.filter_extremes(keep_n=2000, no_above=.25)  # todo keep size of vocab in check
         self.dictionary.compactify()
 
     def get_texts(self):
@@ -44,7 +44,7 @@ def train_lda_model(data_dir, unigram_events_file, tmp_file_prefix):
     tfidf = TfidfModel(corpus)
     dictionary = corpus.dictionary
     dictionary.save_as_text('%s_dict.txt' % tmp_file_prefix)
-    logging.info(dictionary)
+    logging.info('LDA dictionary is %s', dictionary)
     lda = LdaMulticore(corpus=tfidf[corpus],
                        id2word=dictionary,  # this MUST be there, can't be set automatically from corpus. WTF?
                        num_topics=10, workers=4, passes=1)  # todo control params of LDA here
@@ -62,11 +62,11 @@ def main(corpus_name, stages, percent):
     composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer, RightmostWordComposer]
 
     if corpus_name == 'gigaw':
-        data_dir = join(prefix, 'data/gigaword-afe-split/gigaword/')
+        data_dir = join(prefix, 'data/gigaword-afe-split-pos/gigaword/')
         unigram_events_file = join(prefix, 'lda_vectors/lda-gigaw-%dperc.unigr.strings' % percent)
         tmp_file_prefix = 'lda_gigaw_%dper' % percent
     elif corpus_name == 'wiki':
-        data_dir = join(prefix, 'data/wikipedia-tagged/wikipedia/')
+        data_dir = join(prefix, 'data/wikipedia-tagged-pos/wikipedia/')
         unigram_events_file = join(prefix, 'lda_vectors/lda-wiki-%dperc.unigr.strings' % percent)
         tmp_file_prefix = 'lda_wiki_%dper' % percent
 

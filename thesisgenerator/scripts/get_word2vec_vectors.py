@@ -7,15 +7,14 @@ import random
 from os.path import join
 from functools import reduce
 import logging
-import errno
+from gensim.models import Word2Vec
 import numpy as np
-from discoutils.misc import mkdirs_if_not_exists
-import gensim
 
 sys.path.append('.')
 sys.path.append('..')
 sys.path.append('../..')
 
+from discoutils.misc import mkdirs_if_not_exists
 from discoutils.tokens import DocumentFeature
 from discoutils.thesaurus_loader import Vectors
 from thesisgenerator.plugins.tokenizers import pos_coarsification_map
@@ -54,14 +53,15 @@ class MySentences(object):
         for fname in self.files:
             with open(join(self.dirname, fname)) as infile:
                 for line in infile:
-                    yield gensim.utils.tokenize(line, lower=True)
+                    # yield gensim.utils.tokenize(line, lower=True)
+                    yield [DocumentFeature.smart_lower(w) for w in line.split()]
 
 
 def _train_model(percent, data_dir, repeat_num):
     # train a word2vec model
     logging.info('Training word2vec on %d percent of %s', percent, data_dir)
     sentences = MySentences(data_dir, percent, repeat_num=repeat_num)
-    model = gensim.models.Word2Vec(sentences, workers=WORKERS, min_count=MIN_COUNT, seed=repeat_num)
+    model = Word2Vec(sentences, workers=WORKERS, min_count=MIN_COUNT, seed=repeat_num)
     return model
 
 
@@ -80,8 +80,8 @@ def write_gensim_vectors_to_tsv(model, output_path, vocab=None):
         vectors[word] = zip(dimension_names, model[word])
     vectors = Vectors(vectors)
     vectors.to_tsv(output_path, gzipped=True,
-                   enforce_word_entry_pos_format=False,
-                   row_filter=lambda x, y: True)
+                   enforce_word_entry_pos_format=True,
+                   entry_filter=lambda _: True)
     del model
     return vectors
 
