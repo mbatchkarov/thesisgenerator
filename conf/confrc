@@ -17,9 +17,6 @@ min_train_features = float() # these need to be a float when using similarity sc
     remove_features_with_NER=boolean(default=False) # whether to remove document features that contain a token with NER tag  ORG, PERS, LOC- these aren't composable
 
     # extra options required by the Bag-of-Vectors project Vectorizer
-    #train_thesaurus_files=list(default=list()) # a list of files to be read to a dict-like object and passed to the vectorizer at train time
-    #decode_thesaurus=string(default='') # a callable to be used instead of the real thesaurus at decode time; used to build a "random or constant" thesaurus as a sanity-check
-
     random_neighbour_thesaurus=boolean(default=False) # if true, k random in-vocabulary neighbours will be returned at decode time
     k=integer(min=0) # how many neighbours per entry to read
     lemmatize=boolean(default=True) 
@@ -52,7 +49,6 @@ min_train_features = float() # these need to be a float when using similarity sc
     entries_of = string(default='') # path to a thesaurus/vector set. All entries of `neighbours_file` not contained in this file are removed. This is used to compensate for some model's higher coverage.
 	sim_threshold=float(default=0.0) # exclude neighbours from thesaurus if sim is less than threshold
 	allow_lexical_overlap = boolean(default=True) # when a thesaurus is loaded from disk and this is set to true, neighbours that overlap lexically with the base entry will be removed. See unit test for spec.
-    entry_types_to_load = list(default=list()) # when a thesaurus contain many types of entries, e.g. 1-GRAM, AN, NN, etc, which ones should be loaded. This can be used to reduce memory usage. If empty, all entries will be loaded.
     max_neighbours = integer(default=99999999999999) # how many neighbours of each entry to keep in memory
     use_shelf = boolean(default=False) # whether to use the shelve module to persist thesauri/vectors to disk in an attempt to reduce memory usage
     neighbour_strategy = option('linear', 'skipping', default='linear') # how to find nearest neighbours. Linear means just the usual way- sorting all neighbours by sim ans yielding from this list. Skipping means the i+1-th returned neighbour is the top neighbour of the i-th neighbour.
