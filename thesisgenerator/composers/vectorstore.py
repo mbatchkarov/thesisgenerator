@@ -308,9 +308,9 @@ def compose_and_write_vectors(unigram_vectors, short_vector_dataset_name, compos
     :param composer_classes: what composers to use
     :type composer_classes: list
     """
-    from thesisgenerator.scripts.extract_NPs_from_labelled_data import get_all_NPs
+    from thesisgenerator.scripts.extract_NPs_from_labelled_data import get_all_NPs_VPs
 
-    phrases_to_compose = get_all_NPs()
+    phrases_to_compose = get_all_NPs_VPs()
     # if this isn't a Vectors object assume it's the name of a file containing vectors and load them
     if not isinstance(unigram_vectors, Vectors):
         # ensure there's only unigrams in the set of unigram vectors

@@ -267,14 +267,12 @@ class ThesaurusVectorizer(TfidfVectorizer):
                 for n in range(2, min(self.standard_ngram_features + 1, n_tokens + 1)):
                     for i in range(n_tokens - n + 1):
                         feature = DocumentFeature('%d-GRAM' % n, tuple(sentence[i: i + n]))
-                        print(feature.type)
                         features.append(feature)
         # it doesn't matter where in the sentence/document these features were found
         # erase their index
         for feature in features:
             for token in feature.tokens:
                 token.index = 'any'
-        print(features)
         return features
 
     def build_analyzer(self):
