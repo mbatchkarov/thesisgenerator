@@ -273,7 +273,11 @@ class ThesaurusVectorizer(TfidfVectorizer):
         for feature in features:
             for token in feature.tokens:
                 token.index = 'any'
-        return features
+
+        # remove all features that aren't right- they are there because the code above doesnt
+        # put the features through the validation code in DocumentFeature.from_string
+        # e.g. the verb phrase "123/V_$$$/N" is not put through validation, so it will be returned as feature
+        return [f for f in features if DocumentFeature.from_string(str(f)).type != 'EMPTY']
 
     def build_analyzer(self):
         """
