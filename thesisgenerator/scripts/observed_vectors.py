@@ -3,6 +3,7 @@ import logging
 from os.path import join, dirname
 from discoutils.cmd_utils import run_and_log_output
 from discoutils.misc import temp_chdir, mkdirs_if_not_exists
+from thesisgenerator.scripts.extract_NPs_from_labelled_data import NP_MODIFIERS_FILE, VERBS_FILE
 
 """
 Implements the Evernote note "Training Baroni composers for NP experiments"
@@ -23,11 +24,9 @@ if __name__ == '__main__':
 
     fet_output = 'exp10' if args.corpus == 'gigaw' else 'exp11'  # the output of Feature Extraction Toolkit
     prefix = '/mnt/lustre/scratch/inf/mmb28/'
+    TG = join(prefix, 'thesisgenerator')
     byblo_base_dir = join(prefix, 'FeatureExtractionToolkit/', 'Byblo-2.2.0')
     discoutils = join(prefix, 'DiscoUtils')
-    modifiers = join(prefix, 'thesisgenerator',
-                     'NPs_in_R2_MR_tech_am_maas',
-                     'r2-mr-technion-am-maas-modifiers.txt')
     byblo_filter_thresholds = 100, 100, 50
     min_corpus_freq, min_features = 50, 5
 
@@ -44,8 +43,9 @@ if __name__ == '__main__':
 
     with temp_chdir(discoutils):
         # find all NPs in UNLABELLED corpus, whose modifier appears in the LABELLED corpora
-        run_and_log_output('python {} {} --output {} --whitelist {}',
-                           script, byblo_features_file, out1, modifiers)
+        run_and_log_output('python {} {} --output {} --whitelist {} {}',
+                           script, byblo_features_file, out1,
+                           join(TG, NP_MODIFIERS_FILE), join(TG, VERBS_FILE))
 
         # filter out those that occur infrequently in unlab data
         run_and_log_output("cat {} | sort | uniq -c | awk '$1>{} {print $2}' > {}",
@@ -57,6 +57,7 @@ if __name__ == '__main__':
         # go through events file again and print features for the NPs that survive filtering
         run_and_log_output('python discoutils/find_all_NPs.py {} --vectors --whitelist {} --output {}',
                            byblo_features_file, out2, out3)
+        # the whitelist needs to contain the verbs
 
     with temp_chdir(byblo_base_dir):
         # collect features from all occurences of an NP into a single vector
