@@ -4,6 +4,7 @@ import sys
 sys.path.append('.')
 sys.path.append('..')
 sys.path.append('../..')
+from os.path import join, basename
 from glob import glob
 import argparse
 import logging
@@ -23,7 +24,7 @@ from thesisgenerator.composers.load_translated_byblo_space import train_baroni_g
 Composed wiki/gigaw dependency/window vectors and writes them to FeatureExtractionToolkit/exp10-13-composed-ngrams
 """
 prefix = '/mnt/lustre/scratch/inf/mmb28/FeatureExtractionToolkit/'
-byblo_base_dir = os.path.join(prefix, 'Byblo-2.2.0')
+byblo_base_dir = join(prefix, 'Byblo-2.2.0')
 
 
 def calculate_unigram_vectors(thesaurus_dir):
@@ -32,7 +33,7 @@ def calculate_unigram_vectors(thesaurus_dir):
 
     # find out where the conf file said output should go
     opts, _ = parse_byblo_conf_file(byblo_conf_file)
-    byblo_output_prefix = os.path.join(opts.output, os.path.basename(opts.input))
+    byblo_output_prefix = join(opts.output, basename(opts.input))
 
     # get byblo to calculate vectors for all entries
     set_stage_in_byblo_conf_file(byblo_conf_file, 1)
@@ -43,28 +44,28 @@ def calculate_unigram_vectors(thesaurus_dir):
 
 
 def _find_conf_file(thesaurus_dir):
-    return glob(os.path.join(thesaurus_dir, '*conf*'))[0]
+    return glob(join(thesaurus_dir, '*conf*'))[0]
 
 
 def _find_allpairs_file(thesaurus_dir):
-    return [x for x in glob(os.path.join(thesaurus_dir, '*sims.neighbours.strings')) if 'svd' not in x.lower()][0]
+    return [x for x in glob(join(thesaurus_dir, '*sims.neighbours.strings')) if 'svd' not in x.lower()][0]
 
 
 def _find_events_file(thesaurus_dir):
-    return [x for x in glob(os.path.join(thesaurus_dir, '*events.filtered.strings')) if 'svd' not in x.lower()][0]
+    return [x for x in glob(join(thesaurus_dir, '*events.filtered.strings')) if 'svd' not in x.lower()][0]
 
 
 def _find_output_prefix(thesaurus_dir):
     # todo this will not work if we're throwing multiple events/features/entries files (eg SVD reduced and non-reduced)
     # into the same directory
     return os.path.commonprefix(
-        [x for x in glob(os.path.join(thesaurus_dir, '*filtered*')) if 'svd' not in x.lower()])[:-1]
+        [x for x in glob(join(thesaurus_dir, '*filtered*')) if 'svd' not in x.lower()])[:-1]
 
 
 def _do_ppmi(vectors_path, output_dir):
     v = Vectors.from_tsv(vectors_path)
     ppmi_sparse_matrix(v.matrix)
-    v.to_tsv(os.path.join(output_dir, os.path.basename(vectors_path)), gzipped=True)
+    v.to_tsv(join(output_dir, basename(vectors_path)), gzipped=True)
 
 
 def build_unreduced_counting_thesauri(corpus, corpus_name, features,
@@ -75,17 +76,17 @@ def build_unreduced_counting_thesauri(corpus, corpus_name, features,
     """
 
     # SET UP A FEW REQUIRED PATHS
-    unigram_thesaurus_dir = os.path.abspath(os.path.join(prefix,
-                                                         'exp%d-%db' % (corpus, features)))
+    unigram_thesaurus_dir = os.path.abspath(join(prefix,
+                                                 'exp%d-%db' % (corpus, features)))
 
-    unigram_thesaurus_dir_ppmi = os.path.abspath(os.path.join(prefix,
-                                                              'exp%d-%db-ppmi' % (corpus, features)))
+    unigram_thesaurus_dir_ppmi = os.path.abspath(join(prefix,
+                                                      'exp%d-%db-ppmi' % (corpus, features)))
     mkdirs_if_not_exists(unigram_thesaurus_dir_ppmi)
 
-    ngram_vectors_dir = os.path.join(prefix,
-                                     'exp%d-%d-composed-ngrams' % (corpus, features))
-    ngram_vectors_dir_ppmi = os.path.join(prefix,
-                                          'exp%d-%d-composed-ngrams-ppmi' % (corpus, features))
+    ngram_vectors_dir = join(prefix,
+                             'exp%d-%d-composed-ngrams' % (corpus, features))
+    ngram_vectors_dir_ppmi = join(prefix,
+                                  'exp%d-%d-composed-ngrams-ppmi' % (corpus, features))
 
     composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
                       RightmostWordComposer]  # observed done through a separate script
@@ -125,17 +126,16 @@ def build_full_composed_thesauri_with_baroni_and_svd(corpus, features, stages):
     # SET UP A FEW REQUIRED PATHS
     global prefix, byblo_base_dir
     # INPUT 1:  DIRECTORY. Must contain a single conf file
-    unigram_thesaurus_dir = os.path.join(prefix, 'exp%d-%db' % (corpus, features))
+    unigram_thesaurus_dir = join(prefix, 'exp%d-%db' % (corpus, features))
 
     # INPUT 2: A FILE, TSV, underscore-separated observed vectors for ANs and NNs
     SVD_DIMS = 100
     dataset_name = 'gigaw' if corpus == 10 else 'wiki'  # short name of input corpus
     features_name = 'wins' if features == 13 else 'deps'  # short name of input corpus
-    baroni_training_phrase_types = {'AN', 'NN'}  # what kind of NPs to train Baroni composer for
-    baroni_training_phrases = os.path.join(prefix, 'observed_vectors',
-                                           '%s_NPs_%s_observed' % (dataset_name, features_name))
-    ngram_vectors_dir = os.path.join(prefix,
-                                     'exp%d-%d-composed-ngrams' % (corpus, features))  # output 1
+    observed_phrasal_vectors = join(prefix, 'observed_vectors',
+                                    '%s_NPs_%s_observed' % (dataset_name, features_name))
+    ngram_vectors_dir = join(prefix,
+                             'exp%d-%d-composed-ngrams' % (corpus, features))  # output 1
     if features_name == 'wins':
         composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
                           RightmostWordComposer, BaroniComposer, GuevaraComposer]
@@ -159,10 +159,10 @@ def build_full_composed_thesauri_with_baroni_and_svd(corpus, features, stages):
     # together and put the output into the same file
     unreduced_unigram_events_file = _find_events_file(unigram_thesaurus_dir)
     # ...exp6-12/exp6.events.filtered.strings --> ...exp6-12/exp6
-    reduced_file_prefix = os.path.join(unigram_thesaurus_dir,
-                                       'exp%d-with-obs-phrases' % corpus)
+    reduced_file_prefix = join(unigram_thesaurus_dir,
+                               'exp%d-with-obs-phrases' % corpus)
     # only keep the most frequent types per PoS tag to speed things up
-    counts = [('N', 200000), ('V', 0), ('J', 100000), ('RB', 0), ('AN', 0), ('NN', 0)]
+    counts = [('N', 200000), ('V', 200000), ('J', 100000), ('RB', 0), ('AN', 0), ('NN', 0)]
     if 'svd' in stages:
         if features_name == 'deps':
             # havent got observed vectors for these, do SVD on the unigrams only
@@ -175,7 +175,7 @@ def build_full_composed_thesauri_with_baroni_and_svd(corpus, features, stages):
             # let's just do SVD on the unigram phrases so we can compose them simply later
             do_svd(unreduced_unigram_events_file, reduced_file_prefix,
                    desired_counts_per_feature_type=counts, reduce_to=[SVD_DIMS],
-                   apply_to=baroni_training_phrases)
+                   apply_to=observed_phrasal_vectors)
     else:
         logging.warning('Skipping SVD stage. Assuming output is at %s-SVD*', reduced_file_prefix)
 
@@ -183,25 +183,16 @@ def build_full_composed_thesauri_with_baroni_and_svd(corpus, features, stages):
     all_reduced_vectors = '%s-SVD%d.events.filtered.strings' % (reduced_file_prefix, SVD_DIMS)
 
     # TRAIN BARONI COMPOSER
-    # train on each SVD-reduced file, not the original one, one composer object for both AN and NN phrases
-    # first set up paths
-    baroni_training_heads = '%s-onlyN-SVD%s.tmp' % (baroni_training_phrases, SVD_DIMS)
-    baroni_training_only_phrases = '%s-onlyPhrases-SVD%s.tmp' % (baroni_training_phrases, SVD_DIMS)
-    trained_composer_file_bar = '%s-SVD%s.baroni.composer.pkl' % (baroni_training_phrases, SVD_DIMS)
-    trained_composer_file_guev = '%s-SVD%s.guev.composer.pkl' % (baroni_training_phrases, SVD_DIMS)
+    baroni_root_dir = join(prefix, 'baroni_guevara')
+    trained_composer_file_bar = join(baroni_root_dir,
+                                     '%s-SVD%s.baroni.pkl' % (basename(observed_phrasal_vectors), SVD_DIMS))
+    trained_composer_file_guev = join(baroni_root_dir,
+                                      '%s-SVD%s.guev.pkl' % (basename(observed_phrasal_vectors), SVD_DIMS))
 
     if 'baroni' in stages and features_name != 'deps':
-        # do the actual training
-        thes = Vectors.from_tsv(all_reduced_vectors, lowercasing=False)
-        thes.to_tsv(baroni_training_heads,
-                    entry_filter=lambda x: x.type == '1-GRAM' and x.tokens[0].pos == 'N')
-
-        thes.to_tsv(baroni_training_only_phrases,
-                    entry_filter=lambda x: x.type in baroni_training_phrase_types,
-                    row_transform=lambda x: x.replace(' ', '_'))
-
-        train_baroni_guevara_composers(baroni_training_heads,
-                                       baroni_training_only_phrases,
+        # todo use a Vectors object instead of a path to one as the first param to save time
+        train_baroni_guevara_composers(all_reduced_vectors,
+                                       baroni_root_dir,
                                        trained_composer_file_bar,
                                        trained_composer_file_guev,
                                        baroni_threshold=5)

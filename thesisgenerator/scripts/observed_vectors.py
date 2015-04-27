@@ -27,8 +27,8 @@ if __name__ == '__main__':
     TG = join(prefix, 'thesisgenerator')
     byblo_base_dir = join(prefix, 'FeatureExtractionToolkit/', 'Byblo-2.2.0')
     discoutils = join(prefix, 'DiscoUtils')
-    byblo_filter_thresholds = 100, 100, 50
-    min_corpus_freq, min_features = 50, 5
+    byblo_filter_thresholds = 2, 2, 1
+    min_corpus_freq, min_features = 0, 0
 
     # Find all NPs in unlabelled corpus whose modifier is in labelled corpus,
     # and which appear more than thresh=100 times in unlabelled corpus
