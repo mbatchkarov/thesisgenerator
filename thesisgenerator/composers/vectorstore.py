@@ -393,7 +393,7 @@ def compose_and_write_vectors(unigram_vectors, short_vector_dataset_name, compos
             assert pretrained_Gref_composer_file is not None
             composer = GrefenstetteMultistepComposer(unigram_vectors, pretrained_Gref_composer_file)
         else:
-            composer = composer_class(unigram_vectors, pretrained_Gref_composer_file)
+            composer = composer_class(unigram_vectors)
 
         # compose_all returns all unigrams and composed phrases
         mat, cols, rows = composer.compose_all(phrases_to_compose)
