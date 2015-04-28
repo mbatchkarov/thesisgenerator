@@ -8,6 +8,7 @@ from copy import deepcopy
 import numpy as np
 import scipy.sparse as sp
 import six
+from composes.composition.lexical_function import LexicalFunction
 from discoutils.io_utils import write_vectors_to_disk
 from discoutils.thesaurus_loader import Thesaurus, Vectors
 from discoutils.tokens import DocumentFeature
@@ -254,6 +255,60 @@ class GuevaraComposer(BaroniComposer):
         return all(f.tokens_as_str() in self.unigram_source for f in feature[:])
 
 
+class GrefenstetteMultistepComposer(BaroniComposer):
+    entry_types = {'SVO'}
+    name = 'Multistep'
+
+    def __init__(self, unigram_source, v_model):
+        self.unigram_source = check_vectors(unigram_source)
+        self.n_space = self.unigram_source.to_dissect_core_space()
+        with open(v_model, 'rb') as infile:
+            self.v_model = load(infile)
+            # with open(vo_model, 'rb') as infile:
+            # self.vo_model = load(infile)
+
+    def __contains__(self, feature):
+        if isinstance(feature, six.string_types):
+            feature = DocumentFeature.from_string(feature)
+
+        # this is a SVO, we have a verb tensor and vectors for both arguments
+        return feature.type in self.entry_types and \
+            feature[1] in self.v_model.function_space.id2row and \
+            feature[0] in self.unigram_source and \
+            feature[2] in self.unigram_source
+        # alternative- try to compose. if ValueError, we can't
+
+
+    def get_vector(self, df):
+        # 3. use the trained models to compose new SVO sentences
+        # 3.1 use the V model to create new VO combinations
+        data = (str(df[1]), str(df[2]), str(df[1:]))
+        # ("take/V", "place/N", "take/V_place/N")
+        vo_composed_space = self.v_model.compose([data], self.n_space)
+        # todo how do we get VO vectors? these are (100x100)+100 dimensional (intercept).
+        # todo do we allow document features of different dimensionality
+        # vo_composed_space.cooccurrence_matrix.mat
+
+        # 3.2 the new VO combinations will be used as functions:
+        # load the new VO combinations obtained through composition into
+        # a new composition model
+        expanded_vo_model = LexicalFunction(function_space=vo_composed_space,
+                                            intercept=self.v_model._has_intercept)
+
+        # 3.3 use the new VO combinations by composing them with subject nouns
+        # in order to obtain new SVO sentences
+        data = (str(df[1:]), str(df[0]), str(df))
+        svo_composed_space = expanded_vo_model.compose([data], self.n_space)
+
+        # print the composed spaces:
+        # logging.info("SVO composed space:")
+        # logging.info(svo_composed_space.id2row)
+        # logging.info(svo_composed_space.cooccurrence_matrix)
+
+        # get vectors out. these are 100-dimensional
+        return svo_composed_space.cooccurrence_matrix.mat
+
+
 class DummyThesaurus(Thesaurus):
     """
     A thesaurus-like object which has either:
@@ -292,10 +347,15 @@ class DummyThesaurus(Thesaurus):
         return True
 
 
+def _default_row_filter(feat_str:str, feat_df:DocumentFeature):
+    return feat_df.tokens[0].pos in {'N', 'J', 'V'} and feat_df.type == '1-GRAM'
+
+
 def compose_and_write_vectors(unigram_vectors, short_vector_dataset_name, composer_classes,
                               pretrained_Baroni_composer_file=None, pretrained_Guevara_composer_file=None,
+                              pretrained_Gref_composer_file=None,
                               output_dir='.', gzipped=True,
-                              row_filter=lambda x, y: y.tokens[0].pos in {'N', 'J'} and y.type == '1-GRAM'):
+                              row_filter=_default_row_filter):
     """
     Extracts all composable features from a labelled classification corpus and dumps a composed vector for each of them
     to disk. The output file will also contain all unigram vectors that were passed in, and only unigrams!
@@ -317,8 +377,8 @@ def compose_and_write_vectors(unigram_vectors, short_vector_dataset_name, compos
         # composers do not need any ngram vectors contain in this file, they may well be
         # observed ones
         unigram_vectors = Vectors.from_tsv(unigram_vectors,
-                                           row_filter=row_filter,
-                                           enforce_word_entry_pos_format=False)
+                                           # todo enforce_word_entry_pos_format=False??? Why was that needed?
+                                           row_filter=row_filter)
 
     # doing this loop in parallel isn't worth it as pickling or shelving `vectors` is so slow
     # it negates any gains from using multiple cores
@@ -329,15 +389,18 @@ def compose_and_write_vectors(unigram_vectors, short_vector_dataset_name, compos
         elif composer_class == GuevaraComposer:
             assert pretrained_Guevara_composer_file is not None
             composer = GuevaraComposer(unigram_vectors, pretrained_Guevara_composer_file)
+        elif composer_class == GuevaraComposer:
+            assert pretrained_Gref_composer_file is not None
+            composer = GrefenstetteMultistepComposer(unigram_vectors, pretrained_Gref_composer_file)
         else:
-            composer = composer_class(unigram_vectors)
+            composer = composer_class(unigram_vectors, pretrained_Gref_composer_file)
 
         # compose_all returns all unigrams and composed phrases
         mat, cols, rows = composer.compose_all(phrases_to_compose)
 
-        events_path = os.path.join(output_dir,
+        events_path = os.path.join(output_dir,  # todo name AN_NN no longer appropriate, whatever
                                    'AN_NN_%s_%s.events.filtered.strings' % (short_vector_dataset_name, composer.name))
         rows2idx = {i: DocumentFeature.from_string(x) for (x, i) in rows.items()}
         write_vectors_to_disk(mat.tocoo(), rows2idx, cols, events_path,
-                              entry_filter=lambda x: x.type in {'AN', 'NN', '1-GRAM'},
-                              gzipped=gzipped)
+            entry_filter=lambda x: x.type in {'AN', 'NN', '1-GRAM'},
+            gzipped=gzipped)

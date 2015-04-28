@@ -1,13 +1,11 @@
 import logging
 from os.path import join, basename
-import pickle
-from pprint import pprint
 from composes.semantic_space.peripheral_space import PeripheralSpace
 from composes.semantic_space.space import Space
 from composes.composition.full_additive import FullAdditive
 from composes.composition.lexical_function import LexicalFunction
 from composes.utils import io_utils
-from composes.utils.regression_learner import RidgeRegressionLearner, LstsqRegressionLearner
+from composes.utils.regression_learner import RidgeRegressionLearner
 from discoutils.tokens import DocumentFeature
 from discoutils.thesaurus_loader import Vectors
 from discoutils.misc import mkdirs_if_not_exists
@@ -116,7 +114,7 @@ def train_grefenstette_multistep_composer(all_vectors_file, root_dir):
                 entry_filter=lambda x: x.type == '1-GRAM' and x.tokens[0].pos == 'N')
     _translate_byblo_to_dissect(noun_events_file)
     # thes.to_tsv(verb_events_file,
-    #             entry_filter=lambda x: x.type == '1-GRAM' and x.tokens[0].pos == 'V')
+    # entry_filter=lambda x: x.type == '1-GRAM' and x.tokens[0].pos == 'V')
     # _translate_byblo_to_dissect(verb_events_file)
     # thes.to_tsv(vo_events_file,
     #             entry_filter=lambda x: x.type == 'VO')
@@ -151,7 +149,7 @@ def train_grefenstette_multistep_composer(all_vectors_file, root_dir):
 
     # 1. train a model to learn VO functions on train data: VO N -> SVO
     logging.info("Step 1 training")
-    vo_model = LexicalFunction(learner=RidgeRegressionLearner(), min_samples=2)  # todo min_samples
+    vo_model = LexicalFunction(learner=RidgeRegressionLearner(), min_samples=3)  # Gref et al 2013, §5
     vo_model.train(train_vo_data, n_space, svo_space)
     io_utils.save(vo_model, vo_composer_output_file)
 
@@ -159,7 +157,7 @@ def train_grefenstette_multistep_composer(all_vectors_file, root_dir):
     # where VO space: function space learned in step 1
     logging.info("Step 2 training")
     vo_space = vo_model.function_space
-    v_model = LexicalFunction(learner=RidgeRegressionLearner(), min_samples=2)  # todo min_samples
+    v_model = LexicalFunction(learner=RidgeRegressionLearner(), min_samples=3)
     v_model.train(train_v_data, n_space, vo_space)
     io_utils.save(v_model, svo_composer_output_file)
 

@@ -17,8 +17,10 @@ from discoutils.misc import temp_chdir
 from discoutils.thesaurus_loader import Vectors
 from thesisgenerator.composers.vectorstore import (AdditiveComposer, MultiplicativeComposer,
                                                    LeftmostWordComposer, RightmostWordComposer,
-                                                   BaroniComposer, GuevaraComposer, compose_and_write_vectors)
-from thesisgenerator.composers.load_translated_byblo_space import train_baroni_guevara_composers
+                                                   BaroniComposer, GuevaraComposer, GrefenstetteMultistepComposer,
+                                                   compose_and_write_vectors)
+from thesisgenerator.composers.baroni_group import (train_baroni_guevara_composers,
+                                                    train_grefenstette_multistep_composer)
 
 """
 Composed wiki/gigaw dependency/window vectors and writes them to FeatureExtractionToolkit/exp10-13-composed-ngrams
@@ -138,7 +140,7 @@ def build_full_composed_thesauri_with_baroni_and_svd(corpus, features, stages):
                              'exp%d-%d-composed-ngrams' % (corpus, features))  # output 1
     if features_name == 'wins':
         composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
-                          RightmostWordComposer, BaroniComposer, GuevaraComposer]
+                          RightmostWordComposer, BaroniComposer, GuevaraComposer, GrefenstetteMultistepComposer]
     else:
         # can't train Baroni/Guevara on deps because I don't have observed vectors for phrases
         composer_algos = [AdditiveComposer, MultiplicativeComposer,
@@ -188,6 +190,7 @@ def build_full_composed_thesauri_with_baroni_and_svd(corpus, features, stages):
                                      '%s-SVD%s.baroni.pkl' % (basename(observed_phrasal_vectors), SVD_DIMS))
     trained_composer_file_guev = join(baroni_root_dir,
                                       '%s-SVD%s.guev.pkl' % (basename(observed_phrasal_vectors), SVD_DIMS))
+    trained_composer_file_gref = join(prefix, 'gref_multistep', 'svo_comp.pkl')
 
     if 'baroni' in stages and features_name != 'deps':
         # todo use a Vectors object instead of a path to one as the first param to save time
@@ -202,6 +205,10 @@ def build_full_composed_thesauri_with_baroni_and_svd(corpus, features, stages):
         logging.warning('Skipping Baroni training stage. Assuming trained models are at: \n'
                         '\t\t\tBaroni:%s\n\t\t\tGuevara:%s', trained_composer_file_bar, trained_composer_file_guev)
 
+    if 'gref' in stages:
+        train_grefenstette_multistep_composer(all_reduced_vectors,
+                                              join(prefix, 'gref_multistep'))
+
     if 'compose' in stages:
         # it is OK for the first parameter to contain phrase vectors, there is explicit filtering coming up
         # the assumption is these are actually observed phrasal vectors
@@ -210,6 +217,7 @@ def build_full_composed_thesauri_with_baroni_and_svd(corpus, features, stages):
                                   composer_algos,
                                   pretrained_Baroni_composer_file=trained_composer_file_bar,
                                   pretrained_Guevara_composer_file=trained_composer_file_guev,
+                                  pretrained_Gref_composer_file=trained_composer_file_gref,
                                   output_dir=ngram_vectors_dir)
     else:
         logging.warning('Skipping composition stage. Assuming output is at %s', ngram_vectors_dir)
@@ -227,7 +235,8 @@ def get_corpus_features_cmd_parser():
 def get_cmd_parser():
     parser = argparse.ArgumentParser(parents=[get_corpus_features_cmd_parser()])
     # add options specific to this script here
-    parser.add_argument('--stages', choices=('unigrams', 'ppmi', 'svd', 'baroni', 'compose', 'symlink'),
+    parser.add_argument('--stages', choices=('unigrams', 'ppmi', 'svd', 'baroni',
+                                             'gref', 'compose', 'symlink'),
                         required=True,
                         nargs='+',
                         help='What parts of the pipeline to run. Each part is independent, the pipeline can be '
@@ -236,7 +245,8 @@ def get_cmd_parser():
                              '2) ppmi: perform PPMI reweighting on feature counts '
                              '3) svd: reduce noun and adj matrix, apply to NP matrix '
                              '4) baroni: train Baroni composer '
-                             '5) compose: compose all possible NP vectors with all composers ')
+                             '5) gref: train Grefenstette multistep SVO composer'
+                             '6) compose: compose all possible NP vectors with all composers ')
     parser.add_argument('--use-svd', action='store_true',
                         help='If set, SVD will be performed and a Baroni composer will be trained. Otherwise the'
                              'svd part of the pipeline is skipped.')
