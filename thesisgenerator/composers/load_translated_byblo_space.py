@@ -1,5 +1,6 @@
 import logging
 from os.path import join, basename
+import pickle
 from pprint import pprint
 from composes.semantic_space.peripheral_space import PeripheralSpace
 from composes.semantic_space.space import Space
@@ -30,6 +31,14 @@ def train_baroni_guevara_composers(all_vectors,
                                    ROOT_DIR,
                                    baroni_output_path, guevara_output_path,
                                    baroni_threshold=10):
+    """
+
+    :type all_vectors: str; path to vectors file containing both N and observed AN vectors
+    :type ROOT_DIR: str; where to write temp files
+    :type baroni_output_path: str; where to write pickled baroni composer
+    :type guevara_output_path: str
+    :type baroni_threshold: int
+    """
     SVD_DIMS = 100
     baroni_training_phrase_types = {'AN', 'NN'}  # what kind of NPs to train Baroni composer for
 
@@ -85,53 +94,47 @@ def train_baroni_guevara_composers(all_vectors,
 
 
 def train_grefenstette_multistep_composer(all_vectors_file, root_dir):
-    # ex19.py
-    # -------
-
+    """
+    Train Grefenstette et al's multistep regression VO/SVO model
+    Adapted from dissect's ex19.py
+    :param all_vectors_file: file containing N, V, VO and SVO vectors
+    :param root_dir: where to write temp files and output
+    """
     mkdirs_if_not_exists(root_dir)
+    vo_composer_output_file = join(root_dir, 'vo_comp.pkl')
+    svo_composer_output_file = join(root_dir, 'svo_comp.pkl')
+
     filename = basename(all_vectors_file)
     noun_events_file = join(root_dir, '%s-onlyN.tmp' % filename)
-    verb_events_file = join(root_dir, '%s-onlyV.tmp' % filename)
-    vo_events_file = join(root_dir, '%s-onlyVO.tmp' % filename)
+    # verb_events_file = join(root_dir, '%s-onlyV.tmp' % filename)
+    # vo_events_file = join(root_dir, '%s-onlyVO.tmp' % filename)
     svo_events_file = join(root_dir, '%s-onlySVO.tmp' % filename)
 
     # this has unigrams and observed phrases
     thes = Vectors.from_tsv(all_vectors_file)
-    # thes.to_tsv(noun_events_file,
-    #             entry_filter=lambda x: x.type == '1-GRAM' and x.tokens[0].pos == 'N')
-    # _translate_byblo_to_dissect(noun_events_file)
+    thes.to_tsv(noun_events_file,
+                entry_filter=lambda x: x.type == '1-GRAM' and x.tokens[0].pos == 'N')
+    _translate_byblo_to_dissect(noun_events_file)
     # thes.to_tsv(verb_events_file,
     #             entry_filter=lambda x: x.type == '1-GRAM' and x.tokens[0].pos == 'V')
     # _translate_byblo_to_dissect(verb_events_file)
     # thes.to_tsv(vo_events_file,
     #             entry_filter=lambda x: x.type == 'VO')
     # _translate_byblo_to_dissect(vo_events_file)
-    # thes.to_tsv(svo_events_file,
-    #             entry_filter=lambda x: x.type == 'SVO')
-    # _translate_byblo_to_dissect(svo_events_file)
+    thes.to_tsv(svo_events_file,
+                entry_filter=lambda x: x.type == 'SVO')
+    _translate_byblo_to_dissect(svo_events_file)
 
     train_vo_data, train_v_data = [], []
     for phrase in thes.keys():
         df = DocumentFeature.from_string(phrase)
         if df.type == 'SVO':
-            train_vo_data.append((df[1:], df[0], df))
+            train_vo_data.append((str(df[1:]), str(df[0]), str(df)))
         if df.type == 'VO':
-            train_v_data.append((df[0], df[1], df))
+            train_v_data.append((str(df[0]), str(df[1]), str(df)))
 
-    # pprint(train_vo_data)
-    # pprint(train_v_data)
-
-    # training data1: VO N -> SVO
-    # train_vo_data = [("hate_boy", "man", "man_hate_boy"),
-    # ("hate_man", "man", "man_hate_man"),
-    #                  ("hate_boy", "boy", "boy_hate_boy"),
-    #                  ("hate_man", "boy", "boy_hate_man")
-    #                  ]
-
-    # training data2: V N -> VO
-    # train_v_data = [("hate", "man", "hate_man"),
-    #                 ("hate", "boy", "hate_boy")
-    #                 ]
+    # logging.info('train_vo_data %r', len(train_vo_data))
+    # logging.info('train_v_data %r', len(train_v_data))
 
     # load N and SVO spaces
     n_space = Space.build(data=noun_events_file + '.sm',
@@ -142,54 +145,30 @@ def train_grefenstette_multistep_composer(all_vectors_file, root_dir):
                             cols=svo_events_file + '.cols',
                             format="sm")
 
-    print("\nInput SVO training space:")
-    print(svo_space.id2row)
-    # print(svo_space.cooccurrence_matrix)
+    logging.info("Input SVO training space:")
+    logging.info(svo_space.id2row)
+    # logging.info(svo_space.cooccurrence_matrix)
 
     # 1. train a model to learn VO functions on train data: VO N -> SVO
-    print("\nStep 1 training")
-    vo_model = LexicalFunction(learner=LstsqRegressionLearner())  # todo ridge regr
+    logging.info("Step 1 training")
+    vo_model = LexicalFunction(learner=RidgeRegressionLearner(), min_samples=2)  # todo min_samples
     vo_model.train(train_vo_data, n_space, svo_space)
+    io_utils.save(vo_model, vo_composer_output_file)
 
     # 2. train a model to learn V functions on train data: V N -> VO
     # where VO space: function space learned in step 1
-    print("\nStep 2 training")
+    logging.info("Step 2 training")
     vo_space = vo_model.function_space
-    v_model = LexicalFunction(learner=LstsqRegressionLearner())  # todo ridge regr
+    v_model = LexicalFunction(learner=RidgeRegressionLearner(), min_samples=2)  # todo min_samples
     v_model.train(train_v_data, n_space, vo_space)
-
-    # print the learned model
-    print("\n3D Verb space")
-    print(v_model.function_space.id2row)
-    # print(v_model.function_space.cooccurrence_matrix)
-
-
-    # 3. use the trained models to compose new SVO sentences
-
-    # 3.1 use the V model to create new VO combinations
-    vo_composed_space = v_model.compose([("hate", "woman", "hate_woman"),
-                                         ("hate", "man", "hate_man")],
-                                        n_space)
-
-    # 3.2 the new VO combinations will be used as functions:
-    # load the new VO combinations obtained through composition into
-    # a new composition model
-    expanded_vo_model = LexicalFunction(function_space=vo_composed_space,
-                                        intercept=v_model._has_intercept)
-
-    # 3.3 use the new VO combinations by composing them with subject nouns
-    # in order to obtain new SVO sentences
-    svo_composed_space = expanded_vo_model.compose([("hate_woman", "woman", "woman_hates_woman"),
-                                                    ("hate_man", "man", "man_hates_man")],
-                                                   n_space)
-
-    # print the composed spaces:
-    print("\nSVO composed space:")
-    print(svo_composed_space.id2row)
-    # print(svo_composed_space.cooccurrence_matrix)
+    io_utils.save(v_model, svo_composer_output_file)
 
 
 if __name__ == '__main__':
+    logging.basicConfig(level=logging.INFO,
+                        format="%(asctime)s\t%(module)s.%(funcName)s """
+                               "(line %(lineno)d)\t%(levelname)s : %(""message)s")
+
     prefix = '/Volumes/LocalDataHD/m/mm/mmb28/NetBeansProjects/FeatureExtractionToolkit/'
     vect = 'exp10-13b/exp10-with-obs-phrases-SVD100.events.filtered.strings'
     train_grefenstette_multistep_composer(join(prefix, vect),
