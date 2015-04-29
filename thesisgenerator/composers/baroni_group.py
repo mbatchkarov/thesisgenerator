@@ -83,7 +83,7 @@ def train_baroni_guevara_composers(all_vectors,
 
     # train a composition model on the data and save it
     baroni = LexicalFunction(min_samples=baroni_threshold, learner=RidgeRegressionLearner())
-    guevara = FullAdditive()
+    guevara = FullAdditive(learner=RidgeRegressionLearner())
     for composer, out_path in zip([baroni, guevara],
                                   [baroni_output_path, guevara_output_path]):
         composer.train(all_data, my_space, my_per_space)
