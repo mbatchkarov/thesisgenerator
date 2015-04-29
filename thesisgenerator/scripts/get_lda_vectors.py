@@ -20,7 +20,8 @@ class WordPosCorpusReader(TextCorpus):
         self.sentences = MySentences(dirname, file_percentage, repeat_num=repeat_num)
         self.dictionary = Dictionary(documents=self.get_texts())
         # todo more LDA params here
-        self.dictionary.filter_extremes(keep_n=2000, no_above=.25)  # todo keep size of vocab in check
+        self.dictionary.filter_extremes(keep_n=20000, no_above=.25, no_below=20)  # todo keep size of vocab in check
+        # we're using doc=sentence definition, so we can be generous with the minimum document frequency
         self.dictionary.compactify()
 
     def get_texts(self):
@@ -32,22 +33,22 @@ class LdaToWord2vecAdapter(object):
         self.dictionary = dictionary
 
         self.topics = lda.state.get_lambda()
-        # normalise by row. shape is (100, 30k)
+        # normalise by row. shape is (100, 30k). Use L1 norm to make row sum to 1
         self.topics = normalize(self.topics, axis=0, norm='l1')
 
     def __getitem__(self, word):
         return self.topics[:, self.dictionary.token2id[word]]
 
 
-def train_lda_model(data_dir, unigram_events_file, tmp_file_prefix):
-    corpus = WordPosCorpusReader(data_dir, 10)  # todo use all available data
+def train_lda_model(data_dir, unigram_events_file, tmp_file_prefix, percent):
+    corpus = WordPosCorpusReader(data_dir, percent)
     tfidf = TfidfModel(corpus)
     dictionary = corpus.dictionary
     dictionary.save_as_text('%s_dict.txt' % tmp_file_prefix)
     logging.info('LDA dictionary is %s', dictionary)
     lda = LdaMulticore(corpus=tfidf[corpus],
                        id2word=dictionary,  # this MUST be there, can't be set automatically from corpus. WTF?
-                       num_topics=10, workers=4, passes=1)  # todo control params of LDA here
+                       num_topics=100, workers=10, passes=5)  # todo control params of LDA here
     lda.save('%s_lda.model' % tmp_file_prefix)
     vectors = write_gensim_vectors_to_tsv(LdaToWord2vecAdapter(lda, dictionary),
                                           unigram_events_file,
@@ -83,7 +84,7 @@ def main(corpus_name, stages, percent):
     # logging.info('-------------------')
 
     if 'vectors' in stages:
-        lda, dictionary, vectors = train_lda_model(data_dir, unigram_events_file, tmp_file_prefix)
+        lda, dictionary, vectors = train_lda_model(data_dir, unigram_events_file, tmp_file_prefix, percent)
     else:
         logging.info('Not training LDA model, loading pretrained instead')
         lda = LdaMulticore.load('%s_lda.model' % tmp_file_prefix)

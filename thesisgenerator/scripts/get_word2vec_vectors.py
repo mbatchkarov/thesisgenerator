@@ -54,7 +54,9 @@ class MySentences(object):
             with open(join(self.dirname, fname)) as infile:
                 for line in infile:
                     # yield gensim.utils.tokenize(line, lower=True)
-                    yield [DocumentFeature.smart_lower(w) for w in line.split()]
+                    yield [DocumentFeature.smart_lower(w)
+                           for w in line.split()
+                           if DocumentFeature.from_string(w).type != 'EMPTY']
 
 
 def _train_model(percent, data_dir, repeat_num):
@@ -76,7 +78,7 @@ def write_gensim_vectors_to_tsv(model, output_path, vocab=None):
         # also ignore words with non-ascii characters
         # if DocumentFeature.from_string(word).type == 'EMPTY': # todo assumes there is a PoS tag
         # logging.info('Ignoring vector for %s', word)
-        #     continue
+        # continue
         vectors[word] = zip(dimension_names, model[word])
     vectors = Vectors(vectors)
     vectors.to_tsv(output_path, gzipped=True,
