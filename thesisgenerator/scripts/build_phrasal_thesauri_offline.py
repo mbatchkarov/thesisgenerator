@@ -218,7 +218,7 @@ def build_full_composed_thesauri_with_baroni_and_svd(corpus, features, stages):
                                   pretrained_Baroni_composer_file=trained_composer_file_bar,
                                   pretrained_Guevara_composer_file=trained_composer_file_guev,
                                   pretrained_Gref_composer_file=trained_composer_file_gref,
-                                  output_dir=ngram_vectors_dir)
+                                  output_dir=ngram_vectors_dir, dense_hd5=True)
     else:
         logging.warning('Skipping composition stage. Assuming output is at %s', ngram_vectors_dir)
 

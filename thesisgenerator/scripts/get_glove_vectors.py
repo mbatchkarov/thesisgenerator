@@ -7,10 +7,10 @@ import argparse
 import logging
 from os.path import join
 import pandas as pd
-from scipy import sparse as sp
 from discoutils.cmd_utils import run_and_log_output
 from discoutils.misc import temp_chdir
-from discoutils.io_utils import write_vectors_to_disk
+from discoutils.io_utils import write_vectors_to_hdf
+from discoutils.tokens import DocumentFeature
 from thesisgenerator.composers.vectorstore import (RightmostWordComposer, LeftmostWordComposer,
                                                    MultiplicativeComposer, AdditiveComposer,
                                                    compose_and_write_vectors)
@@ -22,7 +22,7 @@ glove_script = join(glove_dir, 'demo_miro.sh')  # set param in that script
 pos_only_data_dir = join(prefix, 'data/wikipedia-tagged-pos/wikipedia/')
 unlabelled_data = join(prefix, 'data/wikipedia-tagged-pos/wikipedia.oneline')
 raw_vectors_file = join(glove_dir, 'vectors.txt')  # what GloVe produces
-formatted_vectors_file = join(glove_dir, 'vectors.miro.gz')  # unigram vectors in my format
+formatted_vectors_file = join(glove_dir, 'vectors.miro.h5')  # unigram vectors in my format
 composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer, RightmostWordComposer]
 
 
@@ -39,19 +39,26 @@ def compute_and_write_vectors(stages):
         logging.info('Starting training')
         with temp_chdir(glove_dir):
             run_and_log_output('sh {} {}'.format(glove_script, unlabelled_data))
-        logging.info('Done training, converting to Byblo-compatible gzip')
 
         # convert their format to ours
-        mat = pd.read_csv(raw_vectors_file, sep=' ', index_col=0, header=0)
-        cols = ['f%d' % i for i in range(mat.shape[1])]
-        write_vectors_to_disk(sp.coo_matrix(mat.values), mat.index, cols, formatted_vectors_file, gzipped=True)
+        df = pd.read_csv(raw_vectors_file, sep=' ', index_col=0, header=None)
+        logging.info('Done training, filtering junk and converting %d vectors to Byblo-compatible format', len(df))
+        # remove any shit-looking tokens, they'll get in the way later
+        mask = [DocumentFeature.from_string(x).type != 'EMPTY' and 3 < len(x) < 20 for x in df.index]
+        logging.info('Keeping %d entries', sum(mask))
+        logging.info('Shape of vectors before filtering %r', df.shape)
+        df = df[mask]
+        logging.info('Shape of vectors after filtering %r', df.shape)
+        cols = ['f%d' % i for i in range(df.shape[1])]
+        write_vectors_to_hdf(df.values, df.index, cols, formatted_vectors_file)
 
     if 'compose' in stages:
         logging.info('Loading labelled corpora and composing phrase vectors therein')
         compose_and_write_vectors(formatted_vectors_file,
                                   'glove-wiki',
                                   composer_algos,
-                                  output_dir=glove_dir)
+                                  output_dir=glove_dir,
+                                  dense_hd5=True)
 
 
 if __name__ == '__main__':

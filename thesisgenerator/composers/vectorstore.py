@@ -9,7 +9,7 @@ import numpy as np
 import scipy.sparse as sp
 import six
 from composes.composition.lexical_function import LexicalFunction
-from discoutils.io_utils import write_vectors_to_disk
+from discoutils.io_utils import write_vectors_to_disk, write_vectors_to_hdf
 from discoutils.thesaurus_loader import Thesaurus, Vectors
 from discoutils.tokens import DocumentFeature
 
@@ -35,7 +35,8 @@ class ComposerMixin(object):
                feature is. Note: This is the opposite of what IO functions in discoutils expect
         """
         composable_phrases = [foo for foo in phrases if foo in self]
-        logging.info('Composing... able to compose %d/%d phrases', len(composable_phrases), len(phrases))
+        logging.info('Composing... able to compose %d/%d phrases using %d unigrams',
+                     len(composable_phrases), len(phrases), len(self.unigram_source.name2row))
         if not composable_phrases:
             raise ValueError('Cannot compose any of the provided phrases')
         new_matrix = sp.vstack(self.get_vector(foo) for foo in composable_phrases)
@@ -273,9 +274,9 @@ class GrefenstetteMultistepComposer(BaroniComposer):
 
         # this is a SVO, we have a verb tensor and vectors for both arguments
         return feature.type in self.entry_types and \
-            feature[1] in self.v_model.function_space.id2row and \
-            feature[0] in self.unigram_source and \
-            feature[2] in self.unigram_source
+               feature[1] in self.v_model.function_space.id2row and \
+               feature[0] in self.unigram_source and \
+               feature[2] in self.unigram_source
         # alternative- try to compose. if ValueError, we can't
 
 
@@ -354,7 +355,7 @@ def _default_row_filter(feat_str:str, feat_df:DocumentFeature):
 def compose_and_write_vectors(unigram_vectors, short_vector_dataset_name, composer_classes,
                               pretrained_Baroni_composer_file=None, pretrained_Guevara_composer_file=None,
                               pretrained_Gref_composer_file=None,
-                              output_dir='.', gzipped=True,
+                              output_dir='.', gzipped=True, dense_hd5=False,
                               row_filter=_default_row_filter):
     """
     Extracts all composable features from a labelled classification corpus and dumps a composed vector for each of them
@@ -379,6 +380,7 @@ def compose_and_write_vectors(unigram_vectors, short_vector_dataset_name, compos
         unigram_vectors = Vectors.from_tsv(unigram_vectors,
                                            # todo enforce_word_entry_pos_format=False??? Why was that needed?
                                            row_filter=row_filter)
+        logging.info('Starting composition with %d unigram vectors', len(unigram_vectors))
 
     # doing this loop in parallel isn't worth it as pickling or shelving `vectors` is so slow
     # it negates any gains from using multiple cores
@@ -400,7 +402,10 @@ def compose_and_write_vectors(unigram_vectors, short_vector_dataset_name, compos
 
         events_path = os.path.join(output_dir,  # todo name AN_NN no longer appropriate, whatever
                                    'AN_NN_%s_%s.events.filtered.strings' % (short_vector_dataset_name, composer.name))
-        rows2idx = {i: DocumentFeature.from_string(x) for (x, i) in rows.items()}
-        write_vectors_to_disk(mat.tocoo(), rows2idx, cols, events_path,
-            entry_filter=lambda x: x.type in {'AN', 'NN', '1-GRAM'},
-            gzipped=gzipped)
+        if dense_hd5:
+            write_vectors_to_hdf(mat, rows, cols, events_path)
+        else:
+            rows2idx = {i: DocumentFeature.from_string(x) for (x, i) in rows.items()}
+            write_vectors_to_disk(mat.tocoo(), rows2idx, cols, events_path,
+                entry_filter=lambda x: x.type in {'AN', 'NN', 'VO', 'SVO', '1-GRAM'},
+                gzipped=gzipped)

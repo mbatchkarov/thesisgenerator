@@ -83,7 +83,8 @@ def write_gensim_vectors_to_tsv(model, output_path, vocab=None):
     vectors = Vectors(vectors)
     vectors.to_tsv(output_path, gzipped=True,
                    enforce_word_entry_pos_format=True,
-                   entry_filter=lambda _: True)
+                   entry_filter=lambda _: True,
+                   dense_hd5=True)
     del model
     return vectors
 
@@ -185,7 +186,8 @@ def compute_and_write_vectors(corpus_name, stages, percent, repeat):
             compose_and_write_vectors(input_thing,
                                       out_path,
                                       composer_algos,
-                                      output_dir=composed_output_dir)
+                                      output_dir=composed_output_dir,
+                                      dense_hd5=True)
 
 
 def get_args_from_cmd_line():
