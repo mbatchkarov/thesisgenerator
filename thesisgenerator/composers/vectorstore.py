@@ -35,18 +35,20 @@ class ComposerMixin(object):
                feature is. Note: This is the opposite of what IO functions in discoutils expect
         """
         composable_phrases = [foo for foo in phrases if foo in self]
-        logging.info('Composing... able to compose %d/%d phrases using %d unigrams',
-                     len(composable_phrases), len(phrases), len(self.unigram_source.name2row))
+        logging.info('Composing... %s able to compose %d/%d phrases using %d unigrams',
+                     self.name, len(composable_phrases), len(phrases), len(self.unigram_source.name2row))
         if not composable_phrases:
-            raise ValueError('Cannot compose any of the provided phrases')
+            raise ValueError('%s cannot compose any of the provided phrases' % self.name)
         new_matrix = sp.vstack(self.get_vector(foo) for foo in composable_phrases)
         old_len = len(self.unigram_source.name2row)
         all_rows = deepcopy(self.unigram_source.name2row)  # can't mutate the unigram datastructure
-        for i, foo in enumerate(composable_phrases):
-            key = foo if isinstance(foo, str) else foo.tokens_as_str()
+        for i, phrase in enumerate(composable_phrases):
+            key = phrase if isinstance(phrase, str) else phrase.tokens_as_str()
+            # phrase shouln't be in the unigram source.
             assert key not in all_rows
-            all_rows[key] = i + old_len
+            all_rows[key] = i + old_len  # this will not append to all_rows if phrase is contained in unigram_source
         all_vectors = sp.vstack([self.unigram_source.matrix, new_matrix], format='csr')
+        assert all_vectors.shape == (len(all_rows), len(self.unigram_source.columns)), 'Shape mismatch'
         return all_vectors, self.unigram_source.columns, all_rows
 
 
@@ -164,7 +166,7 @@ class BaroniComposer(Vectors, ComposerMixin):
         self.available_modifiers = set(self._composer.function_space.id2row)
 
         core_space = self.unigram_source.to_dissect_core_space()
-        assert unigram_source.columns == self._composer.composed_id2column
+        assert list(unigram_source.columns) == (self._composer.composed_id2column)
         self.dissect_core_space = core_space
 
         # check composed space's columns matches core space's (=unigram source)'s columns
@@ -233,7 +235,7 @@ class GuevaraComposer(BaroniComposer):
         with open(pretrained_model_file, 'rb') as infile:
             self._composer = load(infile)
 
-        assert unigram_source.columns == self._composer.composed_id2column
+        assert list(unigram_source.columns) == list(self._composer.composed_id2column)
         self.dissect_core_space = self.unigram_source.to_dissect_core_space()
 
         # check composed space's columns matches core space's (=unigram source)'s columns
@@ -391,21 +393,27 @@ def compose_and_write_vectors(unigram_vectors, short_vector_dataset_name, compos
         elif composer_class == GuevaraComposer:
             assert pretrained_Guevara_composer_file is not None
             composer = GuevaraComposer(unigram_vectors, pretrained_Guevara_composer_file)
-        elif composer_class == GuevaraComposer:
+        elif composer_class == GrefenstetteMultistepComposer:
             assert pretrained_Gref_composer_file is not None
             composer = GrefenstetteMultistepComposer(unigram_vectors, pretrained_Gref_composer_file)
         else:
             composer = composer_class(unigram_vectors)
 
-        # compose_all returns all unigrams and composed phrases
-        mat, cols, rows = composer.compose_all(phrases_to_compose)
+        try:
+            # compose_all returns all unigrams and composed phrases
+            mat, cols, rows = composer.compose_all(phrases_to_compose)
 
-        events_path = os.path.join(output_dir,  # todo name AN_NN no longer appropriate, whatever
-                                   'AN_NN_%s_%s.events.filtered.strings' % (short_vector_dataset_name, composer.name))
-        if dense_hd5:
-            write_vectors_to_hdf(mat, rows, cols, events_path)
-        else:
-            rows2idx = {i: DocumentFeature.from_string(x) for (x, i) in rows.items()}
-            write_vectors_to_disk(mat.tocoo(), rows2idx, cols, events_path,
-                entry_filter=lambda x: x.type in {'AN', 'NN', 'VO', 'SVO', '1-GRAM'},
-                gzipped=gzipped)
+            events_path = os.path.join(output_dir,  # todo name AN_NN no longer appropriate, whatever
+                                       'AN_NN_%s_%s.events.filtered.strings' % (
+                                       short_vector_dataset_name, composer.name))
+            if dense_hd5:
+                write_vectors_to_hdf(mat, rows, cols, events_path)
+            else:
+                rows2idx = {i: DocumentFeature.from_string(x) for (x, i) in rows.items()}
+                write_vectors_to_disk(mat.tocoo(), rows2idx, cols, events_path,
+                    entry_filter=lambda x: x.type in {'AN', 'NN', 'VO', 'SVO', '1-GRAM'},
+                    gzipped=gzipped)
+        except ValueError as e:
+            logging.error('RED ALERT, RED ALERT')
+            logging.error(e)
+            continue

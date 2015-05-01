@@ -54,7 +54,7 @@ def train_baroni_guevara_composers(all_vectors,
 
     thes.to_tsv(NPs_events_file,
                 entry_filter=lambda x: x.type in baroni_training_phrase_types,
-                row_transform=lambda x: x.replace(' ', '_'))
+                row_transform=lambda x: str(x).replace(' ', '_'))
     _translate_byblo_to_dissect(NPs_events_file)
 
     my_space = Space.build(data="{}.sm".format(noun_events_file),
