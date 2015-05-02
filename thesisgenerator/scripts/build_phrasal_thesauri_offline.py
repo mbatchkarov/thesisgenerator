@@ -205,7 +205,7 @@ def build_full_composed_thesauri_with_baroni_and_svd(corpus, features, stages):
         logging.warning('Skipping Baroni training stage. Assuming trained models are at: \n'
                         '\t\t\tBaroni:%s\n\t\t\tGuevara:%s', trained_composer_file_bar, trained_composer_file_guev)
 
-    if 'gref' in stages:
+    if 'gref' in stages and features_name != 'deps':
         train_grefenstette_multistep_composer(all_reduced_vectors,
                                               join(prefix, 'gref_multistep'))
 
