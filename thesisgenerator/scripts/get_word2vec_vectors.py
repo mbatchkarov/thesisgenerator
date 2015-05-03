@@ -54,9 +54,11 @@ class MySentences(object):
             with open(join(self.dirname, fname)) as infile:
                 for line in infile:
                     # yield gensim.utils.tokenize(line, lower=True)
-                    yield [DocumentFeature.smart_lower(w)
-                           for w in line.split()
-                           if DocumentFeature.from_string(w).type != 'EMPTY']
+                    res = [DocumentFeature.smart_lower(w) for w in line.split() if
+                              DocumentFeature.from_string(w).type != 'EMPTY']
+                    if len(res) > 8:
+                        # ignore short sentences, they are probably noise
+                        yield res
 
 
 def _train_model(percent, data_dir, repeat_num):
@@ -72,7 +74,9 @@ def write_gensim_vectors_to_tsv(model, output_path, vocab=None):
     if not vocab:
         vocab = model.vocab.keys()
     vectors = dict()
-    dimension_names = ['f%02d' % i for i in range(100)]  # word2vec produces 100-dim vectors
+
+    dims = len(model[next(iter(vocab))]) # vector dimensionality
+    dimension_names = ['f%02d' % i for i in range(dims)]
     for word in vocab:
         # watch for non-DocumentFeatures, these break to_tsv
         # also ignore words with non-ascii characters

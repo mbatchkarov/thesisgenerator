@@ -100,7 +100,7 @@ def main(corpus_name, stages, percent):
                                   out_path,
                                   composer_algos,
                                   output_dir=composed_output_dir,
-                                  row_filter=lambda x, y:True,
+                                  row_filter=lambda x, y: True,
                                   dense_hd5=True)
         # logging.info('Log perplexity is %f', lda.log_perplexity(corpus))
         # doc_bow = dictionary.doc2bow('return/V recur/V baker/N bustling/J'.split())
