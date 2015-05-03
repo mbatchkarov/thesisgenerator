@@ -7,6 +7,7 @@ from copy import deepcopy
 
 import numpy as np
 import scipy.sparse as sp
+import pandas as pd
 import six
 from composes.composition.lexical_function import LexicalFunction
 from discoutils.io_utils import write_vectors_to_disk, write_vectors_to_hdf
@@ -312,6 +313,45 @@ class GrefenstetteMultistepComposer(BaroniComposer):
         return svo_composed_space.cooccurrence_matrix.mat
 
 
+class CopyObject(Vectors, ComposerMixin):
+    name = 'CopyObj'
+    entry_types = {'SVO'}
+
+    def __init__(self, verbs_file, unigram_source):
+        self.verb_tensors = dict()
+        with pd.get_store(verbs_file) as store:
+            for verb in store.keys():
+                self.verb_tensors[verb[1:] + '/V'] = store[verb].values
+        logging.info('Found %d verb tensors in %s', len(self.verb_tensors), verbs_file)
+        if not self.verb_tensors:
+            raise ValueError('Cant build a categorical model without verb matrices')
+
+        self.unigram_source = unigram_source
+
+    def __contains__(self, feature):
+        if isinstance(feature, six.string_types):
+            feature = DocumentFeature.from_string(feature)
+
+        # this is a SVO, we have a verb tensor and vectors for both arguments
+        return feature.type in self.entry_types and \
+               str(feature[1]) in self.verb_tensors and \
+               str(feature[0]) in self.unigram_source and \
+               str(feature[2]) in self.unigram_source
+
+    def get_vector(self, phrase_df):
+        subj, verb, obj = map(str, phrase_df.tokens)
+        subj_v = self.unigram_source.get_vector(subj).A.T  # shape 100x1
+        verb_m = self.verb_tensors[verb]  # shape 100x100
+        obj_v = self.unigram_source.get_vector(obj).A.T  # shape 100x1
+
+        return subj_v * np.dot(verb_m, obj_v)
+
+    def __str__(self):
+        return '%s composer with %d verbs and %d unigrams' % (self.name,
+                                                              len(self.verb_tensors),
+                                                              len(self.unigram_source))
+
+
 class DummyThesaurus(Thesaurus):
     """
     A thesaurus-like object which has either:
@@ -356,7 +396,7 @@ def _default_row_filter(feat_str:str, feat_df:DocumentFeature):
 
 def compose_and_write_vectors(unigram_vectors, short_vector_dataset_name, composer_classes,
                               pretrained_Baroni_composer_file=None, pretrained_Guevara_composer_file=None,
-                              pretrained_Gref_composer_file=None,
+                              pretrained_Gref_composer_file=None, categorical_vector_matrix_file=None,
                               output_dir='.', gzipped=True, dense_hd5=False,
                               row_filter=_default_row_filter):
     """
@@ -396,6 +436,8 @@ def compose_and_write_vectors(unigram_vectors, short_vector_dataset_name, compos
         elif composer_class == GrefenstetteMultistepComposer:
             assert pretrained_Gref_composer_file is not None
             composer = GrefenstetteMultistepComposer(unigram_vectors, pretrained_Gref_composer_file)
+        elif composer_class == CopyObject:
+            composer = CopyObject(categorical_vector_matrix_file, unigram_vectors)
         else:
             composer = composer_class(unigram_vectors)
 
@@ -405,7 +447,7 @@ def compose_and_write_vectors(unigram_vectors, short_vector_dataset_name, compos
 
             events_path = os.path.join(output_dir,  # todo name AN_NN no longer appropriate, whatever
                                        'AN_NN_%s_%s.events.filtered.strings' % (
-                                       short_vector_dataset_name, composer.name))
+                                           short_vector_dataset_name, composer.name))
             if dense_hd5:
                 write_vectors_to_hdf(mat, rows, cols, events_path)
             else:
