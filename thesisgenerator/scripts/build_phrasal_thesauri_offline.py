@@ -198,7 +198,7 @@ def build_full_composed_thesauri_with_baroni_and_svd(corpus, features, stages):
                                        baroni_root_dir,
                                        trained_composer_file_bar,
                                        trained_composer_file_guev,
-                                       baroni_threshold=5)
+                                       baroni_threshold=50)
 
 
     else:
