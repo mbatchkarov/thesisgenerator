@@ -1,0 +1,16 @@
+--input
+/mnt/lustre/scratch/inf/mmb28/FeatureExtractionToolkit/feoutput-deppars/exp10filtered-NJV-wins-100
+--output
+/mnt/lustre/scratch/inf/mmb28/FeatureExtractionToolkit/exp10-13b
+--threads
+20
+--filter-feature-freq
+40
+--filter-event-freq
+15
+--similarity-min
+0.1
+-k
+1000
+--measure
+Cosine

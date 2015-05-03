@@ -10,7 +10,7 @@ import argparse
 import logging
 from discoutils.misc import mkdirs_if_not_exists
 from discoutils.cmd_utils import (set_stage_in_byblo_conf_file, run_byblo, parse_byblo_conf_file,
-                                  unindex_all_byblo_vectors)
+                                  unindex_all_byblo_vectors, get_byblo_out_prefix)
 from discoutils.reweighting import ppmi_sparse_matrix
 from discoutils.reduce_dimensionality import do_svd
 from discoutils.misc import temp_chdir
@@ -54,7 +54,7 @@ def _find_allpairs_file(thesaurus_dir):
 
 
 def _find_events_file(thesaurus_dir):
-    return [x for x in glob(join(thesaurus_dir, '*events.filtered.strings')) if 'svd' not in x.lower()][0]
+    return get_byblo_out_prefix(_find_conf_file(thesaurus_dir)) + '.events.filtered.strings'
 
 
 def _find_output_prefix(thesaurus_dir):
