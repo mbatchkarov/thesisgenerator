@@ -27,7 +27,6 @@
 # Merge stdout and stderr streams: yes/no
 #$ -j yes
 
-#$ -N lda 
+#$ -N categorical
 
-# --stages vectors compose
-python thesisgenerator/scripts/categorical_composers.py
+python thesisgenerator/composers/categorical_composers.py
