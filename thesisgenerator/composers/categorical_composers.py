@@ -10,7 +10,7 @@ from thesisgenerator.composers.vectorstore import CopyObject, compose_and_write_
 
 
 VERBS_HDF_DIR = '/mnt/lustre/scratch/inf/mmb28/FeatureExtractionToolkit/categorical/'
-MIN_SVO_PER_VERB = 0  # todo does this filter exist in the original paper?
+MIN_SVO_PER_VERB = 3  # todo does this filter exist in the original paper?
 
 
 def train_verb_tensors(svos_file, noun_vectors_file, output_filename):
