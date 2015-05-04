@@ -46,15 +46,18 @@ def calculate_unigram_vectors(thesaurus_dir):
 
 
 def _find_conf_file(thesaurus_dir):
-    return glob(join(thesaurus_dir, '*conf*'))[0]
-
-
-def _find_allpairs_file(thesaurus_dir):
-    return [x for x in glob(join(thesaurus_dir, '*sims.neighbours.strings')) if 'svd' not in x.lower()][0]
+    try:
+        return glob(join(thesaurus_dir, '*conf*'))[0]
+    except IndexError:
+        return None  # no conf file in that dir
 
 
 def _find_events_file(thesaurus_dir):
-    return get_byblo_out_prefix(_find_conf_file(thesaurus_dir)) + '.events.filtered.strings'
+    conf_file = _find_conf_file(thesaurus_dir)
+    if conf_file:
+        return get_byblo_out_prefix(conf_file) + '.events.filtered.strings'
+    else:
+        return [x for x in glob(join(thesaurus_dir, '*events.filtered.strings')) if 'svd' not in x.lower()][0]
 
 
 def _find_output_prefix(thesaurus_dir):
