@@ -43,6 +43,7 @@ def train_verb_tensors(svos_file, noun_vectors_file, output_filename):
         vt = np.sum(np.outer(v.get_vector(subj).A, v.get_vector(obj).A) for subj, _, obj in svos)
         verb_tensors[verb] = vt
 
+    logging.info('Trained %d verb matrices, saving...', len(verb_tensors))
     for verb, tensor in verb_tensors.items():
         df = pd.DataFrame(tensor)
         df.to_hdf(output_filename, verb.split('/')[0], complevel=9, complib='zlib')
@@ -77,8 +78,8 @@ if __name__ == '__main__':
 
     noun_path = '/mnt/lustre/scratch/inf/mmb28/FeatureExtractionToolkit/exp10-13b/' \
                 'exp10-with-obs-phrases-SVD100.events.filtered.strings'
-    svos_path = '/mnt/lustre/scratch/inf/mmb28/DiscoUtils/gigaw_NPs_in_MR_R2_TechTC_am_maas.txt'
+    svos_path = '/mnt/lustre/scratch/inf/mmb28/DiscoUtils/gigaw_NPs_in_MR_R2_TechTC_am_maas.uniq.30.txt'
 
-    trained_verb_matrices_file = os.path.join(VERBS_HDF_DIR, 'gigaw-wins-vectors.hdf')
-    # train_verb_tensors(svos_path, noun_path, trained_verb_matrices_file)
+    trained_verb_matrices_file = os.path.join(VERBS_HDF_DIR, 'gigaw-wins-vector-matrices.hdf')
+    train_verb_tensors(svos_path, noun_path, trained_verb_matrices_file)
     compose_categorical(noun_path, trained_verb_matrices_file)

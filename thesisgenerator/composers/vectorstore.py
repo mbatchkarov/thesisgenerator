@@ -344,7 +344,8 @@ class CopyObject(Vectors, ComposerMixin):
         verb_m = self.verb_tensors[verb]  # shape 100x100
         obj_v = self.unigram_source.get_vector(obj).A.T  # shape 100x1
 
-        return subj_v * np.dot(verb_m, obj_v)
+        vec = subj_v * np.dot(verb_m, obj_v)
+        return sp.csr_matrix(vec.T) # type needs to be compatible w other composers
 
     def __str__(self):
         return '%s composer with %d verbs and %d unigrams' % (self.name,
