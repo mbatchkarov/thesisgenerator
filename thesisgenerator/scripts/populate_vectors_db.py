@@ -9,8 +9,7 @@ from discoutils.misc import Bunch
 from thesisgenerator.utils import db
 from thesisgenerator.composers.vectorstore import (AdditiveComposer, MultiplicativeComposer,
                                                    LeftmostWordComposer, RightmostWordComposer,
-                                                   BaroniComposer, GuevaraComposer, GrefenstetteMultistepComposer,
-                                                   CopyObject)
+                                                   BaroniComposer, GuevaraComposer, GrefenstetteMultistepComposer)
 
 
 def _get_size(thesaurus_file):

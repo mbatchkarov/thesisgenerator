@@ -1,5 +1,6 @@
 import peewee as pw
 import socket
+from discoutils.misc import is_gzipped, is_hdf, is_plaintext
 
 hostname = socket.gethostname()
 if 'node' in hostname or 'apollo' in hostname:
@@ -24,7 +25,17 @@ class Vectors(pw.Model):
 
     modified = pw.DateField(null=True, default=None)  # when was the file last modifier
     size = pw.IntegerField(null=True, default=None)  # file size in MB
-    # gz_size = pw.IntegerField(null=True, default=None)  # file size of compressed JSON version
+    format = pw.CharField(null=True, default=None)  # plaintext, gzip or hdf
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        if self.path and self.size:  # file exists
+            if is_gzipped(self.path):
+                self.format = 'gz'
+            elif is_hdf(self.path):
+                self.format = 'hdf'
+            elif is_plaintext(self.path):
+                self.format = 'txt'
 
     class Meta:
         database = db
@@ -74,7 +85,7 @@ class ClassificationExperiment(pw.Model):
              self.k,
              self.neighbour_strategy,
              self.noise,
-        )
+             )
         return x
 
     def __eq__(x, y):
