@@ -1,5 +1,5 @@
 """populate database with all available vectors"""
-from collections import ChainMap
+from collections import ChainMap, Counter
 import os
 import sys
 
@@ -9,7 +9,8 @@ from discoutils.misc import Bunch
 from thesisgenerator.utils import db
 from thesisgenerator.composers.vectorstore import (AdditiveComposer, MultiplicativeComposer,
                                                    LeftmostWordComposer, RightmostWordComposer,
-                                                   BaroniComposer, GuevaraComposer)
+                                                   BaroniComposer, GuevaraComposer, GrefenstetteMultistepComposer,
+                                                   CopyObject)
 
 
 def _get_size(thesaurus_file):
@@ -18,9 +19,9 @@ def _get_size(thesaurus_file):
         size = os.stat(thesaurus_file).st_size >> 20  # size in MB
     else:
         modified, size = None, None
-    gz_file = thesaurus_file + '.gz'
-    gz_size = os.stat(gz_file).st_size >> 20 if os.path.exists(gz_file) else None
-    return modified, size, gz_size
+    # gz_file = thesaurus_file + '.gz'
+    # gz_size = os.stat(gz_file).st_size >> 20 if os.path.exists(gz_file) else None
+    return modified, size
 
 
 def _w2v_vectors():
@@ -39,11 +40,10 @@ def _w2v_vectors():
     for composer_class in [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer, RightmostWordComposer]:
         composer = composer_class.name
         thesaurus_file = gigaw_pattern.format(prefix=prefix, composer=composer)
-        modified, size, gz_size = _get_size(thesaurus_file)
+        modified, size = _get_size(thesaurus_file)
         v = db.Vectors.create(algorithm='word2vec', dimensionality=100,
                               unlabelled='gigaw', path=thesaurus_file, unlabelled_percentage=100,
-                              composer=composer, modified=modified, size=size, gz_size=gz_size,
-                              rep=0)
+                              composer=composer, modified=modified, size=size, rep=0)
 
     # wikipedia thesauri, some with repetition and averaging over repeated runs
     for composer_class in [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer, RightmostWordComposer]:
@@ -53,11 +53,10 @@ def _w2v_vectors():
             rep = 0
             thesaurus_file = wiki_rep_pattern.format(**ChainMap(locals(), globals()))
 
-            modified, size, gz_size = _get_size(thesaurus_file)
+            modified, size = _get_size(thesaurus_file)
             v = db.Vectors.create(algorithm='word2vec', dimensionality=100,
                                   unlabelled='wiki', path=thesaurus_file, unlabelled_percentage=percent,
-                                  composer=composer, modified=modified, size=size, gz_size=gz_size,
-                                  rep=0)
+                                  composer=composer, modified=modified, size=size, rep=0)
             print(v)
         for percent in [15, 50]:  # these are where repeats were done
             for rep in [-1, 0, 1, 2]:  # -1 signifies averaging across multiple runs
@@ -66,11 +65,10 @@ def _w2v_vectors():
                 else:
                     thesaurus_file = wiki_rep_pattern.format(**ChainMap(locals(), globals()))
 
-                modified, size, gz_size = _get_size(thesaurus_file)
+                modified, size = _get_size(thesaurus_file)
                 v = db.Vectors.create(algorithm='word2vec', dimensionality=100,
                                       unlabelled='wiki', path=thesaurus_file, unlabelled_percentage=percent,
-                                      composer=composer, modified=modified, size=size, gz_size=gz_size,
-                                      rep=rep)
+                                      composer=composer, modified=modified, size=size, rep=rep)
                 print(v)
 
 
@@ -85,11 +83,11 @@ def _ppmi_vectors(unlab_nums, unlab_names):
                 composer_name = composer_class.name
 
                 thesaurus_file = ppmi_file_pattern.format(**ChainMap(locals(), globals()))
-                modified, size, gz_size = _get_size(thesaurus_file)
+                modified, size = _get_size(thesaurus_file)
                 v = db.Vectors.create(algorithm='count_' + thesf_name, use_ppmi=True,
                                       dimensionality=0, unlabelled=unlab_name,
                                       path=thesaurus_file, composer=composer_name,
-                                      modified=modified, size=size, gz_size=gz_size)
+                                      modified=modified, size=size)
                 print(v)
 
 
@@ -99,11 +97,11 @@ def _glove_vectors_wiki():
         composer_name = composer_class.name
         pattern = '{prefix}/glove/AN_NN_glove-wiki_{composer_name}.events.filtered.strings'
         thesaurus_file = pattern.format(**ChainMap(locals(), globals()))
-        modified, size, gz_size = _get_size(thesaurus_file)
+        modified, size = _get_size(thesaurus_file)
         v = db.Vectors.create(algorithm='glove',
                               dimensionality=100, unlabelled='wiki',
                               path=thesaurus_file, composer=composer_name,
-                              modified=modified, size=size, gz_size=gz_size)
+                              modified=modified, size=size)
         print(v)
 
 
@@ -111,7 +109,8 @@ def _count_vectors_gigaw_wiki():
     """ standard windows/dependency thesauri that I built back in the day"""
     composer_algos = [AdditiveComposer, MultiplicativeComposer,
                       LeftmostWordComposer, RightmostWordComposer,
-                      BaroniComposer, GuevaraComposer, Bunch(name='Observed')]
+                      BaroniComposer, GuevaraComposer, GrefenstetteMultistepComposer,
+                      Bunch(name='Observed')]
 
     # e.g. exp10-12-composed-ngrams/AN_NN_gigaw_Add.events.filtered.strings
     unred_pattern = '{prefix}/exp{unlab_num}-{thesf_num}-composed-ngrams/' \
@@ -127,9 +126,9 @@ def _count_vectors_gigaw_wiki():
                 for composer_class in composer_algos:
                     composer_name = composer_class.name
 
-                    if composer_name in ['Baroni', 'Guevara'] and svd_dims == 0:
-                        continue  # not training Baroni/Guevara without SVD
-                    if thesf_name == 'dependencies' and composer_name in ['Baroni', 'Observed']:
+                    if composer_name in ['Baroni', 'Guevara', 'Multistep', 'CopyObj'] and svd_dims == 0:
+                        continue  # not training these without SVD
+                    if thesf_name == 'dependencies' and composer_name in ['Baroni', 'Guevara', 'Observed']:
                         continue  # can't easily run Julie's observed vectors code, so pretend it doesnt exist
                     if unlab_name == 'wiki' and svd_dims == 0 and composer_name != 'Observed':
                         # unreduced wiki vectors are too large and take too long to classify
@@ -137,11 +136,11 @@ def _count_vectors_gigaw_wiki():
                         continue
                     pattern = unred_pattern if svd_dims < 1 else reduced_pattern
                     thesaurus_file = pattern.format(**ChainMap(locals(), globals()))
-                    modified, size, gz_size = _get_size(thesaurus_file)
+                    modified, size = _get_size(thesaurus_file)
                     v = db.Vectors.create(algorithm='count_' + thesf_name,
                                           dimensionality=svd_dims, unlabelled=unlab_name,
                                           path=thesaurus_file, composer=composer_name,
-                                          modified=modified, size=size, gz_size=gz_size)
+                                          modified=modified, size=size)
                     print(v)
 
 
@@ -152,12 +151,12 @@ def _turian_vectors():
         composer_name = composer_class.name
         pattern = '{prefix}/socher_vectors/composed/AN_NN_turian_{composer_name}.events.filtered.strings'
         thesaurus_file = pattern.format(**ChainMap(locals(), globals()))
-        modified, size, gz_size = _get_size(thesaurus_file)
+        modified, size = _get_size(thesaurus_file)
         v = db.Vectors.create(algorithm='turian',
                               dimensionality=100,
                               unlabelled='turian',
                               path=thesaurus_file, composer=composer_name,
-                              modified=modified, size=size, gz_size=gz_size)
+                              modified=modified, size=size)
         print(v)
 
 
@@ -168,10 +167,30 @@ def _random_baselines():
                       unlabelled=None, composer='random_neigh')
     # random VECTORS for use in baseline
     path = '/mnt/lustre/scratch/inf/mmb28/FeatureExtractionToolkit/random_vectors.gz'
-    modified, size, gz_size = _get_size(path)
+    modified, size = _get_size(path)
     db.Vectors.create(algorithm='random_vect', composer='random_vect', path=path,
                       dimensionality=None, unlabelled_percentage=None,
-                      modified=modified, size=size, gz_size=gz_size)
+                      modified=modified, size=size)
+
+
+def _categorical_vectors():
+    prefix = '/mnt/lustre/scratch/inf/mmb28/FeatureExtractionToolkit'
+    files = ['exp10-13-composed-ngrams/AN_NN_gigaw-100_CopyObj.events.filtered.strings']
+    for f in files:
+        path = os.path.join(prefix, f)
+        db.Vectors.create(algorithm='count_windows', unlabelled='gigaw', dimensionality=100,
+                          composer='CopyObj', path=path)
+
+
+def _lda_vectors():
+    pattern = '/mnt/lustre/scratch/inf/mmb28/FeatureExtractionToolkit/lda_vectors/' \
+              'composed/AN_NN_lda-gigaw_{}percent_{}.events.filtered.strings'
+    percent = 100
+    composers = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer, RightmostWordComposer]
+    for comp in composers:
+        path = pattern.format(percent, comp.name)
+        db.Vectors.create(algorithm='lda', unlabelled='gigaw', dimensionality=100,
+                          composer=comp.name, path=path)
 
 
 if __name__ == '__main__':
@@ -185,6 +204,9 @@ if __name__ == '__main__':
     _glove_vectors_wiki()
     _w2v_vectors()
 
+    _categorical_vectors()
+    _lda_vectors()
+
     # _ppmi_vectors([10], ['gigaw'])
     # _ppmi_vectors([11], ['wikipedia'])
 
@@ -195,10 +217,15 @@ if __name__ == '__main__':
         del data['id']
         del data['modified']
         del data['size']
-        del data['gz_size']
         vectors.append('_'.join(str(data[k]) for k in sorted(data.keys())))
+
     if len(set(vectors)) != len(vectors):
+        print('Duplicates:', Counter(vectors).most_common(1))
         raise ValueError('Duplicated vectors have been entered into database')
+
+    for v in db.Vectors.select():
+        if not v.size:
+            print('WARNING: missing or empty vectors at', v.path)
 
     # check the wrong corpus name is not contained in path
     for v in db.Vectors.select():
