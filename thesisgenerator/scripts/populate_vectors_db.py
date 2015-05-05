@@ -173,12 +173,27 @@ def _random_baselines():
 
 
 def _categorical_vectors():
-    prefix = '/mnt/lustre/scratch/inf/mmb28/FeatureExtractionToolkit'
-    files = ['exp10-13-composed-ngrams/AN_NN_gigaw-100_CopyObj.events.filtered.strings']
-    for f in files:
-        path = os.path.join(prefix, f)
-        db.Vectors.create(algorithm='count_windows', unlabelled='gigaw', dimensionality=100,
-                          composer='CopyObj', path=path)
+    pattern = '/mnt/lustre/scratch/inf/mmb28/FeatureExtractionToolkit/categorical/' \
+              'AN_NN_{}_{}.events.filtered.strings'
+    ids = ['gigaw-wins-100', 'gigaw-w2v-100', 'wiki-w2v-15', 'wiki-w2v-100', 'gigaw-glove-100']
+    for composer in ['CopyObj']:
+        for identifier in ids:
+            path = pattern.format(identifier, composer)
+            if 'wins' in identifier:
+                algo = 'count_windows'
+            elif 'w2v' in identifier:
+                algo = 'word2vec'
+            elif 'glove' in identifier:
+                algo = 'glove'
+            else:
+                raise ValueError('WTF is this unigram embeddings algorithm?')
+            modified, size = _get_size(path)
+            db.Vectors.create(algorithm=algo,
+                              unlabelled=identifier.split('-')[0],
+                              dimensionality=100,
+                              unlabelled_percentage=int(identifier.split('-')[-1]),
+                              composer=composer, path=path,
+                              modified=modified, size=size)
 
 
 def _lda_vectors():

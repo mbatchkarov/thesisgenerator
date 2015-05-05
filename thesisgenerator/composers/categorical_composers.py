@@ -1,4 +1,5 @@
 import sys
+
 sys.path.append('.')
 import logging
 import os
@@ -55,33 +56,39 @@ def _nouns_only_filter(s, dfs):
     return dfs.type == '1-GRAM' and dfs.tokens[0].pos == 'N'
 
 
-def compose_categorical(unigram_vectors, verb_tensors_filename):
-    """
-    :param unigram_vectors: a vector store containing noun vectors
-    :param verb_tensors_filename: filename of output of training stage
-    """
-
-    SVD_DIMS = 100  # todo urgh, this first half is awful. whatever
-    corpus, features = 10, 13  # todo change corpus here
-    dataset_name = 'gigaw' if corpus == 10 else 'wiki'  # short name of input corpus
-    features_name = 'wins' if features == 13 else 'deps'  # short name of input corpus
-    outdir = '/mnt/lustre/scratch/inf/mmb28/FeatureExtractionToolkit/exp%d-%d-composed-ngrams' % (corpus, features)
-
-    compose_and_write_vectors(unigram_vectors,
-                              '%s-%s' % (dataset_name, SVD_DIMS),
-                              [CopyObject],  # todo can add other categorical models here easily
-                              categorical_vector_matrix_file=verb_tensors_filename,
-                              output_dir=outdir, dense_hd5=True)
-
-
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO,
                         format="%(asctime)s\t%(module)s.%(funcName)s (line %(lineno)d)\t%(levelname)s : %(message)s")
 
-    noun_path = '/mnt/lustre/scratch/inf/mmb28/FeatureExtractionToolkit/exp10-13b/' \
-                'exp10-with-obs-phrases-SVD100.events.filtered.strings'
-    svos_path = '/mnt/lustre/scratch/inf/mmb28/DiscoUtils/gigaw_NPs_in_MR_R2_TechTC_am_maas.uniq.10.txt'
+    FET = '/mnt/lustre/scratch/inf/mmb28/FeatureExtractionToolkit/'
 
-    trained_verb_matrices_file = os.path.join(VERBS_HDF_DIR, 'gigaw-wins-vector-matrices.hdf')
-    train_verb_tensors(svos_path, noun_path, trained_verb_matrices_file)
-    compose_categorical(noun_path, trained_verb_matrices_file)
+    nouns_wins_gigaw = os.path.join(FET, 'exp10-13b/exp10-with-obs-phrases-SVD100.events.filtered.strings')
+    nouns_w2v_gigaw_100 = os.path.join(FET, 'word2vec_vectors/word2vec-gigaw-100perc.unigr.strings.rep0')
+    nouns_w2v_wiki_15 = os.path.join(FET, 'word2vec_vectors/word2vec-wiki-15perc.unigr.strings.rep0')
+    nouns_w2v_wiki_100 = os.path.join(FET, 'word2vec_vectors/word2vec-wiki-100perc.unigr.strings.rep0')
+    nouns_glove_wiki_100 = os.path.join(FET, 'glove/vectors.miro.h5')
+    all_nouns = [nouns_wins_gigaw, nouns_w2v_gigaw_100, nouns_w2v_wiki_15, nouns_w2v_wiki_100, nouns_glove_wiki_100]
+
+    names_composed_files = ['gigaw-wins-100', 'gigaw-w2v-100', 'wiki-w2v-15', 'wiki-w2v-100', 'gigaw-glove-100']
+    save_files = ['%s-vector-matrices.hdf' % x for x in names_composed_files]
+    for noun_path, save_file, sname in zip(all_nouns,
+                                           save_files,
+                                           names_composed_files):
+        trained_verb_matrices_file = os.path.join(VERBS_HDF_DIR, save_file)
+
+        # the list of subject/objects of a given verb is determined from the unlabelled corpus,
+        # and so are the noun vectors
+        if 'wiki' in sname:
+            svos_path = '/mnt/lustre/scratch/inf/mmb28/DiscoUtils/wiki_NPs_in_MR_R2_TechTC_am_maas.uniq.10.txt'
+        elif 'giga' in sname:
+            svos_path = '/mnt/lustre/scratch/inf/mmb28/DiscoUtils/gigaw_NPs_in_MR_R2_TechTC_am_maas.uniq.10.txt'
+        else:
+            raise ValueError('What unlabelled corpus is this???')
+        train_verb_tensors(svos_path, noun_path, trained_verb_matrices_file)
+
+        compose_and_write_vectors(noun_path,  # a vector store containing noun vectors
+                                  sname,  # something to identify the source of unigram vectors
+                                  [CopyObject],
+                                  # filename of output of training stage
+                                  categorical_vector_matrix_file=trained_verb_matrices_file,
+                                  output_dir=VERBS_HDF_DIR, dense_hd5=True)
