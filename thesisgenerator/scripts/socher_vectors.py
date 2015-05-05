@@ -24,8 +24,7 @@ socher_base_dir = os.path.join(prefix, 'socher_vectors')  # copy downloaded cont
 
 # the two paths below needs to point to the same thing
 phrases_to_compose = os.path.join(prefix, '..', 'thesisgenerator',
-                                  'NPs_in_R2_MR_tech_am_maas',
-                                  'r2-mr-technion-am-maas-ANs-NNs-socher.txt')
+                                  'features_in_labelled', 'socher.txt')
 socher_input_file = os.path.join(socher_base_dir, 'parsed.txt')
 
 socher_output_phrases_file = os.path.join(socher_base_dir, 'phrases.txt')
