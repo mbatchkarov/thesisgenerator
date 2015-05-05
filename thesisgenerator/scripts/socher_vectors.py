@@ -28,6 +28,8 @@ socher_base_dir = os.path.join(prefix, 'socher_vectors')  # copy downloaded cont
 phrases_to_compose = os.path.join(prefix, '..', 'thesisgenerator',
                                   'features_in_labelled', 'socher.txt')
 socher_input_file = os.path.join(socher_base_dir, 'parsed.txt')
+plaintext_socher_input_file = os.path.join(prefix, '..', 'thesisgenerator',
+                                  'features_in_labelled', 'all_features.txt')
 
 socher_output_phrases_file = os.path.join(socher_base_dir, 'phrases.txt')
 socher_output_vectors_file = os.path.join(socher_base_dir, 'outVectors.txt')
@@ -54,44 +56,15 @@ def reformat_socher_vectors():
     be composed with Socher's matlab code. See note "Socher vectors" in Evernote.
 
     """
-    logging.info('Reformatting events file %s to %s',
+    logging.info('Reformatting events file %s ---> %s',
                  socher_output_vectors_file, vectors_file)
 
-    an_regex = re.compile("\(NP \(JJ (\S+)\) \(NN (\S+)\)\)\)")
-    nn_regex = re.compile("\(NP \(NN (\S+)\) \(NN (\S+)\)\)\)")
-    unigram_regex = re.compile("\(NP \((NN|JJ) (\S+)\)\)\)")
-
+    # socher's code removes all PoS tags, so we can't translate his output
+    # back to a DocumentFeature. Let's read the input to his code instead and
+    # get the corresponding output vectors
     # get a list of all phrases that we attempted to compose
-    composed_phrases = []
-    with open(socher_input_file) as infile:
-        for line in infile:
-            # check if this is an AN
-            matches = an_regex.findall(line)
-            if matches:
-                d = DocumentFeature.from_string('{}/J_{}/N'.format(*matches[0]))
-                composed_phrases.append(d)
-                continue
-
-            # check if this is an NN
-            matches = nn_regex.findall(line)
-            if matches:
-                d = DocumentFeature.from_string('{}/N_{}/N'.format(*matches[0]))
-                composed_phrases.append(d)
-                continue
-
-            # check if this is a unigram
-            matches = unigram_regex.findall(line)
-            if matches:
-                d = DocumentFeature.from_string('{1}/{0}'.format(*matches[0])[:-1])
-                composed_phrases.append(d)
-                continue
-
-            # if we got to here, something is amiss
-            # this line is neither empty nor parser bolerplate- usually poorly stripped HTML
-            # pretend nothing is wrong, the composer would not have dealt with this, so
-            # this phrase will get removed by the filter below
-            if '(ROOT' not in line and len(line.strip()) > 0:
-                composed_phrases.append(None)  # indicates that something is wrong
+    with open(plaintext_socher_input_file) as infile:
+        composed_phrases = [DocumentFeature.from_string(line.strip()) for line in infile]
 
     # get a list of all phrases where composition worked (no unknown words)
     with open(socher_output_phrases_file) as infile:
