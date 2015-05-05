@@ -1,3 +1,5 @@
+import sys
+sys.path.append('.')
 import argparse
 import logging
 from operator import itemgetter
