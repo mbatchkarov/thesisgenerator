@@ -149,7 +149,7 @@ def train_grefenstette_multistep_composer(all_vectors_file, root_dir):
 
     # 1. train a model to learn VO functions on train data: VO N -> SVO
     logging.info("Step 1 training")
-    vo_model = LexicalFunction(learner=RidgeRegressionLearner(), min_samples=3)  # Gref et al 2013, §5
+    vo_model = LexicalFunction(learner=RidgeRegressionLearner(), min_samples=2)  # Gref et al 2013, §5 says 3
     vo_model.train(train_vo_data, n_space, svo_space)
     io_utils.save(vo_model, vo_composer_output_file)
 
@@ -157,7 +157,7 @@ def train_grefenstette_multistep_composer(all_vectors_file, root_dir):
     # where VO space: function space learned in step 1
     logging.info("Step 2 training")
     vo_space = vo_model.function_space
-    v_model = LexicalFunction(learner=RidgeRegressionLearner(), min_samples=3)
+    v_model = LexicalFunction(learner=RidgeRegressionLearner(), min_samples=2)
     v_model.train(train_v_data, n_space, vo_space)
     io_utils.save(v_model, svo_composer_output_file)
 

@@ -30,7 +30,7 @@ if __name__ == '__main__':
     byblo_base_dir = join(prefix, 'FeatureExtractionToolkit/', 'Byblo-2.2.0')
     discoutils = join(prefix, 'DiscoUtils')
     byblo_filter_thresholds = 50, 50, 10
-    min_corpus_freq, min_features = 30, 9 # num_fields_in_line = 1 + 2*num_features
+    min_corpus_freq, min_features = 10, 9 # num_fields_in_line = 1 + 2*num_features
 
     # Find all NPs in unlabelled corpus whose modifier is in labelled corpus,
     # and which appear more than thresh=100 times in unlabelled corpus

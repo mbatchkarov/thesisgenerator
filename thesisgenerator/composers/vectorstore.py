@@ -270,6 +270,13 @@ class GrefenstetteMultistepComposer(BaroniComposer):
             self.v_model = load(infile)
             # with open(vo_model, 'rb') as infile:
             # self.vo_model = load(infile)
+        self.verbs = self.v_model.function_space.id2row
+        logging.info('Multistep composer has these verbs:', self.verbs)
+
+
+    def __str__(self):
+        'Multistep composer with %d verbs and %d nouns'%(len(self.verbs),
+                                                         len(self.unigram_source))
 
     def __contains__(self, feature):
         if isinstance(feature, six.string_types):
@@ -277,7 +284,7 @@ class GrefenstetteMultistepComposer(BaroniComposer):
 
         # this is a SVO, we have a verb tensor and vectors for both arguments
         return feature.type in self.entry_types and \
-               feature[1] in self.v_model.function_space.id2row and \
+               feature[1] in self.verbs and \
                feature[0] in self.unigram_source and \
                feature[2] in self.unigram_source
         # alternative- try to compose. if ValueError, we can't
@@ -345,7 +352,7 @@ class CopyObject(Vectors, ComposerMixin):
         obj_v = self.unigram_source.get_vector(obj).A.T  # shape 100x1
 
         vec = subj_v * np.dot(verb_m, obj_v)
-        return sp.csr_matrix(vec.T) # type needs to be compatible w other composers
+        return sp.csr_matrix(vec.T)  # type needs to be compatible w other composers
 
     def __str__(self):
         return '%s composer with %d verbs and %d unigrams' % (self.name,

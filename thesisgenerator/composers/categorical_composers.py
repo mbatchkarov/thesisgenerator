@@ -80,7 +80,7 @@ if __name__ == '__main__':
 
     noun_path = '/mnt/lustre/scratch/inf/mmb28/FeatureExtractionToolkit/exp10-13b/' \
                 'exp10-with-obs-phrases-SVD100.events.filtered.strings'
-    svos_path = '/mnt/lustre/scratch/inf/mmb28/DiscoUtils/gigaw_NPs_in_MR_R2_TechTC_am_maas.uniq.30.txt'
+    svos_path = '/mnt/lustre/scratch/inf/mmb28/DiscoUtils/gigaw_NPs_in_MR_R2_TechTC_am_maas.uniq.10.txt'
 
     trained_verb_matrices_file = os.path.join(VERBS_HDF_DIR, 'gigaw-wins-vector-matrices.hdf')
     train_verb_tensors(svos_path, noun_path, trained_verb_matrices_file)
