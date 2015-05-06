@@ -18,7 +18,7 @@ from discoutils.thesaurus_loader import Vectors
 from thesisgenerator.composers.vectorstore import (AdditiveComposer, MultiplicativeComposer,
                                                    LeftmostWordComposer, RightmostWordComposer,
                                                    BaroniComposer, GuevaraComposer, GrefenstetteMultistepComposer,
-                                                   compose_and_write_vectors)
+                                                   compose_and_write_vectors, VerbComposer)
 from thesisgenerator.composers.baroni_group import (train_baroni_guevara_composers,
                                                     train_grefenstette_multistep_composer)
 
@@ -142,11 +142,11 @@ def build_full_composed_thesauri_with_baroni_and_svd(corpus, features, stages):
     ngram_vectors_dir = join(prefix,
                              'exp%d-%d-composed-ngrams' % (corpus, features))  # output 1
     if features_name == 'wins':
-        composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
+        composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer, VerbComposer,
                           RightmostWordComposer, BaroniComposer, GuevaraComposer, GrefenstetteMultistepComposer]
     else:
         # can't train Baroni/Guevara on deps because I don't have observed vectors for phrases
-        composer_algos = [AdditiveComposer, MultiplicativeComposer,
+        composer_algos = [AdditiveComposer, MultiplicativeComposer, VerbComposer,
                           LeftmostWordComposer, RightmostWordComposer]
 
     mkdirs_if_not_exists(ngram_vectors_dir)

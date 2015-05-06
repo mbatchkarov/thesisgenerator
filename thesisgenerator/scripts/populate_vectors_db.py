@@ -9,7 +9,8 @@ from discoutils.misc import Bunch
 from thesisgenerator.utils import db
 from thesisgenerator.composers.vectorstore import (AdditiveComposer, MultiplicativeComposer,
                                                    LeftmostWordComposer, RightmostWordComposer,
-                                                   BaroniComposer, GuevaraComposer, GrefenstetteMultistepComposer)
+                                                   BaroniComposer, GuevaraComposer, VerbComposer,
+                                                   GrefenstetteMultistepComposer)
 
 
 def _get_size(thesaurus_file):
@@ -36,7 +37,8 @@ def _w2v_vectors():
                        'AN_NN_word2vec-wiki_{percent:d}percent-avg3_{composer}.events.filtered.strings'
 
     # gigaword thesauri
-    for composer_class in [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer, RightmostWordComposer]:
+    composers = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer, RightmostWordComposer, VerbComposer]
+    for composer_class in composers:
         composer = composer_class.name
         thesaurus_file = gigaw_pattern.format(prefix=prefix, composer=composer)
         modified, size = _get_size(thesaurus_file)
@@ -45,7 +47,7 @@ def _w2v_vectors():
                               composer=composer, modified=modified, size=size, rep=0)
 
     # wikipedia thesauri, some with repetition and averaging over repeated runs
-    for composer_class in [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer, RightmostWordComposer]:
+    for composer_class in composers:
         composer = composer_class.name
         for percent in [1, 10, 20, 30, 40, 60, 70, 80, 90, 100]:
             # note: 50 missing on purpose. These experiments were not repeated
@@ -92,7 +94,8 @@ def _ppmi_vectors(unlab_nums, unlab_names):
 
 def _glove_vectors_wiki():
     # GloVe vectors with simple composition
-    for composer_class in [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer, RightmostWordComposer]:
+    for composer_class in [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
+                           RightmostWordComposer, VerbComposer]:
         composer_name = composer_class.name
         pattern = '{prefix}/glove/AN_NN_glove-wiki_{composer_name}.events.filtered.strings'
         thesaurus_file = pattern.format(**ChainMap(locals(), globals()))
@@ -107,7 +110,7 @@ def _glove_vectors_wiki():
 def _count_vectors_gigaw_wiki():
     """ standard windows/dependency thesauri that I built back in the day"""
     composer_algos = [AdditiveComposer, MultiplicativeComposer,
-                      LeftmostWordComposer, RightmostWordComposer,
+                      LeftmostWordComposer, RightmostWordComposer, VerbComposer,
                       BaroniComposer, GuevaraComposer, GrefenstetteMultistepComposer,
                       Bunch(name='Observed')]
 
@@ -146,7 +149,7 @@ def _count_vectors_gigaw_wiki():
 def _turian_vectors():
     # Socher (2011)'s paraphrase model, and the same with simple composition
     for composer_class in [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
-                           RightmostWordComposer, Bunch(name='Socher')]:
+                           RightmostWordComposer, VerbComposer, Bunch(name='Socher')]:
         composer_name = composer_class.name
         pattern = '{prefix}/socher_vectors/composed/AN_NN_turian_{composer_name}.events.filtered.strings'
         thesaurus_file = pattern.format(**ChainMap(locals(), globals()))
@@ -200,7 +203,8 @@ def _lda_vectors():
     pattern = '/mnt/lustre/scratch/inf/mmb28/FeatureExtractionToolkit/lda_vectors/' \
               'composed/AN_NN_lda-gigaw_{}percent_{}.events.filtered.strings'
     percent = 100
-    composers = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer, RightmostWordComposer]
+    composers = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
+                 RightmostWordComposer, VerbComposer]
     for comp in composers:
         path = pattern.format(percent, comp.name)
         db.Vectors.create(algorithm='lda', unlabelled='gigaw', dimensionality=100,

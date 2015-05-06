@@ -13,7 +13,7 @@ from discoutils.cmd_utils import run_and_log_output
 from discoutils.misc import temp_chdir, mkdirs_if_not_exists
 from thesisgenerator.composers.vectorstore import (MultiplicativeComposer, AdditiveComposer,
                                                    RightmostWordComposer, LeftmostWordComposer,
-                                                   compose_and_write_vectors)
+                                                   VerbComposer, compose_and_write_vectors)
 from thesisgenerator.utils.misc import force_symlink
 
 # SET UP A FEW REQUIRED PATHS
@@ -108,7 +108,7 @@ if __name__ == '__main__':
         reformat_socher_vectors()
     if 'simple-compose' in args.stages:
         composers = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
-                     RightmostWordComposer]
+                     RightmostWordComposer, VerbComposer]
         compose_and_write_vectors(vectors_file,
                                   'turian',
                                   composers,

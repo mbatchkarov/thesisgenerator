@@ -11,7 +11,8 @@ from discoutils.misc import mkdirs_if_not_exists
 from thesisgenerator.scripts.get_word2vec_vectors import (MySentences, get_args_from_cmd_line,
                                                           write_gensim_vectors_to_tsv)
 from thesisgenerator.composers.vectorstore import (compose_and_write_vectors, RightmostWordComposer,
-                                                   LeftmostWordComposer, MultiplicativeComposer, AdditiveComposer)
+                                                   LeftmostWordComposer, MultiplicativeComposer,
+                                                   AdditiveComposer, VerbComposer)
 
 
 class WordPosCorpusReader(TextCorpus):
@@ -60,7 +61,8 @@ def main(corpus_name, stages, percent):
     prefix = '/mnt/lustre/scratch/inf/mmb28/FeatureExtractionToolkit'
     composed_output_dir = join(prefix, 'lda_vectors', 'composed')
     mkdirs_if_not_exists(composed_output_dir)
-    composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer, RightmostWordComposer]
+    composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
+                      RightmostWordComposer, VerbComposer]
 
     if corpus_name == 'gigaw':
         data_dir = join(prefix, 'data/gigaword-afe-split-pos/gigaword/')

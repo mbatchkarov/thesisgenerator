@@ -13,7 +13,7 @@ from discoutils.io_utils import write_vectors_to_hdf
 from discoutils.tokens import DocumentFeature
 from thesisgenerator.composers.vectorstore import (RightmostWordComposer, LeftmostWordComposer,
                                                    MultiplicativeComposer, AdditiveComposer,
-                                                   compose_and_write_vectors)
+                                                   VerbComposer, compose_and_write_vectors)
 
 
 prefix = '/mnt/lustre/scratch/inf/mmb28/FeatureExtractionToolkit'
@@ -23,7 +23,8 @@ pos_only_data_dir = join(prefix, 'data/wikipedia-tagged-pos/wikipedia/')
 unlabelled_data = join(prefix, 'data/wikipedia-tagged-pos/wikipedia.oneline')
 raw_vectors_file = join(glove_dir, 'vectors.txt')  # what GloVe produces
 formatted_vectors_file = join(glove_dir, 'vectors.miro.h5')  # unigram vectors in my format
-composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer, RightmostWordComposer]
+composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
+                  RightmostWordComposer, VerbComposer]
 
 
 def compute_and_write_vectors(stages):

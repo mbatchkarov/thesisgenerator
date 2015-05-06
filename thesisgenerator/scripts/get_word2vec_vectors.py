@@ -20,7 +20,7 @@ from discoutils.thesaurus_loader import Vectors
 from thesisgenerator.plugins.tokenizers import pos_coarsification_map
 from thesisgenerator.composers.vectorstore import (AdditiveComposer, MultiplicativeComposer,
                                                    LeftmostWordComposer, RightmostWordComposer,
-                                                   compose_and_write_vectors)
+                                                   VerbComposer, compose_and_write_vectors)
 
 logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
 
@@ -29,7 +29,8 @@ MIN_COUNT = 50
 WORKERS = 10
 
 # composition parameters
-composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer, RightmostWordComposer]
+composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
+                  RightmostWordComposer,VerbComposer]
 
 
 class MySentences(object):

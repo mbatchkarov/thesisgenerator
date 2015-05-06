@@ -46,7 +46,8 @@ def window_vector_settings():
     unlab = 'gigaw'
     algo = 'count_windows'
     composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
-                      RightmostWordComposer, BaroniComposer, GuevaraComposer, Bunch(name='Observed')]
+                      RightmostWordComposer, BaroniComposer, GuevaraComposer,
+                      VerbComposer, Bunch(name='Observed')]
     for c in composer_algos:
         for svd_dims in [0, 100]:
             if svd_dims == 0 and c in (BaroniComposer, GuevaraComposer):
@@ -58,7 +59,8 @@ def dependency_vector_settings():
     unlab = 'gigaw'
     algo = 'count_dependencies'
     # can't easily run Julie's observed dependency code, ignore it
-    composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer, RightmostWordComposer]
+    composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
+                      RightmostWordComposer, VerbComposer]
     for c in composer_algos:
         for svd_dims in [0, 100]:
             yield unlab, algo, c.name, svd_dims
@@ -68,21 +70,23 @@ def turian_vector_settings():
     unlab = 'turian'
     algo = 'turian'
     composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
-                      RightmostWordComposer, Bunch(name='Socher')]
+                      RightmostWordComposer, VerbComposer, Bunch(name='Socher')]
     for c in composer_algos:
         yield unlab, algo, c.name, 100
 
 
 def word2vec_vector_settings(unlab='gigaw'):
     algo = 'word2vec'
-    composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer, RightmostWordComposer]
+    composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
+                      RightmostWordComposer, VerbComposer]
     for c in composer_algos:
         yield unlab, algo, c.name, 100
 
 
 def glove_vector_settings(unlab='wiki'):
     algo = 'glove'
-    composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer, RightmostWordComposer]
+    composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
+                      RightmostWordComposer, VerbComposer]
     for c in composer_algos:
         yield unlab, algo, c.name, 100
 
@@ -261,6 +265,10 @@ def with_lexical_overlap_and_unigrams_at_decode_time():
                                             document_features_ev='A+N+AN+NN', allow_overlap=True)
             experiments.append(e)
 
+def verb_phrases():
+    composers = [AdditiveComposer, MultiplicativeComposer, VerbComposer,
+                 GrefenstetteMultistepComposer, CopyObject]
+    # todo implement
 
 if __name__ == '__main__':
     prefix = '/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data'

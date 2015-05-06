@@ -123,11 +123,11 @@ class MaxComposer(MinComposer):
 
 class LeftmostWordComposer(AdditiveComposer):
     name = 'Left'
+    entry_types = {'2-GRAM', '3-GRAM', 'AN', 'NN', 'VO', 'SVO'}
 
     def __init__(self, unigram_source):
         self.unigram_source = check_vectors(unigram_source)
         self.hardcoded_index = 0
-        self.entry_types = {'2-GRAM', '3-GRAM', 'AN', 'NN', 'VO', 'SVO'}
 
     def get_vector(self, feature):
         if isinstance(feature, six.string_types):
@@ -150,6 +150,16 @@ class RightmostWordComposer(LeftmostWordComposer):
         self.unigram_source = check_vectors(unigram_source)
         self.hardcoded_index = -1
 
+class VerbComposer(LeftmostWordComposer):
+    """
+    Represents verb phrases by the vector of their head
+    """
+    name = 'Verb'
+    entry_types = {'SVO'}
+
+    def __init__(self, unigram_source):
+        self.unigram_source = check_vectors(unigram_source)
+        self.hardcoded_index = 1
 
 class BaroniComposer(Vectors, ComposerMixin):
     entry_types = {'AN', 'NN'}
