@@ -1,6 +1,7 @@
 import peewee as pw
 import socket
-from discoutils.misc import is_gzipped, is_hdf, is_plaintext
+from discoutils.misc import is_gzipped, is_hdf, is_plaintext, Bunch
+from thesisgenerator.composers.vectorstore import *
 
 hostname = socket.gethostname()
 if 'node' in hostname or 'apollo' in hostname:
@@ -25,17 +26,29 @@ class Vectors(pw.Model):
 
     modified = pw.DateField(null=True, default=None)  # when was the file last modifier
     size = pw.IntegerField(null=True, default=None)  # file size in MB
-    format = pw.CharField(null=True, default=None)  # plaintext, gzip or hdf
+    format = pw.CharField(null=True, default=None)  # how the file is stored: plaintext, gzip or hdf
+    contents = pw.CharField(null=True, default=None)  # what vectors there are in the file, e.g. 1-GRAM, AN, NN,...
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        if self.path and self.size:  # file exists
+
+        # find out what format the file is in
+        if self.path and self.size:  # check file exists
             if is_gzipped(self.path):
                 self.format = 'gz'
             elif is_hdf(self.path):
                 self.format = 'hdf'
             elif is_plaintext(self.path):
                 self.format = 'txt'
+
+        if isinstance(self.composer, Bunch):
+            # check what entries are contained in this vector store
+            self.contents = '+'.join(sorted(['1-GRAM', 'AN', 'NN', 'VO', 'SVO']))
+            self.composer = self.composer.name
+        if isinstance(self.composer, type):
+            entry_types = self.composer.entry_types.union({'1-GRAM'})
+            self.contents = '+'.join(sorted(entry_types))
+            self.composer = self.composer.name
 
     class Meta:
         database = db

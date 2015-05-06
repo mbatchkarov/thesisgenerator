@@ -28,6 +28,12 @@ use this script to generate the conf files required to run them through the clas
 '''
 
 
+def vectors_by_type(feature_type, composer_name):
+    v = db.Vectors.select().where((db.Vectors.contents.contains(feature_type)) &
+                                  (db.Vectors.composer == composer_name))
+    return list(v)
+
+
 def vectors_from_settings(unlab_name, algorithm, composer_name, svd_dims, percent=100, rep=0, ppmi=False):
     v = db.Vectors.select().where((db.Vectors.dimensionality == svd_dims) &
                                   (db.Vectors.unlabelled == unlab_name) &
@@ -246,7 +252,7 @@ def with_unigrams_at_decode_time():
         vect = [vectors_from_settings('gigaw', 'word2vec', composer.name, svd_dims=100, percent=100),
                 vectors_from_settings('wiki', 'word2vec', composer.name, svd_dims=100, percent=15),
                 vectors_from_settings('wiki', 'word2vec', composer.name, svd_dims=100, percent=100),
-        ]
+                ]
         for v in vect:
             e = db.ClassificationExperiment(vectors=v, labelled=am_corpus, document_features_ev='A+N+AN+NN')
             experiments.append(e)
@@ -259,16 +265,23 @@ def with_lexical_overlap_and_unigrams_at_decode_time():
         vect = [vectors_from_settings('gigaw', 'word2vec', composer.name, svd_dims=100, percent=100),
                 vectors_from_settings('wiki', 'word2vec', composer.name, svd_dims=100, percent=15),
                 vectors_from_settings('wiki', 'word2vec', composer.name, svd_dims=100, percent=100),
-        ]
+                ]
         for v in vect:
             e = db.ClassificationExperiment(vectors=v, labelled=am_corpus,
                                             document_features_ev='A+N+AN+NN', allow_overlap=True)
             experiments.append(e)
 
-def verb_phrases():
+
+def verb_phrases_baselines():
     composers = [AdditiveComposer, MultiplicativeComposer, VerbComposer,
                  GrefenstetteMultistepComposer, CopyObject]
-    # todo implement
+    vect = vectors_by_type('SVO', VerbComposer.name)
+    for v in vect:
+        e = db.ClassificationExperiment(vectors=v, labelled=am_corpus,
+                                        document_features_tr='V', document_features_ev='SVO',
+                                        allow_overlap=True)
+        experiments.append(e)
+
 
 if __name__ == '__main__':
     prefix = '/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data'
@@ -308,6 +321,8 @@ if __name__ == '__main__':
     equalised_coverage_experiments()
     with_unigrams_at_decode_time()
     with_lexical_overlap_and_unigrams_at_decode_time()
+
+    verb_phrases_baselines()
 
     # various other experiments that aren't as interesting
     # different_neighbour_strategies() # this takes a long time

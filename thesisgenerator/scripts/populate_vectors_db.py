@@ -10,7 +10,7 @@ from thesisgenerator.utils import db
 from thesisgenerator.composers.vectorstore import (AdditiveComposer, MultiplicativeComposer,
                                                    LeftmostWordComposer, RightmostWordComposer,
                                                    BaroniComposer, GuevaraComposer, VerbComposer,
-                                                   GrefenstetteMultistepComposer)
+                                                   GrefenstetteMultistepComposer, CopyObject)
 
 
 def _get_size(thesaurus_file):
@@ -39,12 +39,11 @@ def _w2v_vectors():
     # gigaword thesauri
     composers = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer, RightmostWordComposer, VerbComposer]
     for composer_class in composers:
-        composer = composer_class.name
-        thesaurus_file = gigaw_pattern.format(prefix=prefix, composer=composer)
+        thesaurus_file = gigaw_pattern.format(prefix=prefix, composer=composer_class.name)
         modified, size = _get_size(thesaurus_file)
         v = db.Vectors.create(algorithm='word2vec', dimensionality=100,
                               unlabelled='gigaw', path=thesaurus_file, unlabelled_percentage=100,
-                              composer=composer, modified=modified, size=size, rep=0)
+                              composer=composer_class, modified=modified, size=size, rep=0)
 
     # wikipedia thesauri, some with repetition and averaging over repeated runs
     for composer_class in composers:
@@ -57,7 +56,7 @@ def _w2v_vectors():
             modified, size = _get_size(thesaurus_file)
             v = db.Vectors.create(algorithm='word2vec', dimensionality=100,
                                   unlabelled='wiki', path=thesaurus_file, unlabelled_percentage=percent,
-                                  composer=composer, modified=modified, size=size, rep=0)
+                                  composer=composer_class, modified=modified, size=size, rep=0)
             print(v)
         for percent in [15, 50]:  # these are where repeats were done
             for rep in [-1, 0, 1, 2]:  # -1 signifies averaging across multiple runs
@@ -69,7 +68,7 @@ def _w2v_vectors():
                 modified, size = _get_size(thesaurus_file)
                 v = db.Vectors.create(algorithm='word2vec', dimensionality=100,
                                       unlabelled='wiki', path=thesaurus_file, unlabelled_percentage=percent,
-                                      composer=composer, modified=modified, size=size, rep=rep)
+                                      composer=composer_class, modified=modified, size=size, rep=rep)
                 print(v)
 
 
@@ -81,28 +80,25 @@ def _ppmi_vectors(unlab_nums, unlab_names):
                            LeftmostWordComposer, RightmostWordComposer]:
         for thesf_num, thesf_name in zip([12, 13], ['dependencies', 'windows']):
             for unlab_num, unlab_name in zip(unlab_nums, unlab_names):
-                composer_name = composer_class.name
-
                 thesaurus_file = ppmi_file_pattern.format(**ChainMap(locals(), globals()))
                 modified, size = _get_size(thesaurus_file)
                 v = db.Vectors.create(algorithm='count_' + thesf_name, use_ppmi=True,
                                       dimensionality=0, unlabelled=unlab_name,
-                                      path=thesaurus_file, composer=composer_name,
+                                      path=thesaurus_file, composer=composer_class,
                                       modified=modified, size=size)
                 print(v)
 
 
 def _glove_vectors_wiki():
     # GloVe vectors with simple composition
-    for composer_class in [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
+    for comp in [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
                            RightmostWordComposer, VerbComposer]:
-        composer_name = composer_class.name
-        pattern = '{prefix}/glove/AN_NN_glove-wiki_{composer_name}.events.filtered.strings'
-        thesaurus_file = pattern.format(**ChainMap(locals(), globals()))
+        pattern = '{}/glove/AN_NN_glove-wiki_{}.events.filtered.strings'
+        thesaurus_file = pattern.format(prefix, comp.name)
         modified, size = _get_size(thesaurus_file)
         v = db.Vectors.create(algorithm='glove',
                               dimensionality=100, unlabelled='wiki',
-                              path=thesaurus_file, composer=composer_name,
+                              path=thesaurus_file, composer=comp,
                               modified=modified, size=size)
         print(v)
 
@@ -141,23 +137,23 @@ def _count_vectors_gigaw_wiki():
                     modified, size = _get_size(thesaurus_file)
                     v = db.Vectors.create(algorithm='count_' + thesf_name,
                                           dimensionality=svd_dims, unlabelled=unlab_name,
-                                          path=thesaurus_file, composer=composer_name,
+                                          path=thesaurus_file, composer=composer_class,
                                           modified=modified, size=size)
                     print(v)
 
 
 def _turian_vectors():
     # Socher (2011)'s paraphrase model, and the same with simple composition
-    for composer_class in [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
+    for composer in [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
                            RightmostWordComposer, VerbComposer, Bunch(name='Socher')]:
-        composer_name = composer_class.name
+        composer_name = composer.name
         pattern = '{prefix}/socher_vectors/composed/AN_NN_turian_{composer_name}.events.filtered.strings'
         thesaurus_file = pattern.format(**ChainMap(locals(), globals()))
         modified, size = _get_size(thesaurus_file)
         v = db.Vectors.create(algorithm='turian',
                               dimensionality=100,
                               unlabelled='turian',
-                              path=thesaurus_file, composer=composer_name,
+                              path=thesaurus_file, composer=composer,
                               modified=modified, size=size)
         print(v)
 
@@ -179,7 +175,7 @@ def _categorical_vectors():
     pattern = '/mnt/lustre/scratch/inf/mmb28/FeatureExtractionToolkit/categorical/' \
               'AN_NN_{}_{}.events.filtered.strings'
     ids = ['gigaw-wins-100', 'gigaw-w2v-100', 'wiki-w2v-15', 'wiki-w2v-100', 'gigaw-glove-100']
-    for composer in ['CopyObj']:
+    for composer in [CopyObject]:
         for identifier in ids:
             path = pattern.format(identifier, composer)
             if 'wins' in identifier:
@@ -208,7 +204,7 @@ def _lda_vectors():
     for comp in composers:
         path = pattern.format(percent, comp.name)
         db.Vectors.create(algorithm='lda', unlabelled='gigaw', dimensionality=100,
-                          composer=comp.name, path=path)
+                          composer=comp, path=path)
 
 
 if __name__ == '__main__':
