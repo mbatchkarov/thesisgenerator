@@ -30,7 +30,7 @@ WORKERS = 10
 
 # composition parameters
 composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
-                  RightmostWordComposer,VerbComposer]
+                  RightmostWordComposer, VerbComposer]
 
 
 class MySentences(object):
@@ -56,7 +56,7 @@ class MySentences(object):
                 for line in infile:
                     # yield gensim.utils.tokenize(line, lower=True)
                     res = [DocumentFeature.smart_lower(w) for w in line.split() if
-                              DocumentFeature.from_string(w).type != 'EMPTY']
+                           DocumentFeature.from_string(w).type != 'EMPTY']
                     if len(res) > 8:
                         # ignore short sentences, they are probably noise
                         yield res
@@ -76,7 +76,7 @@ def write_gensim_vectors_to_tsv(model, output_path, vocab=None):
         vocab = model.vocab.keys()
     vectors = dict()
 
-    dims = len(model[next(iter(vocab))]) # vector dimensionality
+    dims = len(model[next(iter(vocab))])  # vector dimensionality
     dimension_names = ['f%02d' % i for i in range(dims)]
     for word in vocab:
         # watch for non-DocumentFeatures, these break to_tsv
@@ -176,7 +176,9 @@ def compute_and_write_vectors(corpus_name, stages, percent, repeat):
             for k in shared_vocab:
                 model[k] = reduce(np.add, [m[k] for m in models])
             vectors.append(write_gensim_vectors_to_tsv(model, output_path, vocab=shared_vocab))
-
+    else:
+        # let's just pretend something was written above. just need this so the loop below will run
+        vectors = [None] * repeat + ([None] if 'average' in stages and repeat > 1 else [])
     if 'compose' in stages:
         for i, v in enumerate(vectors):
             # if we'll also be composing we don't have to write the unigram vectors to disk
