@@ -105,18 +105,19 @@ def all_vector_settings():
 
 
 @printing_decorator
-def baselines(corpora=None):
-    # random-neighbour experiments. These include an "random_neighbour_thesaurus=True" option in the conf file
-    if not corpora:
-        corpora = all_corpora
-    random_neigh = db.Vectors.get(db.Vectors.algorithm == 'random_neigh')
-    for corpus in corpora:
-        e = db.ClassificationExperiment(labelled=corpus, vectors=random_neigh)
-        experiments.append(e)
+def random_baselines(corpora, document_features_tr='A+N+AN+NN', document_features_ev='AN+NN'):
+    # random-neighbour and random-vector experiments.
+    # The former include an "random_neighbour_thesaurus=True" option in the conf file
 
-        # signifier experiments (bag-of-words)
-        e = db.ClassificationExperiment(labelled=corpus, decode_handler='BaseFeatureHandler')
-        experiments.append(e)
+    random_neigh = db.Vectors.get(db.Vectors.algorithm == 'random_neigh')
+    random_vect = db.Vectors.get(db.Vectors.algorithm == 'random_vect')
+
+    for corpus in corpora:
+        for v in [random_neigh, random_vect]:
+            e = db.ClassificationExperiment(labelled=corpus, vectors=v,
+                                            document_features_tr=document_features_tr,
+                                            document_features_ev=document_features_ev)
+            experiments.append(e)
 
 
 @printing_decorator
@@ -158,16 +159,19 @@ def glove_vectors_amazon():
 
 
 @printing_decorator
-def random_vectors(corpus):
-    random_vect = db.Vectors.get(db.Vectors.algorithm == 'random_vect')
-    e = db.ClassificationExperiment(labelled=corpus, vectors=random_vect)
-    experiments.append(e)
+def nondistributional_baselines(corpora, document_features_tr='A+N+AN+NN', document_features_ev='AN+NN'):
+    # signifier experiments (bag-of-words)
+    for corpus in corpora:
+        e = db.ClassificationExperiment(labelled=corpus, decode_handler='BaseFeatureHandler',
+                                        document_features_tr=document_features_tr,
+                                        document_features_ev=document_features_ev)
+        experiments.append(e)
 
 
 @printing_decorator
 def w2v_learning_curve_amazon(unlab='wiki', percent=[1, 10, 20, 30, 40, 50, 60, 70, 80, 90]):
     for settings in word2vec_vector_settings(unlab):
-        # only up to 90% to avoid dupliting w2v-gigaw-100% (part of "standard experiments")
+        # only up to 90% to avoid duplicating w2v-gigaw-100% (part of "standard experiments")
         for p in percent:
             e = db.ClassificationExperiment(labelled=am_corpus,
                                             vectors=vectors_from_settings(*settings, percent=p))
@@ -275,6 +279,11 @@ def with_lexical_overlap_and_unigrams_at_decode_time():
 def verb_phrases_baselines():
     composers = [AdditiveComposer, MultiplicativeComposer, VerbComposer,
                  GrefenstetteMultistepComposer, CopyObject]
+    # non-distributional baseline
+
+    # todo
+
+    # non-compositional baseline
     vect = vectors_by_type('SVO', VerbComposer.name)
     for v in vect:
         e = db.ClassificationExperiment(vectors=v, labelled=am_corpus,
@@ -295,14 +304,17 @@ if __name__ == '__main__':
     # havent added maas to all_corpora to avoid changing the ids of long running amazon jobs
     all_corpora = techtc_corpora + [r2_corpus, mr_corpus, am_corpus]
 
-    db.ClassificationExperiment.raw('TRUNCATE TABLE `classificationexperiment`;')
+    # db.ClassificationExperiment.raw('TRUNCATE TABLE `classificationexperiment`;')
     experiments = []
-    baselines()
-    all_standard_gigaw_experiments()
+
+    random_baselines([r2_corpus, am_corpus])
+    nondistributional_baselines([r2_corpus, am_corpus])
+    nondistributional_baselines([am_corpus], document_features_ev='A+N+AN+NN')
+    # pad with nouns at train time to increase performance a wee bit
+    nondistributional_baselines([am_corpus], document_features_tr='A+N+V+AN+NN', document_features_ev='V+VO+SVO')
+    all_standard_gigaw_experiments(corpora=[r2_corpus, am_corpus])
     hybrid_experiments_r2_amazon_turian_word2vec()
-    random_vectors(r2_corpus)
     varying_k_with_w2v_on_r2()
-    random_vectors(am_corpus)
     # wikipedia experiments on amazon
     initial_wikipedia_w2v_amazon_with_repeats()
     # maas IMDB sentiment experiments
