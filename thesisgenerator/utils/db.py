@@ -1,7 +1,6 @@
 import peewee as pw
 import socket
 from discoutils.misc import is_gzipped, is_hdf, is_plaintext, Bunch
-from thesisgenerator.composers.vectorstore import *
 
 hostname = socket.gethostname()
 if 'node' in hostname or 'apollo' in hostname:
