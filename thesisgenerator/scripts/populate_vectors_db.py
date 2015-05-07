@@ -177,7 +177,7 @@ def _categorical_vectors():
     ids = ['gigaw-wins-100', 'gigaw-w2v-100', 'wiki-w2v-15', 'wiki-w2v-100', 'gigaw-glove-100']
     for composer in [CopyObject]:
         for identifier in ids:
-            path = pattern.format(identifier, composer)
+            path = pattern.format(identifier, composer.name)
             if 'wins' in identifier:
                 algo = 'count_windows'
             elif 'w2v' in identifier:
