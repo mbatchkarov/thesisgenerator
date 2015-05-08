@@ -92,7 +92,7 @@ def _ppmi_vectors(unlab_nums, unlab_names):
 def _glove_vectors_wiki():
     # GloVe vectors with simple composition
     for comp in [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
-                           RightmostWordComposer, VerbComposer]:
+                 RightmostWordComposer, VerbComposer]:
         pattern = '{}/glove/AN_NN_glove-wiki_{}.events.filtered.strings'
         thesaurus_file = pattern.format(prefix, comp.name)
         modified, size = _get_size(thesaurus_file)
@@ -145,7 +145,7 @@ def _count_vectors_gigaw_wiki():
 def _turian_vectors():
     # Socher (2011)'s paraphrase model, and the same with simple composition
     for composer in [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
-                           RightmostWordComposer, VerbComposer, Bunch(name='Socher')]:
+                     RightmostWordComposer, VerbComposer, Bunch(name='Socher')]:
         composer_name = composer.name
         pattern = '{prefix}/socher_vectors/composed/AN_NN_turian_{composer_name}.events.filtered.strings'
         thesaurus_file = pattern.format(**ChainMap(locals(), globals()))
@@ -203,8 +203,10 @@ def _lda_vectors():
                  RightmostWordComposer, VerbComposer]
     for comp in composers:
         path = pattern.format(percent, comp.name)
+        modified, size = _get_size(path)
         db.Vectors.create(algorithm='lda', unlabelled='gigaw', dimensionality=100,
-                          composer=comp, path=path)
+                          composer=comp, path=path,
+                          modified=modified, size=size)
 
 
 if __name__ == '__main__':

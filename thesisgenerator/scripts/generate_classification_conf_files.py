@@ -105,10 +105,12 @@ def all_vector_settings():
 
 
 @printing_decorator
-def random_baselines(corpora, document_features_tr='A+N+AN+NN', document_features_ev='AN+NN'):
+def random_baselines(corpora=None, document_features_tr='A+N+AN+NN', document_features_ev='AN+NN'):
     # random-neighbour and random-vector experiments.
     # The former include an "random_neighbour_thesaurus=True" option in the conf file
 
+    if corpora is None:
+        corpora = [am_corpus]
     random_neigh = db.Vectors.get(db.Vectors.algorithm == 'random_neigh')
     random_vect = db.Vectors.get(db.Vectors.algorithm == 'random_vect')
 
@@ -123,7 +125,7 @@ def random_baselines(corpora, document_features_tr='A+N+AN+NN', document_feature
 @printing_decorator
 def all_standard_gigaw_experiments(corpora=None):
     if not corpora:
-        corpora = all_corpora
+        corpora = [am_corpus]
     for s in all_vector_settings():  # yields 28 times
         for labelled_corpus in corpora:
             e = db.ClassificationExperiment(labelled=labelled_corpus, vectors=vectors_from_settings(*s))
@@ -131,7 +133,7 @@ def all_standard_gigaw_experiments(corpora=None):
 
 
 @printing_decorator
-def hybrid_experiments_r2_amazon_turian_word2vec():
+def hybrid_experiments_turian_word2vec_gigaw():
     handler = 'SignifierSignifiedFeatureHandler'
 
     for s in chain(word2vec_vector_settings(unlab='wiki'), turian_vector_settings()):
@@ -159,8 +161,10 @@ def glove_vectors_amazon():
 
 
 @printing_decorator
-def nondistributional_baselines(corpora, document_features_tr='A+N+AN+NN', document_features_ev='AN+NN'):
+def nondistributional_baselines(corpora=None, document_features_tr='A+N+AN+NN', document_features_ev='AN+NN'):
     # signifier experiments (bag-of-words)
+    if corpora is None:
+        corpora = [am_corpus]
     for corpus in corpora:
         e = db.ClassificationExperiment(labelled=corpus, decode_handler='BaseFeatureHandler',
                                         document_features_tr=document_features_tr,
@@ -179,10 +183,10 @@ def w2v_learning_curve_amazon(unlab='wiki', percent=[1, 10, 20, 30, 40, 50, 60, 
 
 
 @printing_decorator
-def varying_k_with_w2v_on_r2():
+def varying_k_with_w2v_on_amazon():
     for k in [1, 5]:
         for settings in word2vec_vector_settings(unlab='wiki'):
-            e = db.ClassificationExperiment(labelled=r2_corpus, vectors=vectors_from_settings(*settings),
+            e = db.ClassificationExperiment(labelled=am_corpus, vectors=vectors_from_settings(*settings),
                                             k=k)
             experiments.append(e)
 
@@ -276,70 +280,22 @@ def with_lexical_overlap_and_unigrams_at_decode_time():
             experiments.append(e)
 
 
-def verb_phrases_baselines():
+@printing_decorator
+def verb_phrases_svo(document_features_tr, document_features_ev, allow_overlap=True):
     composers = [AdditiveComposer, MultiplicativeComposer, VerbComposer,
                  GrefenstetteMultistepComposer, CopyObject]
-    # non-distributional baseline
-
-    # todo
-
-    # non-compositional baseline
-    vect = vectors_by_type('SVO', VerbComposer.name)
-    for v in vect:
-        e = db.ClassificationExperiment(vectors=v, labelled=am_corpus,
-                                        document_features_tr='V', document_features_ev='SVO',
-                                        allow_overlap=True)
-        experiments.append(e)
+    for comp in composers:
+        vect = vectors_by_type('SVO', comp.name)
+        for v in vect:
+            e = db.ClassificationExperiment(vectors=v, labelled=am_corpus,
+                                            document_features_tr=document_features_tr,
+                                            document_features_ev=document_features_ev,
+                                            allow_overlap=allow_overlap)
+            experiments.append(e)
 
 
-if __name__ == '__main__':
-    prefix = '/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data'
-    techtc_corpora = sorted(list(os.path.join(*x.split(os.sep)[-2:]) \
-                                 for x in glob('%s/techtc100-clean/*' % prefix) \
-                                 if not x.endswith('.gz')))
-    r2_corpus = 'reuters21578/r8-tagged-grouped'
-    mr_corpus = 'movie-reviews-tagged'
-    am_corpus = 'amazon_grouped-tagged'
-    maas_corpus = 'aclImdb-tagged'
-    # havent added maas to all_corpora to avoid changing the ids of long running amazon jobs
-    all_corpora = techtc_corpora + [r2_corpus, mr_corpus, am_corpus]
-
-    # db.ClassificationExperiment.raw('TRUNCATE TABLE `classificationexperiment`;')
-    experiments = []
-
-    random_baselines([r2_corpus, am_corpus])
-    nondistributional_baselines([r2_corpus, am_corpus])
-    nondistributional_baselines([am_corpus], document_features_ev='A+N+AN+NN')
-    # pad with nouns at train time to increase performance a wee bit
-    nondistributional_baselines([am_corpus], document_features_tr='A+N+V+AN+NN', document_features_ev='V+VO+SVO')
-    all_standard_gigaw_experiments(corpora=[r2_corpus, am_corpus])
-    hybrid_experiments_r2_amazon_turian_word2vec()
-    varying_k_with_w2v_on_r2()
-    # wikipedia experiments on amazon
-    initial_wikipedia_w2v_amazon_with_repeats()
-    # maas IMDB sentiment experiments
-    # baselines(corpora=[maas_corpus])
-    # random_vectors(maas_corpus)
-    # all_standard_experiments(corpora=[maas_corpus])
-    # other more recent stuff
-    corrupted_w2v_wiki_amazon()
-    glove_vectors_amazon()
-    # 15, 50% done as a part of initial_wikipedia_w2v_amazon()
-    w2v_learning_curve_amazon(percent=[1, 10, 20, 30, 40, 60, 70, 80, 90, 100])
-    # PPMI-no-SVD ones take days to classify, let's used SVD ones instead
-    # currently can't do PPMI + SVD, and it probably doesn't make sense
-    count_wiki_with_svd_no_ppmi_amazon()
-    an_only_nn_only_experiments_amazon()
-    equalised_coverage_experiments()
-    with_unigrams_at_decode_time()
-    with_lexical_overlap_and_unigrams_at_decode_time()
-
-    verb_phrases_baselines()
-
-    # various other experiments that aren't as interesting
-    # different_neighbour_strategies() # this takes a long time
-    print('Total experiments: %d' % len(experiments))
-
+def write_conf_files():
+    global experiments
     # re-order experiments so that the hard ones (high-memory, long-running) come first
     def _myorder(item):
         """
@@ -459,3 +415,65 @@ if __name__ == '__main__':
                          (old_conf['training_data'], conf['training_data'])]:
                 if a != b:
                     print('Exp: %d, was %r, is now %r' % (exp.id, a, b))
+
+
+if __name__ == '__main__':
+    prefix = '/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data'
+    techtc_corpora = sorted(list(os.path.join(*x.split(os.sep)[-2:]) \
+                                 for x in glob('%s/techtc100-clean/*' % prefix) \
+                                 if not x.endswith('.gz')))
+    r2_corpus = 'reuters21578/r8-tagged-grouped'
+    mr_corpus = 'movie-reviews-tagged'
+    am_corpus = 'amazon_grouped-tagged'
+    maas_corpus = 'aclImdb-tagged'
+    # havent added maas to all_corpora to avoid changing the ids of long running amazon jobs
+    all_corpora = techtc_corpora + [r2_corpus, mr_corpus, am_corpus]
+
+    # db.ClassificationExperiment.raw('TRUNCATE TABLE `classificationexperiment`;')
+    experiments = []
+
+    ################################################################
+    # NOUN PHRASES
+    ################################################################
+    random_baselines()
+    nondistributional_baselines()
+    nondistributional_baselines(document_features_ev='A+N+AN+NN')
+
+    all_standard_gigaw_experiments()
+    hybrid_experiments_turian_word2vec_gigaw()
+    varying_k_with_w2v_on_amazon()
+    # wikipedia experiments on amazon
+    initial_wikipedia_w2v_amazon_with_repeats()
+    # maas IMDB sentiment experiments
+    # baselines(corpora=[maas_corpus])
+    # random_vectors(maas_corpus)
+    # all_standard_experiments(corpora=[maas_corpus])
+    # other more recent stuff
+    corrupted_w2v_wiki_amazon()
+    glove_vectors_amazon()
+    # 15, 50% done as a part of initial_wikipedia_w2v_amazon()
+    w2v_learning_curve_amazon(percent=[1, 10, 20, 30, 40, 60, 70, 80, 90, 100])
+    # PPMI-no-SVD ones take days to classify, let's used SVD ones instead
+    # currently can't do PPMI + SVD, and it probably doesn't make sense
+    count_wiki_with_svd_no_ppmi_amazon()
+    an_only_nn_only_experiments_amazon()
+    equalised_coverage_experiments()
+    with_unigrams_at_decode_time()
+    with_lexical_overlap_and_unigrams_at_decode_time()
+
+    ################################################################
+    # VERB PHRASES
+    ################################################################
+
+    # pad with A+N to increase performance a wee bit
+    nondistributional_baselines(document_features_tr='A+N+V',
+                                document_features_ev='A+N+V+SVO')
+    verb_phrases_svo(document_features_tr='A+N+V',
+                     document_features_ev='A+N+V+SVO',
+                     allow_overlap=True)
+
+    # various other experiments that aren't as interesting
+    # different_neighbour_strategies() # this takes a long time
+    print('Total experiments: %d' % len(experiments))
+
+    write_conf_files()
