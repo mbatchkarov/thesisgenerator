@@ -11,7 +11,6 @@ Created on Oct 18, 2012
 import pickle
 import sys
 
-from joblib import Parallel, delayed
 
 import os
 import shutil
@@ -362,17 +361,6 @@ def _config_logger(logs_dir=None, name='log', debug=False):
         os.makedirs(logs_dir)
     newly_created_logger = logging.getLogger()
 
-    # for parallelisation purposes we need to remove all the handlers that were
-    # possibly added to the root logger OF THE PROCESS on previous runs,
-    # otherwise logs will get mangled between different runs
-    # print newly_created_logger.handlers
-    # for some reason removing them once doesn't seem to be enough sometimes
-    for i in range(5):
-        for handler in newly_created_logger.handlers:
-            newly_created_logger.removeHandler(handler)
-        sleep(0.1)
-    assert len(newly_created_logger.handlers) == 0
-
     fmt = logging.Formatter(fmt=('%(asctime)s\t%(module)s.%(funcName)s '
                                  '(line %(lineno)d)\t%(levelname)s : %('
                                  'message)s'),
@@ -446,7 +434,7 @@ def go(conf_file, log_dir, data, vector_source, clean=False, n_jobs=1):
         params.append((log_dir, config, i, score_func, test_idx, train_idx,
                        vector_source, x_vals, y_vals))
 
-    scores_over_cv = Parallel(n_jobs=n_jobs)(delayed(_cv_loop)(*foo) for foo in params)
+    scores_over_cv = [_cv_loop(*foo) for foo in params]
     all_scores.extend([score for one_set_of_scores in scores_over_cv for score in one_set_of_scores])
     class_names = dict(enumerate(sorted(set(y_vals))))
     output_file = _analyze(all_scores, config['output_dir'], config['name'], class_names)

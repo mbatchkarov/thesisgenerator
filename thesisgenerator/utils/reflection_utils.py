@@ -7,7 +7,6 @@ __author__ = 'mmb28'
 def get_named_object(pathspec):
     """Return a named from a module.
     """
-    logging.debug('Getting named object %s', pathspec)
     parts = pathspec.split('.')
     module = ".".join(parts[:-1])
     mod = __import__(module, fromlist=parts[-1])
