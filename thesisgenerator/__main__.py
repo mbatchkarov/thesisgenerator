@@ -11,7 +11,6 @@ Created on Oct 18, 2012
 import pickle
 import sys
 
-
 import os
 import shutil
 from glob import glob
@@ -218,10 +217,6 @@ def _build_classifiers(classifiers_conf):
 
 def _cv_loop(log_dir, config, cv_i, score_func, test_idx, train_idx, vector_source:Delayed, X, y):
     logging.info('Starting CV fold %d', cv_i)
-    _config_logger(log_dir,
-                   name='{}-cv{}'.format(config['name'], cv_i),
-                   debug=config['debug'])
-
     if isinstance(vector_source, Delayed):
         # build the actual object now (in the worker sub-process)
         vector_source = vector_source()
@@ -308,6 +303,7 @@ def _cv_loop(log_dir, config, cv_i, score_func, test_idx, train_idx, vector_sour
                  metric.split('.')[-1],
                  score])
         logging.info('Done with %s', clf)
+    logging.info('Starting CV fold %d', cv_i)
     return scores_this_cv_run
 
 
@@ -354,35 +350,6 @@ def _analyze(scores, output_dir, name, class_names):
     # df.to_excel(os.path.join(output_dir, '%s.out.xls' % name))
 
     return csv
-
-
-def _config_logger(logs_dir=None, name='log', debug=False):
-    if logs_dir and not os.path.exists(logs_dir):
-        os.makedirs(logs_dir)
-    newly_created_logger = logging.getLogger()
-
-    fmt = logging.Formatter(fmt=('%(asctime)s\t%(module)s.%(funcName)s '
-                                 '(line %(lineno)d)\t%(levelname)s : %('
-                                 'message)s'),
-                            datefmt='%d.%m.%Y %H:%M:%S')
-
-    sh = StreamHandler()
-    sh.setLevel(logging.INFO)
-    sh.setFormatter(fmt)
-    newly_created_logger.addHandler(sh)
-
-    if logs_dir is not None:
-        log_file = os.path.join(logs_dir, '%s.log' % name)
-        fh = logging.FileHandler(log_file, mode='w')
-        if debug:
-            fh.setLevel(logging.DEBUG)
-        else:
-            fh.setLevel(logging.INFO)
-        fh.setFormatter(fmt)
-        newly_created_logger.addHandler(fh)
-
-    newly_created_logger.setLevel(logging.DEBUG)
-    return newly_created_logger
 
 
 def _prepare_output_directory(clean, output):
