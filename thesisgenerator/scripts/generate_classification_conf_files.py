@@ -381,7 +381,7 @@ def write_conf_files():
         # do not allow lexical overlap to prevent Left and Right from relying on word identity
         conf['vector_sources']['allow_lexical_overlap'] = exp.allow_overlap
         conf['vector_sources']['neighbour_strategy'] = exp.neighbour_strategy
-        conf['vector_sources']['entries_of'] = exp.entries_of
+        conf['vector_sources']['entries_of'] = exp.entries_of if exp.entries_of else ''
 
         if exp.use_similarity:
             conf['feature_extraction']['sim_compressor'] = 'thesisgenerator.utils.misc.unit'
