@@ -367,24 +367,15 @@ def write_conf_files():
         conf['name'] = 'exp%d' % exp.id
         conf['feature_extraction']['k'] = exp.k
 
-        def myjoin(thing):
-            """
-            joins things by a comma, return a single comma if nothing to join
-            :param thing: list of things to join
-            :return:
-            """
-            res = ','.join(thing)
-            return res if res else ','
-
         for time, requested_features in zip(['train', 'decode'],
                                             [exp.document_features_tr, exp.document_features_ev]):
             requested_features = requested_features.split('+')
 
             unigram_feats = sorted([foo for foo in requested_features if len(foo) == 1])
-            conf['feature_extraction']['%s_time_opts' % time]['extract_unigram_features'] = myjoin(unigram_feats)
+            conf['feature_extraction']['%s_time_opts' % time]['extract_unigram_features'] = unigram_feats
 
             phrasal_feats = sorted([foo for foo in requested_features if len(foo) > 1])
-            conf['feature_extraction']['%s_time_opts' % time]['extract_phrase_features'] = myjoin(phrasal_feats)
+            conf['feature_extraction']['%s_time_opts' % time]['extract_phrase_features'] = phrasal_feats
 
 
         # do not allow lexical overlap to prevent Left and Right from relying on word identity
