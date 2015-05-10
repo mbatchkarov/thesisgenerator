@@ -16,7 +16,7 @@ out_file = '/mnt/lustre/scratch/inf/mmb28/FeatureExtractionToolkit/random_vector
 logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
 np.random.seed(0)
 feats = ['rand%d' % i for i in range(DIMENSIONALITY)]
-phrases = list(get_all_NPs_VPs(include_unigrams=True))[:10]
+phrases = list(get_all_NPs_VPs(include_unigrams=True))
 vectors = np.random.random((len(phrases), DIMENSIONALITY))
 
 v = DenseVectors(pd.DataFrame(vectors, index=phrases, columns=feats))
