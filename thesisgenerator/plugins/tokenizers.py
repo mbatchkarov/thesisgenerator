@@ -93,7 +93,7 @@ class XmlTokenizer(object):
         trees = []
         for (i, x) in enumerate(file_names):
             with open(x) as infile:
-             trees.append(self.tokenize_doc(infile.read()))
+                trees.append(self.tokenize_doc(infile.read()))
         return trees
 
     def _process_sentence(self, tree):
@@ -232,18 +232,11 @@ class GzippedJsonTokenizer(XmlTokenizer):
 
     def tokenize_corpus(self, tar_file, *args, **kwargs):
         logging.info('Compressed JSON tokenizer running for %s', tar_file)
-        def _token_decode(dct):
-            d = dict(dct)
-            if '__token__' in d:
-                return Token(**d)
-            else:
-                return d
-
         labels, docs = [], []
         with gzip.open(tar_file, 'rb') as infile:
             for line in infile:
-                d = json.loads(line.decode('UTF8'), object_hook=_token_decode)
+                d = json.loads(line.decode('UTF8'))
                 labels.append(d[0])
-                docs.append([node_link_graph(js) for js in d[1:]])
-
+                docs.append(d[1])
         return docs, labels
+

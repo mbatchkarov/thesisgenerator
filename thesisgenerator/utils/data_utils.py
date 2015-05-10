@@ -22,6 +22,7 @@ from thesisgenerator.plugins.tokenizers import XmlTokenizer, GzippedJsonTokenize
 from thesisgenerator.utils.conf_file_utils import parse_config_file
 from thesisgenerator.utils.misc import force_symlink
 from thesisgenerator.composers.vectorstore import DummyThesaurus
+from thesisgenerator.plugins.bov import ThesaurusVectorizer
 
 
 def tokenize_data(data, tokenizer, corpus_ids):
@@ -237,27 +238,26 @@ def jsonify_single_labelled_corpus(corpus_path):
     """
     Tokenizes an entire XML corpus (sentence segmented and dependency parsed), incl test and train chunk,
     and writes its content to a single JSON gzip-ed file,
-     one document per line. Each line is a JSON array, the first value of which is the label of
-     the document, and the rest are JSON representation of the dependency parse trees of
-     each sentence in the document. The resultant document can be loaded with a GzippedJsonTokenizer.
+    one document per line. Each line is a JSON array, the first value of which is the label of
+    the document, and the rest are JSON representation of a list of lists, containing all document
+    features of interest, e.g. nouns, adj, NPs, VPs, wtc.
+    The resultant document can be loaded with a GzippedJsonTokenizer.
 
     :param corpus_path: path to the corpus
     """
 
-    def _token_encode(t):
-        if isinstance(t, Token):
-            d = t.__dict__
-            d.update({'__token__': True})
-            return d
-        raise TypeError
-
     def _write_corpus_to_json(x_tr, y_tr, outfile):
-        for document, label in zip(x_tr, y_tr):
-            all_data = [label]
-            for sent_parse_tree in document:
-                data = node_link_data(sent_parse_tree)
-                all_data.append(data)
-            outfile.write(bytes(json.dumps(all_data, default=_token_encode), 'UTF8'))
+        vect = ThesaurusVectorizer(min_df=1,
+                                   train_time_opts={'extract_unigram_features': set('JNV'),
+                                                    'extract_phrase_features': {'AN', 'NN', 'VO', 'SVO'}})
+        vect.extract_unigram_features = vect.train_time_opts['extract_unigram_features']
+        vect.extract_phrase_features = vect.train_time_opts['extract_phrase_features']
+        all_features = []
+        for doc in x_tr:
+            all_features.append([str(f) for f in vect.extract_features_from_token_list(doc)])
+
+        for document, label in zip(all_features, y_tr):
+            outfile.write(bytes(json.dumps([label, document]), 'UTF8'))
             outfile.write(bytes('\n', 'UTF8'))
 
     # always load the dataset from XML

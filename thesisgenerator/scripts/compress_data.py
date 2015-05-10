@@ -19,9 +19,6 @@ if __name__ == '__main__':
     parser.add_argument('--jobs', type=int, default=4,
                         help='Number of concurrent jobs')
 
-    parser.add_argument('--data', choices=('labelled', 'unlabelled'), required=True,
-                        help='Whether to zip labelled or unlabelled data sets. WARNING: Unlabelled requires '
-                             'the database to have been populated with a list of vectors files)')
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument('--all', action='store_true', default=False,
                        help='Whether to compress ALL available labelled/unlabelled '
@@ -33,13 +30,7 @@ if __name__ == '__main__':
                             'this thesaurus id in the database (must have been populated)')
 
     parameters = parser.parse_args()
-    if parameters.data == 'labelled':
-        if parameters.all:
-            jsonify_all_labelled_corpora(parameters.jobs)
-        else:
-            jsonify_single_labelled_corpus(get_all_corpora()[parameters.id])
+    if parameters.all:
+        jsonify_all_labelled_corpora(parameters.jobs)
     else:
-        if parameters.all:
-            gzip_all_thesauri(parameters.jobs)
-        else:
-            gzip_single_thesaurus(Vectors.get(Vectors.id == parameters.id).path)
+        jsonify_single_labelled_corpus(get_all_corpora()[parameters.id])
