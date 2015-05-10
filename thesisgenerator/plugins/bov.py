@@ -3,6 +3,7 @@ from collections import defaultdict
 import logging
 import array
 import numbers
+import networkx as nx
 from operator import attrgetter
 import scipy.sparse as sp
 import numpy as np
@@ -279,6 +280,16 @@ class ThesaurusVectorizer(TfidfVectorizer):
         # e.g. the verb phrase "123/V_$$$/N" is not put through validation, so it will be returned as feature
         return [f for f in features if DocumentFeature.from_string(str(f)).type != 'EMPTY']
 
+    def filter_preextracted_features(self, feature_list):
+        res = []
+        for feat_str in feature_list:
+            feat = DocumentFeature.from_string(feat_str)
+            if feat.type != 'EMPTY' and \
+                    (feat.type == '1-GRAM' and feat.tokens[0].pos in self.extract_unigram_features) and \
+                    (feat.type in self.extract_phrase_features):
+                res.append(feat)
+        return res
+
     def build_analyzer(self):
         """
         Return a callable that handles preprocessing,
@@ -287,8 +298,16 @@ class ThesaurusVectorizer(TfidfVectorizer):
         if hasattr(self.analyzer, '__call__'):
             return self.analyzer
 
-        # assume input already tokenized
-        return lambda token_list: self.extract_features_from_token_list(token_list)
+        def _extract_or_filter(thing):
+            if isinstance(thing[0], str):
+                # assume input already feature-extracted
+                return self.filter_preextracted_features(thing)
+            if isinstance(thing[0], nx.DiGraph):
+                # assume input tokenized, but features have not been extracted
+                # corpora used in unit tests are like this
+                return self.extract_features_from_token_list(thing)
+
+        return _extract_or_filter
 
 
     def _count_vocab(self, raw_documents, fixed_vocab):

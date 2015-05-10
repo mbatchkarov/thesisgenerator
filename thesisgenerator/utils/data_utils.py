@@ -78,7 +78,7 @@ def get_tokenized_data(training_path, tokenizer_conf, shuffle_targets=False,
     if gzip_json is None:
         gzip_json = training_path.endswith('.gz')
 
-    if gzip_json:
+    if gzip_json and is_gzipped(training_path):
         tokenizer = GzippedJsonTokenizer(**tokenizer_conf)
         x_tr, y_tr = tokenizer.tokenize_corpus(training_path)
         if test_data:
