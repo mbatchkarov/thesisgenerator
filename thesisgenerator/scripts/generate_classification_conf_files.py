@@ -105,7 +105,7 @@ def all_vector_settings():
 
 
 @printing_decorator
-def random_baselines(corpora=None, document_features_tr='A+N+AN+NN', document_features_ev='AN+NN'):
+def random_baselines(corpora=None, document_features_tr='J+N+AN+NN', document_features_ev='AN+NN'):
     # random-neighbour and random-vector experiments.
     # The former include an "random_neighbour_thesaurus=True" option in the conf file
 
@@ -161,7 +161,7 @@ def glove_vectors_amazon():
 
 
 @printing_decorator
-def nondistributional_baselines(corpora=None, document_features_tr='A+N+AN+NN', document_features_ev='AN+NN'):
+def nondistributional_baselines(corpora=None, document_features_tr='J+N+AN+NN', document_features_ev='AN+NN'):
     # signifier experiments (bag-of-words)
     if corpora is None:
         corpora = [am_corpus]
@@ -262,7 +262,7 @@ def with_unigrams_at_decode_time():
                 vectors_from_settings('wiki', 'word2vec', composer.name, svd_dims=100, percent=100),
                 ]
         for v in vect:
-            e = db.ClassificationExperiment(vectors=v, labelled=am_corpus, document_features_ev='A+N+AN+NN')
+            e = db.ClassificationExperiment(vectors=v, labelled=am_corpus, document_features_ev='J+N+AN+NN')
             experiments.append(e)
 
 
@@ -276,7 +276,7 @@ def with_lexical_overlap_and_unigrams_at_decode_time():
                 ]
         for v in vect:
             e = db.ClassificationExperiment(vectors=v, labelled=am_corpus,
-                                            document_features_ev='A+N+AN+NN', allow_overlap=True)
+                                            document_features_ev='J+N+AN+NN', allow_overlap=True)
             experiments.append(e)
 
 
@@ -428,7 +428,7 @@ if __name__ == '__main__':
     ################################################################
     random_baselines()
     nondistributional_baselines()
-    nondistributional_baselines(document_features_ev='A+N+AN+NN')
+    nondistributional_baselines(document_features_ev='J+N+AN+NN')
 
     all_standard_gigaw_experiments()
     hybrid_experiments_turian_word2vec_gigaw()
@@ -456,11 +456,11 @@ if __name__ == '__main__':
     # VERB PHRASES
     ################################################################
 
-    # pad with A+N to increase performance a wee bit
-    nondistributional_baselines(document_features_tr='A+N+V',
-                                document_features_ev='A+N+V+SVO')
-    verb_phrases_svo(document_features_tr='A+N+V',
-                     document_features_ev='A+N+V+SVO',
+    # pad with J+N to increase performance a wee bit
+    nondistributional_baselines(document_features_tr='J+N+V',
+                                document_features_ev='J+N+V+SVO')
+    verb_phrases_svo(document_features_tr='J+N+V',
+                     document_features_ev='J+N+V+SVO',
                      allow_overlap=True)
 
     # various other experiments that aren't as interesting
