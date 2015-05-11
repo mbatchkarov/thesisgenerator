@@ -68,17 +68,14 @@ def get_tokenizer_settings_from_conf_file(conf_file):
 
 
 def get_tokenized_data(training_path, tokenizer_conf, shuffle_targets=False,
-                       test_data='', gzip_json=None, *args, **kwargs):
+                       test_data='', *args, **kwargs):
     """
     Loads data from either XML or compressed JSON
     :param gzip_json: set to True of False to force this method to read XML/JSON. Otherwise the type of
      input data is determined by the presence or absence of a .gz extension on the training_path
     :param args:
     """
-    if gzip_json is None:
-        gzip_json = training_path.endswith('.gz')
-
-    if gzip_json and is_gzipped(training_path):
+    if is_gzipped(training_path):
         tokenizer = GzippedJsonTokenizer(**tokenizer_conf)
         x_tr, y_tr = tokenizer.tokenize_corpus(training_path)
         if test_data:
@@ -234,7 +231,7 @@ def gzip_all_thesauri(n_jobs):
     Parallel(n_jobs=n_jobs)(delayed(gzip_single_thesaurus)(conf_file) for conf_file in vector_paths)
 
 
-def jsonify_single_labelled_corpus(corpus_path):
+def jsonify_single_labelled_corpus(corpus_path, tokenizer_conf=None):
     """
     Tokenizes an entire XML corpus (sentence segmented and dependency parsed), incl test and train chunk,
     and writes its content to a single JSON gzip-ed file,
@@ -260,11 +257,10 @@ def jsonify_single_labelled_corpus(corpus_path):
             outfile.write(bytes(json.dumps([label, document]), 'UTF8'))
             outfile.write(bytes('\n', 'UTF8'))
 
-    # always load the dataset from XML
-    tokenizer_conf = get_tokenizer_settings_from_conf_file('conf/exp1-superbase.conf')
-    x_tr, y_tr, x_test, y_test = get_tokenized_data(corpus_path,
-                                                    tokenizer_conf,
-                                                    gzip_json=False)
+    # load the dataset from XML
+    if tokenizer_conf is None:
+        tokenizer_conf = get_tokenizer_settings_from_conf_file('conf/exp1-superbase.conf')
+    x_tr, y_tr, x_test, y_test = get_tokenized_data(corpus_path, tokenizer_conf)
     with gzip.open('%s.gz' % corpus_path, 'wb') as outfile:
         _write_corpus_to_json(x_tr, y_tr, outfile)
         logging.info('Writing %s to gzip json', corpus_path)
