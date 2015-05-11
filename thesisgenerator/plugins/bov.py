@@ -143,6 +143,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
         if (self.thesaurus and hasattr(self.thesaurus, 'get_nearest_neighbours') and
                 hasattr(self.thesaurus.get_nearest_neighbours, 'cache_info')):
             logging.info('NN cache info: %s', self.thesaurus.get_nearest_neighbours.cache_info())
+        logging.info('Matrix shape is %r after vectorization', X.shape)
         return X, self.vocabulary_
 
     def transform(self, raw_documents):
@@ -284,10 +285,14 @@ class ThesaurusVectorizer(TfidfVectorizer):
         res = []
         for feat_str in feature_list:
             feat = DocumentFeature.from_string(feat_str)
-            if feat.type != 'EMPTY' and \
-                    (feat.type == '1-GRAM' and feat.tokens[0].pos in self.extract_unigram_features) and \
-                    (feat.type in self.extract_phrase_features):
-                res.append(feat)
+            if feat.type == 'EMPTY':
+                continue
+            if feat.type == '1-GRAM' and feat.tokens[0].pos not in self.extract_unigram_features:
+                continue
+            if feat.type != '1-GRAM' and feat.type not in self.extract_phrase_features:
+                continue
+            res.append(feat)
+        # logging.info('Had %d feats, keeping %d', len(feature_list), len(res))
         return res
 
     def build_analyzer(self):

@@ -303,7 +303,7 @@ def _cv_loop(log_dir, config, cv_i, score_func, test_idx, train_idx, vector_sour
                  metric.split('.')[-1],
                  score])
         logging.info('Done with %s', clf)
-    logging.info('Starting CV fold %d', cv_i)
+    logging.info('Finished CV fold %d', cv_i)
     return scores_this_cv_run
 
 
