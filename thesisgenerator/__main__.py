@@ -272,6 +272,9 @@ def _cv_loop(log_dir, config, cv_i, score_func, test_idx, train_idx, vector_sour
     test_matrix = test_matrix[to_keep_test, :]
     y_test = y_test[to_keep_test]
 
+    np.savetxt(os.path.join(config['output_dir'], 'gold-cv%d.csv' % cv_i),
+               y_test, delimiter=',', fmt="%s")
+
     for clf in _build_classifiers(config['classifiers']):
         if not (np.count_nonzero(to_keep_train) and np.count_nonzero(to_keep_test)):
             logging.error('There isnt enough test data for a proper evaluation, skipping this fold!!!')
@@ -283,11 +286,14 @@ def _cv_loop(log_dir, config, cv_i, score_func, test_idx, train_idx, vector_sour
 
         tr_set_scores = score_func(y_train, clf.predict(tr_matrix))
         logging.info('Training set scores: %r', tr_set_scores)
+        clf_name = clf.__class__.__name__.split('.')[-1]
+        np.savetxt(os.path.join(config['output_dir'], 'predictions-%s-cv%d.csv' % (clf_name, cv_i)),
+                   predictions, delimiter=',', fmt="%s")
 
         if config['debug']:
             # if a feature selectors exist, use its vocabulary
             # step_name = 'fs' if 'fs' in pipeline.named_steps else 'vect'
-            with open('%s.%s.pkl' % (stats.prefix, clf.__class__.__name__.split('.')[-1]), 'wb') as outf:
+            with open('%s.%s.pkl' % (stats.prefix, clf_name), 'wb') as outf:
                 # pickle files needs to open in 'wb' mode
                 logging.info('Pickling trained classifier to %s', outf.name)
                 b = Bunch(clf=clf, inv_voc=inv_voc, tr_matrix=tr_matrix,
@@ -400,6 +406,8 @@ def go(conf_file, log_dir, data, vector_source, clean=False, n_jobs=1):
     for i, (train_idx, test_idx) in enumerate(cv_iterator):
         params.append((log_dir, config, i, score_func, test_idx, train_idx,
                        vector_source, x_vals, y_vals))
+        logging.warning('Only using the first CV fold')
+        break  # only use the first train/test split
 
     scores_over_cv = [_cv_loop(*foo) for foo in params]
     all_scores.extend([score for one_set_of_scores in scores_over_cv for score in one_set_of_scores])
