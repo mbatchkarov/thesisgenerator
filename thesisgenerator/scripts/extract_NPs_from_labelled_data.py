@@ -54,7 +54,7 @@ def get_all_NPs_VPs(path_to_existing=ALL_FEATURES_FILE, include_unigrams=False):
         # neighbours of each doc feature among the features the occur in BOTH the labelled and unlabelled set
         vect = ThesaurusVectorizer(min_df=1,
                                    train_time_opts={'extract_unigram_features': set('JNV'),
-                                                    'extract_phrase_features': {'AN', 'NN', 'VO', 'SVO'}})
+                                                    'extract_phrase_features': set(['AN', 'NN', 'VO', 'SVO'])})
         data_matrix, voc = vect.fit_transform(x_tr, np.ones(len(x_tr)))
         logging.info('Found %d document features in this corpus', len(voc))
         all_nps |= set(foo for foo in voc.keys() if foo.type in accepted_df_types)  # set union

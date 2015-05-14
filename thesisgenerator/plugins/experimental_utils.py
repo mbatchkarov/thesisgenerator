@@ -83,6 +83,8 @@ def run_experiment(expid, num_workers=1,
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO,
                         format="%(asctime)s\t%(module)s.%(funcName)s (line %(lineno)d)\t%(levelname)s : %(message)s")
+    logging.info(sys.version_info)
+    logging.info(sys.executable)
     if len(sys.argv) == 2:
         i = int(sys.argv[1])  # experiment id, e.g. 1 or 2 or 1532
         run_experiment(i)
