@@ -35,6 +35,7 @@ def vectors_by_type(feature_type, composer_name):
 
 
 def vectors_from_settings(unlab_name, algorithm, composer_name, svd_dims, percent=100, rep=0, ppmi=False):
+    assert svd_dims > 1 or svd_dims is None
     v = db.Vectors.select().where((db.Vectors.dimensionality == svd_dims) &
                                   (db.Vectors.unlabelled == unlab_name) &
                                   (db.Vectors.composer == composer_name) &
@@ -55,7 +56,7 @@ def window_vector_settings():
                       RightmostWordComposer, BaroniComposer, GuevaraComposer,
                       VerbComposer, Bunch(name='Observed')]
     for c in composer_algos:
-        for svd_dims in [0, 100]:
+        for svd_dims in [100]:
             if svd_dims == 0 and c in (BaroniComposer, GuevaraComposer):
                 continue  # Baroni/Guevara needs SVD
             yield unlab, algo, c.name, svd_dims
@@ -68,7 +69,7 @@ def dependency_vector_settings():
     composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
                       RightmostWordComposer, VerbComposer]
     for c in composer_algos:
-        for svd_dims in [0, 100]:
+        for svd_dims in [100]:
             yield unlab, algo, c.name, svd_dims
 
 

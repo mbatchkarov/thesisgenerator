@@ -120,7 +120,7 @@ def _count_vectors_gigaw_wiki():
 
     for thesf_num, thesf_name in zip([12, 13], ['dependencies', 'windows']):
         for unlab_num, unlab_name in zip([10, 11], ['gigaw', 'wiki']):
-            for svd_dims in [0, 100]:
+            for svd_dims in [100]: # unreduced ones take a lot of memory
                 for composer_class in composer_algos:
                     composer_name = composer_class.name
 

@@ -327,7 +327,6 @@ class ThesaurusVectorizer(TfidfVectorizer):
 
         if not self.use_tfidf:
             self._tfidf = NoopTransformer()
-        logging.info('Using TF-IDF: %s, transformer is %s', self.use_tfidf, self._tfidf)
 
         if fixed_vocab:
             vocabulary = self.vocabulary_
