@@ -58,7 +58,7 @@ class Vectors(pw.Model):
 
 
 class ClassificationExperiment(pw.Model):
-    document_features_tr = pw.CharField(default='A+N+AN+NN')  # AN+NN, AN only, NN only, ...
+    document_features_tr = pw.CharField(default='J+N+AN+NN')  # AN+NN, AN only, NN only, ...
     document_features_ev = pw.CharField(default='AN+NN')
     use_similarity = pw.BooleanField(default=False)  # use phrase sim as pseudo term count
     allow_overlap = pw.BooleanField(default=False)  # allow lexical overlap between features and its replacements
