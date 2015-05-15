@@ -341,6 +341,8 @@ class ThesaurusVectorizer(TfidfVectorizer):
         values = []
         indptr.append(0)
         for doc_id, doc in enumerate(raw_documents):
+            if doc_id % 1000 == 0:
+                logging.info('Done %d/%d documents...', doc_id, len(raw_documents))
             for feature in analyze(doc):
                 # ####################  begin non-original code  #####################
 
