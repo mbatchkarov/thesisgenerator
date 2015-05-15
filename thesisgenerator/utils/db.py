@@ -117,6 +117,9 @@ class Results(pw.Model):
     macrof1_mean = pw.DoubleField(null=False)
     macrof1_std = pw.DoubleField(null=False)
 
+    _predictions = pw.BlobField(null=True)
+    _gold = pw.BlobField(null=True)
+
     class Meta:
         database = db
         primary_key = pw.CompositeKey('id', 'classifier')

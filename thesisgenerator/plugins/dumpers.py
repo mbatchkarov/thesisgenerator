@@ -1,6 +1,8 @@
 # coding=utf-8
 from collections import defaultdict
 import csv
+import gzip
+import json
 import logging
 import os
 from datetime import datetime as dt
@@ -118,7 +120,7 @@ class ConsolidatedResultsCsvWriter(object):
             # cut some old output files still linger and thus the other
             # checks in this functions won't be triggered
             logging.error('Experiment in %s never started', conf_dir)
-            raise FileNotFoundError # let the caller worry about that
+            raise FileNotFoundError  # let the caller worry about that
         logging.info('Processing file %s' % conf_file)
 
         config_obj, configspec_file = parse_config_file(conf_file)
@@ -178,7 +180,7 @@ def insert_full_results_to_database(prefix, expid):
         r.save(force_insert=True)
 
 
-def consolidate_single_experiment(prefix, expid):
+def consolidate_single_experiment(expid, prefix='/mnt/lustre/scratch/inf/mmb28/thesisgenerator'):
     output_dir = '%s/conf/exp%d/output/' % (prefix, expid)
     conf_dir = '%s/conf/exp%d/exp%d_base-variants' % (prefix, expid, expid)
     try:
@@ -217,6 +219,14 @@ def consolidate_single_experiment(prefix, expid):
                                                     (df['metric'] == 'macroavg_f1')].iloc[0]
             data['macrof1_std'] = df['score_std'][(df['classifier'] == classifier) &
                                                   (df['metric'] == 'macroavg_f1')].iloc[0]
+
+            with open(os.path.join(output_dir, 'predictions-%s-cv0.csv' % classifier)) as infile:
+                preds = [line.strip() for line in infile]
+                data['_predictions'] = gzip.compress(json.dumps(preds).encode('utf8'), 9)
+
+            with open(os.path.join(output_dir, 'gold-cv0.csv')) as infile:
+                preds = [line.strip() for line in infile]
+                data['_gold'] = gzip.compress(json.dumps(preds).encode('utf8'), 9)
             res = db.Results(**data)
             res.delete_instance()  # remove any previous results for this experiment
             res.save(force_insert=True)
@@ -231,6 +241,5 @@ if __name__ == '__main__':
     # ----------- CONSOLIDATION -----------
     logging.basicConfig(level=logging.INFO, format="%(levelname)s:\t%(message)s")
 
-    prefix = '/mnt/lustre/scratch/inf/mmb28/thesisgenerator'
-    for expid in range(1, 1000): # just brute force it
-        consolidate_single_experiment(prefix, expid)
+    for expid in range(1, 1000):  # just brute force it
+        consolidate_single_experiment(expid)

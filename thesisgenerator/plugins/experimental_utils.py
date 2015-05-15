@@ -88,9 +88,8 @@ if __name__ == '__main__':
     if len(sys.argv) == 2:
         i = int(sys.argv[1])  # experiment id, e.g. 1 or 2 or 1532
         run_experiment(i)
-        prefix = '/mnt/lustre/scratch/inf/mmb28/thesisgenerator'
         if i:
-            consolidate_single_experiment(prefix, i)
+            consolidate_single_experiment(i)
     else:
         print(('Expected one int parameter, got %s' % (sys.argv)))
 

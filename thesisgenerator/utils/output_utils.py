@@ -26,10 +26,10 @@ def get_vectors_field(exp_ids, field_name):
 
 
 def get_cv_scores_single_experiment(n, classifier):
-    rows = db.FullResults.select().where(db.FullResults.id == n,
-                                      db.FullResults.classifier == classifier)
-    rows = sorted(rows, key=attrgetter('cv_fold'))
-    return [getattr(x, METRIC_CSV_FILE) for x in rows]
+    e = db.Results.get(db.Results.id == n, db.Results.classifier == classifier)
+    # calculate bootstrap scores
+    e.ci()  # todo use correct statistic here, eg. F1
+    return e.bootstrap_scores
 
 
 def get_scores(exp_ids, classifier='MultinomialNB'):
