@@ -163,26 +163,9 @@ def get_thesaurus(conf):
 def get_thesaurus_entries(tsv_file):
     """
     Returns the set of entries contained in a thesaurus
-    Code blatantly lifted from Thesaurus.from_tsv
-    :param tsv_file: path to TSV thesaurus/vectors file
+    :param tsv_file: path to vectors file
     """
-    gzipped = is_gzipped(tsv_file)
-    if gzipped:
-        logging.info('Attempting to read a gzipped file')
-        fhandle = gzip.open(tsv_file)
-    else:
-        fhandle = open(tsv_file)
-
-    res = set()
-    with fhandle as infile:
-        for line in infile.readlines():
-            if gzipped:
-                # this is a byte steam, needs to be decoded
-                tokens = line.decode('UTF8').strip().split('\t')
-            else:
-                tokens = line.strip().split('\t')
-            res.add(tokens[0])
-    return res
+    return set(Vectors.from_tsv(tsv_file).keys())
 
 
 def load_and_shelve_thesaurus(path, **kwargs):
