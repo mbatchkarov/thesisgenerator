@@ -407,7 +407,10 @@ def go(conf_file, log_dir, data, vector_source, clean=False, n_jobs=1):
         params.append((log_dir, config, i, score_func, test_idx, train_idx,
                        vector_source, x_vals, y_vals))
         logging.warning('Only using the first CV fold')
-        break  # only use the first train/test split
+        if len(cv_iterator) > 3:
+            # only use the first train/test split, unless there are very few folds, in
+            # which case this might be a unit test if
+            break
 
     scores_over_cv = [_cv_loop(*foo) for foo in params]
     all_scores.extend([score for one_set_of_scores in scores_over_cv for score in one_set_of_scores])
