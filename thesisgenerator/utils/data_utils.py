@@ -229,7 +229,7 @@ def jsonify_single_labelled_corpus(corpus_path, tokenizer_conf=None):
     def _write_corpus_to_json(x_tr, y_tr, outfile):
         vect = ThesaurusVectorizer(min_df=1,
                                    train_time_opts={'extract_unigram_features': set('JNV'),
-                                                    'extract_phrase_features': set['AN', 'NN', 'VO', 'SVO']})
+                                                    'extract_phrase_features': set(['AN', 'NN', 'VO', 'SVO'])})
         vect.extract_unigram_features = vect.train_time_opts['extract_unigram_features']
         vect.extract_phrase_features = vect.train_time_opts['extract_phrase_features']
         all_features = []
