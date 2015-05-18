@@ -54,7 +54,7 @@ def window_vector_settings():
     algo = 'count_windows'
     composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
                       RightmostWordComposer, BaroniComposer, GuevaraComposer,
-                      VerbComposer, Bunch(name='Observed')]
+                      Bunch(name='Observed')]
     for c in composer_algos:
         for svd_dims in [100]:
             if svd_dims == 0 and c in (BaroniComposer, GuevaraComposer):
@@ -66,8 +66,8 @@ def dependency_vector_settings():
     unlab = 'gigaw'
     algo = 'count_dependencies'
     # can't easily run Julie's observed dependency code, ignore it
-    composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
-                      RightmostWordComposer, VerbComposer]
+    composer_algos = [AdditiveComposer, MultiplicativeComposer,
+                      LeftmostWordComposer, RightmostWordComposer]
     for c in composer_algos:
         for svd_dims in [100]:
             yield unlab, algo, c.name, svd_dims
@@ -77,7 +77,7 @@ def turian_vector_settings():
     unlab = 'turian'
     algo = 'turian'
     composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
-                      RightmostWordComposer, VerbComposer, Bunch(name='Socher')]
+                      RightmostWordComposer, Bunch(name='Socher')]
     for c in composer_algos:
         yield unlab, algo, c.name, 100
 
@@ -85,7 +85,7 @@ def turian_vector_settings():
 def word2vec_vector_settings(unlab='gigaw'):
     algo = 'word2vec'
     composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
-                      RightmostWordComposer, VerbComposer]
+                      RightmostWordComposer]
     for c in composer_algos:
         yield unlab, algo, c.name, 100
 
@@ -93,7 +93,7 @@ def word2vec_vector_settings(unlab='gigaw'):
 def glove_vector_settings(unlab='wiki'):
     algo = 'glove'
     composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
-                      RightmostWordComposer, VerbComposer]
+                      RightmostWordComposer]
     for c in composer_algos:
         yield unlab, algo, c.name, 100
 
@@ -283,8 +283,8 @@ def with_lexical_overlap_and_unigrams_at_decode_time():
 
 @printing_decorator
 def verb_phrases_svo(document_features_tr, document_features_ev, allow_overlap=True):
-    composers = [AdditiveComposer, MultiplicativeComposer, VerbComposer,
-                 GrefenstetteMultistepComposer, CopyObject]
+    composers = [AdditiveComposer, MultiplicativeComposer,
+                 GrefenstetteMultistepComposer, VerbComposer, CopyObject]
     for comp in composers:
         vect = vectors_by_type('SVO', comp.name)
         for v in vect:
