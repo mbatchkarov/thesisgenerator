@@ -183,9 +183,10 @@ def test_left_right_get_vector(left_comp, right_comp, vectors_a):
 
 
 def test_left_right_compose_all(left_comp):
-    composer = left_comp
-    original_matrix, original_cols, original_rows = composer.unigram_source.to_sparse_matrix()
-    matrix, cols, rows = composer.compose_all(['cat/N_game/N', DocumentFeature.from_string('dog/N_game/N')])
+    original_matrix, original_cols, original_rows = left_comp.unigram_source.to_sparse_matrix()
+    matrix, cols, rows = left_comp.compose_all(['cat/N_game/N',
+                                                DocumentFeature.from_string('dog/N_game/N'),
+                                                'cat/N_a/N','cat/N_b/N','cat/N_c/N','cat/N_d/N',])
 
     # the columns should remain unchanges
     assert original_cols == cols
@@ -196,9 +197,13 @@ def test_left_right_compose_all(left_comp):
     assert rows['cat/N_game/N'] == 7
     assert rows['dog/N_game/N'] == 8
     assert matrix.shape == (9, 7) == (len(rows), len(cols))
-    assert_array_equal(matrix.A[7, :], composer.unigram_source.get_vector('cat/N').A.ravel())
-    assert_array_equal(matrix.A[8, :], composer.unigram_source.get_vector('dog/N').A.ravel())
+    assert_array_equal(matrix.A[7, :], left_comp.unigram_source.get_vector('cat/N').A.ravel())
+    assert_array_equal(matrix.A[8, :], left_comp.unigram_source.get_vector('dog/N').A.ravel())
+    assert_array_equal(matrix.A[8, :], left_comp.unigram_source.get_vector('dog/N').A.ravel())
 
+    for i in range(9, 12):
+        assert_array_equal(matrix.A[i, :],
+                           left_comp.unigram_source.get_vector('cat/N').A.ravel())
 
 def test_verb_composer(ones_vectors):
     verb_composer = VerbComposer(ones_vectors)
