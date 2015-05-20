@@ -196,7 +196,7 @@ def test_left_right_compose_all(left_comp):
     # this should be reflected in both the index and the matrix
     assert rows['cat/N_game/N'] == 7
     assert rows['dog/N_game/N'] == 8
-    assert matrix.shape == (9, 7) == (len(rows), len(cols))
+    assert matrix.shape == (13, 7) == (len(rows), len(cols))
     assert_array_equal(matrix.A[7, :], left_comp.unigram_source.get_vector('cat/N').A.ravel())
     assert_array_equal(matrix.A[8, :], left_comp.unigram_source.get_vector('dog/N').A.ravel())
     assert_array_equal(matrix.A[8, :], left_comp.unigram_source.get_vector('dog/N').A.ravel())
