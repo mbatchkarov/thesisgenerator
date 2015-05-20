@@ -134,6 +134,7 @@ def reformat_data(conll_data_dir, pos_only_data_dir):
 def compute_and_write_vectors(corpus_name, stages, percent, repeat):
     prefix = '/mnt/lustre/scratch/inf/mmb28/FeatureExtractionToolkit'
     composed_output_dir = join(prefix, 'word2vec_vectors', 'composed')
+    mkdirs_if_not_exists(composed_output_dir)
 
     if corpus_name == 'gigaw':
         # inputs
