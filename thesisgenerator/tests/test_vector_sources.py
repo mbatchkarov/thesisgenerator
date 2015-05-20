@@ -198,3 +198,10 @@ def test_left_right_compose_all(left_comp):
     assert matrix.shape == (9, 7) == (len(rows), len(cols))
     assert_array_equal(matrix.A[7, :], composer.unigram_source.get_vector('cat/N').A.ravel())
     assert_array_equal(matrix.A[8, :], composer.unigram_source.get_vector('dog/N').A.ravel())
+
+
+def test_verb_composer(ones_vectors):
+    verb_composer = VerbComposer(ones_vectors)
+    phrase = 'a/N_b/V_a/N'
+    assert phrase in verb_composer
+    assert_array_equal(verb_composer.get_vector(phrase).A.ravel(), np.array([0, 1, 0, 0]))
