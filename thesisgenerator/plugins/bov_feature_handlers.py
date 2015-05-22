@@ -32,19 +32,16 @@ class BaseFeatureHandler():
         self._insert_feature_only(**kwargs)
 
     def handle_OOV_IT_feature(self, **kwargs):
-        self._ignore_feature(**kwargs)
+        self._ignore_feature()
 
     def handle_OOV_OOT_feature(self, **kwargs):
-        self._ignore_feature(**kwargs)
-
+        self._ignore_feature()
 
     def _insert_feature_only(self, feature_index_in_vocab, j_indices, values, **kwargs):
-        #logging.debug('Inserting feature in doc %d: %s', doc_id, feature)
         j_indices.append(feature_index_in_vocab)
         values.append(1)
 
-    def _ignore_feature(self, doc_id, feature, **kwargs):
-        #logging.debug('Ignoring feature in doc %d: %s', doc_id, feature)
+    def _ignore_feature(self):
         pass
 
     def _paraphrase(self, feature, vocabulary, j_indices, values, stats, **kwargs):
@@ -118,7 +115,7 @@ class SignifiedOnlyFeatureHandler(BaseFeatureHandler):
     handle_IV_IT_feature = handle_OOV_IT_feature
 
     def handle_IV_OOT_feature(self, **kwargs):
-        self._ignore_feature(**kwargs)
+        self._ignore_feature()
 
 
 class SignifierRandomBaselineFeatureHandler(SignifiedOnlyFeatureHandler):

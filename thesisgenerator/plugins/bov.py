@@ -259,7 +259,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
                 for token in parse_tree.nodes_iter():
                     if token.pos not in self.extract_unigram_features:
                         continue
-                    features.append(DocumentFeature('1-GRAM', (token, )))
+                    features.append(DocumentFeature('1-GRAM', (token,)))
 
             # some tests use standard bigrams, extract them too
             if self.standard_ngram_features > 1:
@@ -314,7 +314,6 @@ class ThesaurusVectorizer(TfidfVectorizer):
 
         return _extract_or_filter
 
-
     def _count_vocab(self, raw_documents, fixed_vocab):
         """
         Modified from sklearn 0.14's CountVectorizer
@@ -345,34 +344,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
                 logging.info('Done %d/%d documents...', doc_id, len(raw_documents))
             for feature in analyze(doc):
                 # ####################  begin non-original code  #####################
-
-                try:
-                    feature_index_in_vocab = vocabulary[feature]
-                except KeyError:
-                    feature_index_in_vocab = None
-                    # if term is not in seen vocabulary
-
-                # is_in_vocabulary = bool(feature_index_in_vocab is not None)
-                is_in_vocabulary = feature in vocabulary
-                # is_in_th = bool(self.thesaurus.get(feature))
-                is_in_th = feature in self.thesaurus if self.thesaurus else False
-                self.stats.register_token(feature, is_in_vocabulary, is_in_th)
-
-                # j_indices.append(feature_index_in_vocab) # todo this is the original code, also updates vocabulary
-
-                params = {'doc_id': doc_id, 'feature': feature,
-                          'feature_index_in_vocab': feature_index_in_vocab,
-                          'vocabulary': vocabulary, 'j_indices': j_indices,
-                          'values': values, 'stats': self.stats}
-                if is_in_vocabulary and is_in_th:
-                    self.handler.handle_IV_IT_feature(**params)
-                if is_in_vocabulary and not is_in_th:
-                    self.handler.handle_IV_OOT_feature(**params)
-                if not is_in_vocabulary and is_in_th:
-                    self.handler.handle_OOV_IT_feature(**params)
-                if not is_in_vocabulary and not is_in_th:
-                    self.handler.handle_OOV_OOT_feature(**params)
-                    #####################  end non-original code  #####################
+                self._process_single_feature(feature, j_indices, values, vocabulary)
             indptr.append(len(j_indices))
 
         if not fixed_vocab:
@@ -380,9 +352,6 @@ class ThesaurusVectorizer(TfidfVectorizer):
             vocabulary = dict(vocabulary)
             if not vocabulary:
                 logging.error('Empty vocabulary')
-                # raise ValueError("empty vocabulary; perhaps the documents only"
-                # " contain stop words")
-
         # some Python/Scipy versions won't accept an array.array:
         if j_indices:
             j_indices = np.frombuffer(j_indices, dtype=np.intc)
@@ -398,3 +367,28 @@ class ThesaurusVectorizer(TfidfVectorizer):
         self.stats.consolidate_stats()
         return vocabulary, X
 
+    def _process_single_feature(self, feature, j_indices, values, vocabulary):
+        try:
+            feature_index_in_vocab = vocabulary[feature]
+        except KeyError:
+            feature_index_in_vocab = None
+            # if term is not in seen vocabulary
+        # is_in_vocabulary = bool(feature_index_in_vocab is not None)
+        is_in_vocabulary = feature in vocabulary
+        # is_in_th = bool(self.thesaurus.get(feature))
+        is_in_th = feature in self.thesaurus if self.thesaurus else False
+        self.stats.register_token(feature, is_in_vocabulary, is_in_th)
+        # j_indices.append(feature_index_in_vocab) # todo this is the original code, also updates vocabulary
+        params = {'feature': feature,
+                  'feature_index_in_vocab': feature_index_in_vocab,
+                  'vocabulary': vocabulary, 'j_indices': j_indices,
+                  'values': values, 'stats': self.stats}
+        if is_in_vocabulary and is_in_th:
+            self.handler.handle_IV_IT_feature(**params)
+        if is_in_vocabulary and not is_in_th:
+            self.handler.handle_IV_OOT_feature(**params)
+        if not is_in_vocabulary and is_in_th:
+            self.handler.handle_OOV_IT_feature(**params)
+        if not is_in_vocabulary and not is_in_th:
+            self.handler.handle_OOV_OOT_feature(**params)
+            #####################  end non-original code  #####################
