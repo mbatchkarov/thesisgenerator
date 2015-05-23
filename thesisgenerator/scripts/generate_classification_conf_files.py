@@ -3,6 +3,7 @@ from glob import glob
 from collections import Counter
 import sys
 from itertools import chain
+from peewee import IntegrityError
 
 sys.path.append('.')
 sys.path.append('..')
@@ -27,6 +28,15 @@ Once all thesauri with ngram entries (obtained using different composition metho
 use this script to generate the conf files required to run them through the classification framework
 '''
 
+def _make_expansions(**kwargs):
+    # do not use pw.create_or_get, it doesn't fill in default values for fields
+    e = db.Expansions(**kwargs)
+    try:
+        e.save(force_insert=True)
+    except IntegrityError:
+        # already in DB, ignore
+        pass
+    return e
 
 def vectors_by_type(feature_type, composer_name):
     v = db.Vectors.select().where((db.Vectors.contents.contains(feature_type)) &
@@ -117,7 +127,8 @@ def random_baselines(corpora=None, document_features_tr='J+N+AN+NN', document_fe
 
     for corpus in corpora:
         for v in [random_neigh, random_vect]:
-            e = db.ClassificationExperiment(labelled=corpus, vectors=v,
+            e = db.ClassificationExperiment(labelled=corpus,
+                                            expansions=_make_expansions(vectors=v.id),
                                             document_features_tr=document_features_tr,
                                             document_features_ev=document_features_ev)
             experiments.append(e)
@@ -129,18 +140,21 @@ def all_standard_gigaw_experiments(corpora=None):
         corpora = [am_corpus]
     for s in all_vector_settings():  # yields 28 times
         for labelled_corpus in corpora:
-            e = db.ClassificationExperiment(labelled=labelled_corpus, vectors=vectors_from_settings(*s))
+            v = vectors_from_settings(*s)
+            e = db.ClassificationExperiment(labelled=labelled_corpus,
+                                            expansions=_make_expansions(vectors=v))
             experiments.append(e)
 
 
 @printing_decorator
 def hybrid_experiments_turian_word2vec_gigaw():
-    handler = 'SignifierSignifiedFeatureHandler'
+    h = 'SignifierSignifiedFeatureHandler'
 
     for s in chain(word2vec_vector_settings(unlab='wiki'), turian_vector_settings()):
+        v = vectors_from_settings(*s)
         e = db.ClassificationExperiment(labelled=am_corpus,
-                                        vectors=vectors_from_settings(*s),
-                                        decode_handler=handler)
+                                        expansions=_make_expansions(vectors=v,
+                                                                               decode_handler=h))
         experiments.append(e)
 
 
@@ -148,7 +162,8 @@ def hybrid_experiments_turian_word2vec_gigaw():
 def an_only_nn_only_experiments_amazon():
     for feature_type in ['AN', 'NN']:
         for s in word2vec_vector_settings():
-            e = db.ClassificationExperiment(vectors=vectors_from_settings(*s),
+            v = vectors_from_settings(*s)
+            e = db.ClassificationExperiment(expansions=_make_expansions(vectors=v),
                                             labelled=am_corpus,
                                             document_features_tr=feature_type)
             experiments.append(e)
@@ -157,7 +172,8 @@ def an_only_nn_only_experiments_amazon():
 @printing_decorator
 def glove_vectors_amazon():
     for s in glove_vector_settings():
-        e = db.ClassificationExperiment(labelled=am_corpus, vectors=vectors_from_settings(*s))
+        v = vectors_from_settings(*s)
+        e = db.ClassificationExperiment(labelled=am_corpus, expansions=_make_expansions(vectors=v))
         experiments.append(e)
 
 
@@ -167,9 +183,10 @@ def nondistributional_baselines(corpora=None, document_features_tr='J+N+AN+NN', 
     if corpora is None:
         corpora = [am_corpus]
     for corpus in corpora:
-        e = db.ClassificationExperiment(labelled=corpus, decode_handler='BaseFeatureHandler',
+        e = db.ClassificationExperiment(labelled=corpus,
                                         document_features_tr=document_features_tr,
-                                        document_features_ev=document_features_ev)
+                                        document_features_ev=document_features_ev,
+                                        expansions=_make_expansions(decode_handler='BaseFeatureHandler'))
         experiments.append(e)
 
 
@@ -178,8 +195,8 @@ def w2v_learning_curve_amazon(unlab='wiki', percent=[1, 10, 20, 30, 40, 50, 60, 
     for settings in word2vec_vector_settings(unlab):
         # only up to 90% to avoid duplicating w2v-gigaw-100% (part of "standard experiments")
         for p in percent:
-            e = db.ClassificationExperiment(labelled=am_corpus,
-                                            vectors=vectors_from_settings(*settings, percent=p))
+            v = vectors_from_settings(*settings, percent=p)
+            e = db.ClassificationExperiment(labelled=am_corpus, expansions=_make_expansions(vectors=v))
             experiments.append(e)
 
 
@@ -187,8 +204,10 @@ def w2v_learning_curve_amazon(unlab='wiki', percent=[1, 10, 20, 30, 40, 50, 60, 
 def varying_k_with_w2v_on_amazon():
     for k in [1, 5]:
         for settings in word2vec_vector_settings(unlab='wiki'):
-            e = db.ClassificationExperiment(labelled=am_corpus, vectors=vectors_from_settings(*settings),
-                                            k=k)
+            v = vectors_from_settings(*settings)
+            e = db.ClassificationExperiment(labelled=am_corpus,
+                                            expansions=_make_expansions(vectors=v,
+                                                                                   k=k))
             experiments.append(e)
 
 
@@ -196,8 +215,10 @@ def varying_k_with_w2v_on_amazon():
 def different_neighbour_strategies_r2():
     strat = 'skipping'
     for settings in word2vec_vector_settings():
-        e = db.ClassificationExperiment(labelled=r2_corpus, vectors=vectors_from_settings(*settings),
-                                        neighbour_strategy=strat)
+        v = vectors_from_settings(*settings)
+        e = db.ClassificationExperiment(labelled=r2_corpus,
+                                        expansions=_make_expansions(vectors=v,
+                                                                               neighbour_strategy=strat))
         experiments.append(e)
 
 
@@ -207,12 +228,8 @@ def initial_wikipedia_w2v_amazon_with_repeats():
     for p in [15, 50]:
         for rep in [-1, 0, 1, 2]:
             for _, algo, composer_name, dims in word2vec_vector_settings():
-                e = db.ClassificationExperiment(labelled=am_corpus, vectors=vectors_from_settings(unlab,
-                                                                                                  algo,
-                                                                                                  composer_name,
-                                                                                                  dims,
-                                                                                                  percent=p,
-                                                                                                  rep=rep))
+                v = vectors_from_settings(unlab, algo, composer_name, dims, percent=p, rep=rep)
+                e = db.ClassificationExperiment(labelled=am_corpus, expansions=_make_expansions(vectors=v))
                 experiments.append(e)
 
 
@@ -220,7 +237,9 @@ def initial_wikipedia_w2v_amazon_with_repeats():
 def corrupted_w2v_wiki_amazon():
     for noise in np.arange(.2, 2.1, .2):
         v = vectors_from_settings('wiki', 'word2vec', 'Add', 100, percent=100)
-        e = db.ClassificationExperiment(labelled=am_corpus, vectors=v, noise=noise)
+        e = db.ClassificationExperiment(labelled=am_corpus,
+                                        expansions=_make_expansions(vectors=v,
+                                                                               noise=noise))
         experiments.append(e)
 
 
@@ -232,7 +251,7 @@ def count_wiki_with_svd_no_ppmi_amazon():
             composers.append(Bunch(name='Observed'))
         for composer in composers:
             v = vectors_from_settings('wiki', algo, composer.name, svd_dims=100, ppmi=False)
-            e = db.ClassificationExperiment(labelled=am_corpus, vectors=v)
+            e = db.ClassificationExperiment(labelled=am_corpus, expansions=_make_expansions(vectors=v))
             experiments.append(e)
 
 
@@ -245,12 +264,16 @@ def equalised_coverage_experiments():
     for composer in composers:
         regular_vect = vectors_from_settings('wiki', 'word2vec', composer.name, 100)
         entries_of = vectors_from_settings('wiki', 'count_windows', composer.name, 100)
-        e = db.ClassificationExperiment(labelled=am_corpus, vectors=regular_vect, entries_of=entries_of)
+        e = db.ClassificationExperiment(labelled=am_corpus,
+                                        expansions=_make_expansions(vectors=regular_vect,
+                                                                               entries_of=entries_of))
         experiments.append(e)
 
         regular_vect = vectors_from_settings('wiki', 'count_windows', composer.name, 100)
         entries_of = vectors_from_settings('wiki', 'count_windows', 'Baroni', 100)
-        e = db.ClassificationExperiment(labelled=am_corpus, vectors=regular_vect, entries_of=entries_of)
+        e = db.ClassificationExperiment(labelled=am_corpus,
+                                        expansions=_make_expansions(vectors=regular_vect,
+                                                                               entries_of=entries_of))
         experiments.append(e)
 
 
@@ -263,7 +286,9 @@ def with_unigrams_at_decode_time():
                 vectors_from_settings('wiki', 'word2vec', composer.name, svd_dims=100, percent=100),
                 ]
         for v in vect:
-            e = db.ClassificationExperiment(vectors=v, labelled=am_corpus, document_features_ev='J+N+AN+NN')
+            e = db.ClassificationExperiment(expansions=_make_expansions(vectors=v),
+                                            labelled=am_corpus,
+                                            document_features_ev='J+N+AN+NN')
             experiments.append(e)
 
 
@@ -276,8 +301,9 @@ def with_lexical_overlap_and_unigrams_at_decode_time():
                 vectors_from_settings('wiki', 'word2vec', composer.name, svd_dims=100, percent=100),
                 ]
         for v in vect:
-            e = db.ClassificationExperiment(vectors=v, labelled=am_corpus,
-                                            document_features_ev='J+N+AN+NN', allow_overlap=True)
+            e = db.ClassificationExperiment(expansions=_make_expansions(vectors=v, allow_overlap=True),
+                                            labelled=am_corpus,
+                                            document_features_ev='J+N+AN+NN')
             experiments.append(e)
 
 
@@ -288,11 +314,19 @@ def verb_phrases_svo(document_features_tr, document_features_ev, allow_overlap=T
     for comp in composers:
         vect = vectors_by_type('SVO', comp.name)
         for v in vect:
-            e = db.ClassificationExperiment(vectors=v, labelled=am_corpus,
+            e = db.ClassificationExperiment(labelled=am_corpus,
                                             document_features_tr=document_features_tr,
                                             document_features_ev=document_features_ev,
-                                            allow_overlap=allow_overlap)
+                                            expansions=_make_expansions(vectors=v,
+                                                                                   allow_overlap=allow_overlap))
             experiments.append(e)
+
+
+@printing_decorator
+def kmeans_experiments():
+    for cl in db.Clusters.select():
+        e = db.ClassificationExperiment(labelled=am_corpus, clusters=cl)
+        experiments.append(e)
 
 
 def write_conf_files():
@@ -338,7 +372,10 @@ def write_conf_files():
 
     # verify experiments aren't being duplicated
     if len(set(experiments)) != len(experiments):
-        raise ValueError('Duplicated experiments exist: %s' % Counter(experiments).most_common(5))
+        dupl = [x for x in experiments if x.__hash__() == Counter(experiments).most_common(1)[0][0].__hash__()]
+        for x in dupl:
+            print(x._key(),'\n', x.expansions._key(), x.clusters)
+        raise ValueError('Duplicated experiments exist: %s' % dupl)
 
     # sys.exit(0)
     print('Writing conf files')
@@ -353,21 +390,10 @@ def write_conf_files():
         base_conf_file = os.path.join(experiment_dir, 'exp%d_base.conf' % exp.id)
         conf, _ = parse_config_file(megasuperbase_conf_file)
 
-        if exp.vectors is None and 'Base' in exp.decode_handler:
-            # signifier baseline, not using a thesaurus, so shouldn't do any feature selection based on the thesaurus
-            conf['feature_selection']['must_be_in_thesaurus'] = False
-
+        # options for all experiments
         conf['training_data'] = os.path.join(prefix, exp.labelled)
-        conf['feature_extraction']['decode_token_handler'] = \
-            'thesisgenerator.plugins.bov_feature_handlers.%s' % exp.decode_handler
-        conf['feature_extraction']['random_neighbour_thesaurus'] = \
-            exp.vectors is not None and exp.vectors.algorithm == 'random_neigh'
-        conf['vector_sources']['neighbours_file'] = exp.vectors.path if exp.vectors else ''
-        conf['vector_sources']['noise'] = exp.noise
         conf['output_dir'] = './conf/exp%d/output' % exp.id
         conf['name'] = 'exp%d' % exp.id
-        conf['feature_extraction']['k'] = exp.k
-
         for time, requested_features in zip(['train', 'decode'],
                                             [exp.document_features_tr, exp.document_features_ev]):
             requested_features = requested_features.split('+')
@@ -378,16 +404,37 @@ def write_conf_files():
             phrasal_feats = sorted([foo for foo in requested_features if len(foo) > 1])
             conf['feature_extraction']['%s_time_opts' % time]['extract_phrase_features'] = phrasal_feats
 
+        # options for experiments where we use feature expansion
+        if exp.expansions:
+            if exp.expansions.vectors is None and 'Base' in exp.expansions.decode_handler:
+                # signifier baseline, not using a thesaurus, so shouldn't do any feature selection based on the thesaurus
+                conf['feature_selection']['must_be_in_thesaurus'] = False
 
-        # do not allow lexical overlap to prevent Left and Right from relying on word identity
-        conf['vector_sources']['allow_lexical_overlap'] = exp.allow_overlap
-        conf['vector_sources']['neighbour_strategy'] = exp.neighbour_strategy
-        conf['vector_sources']['entries_of'] = exp.entries_of.path if exp.entries_of else ''
+            conf['feature_extraction']['decode_token_handler'] = \
+                'thesisgenerator.plugins.bov_feature_handlers.%s' % exp.expansions.decode_handler
+            conf['feature_extraction']['random_neighbour_thesaurus'] = \
+                exp.expansions.vectors is not None and exp.expansions.vectors.algorithm == 'random_neigh'
+            conf['vector_sources']['neighbours_file'] = exp.expansions.vectors.path if exp.expansions.vectors else ''
+            conf['vector_sources']['noise'] = exp.expansions.noise
+            conf['feature_extraction']['k'] = exp.expansions.k
 
-        if exp.use_similarity:
-            conf['feature_extraction']['sim_compressor'] = 'thesisgenerator.utils.misc.unit'
-        else:
-            conf['feature_extraction']['sim_compressor'] = 'thesisgenerator.utils.misc.one'
+
+
+            # do not allow lexical overlap to prevent Left and Right from relying on word identity
+            conf['vector_sources']['allow_lexical_overlap'] = exp.expansions.allow_overlap
+            conf['vector_sources']['neighbour_strategy'] = exp.expansions.neighbour_strategy
+            conf['vector_sources']['entries_of'] = exp.expansions.entries_of.path if exp.expansions.entries_of else ''
+
+            if exp.expansions.use_similarity:
+                conf['feature_extraction']['sim_compressor'] = 'thesisgenerator.utils.misc.unit'
+            else:
+                conf['feature_extraction']['sim_compressor'] = 'thesisgenerator.utils.misc.one'
+
+        # options for experiments where we use clustered disco features
+        if exp.clusters:
+            conf['feature_extraction']['vectorizer'] = \
+                'thesisgenerator.plugins.kmeans_disco.KmeansVectorizer'
+            conf['vector_sources']['clusters_file'] = exp.clusters.path
 
         with open(base_conf_file, 'wb') as inf:
             conf.write(inf)
@@ -464,8 +511,11 @@ if __name__ == '__main__':
                      document_features_ev='J+N+V+SVO',
                      allow_overlap=True)
 
+    kmeans_experiments()
     # various other experiments that aren't as interesting
     # different_neighbour_strategies() # this takes a long time
+
+
     print('Total experiments: %d' % len(experiments))
 
     write_conf_files()

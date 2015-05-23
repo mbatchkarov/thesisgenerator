@@ -2,6 +2,7 @@
 from collections import ChainMap, Counter
 import os
 import sys
+from thesisgenerator.scripts.generate_classification_conf_files import vectors_from_settings
 
 sys.path.append('.')
 from datetime import datetime as dt
@@ -120,7 +121,7 @@ def _count_vectors_gigaw_wiki():
 
     for thesf_num, thesf_name in zip([12, 13], ['dependencies', 'windows']):
         for unlab_num, unlab_name in zip([10, 11], ['gigaw', 'wiki']):
-            for svd_dims in [100]: # unreduced ones take a lot of memory
+            for svd_dims in [100]:  # unreduced ones take a lot of memory
                 for composer_class in composer_algos:
                     composer_name = composer_class.name
 
@@ -209,6 +210,14 @@ def _lda_vectors():
                           modified=modified, size=size)
 
 
+def _clustered_vectors():
+    for composer in ['Socher', 'Add']:
+        v = vectors_from_settings('turian', 'turian', composer, 100)
+        for num_clusters in [100, 200, 300]:
+            db.Clusters.create(vectors=v, num_clusters=num_clusters,
+                               path=v.path + '.kmeans%d' % num_clusters)
+
+
 if __name__ == '__main__':
     prefix = '/mnt/lustre/scratch/inf/mmb28/FeatureExtractionToolkit'
 
@@ -223,6 +232,7 @@ if __name__ == '__main__':
     _categorical_vectors()
     _lda_vectors()
 
+    _clustered_vectors()
     # _ppmi_vectors([10], ['gigaw'])
     # _ppmi_vectors([11], ['wikipedia'])
 

@@ -57,19 +57,70 @@ class Vectors(pw.Model):
                                                        self.dimensionality, self.rep, self.unlabelled_percentage])
 
 
-class ClassificationExperiment(pw.Model):
-    document_features_tr = pw.CharField(default='J+N+AN+NN')  # AN+NN, AN only, NN only, ...
-    document_features_ev = pw.CharField(default='AN+NN')
-    use_similarity = pw.BooleanField(default=False)  # use phrase sim as pseudo term count
+class Expansions(pw.Model):
+    vectors = pw.ForeignKeyField(Vectors, null=True, default=None, on_delete='SET NULL', related_name='vectors')
+    entries_of = pw.ForeignKeyField(Vectors, null=True, default=None, on_delete='SET NULL', related_name='entries_of')
     allow_overlap = pw.BooleanField(default=False)  # allow lexical overlap between features and its replacements
     use_random_neighbours = pw.BooleanField(default=False)
     decode_handler = pw.CharField(default='SignifiedOnlyFeatureHandler')  # signifier, signified, hybrid
-    labelled = pw.CharField()  # name/path of labelled corpus used
-    vectors = pw.ForeignKeyField(Vectors, null=True, default=None, on_delete='SET NULL', related_name='vectors')
-    entries_of = pw.ForeignKeyField(Vectors, null=True, default=None, on_delete='SET NULL', related_name='entries_of')
     k = pw.IntegerField(default=3)  # how many neighbours entries are replaced with at decode time
-    neighbour_strategy = pw.CharField(default='linear')  # how neighbours are found- linear or skipping strategy
     noise = pw.FloatField(default=0)
+    use_similarity = pw.BooleanField(default=False)  # use phrase sim as pseudo term count
+    neighbour_strategy = pw.CharField(default='linear')  # how neighbours are found- linear or skipping strategy
+
+    class Meta:
+        database = db
+
+    def _key(self):
+        return (self.use_similarity,
+                self.allow_overlap,
+                self.use_random_neighbours,
+                self.decode_handler,
+                self.vectors.id if self.vectors else None,
+                self.entries_of.id if self.entries_of else None,
+                self.k,
+                self.neighbour_strategy,
+                self.noise)
+
+    def __eq__(x, y):
+        return x._key() == y._key()
+
+    def __hash__(self):
+        return hash(self._key())
+
+
+class Clusters(pw.Model):
+    num_clusters = pw.IntegerField(null=True, default=None)
+    path = pw.CharField(null=True, default=None)
+    # vectors must be consistent with Experiment.vectors
+    vectors = pw.ForeignKeyField(Vectors, null=True, default=None, on_delete='SET NULL')
+
+    class Meta:
+        database = db
+
+    def __str__(self):
+        return 'CL:%d-vec%d' % (self.num_clusters, self.vectors.id)
+
+    def _key(self):
+        return (self.vectors.id,
+                self.num_clusters,
+                self.path)
+
+    def __eq__(x, y):
+        return x._key() == y._key()
+
+    def __hash__(self):
+        return hash(self._key())
+
+
+class ClassificationExperiment(pw.Model):
+    document_features_tr = pw.CharField(default='J+N+AN+NN')  # AN+NN, AN only, NN only, ...
+    document_features_ev = pw.CharField(default='AN+NN')
+    labelled = pw.CharField()  # name/path of labelled corpus used
+    clusters = pw.ForeignKeyField(Clusters, null=True, default=None, on_delete='SET NULL',
+                                  related_name='clusters')
+    expansions = pw.ForeignKeyField(Expansions, null=True, default=None, on_delete='SET NULL',
+                                    related_name='expansions')
 
     date_ran = pw.DateField(null=True, default=None)
     git_hash = pw.CharField(null=True, default=None)
@@ -78,33 +129,28 @@ class ClassificationExperiment(pw.Model):
         database = db
 
     def __str__(self):
-        basic_settings = ','.join((str(x) for x in [self.labelled, self.vectors]))
+        if self.expansions:
+            basic_settings = ','.join((str(x) for x in [self.labelled, self.expansions.vectors]))
+        else:
+            basic_settings = ','.join((str(x) for x in [self.labelled, self.clusters]))
         return '%s: %s' % (self.id, basic_settings)
 
     def __repr__(self):
         return str(self)
 
-    def __key(self):
-        x = (self.document_features_tr,
-             self.document_features_ev,
-             self.use_similarity,
-             self.allow_overlap,
-             self.use_random_neighbours,
-             self.decode_handler,
-             self.labelled,
-             self.vectors.id if self.vectors else None,
-             self.entries_of.id if self.entries_of else None,
-             self.k,
-             self.neighbour_strategy,
-             self.noise,
-             )
-        return x
+    def _key(self):
+        key = (self.document_features_tr,
+               self.document_features_ev,
+               self.labelled,
+               self.expansions.id if self.expansions else None,
+               self.clusters.id if self.clusters else None)
+        return key
 
     def __eq__(x, y):
-        return x.__key() == y.__key()
+        return x._key() == y._key()
 
     def __hash__(self):
-        return hash(self.__key())
+        return hash(self._key())
 
 
 class Results(pw.Model):
@@ -144,8 +190,7 @@ class FullResults(pw.Model):
 
 if __name__ == '__main__':
     print('Clearing database')
-    Results.drop_table()
-    FullResults.drop_table()
-    ClassificationExperiment.drop_table()
-    Vectors.drop_table()
-    pw.create_model_tables([FullResults, Results, ClassificationExperiment, Vectors])
+    tables = [Vectors, Clusters, Expansions, ClassificationExperiment, FullResults, Results]
+    pw.drop_model_tables(tables)
+    pw.create_model_tables(tables)
+    print('Tables are now', db.get_tables())
