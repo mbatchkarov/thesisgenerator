@@ -33,3 +33,10 @@ class KmeansVectorizer(ThesaurusVectorizer):
         # insert cluster number of this features as its column number
         j_indices.append(self.clusters.ix[str(feature)][0])
         values.append(1)
+
+
+if __name__ == '__main__':
+    import sys
+
+    infile, outfile, num_cl = sys.argv[1:]
+    cluster_vectors(infile, outfile, int(num_cl))
