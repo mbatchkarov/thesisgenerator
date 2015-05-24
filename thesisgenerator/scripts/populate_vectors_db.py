@@ -2,12 +2,12 @@
 from collections import ChainMap, Counter
 import os
 import sys
-from thesisgenerator.scripts.generate_classification_conf_files import vectors_from_settings
 
 sys.path.append('.')
 from datetime import datetime as dt
 from discoutils.misc import Bunch
 from thesisgenerator.utils import db
+from thesisgenerator.scripts.generate_classification_conf_files import vectors_from_settings
 from thesisgenerator.composers.vectorstore import (AdditiveComposer, MultiplicativeComposer,
                                                    LeftmostWordComposer, RightmostWordComposer,
                                                    BaroniComposer, GuevaraComposer, VerbComposer,
