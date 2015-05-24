@@ -12,7 +12,7 @@ def cluster_vectors(path_to_vectors, output_path, n_clusters=100, n_jobs=4):
     num2word = np.array(vectors.row_names)
     idx = np.argsort(num2word)
     df = pd.DataFrame(dict(clusters=clusters[idx]), index=num2word[idx])
-    df.to_hdf(output_path, key='clusters')
+    df.to_hdf(output_path, key='clusters', complevel=9, complib='zlib')
 
 
 class KmeansVectorizer(ThesaurusVectorizer):
