@@ -28,6 +28,7 @@ Once all thesauri with ngram entries (obtained using different composition metho
 use this script to generate the conf files required to run them through the classification framework
 '''
 
+
 def _make_expansions(**kwargs):
     # do not use pw.create_or_get, it doesn't fill in default values for fields
     e = db.Expansions(**kwargs)
@@ -37,6 +38,7 @@ def _make_expansions(**kwargs):
         # already in DB, ignore
         pass
     return e
+
 
 def vectors_by_type(feature_type, composer_name):
     v = db.Vectors.select().where((db.Vectors.contents.contains(feature_type)) &
@@ -154,7 +156,7 @@ def hybrid_experiments_turian_word2vec_gigaw():
         v = vectors_from_settings(*s)
         e = db.ClassificationExperiment(labelled=am_corpus,
                                         expansions=_make_expansions(vectors=v,
-                                                                               decode_handler=h))
+                                                                    decode_handler=h))
         experiments.append(e)
 
 
@@ -207,7 +209,7 @@ def varying_k_with_w2v_on_amazon():
             v = vectors_from_settings(*settings)
             e = db.ClassificationExperiment(labelled=am_corpus,
                                             expansions=_make_expansions(vectors=v,
-                                                                                   k=k))
+                                                                        k=k))
             experiments.append(e)
 
 
@@ -218,7 +220,7 @@ def different_neighbour_strategies_r2():
         v = vectors_from_settings(*settings)
         e = db.ClassificationExperiment(labelled=r2_corpus,
                                         expansions=_make_expansions(vectors=v,
-                                                                               neighbour_strategy=strat))
+                                                                    neighbour_strategy=strat))
         experiments.append(e)
 
 
@@ -239,7 +241,7 @@ def corrupted_w2v_wiki_amazon():
         v = vectors_from_settings('wiki', 'word2vec', 'Add', 100, percent=100)
         e = db.ClassificationExperiment(labelled=am_corpus,
                                         expansions=_make_expansions(vectors=v,
-                                                                               noise=noise))
+                                                                    noise=noise))
         experiments.append(e)
 
 
@@ -266,14 +268,14 @@ def equalised_coverage_experiments():
         entries_of = vectors_from_settings('wiki', 'count_windows', composer.name, 100)
         e = db.ClassificationExperiment(labelled=am_corpus,
                                         expansions=_make_expansions(vectors=regular_vect,
-                                                                               entries_of=entries_of))
+                                                                    entries_of=entries_of))
         experiments.append(e)
 
         regular_vect = vectors_from_settings('wiki', 'count_windows', composer.name, 100)
         entries_of = vectors_from_settings('wiki', 'count_windows', 'Baroni', 100)
         e = db.ClassificationExperiment(labelled=am_corpus,
                                         expansions=_make_expansions(vectors=regular_vect,
-                                                                               entries_of=entries_of))
+                                                                    entries_of=entries_of))
         experiments.append(e)
 
 
@@ -318,7 +320,7 @@ def verb_phrases_svo(document_features_tr, document_features_ev, allow_overlap=T
                                             document_features_tr=document_features_tr,
                                             document_features_ev=document_features_ev,
                                             expansions=_make_expansions(vectors=v,
-                                                                                   allow_overlap=allow_overlap))
+                                                                        allow_overlap=allow_overlap))
             experiments.append(e)
 
 
@@ -374,7 +376,7 @@ def write_conf_files():
     if len(set(experiments)) != len(experiments):
         dupl = [x for x in experiments if x.__hash__() == Counter(experiments).most_common(1)[0][0].__hash__()]
         for x in dupl:
-            print(x._key(),'\n', x.expansions._key(), x.clusters)
+            print(x._key(), '\n', x.expansions._key(), x.clusters)
         raise ValueError('Duplicated experiments exist: %s' % dupl)
 
     # sys.exit(0)
@@ -407,7 +409,8 @@ def write_conf_files():
         # options for experiments where we use feature expansion
         if exp.expansions:
             if exp.expansions.vectors is None and 'Base' in exp.expansions.decode_handler:
-                # signifier baseline, not using a thesaurus, so shouldn't do any feature selection based on the thesaurus
+                # signifier baseline, not using a thesaurus, so shouldn't do any feature
+                # selection based on the thesaurus
                 conf['feature_selection']['must_be_in_thesaurus'] = False
 
             conf['feature_extraction']['decode_token_handler'] = \
