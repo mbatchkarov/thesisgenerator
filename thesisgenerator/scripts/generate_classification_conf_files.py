@@ -167,7 +167,7 @@ def an_only_nn_only_experiments_amazon():
             v = vectors_from_settings(*s)
             e = db.ClassificationExperiment(expansions=_make_expansions(vectors=v),
                                             labelled=am_corpus,
-                                            document_features_tr=feature_type)
+                                            document_features_ev=feature_type)
             experiments.append(e)
 
 
