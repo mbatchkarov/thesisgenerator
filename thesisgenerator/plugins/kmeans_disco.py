@@ -1,3 +1,6 @@
+import sys
+
+sys.path.append('.')
 from sklearn.cluster import KMeans
 import numpy as np
 from discoutils.thesaurus_loader import Vectors
