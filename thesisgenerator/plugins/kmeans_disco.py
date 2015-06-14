@@ -19,9 +19,6 @@ def cluster_vectors(path_to_vectors, output_path, n_clusters=100, n_jobs=4):
 
 
 class KmeansVectorizer(ThesaurusVectorizer):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
     def fit_transform(self, raw_documents, y=None, clusters=None, **kwargs):
         if clusters is None:
             raise ValueError('Need a clusters file to fit this model')
