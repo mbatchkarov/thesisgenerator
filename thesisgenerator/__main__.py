@@ -122,6 +122,9 @@ def _build_vectorizer(init_args, feature_extraction_conf, pipeline_list):
 
     # get the names of the arguments that the vectorizer class takes
     # the object must only take keyword arguments
+    # todo KmeansVectorizer does not declare its parameters explicitly so intersection doesnt work
+    # instead its constructor should take **kwargs, and we can pass in whatever we want with no need to manually check
+    # which parameters are valid for that object
     init_args.update(get_intersection_of_parameters(vectorizer, feature_extraction_conf, 'vect'))
 
     pipeline_list.append(('vect', vectorizer()))
@@ -172,7 +175,6 @@ def _build_pipeline(conf, predefined_fit_args, cv_i):
     if debug:
         logging.info('Will perform post-vectorizer data dump')
         pipeline_list.append(('dumper', FeatureVectorsCsvDumper(exp_name, cv_i, conf['output_dir'])))
-        init_args['vect__pipe_id'] = cv_i
 
     # vectorizer will return a matrix (as usual) and some metadata for use with feature dumper/selector,
     # strip them before we proceed to the classifier
@@ -234,7 +236,7 @@ def _cv_loop(config, cv_i, score_func, test_idx, train_idx, predefined_fit_args,
     tr_matrix = tr_matrix[to_keep_train, :]
     y_train = y_train[to_keep_train]
 
-    # the slice above may remove all occurences of a feature,
+    # the slice above may remove all occurrences of a feature,
     # e.g. when it only occurs in one document (very common) and the document
     # doesn't have enough features. Drop empty columns in the term-doc matrix
     column_mask = tr_matrix.sum(axis=0) > 0

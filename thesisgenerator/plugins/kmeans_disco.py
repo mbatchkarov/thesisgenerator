@@ -28,15 +28,12 @@ class KmeansVectorizer(ThesaurusVectorizer):
         self.clusters = clusters
         return super().fit_transform(raw_documents, y=y)
 
-    def _count_vocab(self, raw_documents, fixed_vocab):
-        self.vocabulary_ = {'cluster%d' % i: i for i in range(len(self.clusters.clusters.unique()))}
-        # vocabulary is fixed and equal to the number of topics, nothing to learn from text
-        return super()._count_vocab(raw_documents, fixed_vocab=True)
-
-    def _process_single_feature(self, feature, j_indices, values, *args):
+    def _process_single_feature(self, feature, j_indices, values, vocabulary):
         try:
             # insert cluster number of this features as its column number
-            j_indices.append(self.clusters.ix[str(feature)][0])
+            cluster_id = self.clusters.ix[str(feature)][0]
+            feature_index_in_vocab = vocabulary['cluster%d' % cluster_id]
+            j_indices.append(feature_index_in_vocab)
             values.append(1)
         except KeyError:
             # the feature is not contained in the distributional model, ignore it

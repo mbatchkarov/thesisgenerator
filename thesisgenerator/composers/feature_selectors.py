@@ -43,8 +43,8 @@ class VectorBackedSelectKBest(SelectKBest):
             logging.error('You requested feature selection based on vector presence '
                           'but did not provide a vector source.')
             raise ValueError('sector source (vectors or clusters) required with must_be_in_thesaurus')
-
-        self.vector_source = vector_source if vector_source else set(clusters.index)
+        if self.must_be_in_thesaurus:
+            self.vector_source = vector_source if vector_source else set(clusters.index)
 
         # Vectorizer also returns its vocabulary, store it and work with the rest
         X, self.vocabulary_ = X

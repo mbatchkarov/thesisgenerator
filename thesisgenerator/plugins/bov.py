@@ -25,7 +25,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
                  strip_accents=None,
                  preprocessor=None, tokenizer=None, analyzer='ngram',
                  stop_words=None, token_pattern=r"(?u)\b\w\w+\b",
-                 max_df=1.0, min_df=2,
+                 max_df=1.0, min_df=0,
                  max_features=None, vocabulary=None, binary=False, dtype=float,
                  norm='l2', use_idf=True, smooth_idf=True,
                  sublinear_tf=False, use_tfidf=True,

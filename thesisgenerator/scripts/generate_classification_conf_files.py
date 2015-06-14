@@ -435,10 +435,13 @@ def write_conf_files():
 
         # options for experiments where we use clustered disco features
         if exp.clusters:
-            del conf['vector_sources']['neighbours_file']
+            conf['vector_sources']['neighbours_file'] = ''
             conf['feature_extraction']['vectorizer'] = \
                 'thesisgenerator.plugins.kmeans_disco.KmeansVectorizer'
             conf['vector_sources']['clusters_file'] = exp.clusters.path
+            # the features of the document are cluster ids, not phrases
+            # no point in checking in they are in the thesaurus
+            conf['feature_selection']['must_be_in_thesaurus'] = False
 
         with open(base_conf_file, 'wb') as inf:
             conf.write(inf)

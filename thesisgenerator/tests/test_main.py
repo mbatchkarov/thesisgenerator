@@ -13,7 +13,6 @@ from thesisgenerator import __main__
 from thesisgenerator.tests.test_feature_selectors import strip
 from thesisgenerator.utils.data_utils import get_tokenized_data, jsonify_single_labelled_corpus
 
-
 tokenizer_opts = {
     'normalise_entities': False,
     'use_pos': True,
@@ -76,17 +75,25 @@ def _vectorize_data(data_paths, feature_selection_conf=feature_selection_conf(),
     if isinstance(vector_source, str):
         vector_source = Thesaurus.from_tsv(vector_source)
 
+    conf = {'feature_selection': feature_selection_conf,
+            'feature_extraction': feature_extraction_conf,
+            'vector_sources': {'neighbour_strategy': 'linear'},
+            'name': 'test_main',
+            'debug': True,
+            'output_dir': '.'}
     feature_selection_conf['thesaurus'] = vector_source
     pipeline, fit_params = __main__._build_pipeline(
+        conf,
+        {'vector_source': vector_source},
         12345,  # id for naming debug files
-        vector_source,
+        # vector_source,
         # None, # classifier
-        feature_extraction_conf,
-        feature_selection_conf,
+        # feature_extraction_conf,
+        # feature_selection_conf,
         # None, # classifier options
-        '.',  # temp files dir
-        True,  # debug mode
-        'test_main'  # name of experiments
+        # '.',  # temp files dir
+        # True,  # debug mode
+        # 'test_main'  # name of experiments
     )
 
     x_tr, y_tr, x_test, y_test = get_tokenized_data(data_paths[0], tokenizer_opts, test_data=data_paths[1])

@@ -373,6 +373,9 @@ class DummyThesaurus(Thesaurus):
     """
     name = 'Constant'
 
+    def __init__(self):
+        pass
+
     def __getitem__(self, feature):
         return [('b/N', 1.0)]
 
