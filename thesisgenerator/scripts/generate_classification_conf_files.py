@@ -421,8 +421,6 @@ def write_conf_files():
             conf['vector_sources']['noise'] = exp.expansions.noise
             conf['feature_extraction']['k'] = exp.expansions.k
 
-
-
             # do not allow lexical overlap to prevent Left and Right from relying on word identity
             conf['vector_sources']['allow_lexical_overlap'] = exp.expansions.allow_overlap
             conf['vector_sources']['neighbour_strategy'] = exp.expansions.neighbour_strategy
@@ -442,6 +440,8 @@ def write_conf_files():
             # the features of the document are cluster ids, not phrases
             # no point in checking in they are in the thesaurus
             conf['feature_selection']['must_be_in_thesaurus'] = False
+            # not used, remove
+            del conf['feature_extraction']['sim_compressor']
 
         with open(base_conf_file, 'wb') as inf:
             conf.write(inf)
