@@ -9,19 +9,18 @@ sys.path.append('.')
 sys.path.append('..')
 sys.path.append('../..')
 from discoutils.thesaurus_loader import Vectors
-from discoutils.tokens import Token
 from discoutils.cmd_utils import run_and_log_output
 from discoutils.misc import is_gzipped
 import numpy as np
+import pandas as pd
 import json
 import gzip
-from networkx.readwrite.json_graph import node_link_data
 from joblib import Parallel, delayed
 from sklearn.datasets import load_files
 from thesisgenerator.plugins.tokenizers import XmlTokenizer, GzippedJsonTokenizer
 from thesisgenerator.utils.conf_file_utils import parse_config_file
 from thesisgenerator.utils.misc import force_symlink
-from thesisgenerator.composers.vectorstore import DummyThesaurus
+from thesisgenerator.composers.vectorstore import RandomThesaurus
 from thesisgenerator.plugins.bov import ThesaurusVectorizer
 
 
@@ -116,48 +115,55 @@ def _get_data_iterators(path, shuffle_targets=False):
     return data_iterable, np.array(dataset.target_names)[dataset.target]
 
 
-def get_thesaurus(conf):
-    vectors_exist_ = conf['feature_selection']['must_be_in_thesaurus']
+def get_pipeline_fit_args(conf):
+    """
+    Builds a dict of resources that document vectorizers require at fit time. These currently include
+    various kinds of distributional information, e.g. word vectors or cluster ID for words and phrases.
+    Example:
+    {'vector_source': <DenseVectors object>} or {'clusters': <pd.DataFrame of word clusters>}
+    :param conf: configuration dict
+    :raise ValueError: if the conf is wrong in any way
+    """
+    result = dict()
+    vectors_exist = conf['feature_selection']['must_be_in_thesaurus']
     handler_ = conf['feature_extraction']['decode_token_handler']
     random_thes = conf['feature_extraction']['random_neighbour_thesaurus']
-    path = conf['vector_sources']['neighbours_file']
-    use_shelf = conf['vector_sources']['use_shelf']
+    vs_params = conf['vector_sources']
+    vectors_path = vs_params['neighbours_file']
+    clusters_path = vs_params['clusters_file']
+    use_shelf = vs_params['use_shelf']
 
-    thesaurus = None
+    if vectors_path and clusters_path:
+        raise ValueError('Cannot use both word vectors and word clusters')
+
     if random_thes:
-        return DummyThesaurus(k=conf['feature_extraction']['k'], constant=False)
+        result['vectors_source'] = RandomThesaurus(k=conf['feature_extraction']['k'])
+    else:
+        if vectors_path and clusters_path:
+            raise ValueError('Cannot use both word vectors and word clusters')
+        if 'signified' in handler_.lower() or vectors_exist:
+            # vectors are needed either at decode time (signified handler) or during feature selection
+            if not (vectors_path or clusters_path):
+                raise ValueError('You must provide at least one source of distributional information '
+                                 'because you requested %s and must_be_in_thesaurus=%s' % (handler_, vectors_exist))
 
-    if 'signified' in handler_.lower() or vectors_exist_:
-        # vectors are needed either at decode time (signified handler) or during feature selection
-
-        if not path and not random_thes:
-            raise ValueError('You must provide at least one neighbour source because you requested %s '
-                             ' and must_be_in_thesaurus=%s' % (handler_, vectors_exist_))
-
-        params = conf['vector_sources']
-
+    if vectors_path:
         # set up a row filter, if needed
-        entries = conf['vector_sources']['entries_of']
+        entries = vs_params['entries_of']
         if entries:
             entries = get_thesaurus_entries(entries)
-            params['row_filter'] = lambda x, y: x in entries
+            vs_params['row_filter'] = lambda x, y: x in entries
+        result['vectors_source'] = Vectors.from_tsv(vectors_path, **vs_params)
 
-        # delays the loading from disk/de-shelving until the resource is needed. The Delayed object also makes it
-        # possible to get either Vectors or Thesaurus into the pipeline, and there is no need to pass any parameters
-        # that relate to IO further down the pipeline
-        if use_shelf:
-            thesaurus = load_and_shelve_thesaurus(path, **params)
-        else:
-            # single we are running single-threaded, might as well read this in now
-            # returning a delayed() will cause the file to be read for each CV fold
-            # thesaurus = Delayed(Vectors, Vectors.from_tsv, path, **params)
-            thesaurus = Vectors.from_tsv(path, **params)
-    if not thesaurus:
-        # if a vector source has not been passed in and has not been initialised, then init it to avoid
-        # accessing empty things
-        logging.warning('RETURNING AN EMPTY THESAURUS')
-        thesaurus = []
-    return thesaurus
+    if clusters_path:
+        result['clusters'] = pd.read_hdf(clusters_path, key='clusters')
+
+    # if not thesaurus: # todo why was this needed?
+    #     # if a vector source has not been passed in and has not been initialised, then init it to avoid
+    #     # accessing empty things
+    #     logging.warning('RETURNING AN EMPTY THESAURUS')
+    #     thesaurus = []
+    return result
 
 
 def get_thesaurus_entries(tsv_file):
@@ -274,4 +280,3 @@ def jsonify_all_labelled_corpora(n_jobs):
     corpora = get_all_corpora()
     logging.info(corpora)
     Parallel(n_jobs=n_jobs)(delayed(jsonify_single_labelled_corpus)(corpus) for corpus in corpora)
-

@@ -15,9 +15,6 @@ import os
 import shutil
 from glob import glob
 import logging
-from logging import StreamHandler
-from time import sleep
-
 from pandas import DataFrame
 import numpy as np
 from numpy.ma import hstack
@@ -30,13 +27,9 @@ from thesisgenerator.utils.reflection_utils import get_named_object, get_interse
 from thesisgenerator.utils.misc import ChainCallable
 from thesisgenerator.classifiers import (LeaveNothingOut, PredefinedIndicesIterator,
                                          SubsamplingPredefinedIndicesIterator, PicklingPipeline)
-from thesisgenerator.utils.conf_file_utils import set_in_conf_file, parse_config_file
-from thesisgenerator.utils.data_utils import (get_thesaurus, get_tokenizer_settings_from_conf,
-                                              get_tokenized_data)
+from thesisgenerator.utils.conf_file_utils import parse_config_file
 from thesisgenerator.utils.misc import update_dict_according_to_mask
-from thesisgenerator import config
 from thesisgenerator.plugins.dumpers import FeatureVectorsCsvDumper
-from thesisgenerator.plugins.tokenizers import XmlTokenizer
 
 
 def _build_crossvalidation_iterator(config, y_train, y_test=None):
@@ -108,8 +101,7 @@ def _build_crossvalidation_iterator(config, y_train, y_test=None):
     return iterator, y_train
 
 
-def _build_vectorizer(vector_source, init_args, fit_args, feature_extraction_conf,
-                      pipeline_list, exp_name=''):
+def _build_vectorizer(init_args, feature_extraction_conf, pipeline_list):
     """
     Builds a vectorized that converts raw text to feature vectors. The
     parameters for the vectorizer are specified in the *feature extraction*
@@ -131,14 +123,11 @@ def _build_vectorizer(vector_source, init_args, fit_args, feature_extraction_con
     # get the names of the arguments that the vectorizer class takes
     # the object must only take keyword arguments
     init_args.update(get_intersection_of_parameters(vectorizer, feature_extraction_conf, 'vect'))
-    init_args['vect__exp_name'] = exp_name
-    if vector_source:
-        fit_args['vect__vector_source'] = vector_source
 
     pipeline_list.append(('vect', vectorizer()))
 
 
-def _build_feature_selector(vector_source, init_args, fit_args, feature_selection_conf, pipeline_list):
+def _build_feature_selector(init_args, feature_selection_conf, pipeline_list):
     """
     If feature selection is required, this function appends a selector
     object to pipeline_list and its configuration to configuration. Note this
@@ -157,13 +146,11 @@ def _build_feature_selector(vector_source, init_args, fit_args, feature_selectio
         # keyword arguments of two consecutive transformers.
 
         init_args.update(get_intersection_of_parameters(method, feature_selection_conf, 'fs'))
-        if vector_source:
-            fit_args['fs__vector_source'] = vector_source
         logging.info('FS method is %s', method)
         pipeline_list.append(('fs', method(scoring_func)))
 
 
-def _build_pipeline(cv_i, vector_source, feature_extr_conf, feature_sel_conf, output_dir, debug, exp_name=''):
+def _build_pipeline(conf, predefined_fit_args, cv_i):
     """
     Builds a pipeline consisting of
         - feature extractor
@@ -171,33 +158,37 @@ def _build_pipeline(cv_i, vector_source, feature_extr_conf, feature_sel_conf, ou
         - optional dimensionality reduction
         - classifier
     """
-    init_args, fit_args = {}, {}
+    exp_name = conf['name']
+    debug = conf['debug']
+
+    init_args = {}
     pipeline_list = []
 
-    _build_vectorizer(vector_source, init_args, fit_args, feature_extr_conf,
-                      pipeline_list, exp_name=exp_name)
+    _build_vectorizer(init_args, conf['feature_extraction'], pipeline_list)
 
-    _build_feature_selector(vector_source, init_args, fit_args, feature_sel_conf, pipeline_list)
+    _build_feature_selector(init_args, conf['feature_selection'], pipeline_list)
 
     # put the optional dumper after feature selection/dim. reduction
     if debug:
         logging.info('Will perform post-vectorizer data dump')
-        pipeline_list.append(('dumper', FeatureVectorsCsvDumper(exp_name, cv_i, output_dir)))
+        pipeline_list.append(('dumper', FeatureVectorsCsvDumper(exp_name, cv_i, conf['output_dir'])))
         init_args['vect__pipe_id'] = cv_i
 
     # vectorizer will return a matrix (as usual) and some metadata for use with feature dumper/selector,
     # strip them before we proceed to the classifier
     pipeline_list.append(('stripper', MetadataStripper()))
-    if vector_source:
-        fit_args['stripper__vector_source'] = vector_source
 
-    if feature_extr_conf['record_stats']:
+    fit_args = {}
+    if conf['feature_extraction']['record_stats']:
         fit_args['vect__stats_hdf_file'] = 'statistics/stats-%s' % exp_name
 
     pipeline = PicklingPipeline(pipeline_list, exp_name) if debug else Pipeline(pipeline_list)
+    for step_name, _ in pipeline.steps:
+        for param_name, param_val in predefined_fit_args.items():
+            fit_args['%s__%s' % (step_name, param_name)] = param_val
+        fit_args['%s__cv_fold' % step_name] = cv_i
+    fit_args['stripper__strategy'] = conf['vector_sources']['neighbour_strategy']
     pipeline.set_params(**init_args)
-
-    fit_args['vect__cv_fold'] = cv_i
     logging.debug('Pipeline is:\n %s', pipeline)
     return pipeline, fit_args
 
@@ -215,20 +206,9 @@ def _build_classifiers(classifiers_conf):
         yield clf(**init_args)
 
 
-def _cv_loop(log_dir, config, cv_i, score_func, test_idx, train_idx, vector_source:Delayed, X, y):
+def _cv_loop(config, cv_i, score_func, test_idx, train_idx, predefined_fit_args, X, y):
     logging.info('Starting CV fold %d', cv_i)
-    if isinstance(vector_source, Delayed):
-        # build the actual object now (in the worker sub-process)
-        vector_source = vector_source()
-
-    scores_this_cv_run = []
-    pipeline, fit_params = _build_pipeline(cv_i, vector_source,
-                                           config['feature_extraction'],
-                                           config['feature_selection'],
-                                           config['output_dir'],
-                                           config['debug'],
-                                           exp_name=config['name'])
-    fit_params['stripper__strategy'] = config['vector_sources']['neighbour_strategy']
+    pipeline, fit_params = _build_pipeline(config, predefined_fit_args, cv_i)
     # code below is a simplified version of sklearn's _cross_val_score
     train_text = [X[idx] for idx in train_idx]
     test_text = [X[idx] for idx in test_idx]
@@ -246,7 +226,6 @@ def _cv_loop(log_dir, config, cv_i, score_func, test_idx, train_idx, vector_sour
         pipeline.named_steps['vect'].vocabulary_ = pipeline.named_steps['fs'].vocabulary_
     test_matrix = pipeline.transform(test_text)
     stats = pipeline.named_steps['vect'].stats
-
 
     # remove documents with too few features
     to_keep_train = tr_matrix.sum(axis=1) >= config['min_train_features']
@@ -275,6 +254,7 @@ def _cv_loop(log_dir, config, cv_i, score_func, test_idx, train_idx, vector_sour
     np.savetxt(os.path.join(config['output_dir'], 'gold-cv%d.csv' % cv_i),
                y_test, delimiter=',', fmt="%s")
 
+    scores_this_cv_run = []
     for clf in _build_classifiers(config['classifiers']):
         if not (np.count_nonzero(to_keep_train) and np.count_nonzero(to_keep_test)):
             logging.error('There isnt enough test data for a proper evaluation, skipping this fold!!!')
@@ -373,7 +353,7 @@ def _prepare_output_directory(clean, output):
         os.makedirs(output)
 
 
-def go(conf_file, log_dir, data, vector_source, clean=False, n_jobs=1):
+def go(conf_file, data, fit_args, clean=False, n_jobs=1):
     config, configspec_file = parse_config_file(conf_file)
 
     logging.info('Reading configuration file from %s, conf spec from %s',
@@ -404,8 +384,8 @@ def go(conf_file, log_dir, data, vector_source, clean=False, n_jobs=1):
 
     params = []
     for i, (train_idx, test_idx) in enumerate(cv_iterator):
-        params.append((log_dir, config, i, score_func, test_idx, train_idx,
-                       vector_source, x_vals, y_vals))
+        params.append((config, i, score_func, test_idx, train_idx,
+                       fit_args, x_vals, y_vals))
         logging.warning('Only using the first CV fold')
         if len(cv_iterator) > 3:
             # only use the first train/test split, unless there are very few folds, in
@@ -417,35 +397,3 @@ def go(conf_file, log_dir, data, vector_source, clean=False, n_jobs=1):
     class_names = dict(enumerate(sorted(set(y_vals))))
     output_file = _analyze(all_scores, config['output_dir'], config['name'], class_names)
     return output_file
-
-
-if __name__ == '__main__':
-    # for debugging single sub-experiments only
-
-    args = config.arg_parser.parse_args()
-    log_dir = args.log_path
-    conf_file = args.configuration
-    classpath = args.classpath
-    clean = args.clean
-
-    # set debug=True, disable crossvalidation and enable coverage recording
-    set_in_conf_file(conf_file, 'debug', True)
-    set_in_conf_file(conf_file, ['crossvalidation', 'k'], 1)
-    set_in_conf_file(conf_file, ['feature_extraction', 'record_stats'], True)
-
-    # only leave one classifier enabled to speed things up
-    set_in_conf_file(conf_file, ['classifiers', 'sklearn.naive_bayes.MultinomialNB', 'run'], True)
-    set_in_conf_file(conf_file, ['classifiers', 'sklearn.svm.LinearSVC', 'run'], False)
-    set_in_conf_file(conf_file, ['classifiers', 'sklearn.naive_bayes.BernoulliNB', 'run'], False)
-    set_in_conf_file(conf_file, ['classifiers', 'thesisgenerator.classifiers.MultinomialNBWithBinaryFeatures', 'run'],
-                     False)
-    set_in_conf_file(conf_file, ['classifiers', 'sklearn.linear_model.LogisticRegression', 'run'], False)
-    set_in_conf_file(conf_file, ['classifiers', 'sklearn.neighbors.KNeighborsClassifier', 'run'], False)
-
-    conf, configspec_file = parse_config_file(conf_file)
-
-    tokenised_data = get_tokenized_data(conf['training_data'],
-                                        get_tokenizer_settings_from_conf(conf),
-                                        test_data=conf['test_data'])
-    vector_store = get_thesaurus(conf)
-    go(conf_file, log_dir, tokenised_data, vector_store, classpath=classpath, clean=clean, n_jobs=1)

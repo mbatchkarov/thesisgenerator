@@ -12,7 +12,7 @@ sys.path.append('../..')
 import glob
 import os
 import logging
-from thesisgenerator.utils.data_utils import get_thesaurus, get_tokenized_data, get_tokenizer_settings_from_conf
+from thesisgenerator.utils.data_utils import get_pipeline_fit_args, get_tokenized_data, get_tokenizer_settings_from_conf
 from thesisgenerator.utils.conf_file_utils import parse_config_file
 from thesisgenerator.plugins.file_generators import vary_training_size_file_iterator
 from thesisgenerator.__main__ import go
@@ -61,8 +61,11 @@ def run_experiment(expid, num_workers=1,
 
     _clear_old_files(expid, prefix)
     conf, configspec_file = parse_config_file(base_conf_file)
-    if not thesaurus:
-        thesaurus = get_thesaurus(conf)
+
+    if thesaurus:
+        fit_args = {'vector_source': thesaurus}
+    else:
+        fit_args = get_pipeline_fit_args(conf)
 
     test_path = ''
     if conf['test_data']:
@@ -76,7 +79,7 @@ def run_experiment(expid, num_workers=1,
                                         get_tokenizer_settings_from_conf(conf),
                                         test_data=test_path)
     # run data through the pipeline
-    return [go(new_conf_file, log_dir, tokenised_data, thesaurus, n_jobs=num_workers)
+    return [go(new_conf_file, tokenised_data, fit_args, n_jobs=num_workers)
             for new_conf_file, log_dir in conf_file_iterator]
 
 
@@ -92,5 +95,3 @@ if __name__ == '__main__':
             consolidate_single_experiment(i)
     else:
         print(('Expected one int parameter, got %s' % (sys.argv)))
-
-

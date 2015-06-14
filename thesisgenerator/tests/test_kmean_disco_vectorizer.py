@@ -39,10 +39,10 @@ def clusters(tmpdir):
 
 def test_kmeans_vectorizer(corpus, clusters):
     feature_types = {'extract_unigram_features': set('JVN'), 'extract_phrase_features': []}
-    v = KmeansVectorizer(clusters, min_df=0,
+    v = KmeansVectorizer(min_df=0,
                          train_time_opts=feature_types,
                          decode_time_opts=feature_types)
-    X, _ = v.fit_transform(corpus)
+    X, _ = v.fit_transform(corpus, clusters=pd.read_hdf(clusters, key='clusters'))
 
     assert X.shape == (8, 4)
     print(X.A)

@@ -19,12 +19,13 @@ def cluster_vectors(path_to_vectors, output_path, n_clusters=100, n_jobs=4):
 
 
 class KmeansVectorizer(ThesaurusVectorizer):
-    def __init__(self, clusters_path, **kwargs):
-        self.clusters_path = clusters_path
+    def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def fit_transform(self, raw_documents, y=None):
-        self.clusters = pd.read_hdf(self.clusters_path, key='clusters')
+    def fit_transform(self, raw_documents, y=None, clusters=None, **kwargs):
+        if clusters is None:
+            raise ValueError('Need a clusters file to fit this model')
+        self.clusters = clusters
         return super().fit_transform(raw_documents, y=y)
 
     def _count_vocab(self, raw_documents, fixed_vocab):
@@ -33,9 +34,13 @@ class KmeansVectorizer(ThesaurusVectorizer):
         return super()._count_vocab(raw_documents, fixed_vocab=True)
 
     def _process_single_feature(self, feature, j_indices, values, *args):
-        # insert cluster number of this features as its column number
-        j_indices.append(self.clusters.ix[str(feature)][0])
-        values.append(1)
+        try:
+            # insert cluster number of this features as its column number
+            j_indices.append(self.clusters.ix[str(feature)][0])
+            values.append(1)
+        except KeyError:
+            # the feature is not contained in the distributional model, ignore it
+            pass
 
 
 if __name__ == '__main__':

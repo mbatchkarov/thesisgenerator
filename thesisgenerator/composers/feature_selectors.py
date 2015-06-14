@@ -25,7 +25,7 @@ class VectorBackedSelectKBest(SelectKBest):
      mapping of features to columns in X before any feature selection is done.
     """
 
-    def __init__(self, score_func=chi2, k='all', must_be_in_thesaurus=False, min_log_odds_score=0):
+    def __init__(self, score_func=chi2, k='all', must_be_in_thesaurus=False, min_log_odds_score=0, **kwargs):
         """
         :param min_log_odds_score: any feature with a log odds score between -min_log_odds_score and
         min_log_odds_score will be removed. Assumes the classification problem is binary.
@@ -38,13 +38,13 @@ class VectorBackedSelectKBest(SelectKBest):
         self.vocabulary_ = None
         super(VectorBackedSelectKBest, self).__init__(score_func=score_func, k=k)
 
-    def fit(self, X, y, vector_source=None):
-        self.vector_source = vector_source
-        logging.debug('Identity of vector source is %d', id(vector_source))
-        if not self.vector_source and self.must_be_in_thesaurus:
-            logging.error(
-                'You requested feature selection based on vector presence but did not provide a vector source.')
-            raise ValueError('VectorSource required with must_be_in_thesaurus')
+    def fit(self, X, y, vector_source=None, clusters=None, **kwargs):
+        if vector_source is None and clusters is None and self.must_be_in_thesaurus:
+            logging.error('You requested feature selection based on vector presence '
+                          'but did not provide a vector source.')
+            raise ValueError('sector source (vectors or clusters) required with must_be_in_thesaurus')
+
+        self.vector_source = vector_source if vector_source else set(clusters.index)
 
         # Vectorizer also returns its vocabulary, store it and work with the rest
         X, self.vocabulary_ = X
@@ -91,7 +91,6 @@ class VectorBackedSelectKBest(SelectKBest):
         log_odds = calculate_log_odds(X, y)
         return (log_odds > self.min_log_odds_score) | (log_odds < -self.min_log_odds_score)
 
-
     def _get_support_mask(self):
         k = self.k
         chi2_scores = self.scores_
@@ -129,7 +128,7 @@ class MetadataStripper(BaseEstimator, TransformerMixin):
      defensive checks
     """
 
-    def fit(self, X, y, vector_source=None, strategy='linear'):
+    def fit(self, X, y, vector_source=None, strategy='linear', **kwargs):
         matrix, self.voc = X  # store voc, may be handy for for debugging
         self.vector_source = vector_source
         if isinstance(self.vector_source, Vectors):
@@ -139,10 +138,9 @@ class MetadataStripper(BaseEstimator, TransformerMixin):
                                          strategy=strategy)
         return self
 
-    def transform(self, X):
+    def transform(self, X, **kwargs):
         # if X is a tuple, strip metadata, otherwise let it be
         return X[0] if tuple(X) == X else X
 
     def get_params(self, deep=True):
         return super(MetadataStripper, self).get_params(deep)
-

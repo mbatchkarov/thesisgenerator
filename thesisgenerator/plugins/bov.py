@@ -20,7 +20,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
     their k nearest neighbours in the thesaurus
     """
 
-    def __init__(self, exp_name='', pipe_id=0, lowercase=True,
+    def __init__(self, lowercase=True,
                  input='content', encoding='utf-8', decode_error='strict',
                  strip_accents=None,
                  preprocessor=None, tokenizer=None, analyzer='ngram',
@@ -39,7 +39,7 @@ class ThesaurusVectorizer(TfidfVectorizer):
                                    'extract_phrase_features': ['AN', 'NN']},
                  standard_ngram_features=0,
                  remove_features_with_NER=False,
-                 random_neighbour_thesaurus=False
+                 random_neighbour_thesaurus=False, **kwargs
                  ):
         """
         Builds a vectorizer the way a TfidfVectorizer is built, and takes one
@@ -54,8 +54,6 @@ class ThesaurusVectorizer(TfidfVectorizer):
         :param standard_ngram_features: int. Extract standard (adjacent) ngram features up to this length
         """
         self.use_tfidf = use_tfidf
-        self.pipe_id = pipe_id
-        self.exp_name = exp_name
         self.record_stats = record_stats
         self.k = k
         self.sim_compressor = sim_compressor

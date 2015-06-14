@@ -72,7 +72,6 @@ class AdditiveComposer(Vectors, ComposerMixin):
         return sp.csr_matrix(reduce(self.function,
                                     [self.unigram_source.get_vector(t.tokens_as_str()).A for t in feature[:]]))
 
-
     def contains_impl(self, feature):
         """
         Contains all sequences of words where we have a distrib vector for each unigram
@@ -150,6 +149,7 @@ class RightmostWordComposer(LeftmostWordComposer):
         self.unigram_source = check_vectors(unigram_source)
         self.hardcoded_index = -1
 
+
 class VerbComposer(LeftmostWordComposer):
     """
     Represents verb phrases by the vector of their head
@@ -160,6 +160,7 @@ class VerbComposer(LeftmostWordComposer):
     def __init__(self, unigram_source):
         self.unigram_source = check_vectors(unigram_source)
         self.hardcoded_index = 1
+
 
 class BaroniComposer(Vectors, ComposerMixin):
     entry_types = {'AN', 'NN'}
@@ -182,7 +183,6 @@ class BaroniComposer(Vectors, ComposerMixin):
 
         # check composed space's columns matches core space's (=unigram source)'s columns
         assert core_space.id2column == self._composer.composed_id2column
-
 
     def __contains__(self, feature):
         """
@@ -215,7 +215,6 @@ class BaroniComposer(Vectors, ComposerMixin):
     def __len__(self):
         # this will also get call when __nonzero__ is called
         return len(self.available_modifiers)
-
 
     def get_vector(self, feature):
         # todo test properly
@@ -283,10 +282,9 @@ class GrefenstetteMultistepComposer(BaroniComposer):
         self.verbs = self.v_model.function_space.id2row
         logging.info('Multistep composer has these verbs:', self.verbs)
 
-
     def __str__(self):
-        'Multistep composer with %d verbs and %d nouns'%(len(self.verbs),
-                                                         len(self.unigram_source))
+        'Multistep composer with %d verbs and %d nouns' % (len(self.verbs),
+                                                           len(self.unigram_source))
 
     def __contains__(self, feature):
         if isinstance(feature, six.string_types):
@@ -298,7 +296,6 @@ class GrefenstetteMultistepComposer(BaroniComposer):
                feature[0] in self.unigram_source and \
                feature[2] in self.unigram_source
         # alternative- try to compose. if ValueError, we can't
-
 
     def get_vector(self, df):
         # 3. use the trained models to compose new SVO sentences
@@ -372,26 +369,12 @@ class CopyObject(Vectors, ComposerMixin):
 
 class DummyThesaurus(Thesaurus):
     """
-    A thesaurus-like object which has either:
-     1) a single neighbour for every possible entry, b/N
-     2) a single random neighbour for every possible entry. That neighbour is chosen from the vocabulary that is
-        passed in (as a dict {feature:index} )
+    A thesaurus-like object which return "b/N" as the only neighbour of every possible entry
     """
     name = 'Constant'
 
-    def __init__(self, vocab=None, k=1, constant=True):
-        self.vocab = vocab
-        self.k = k
-        self.constant = constant
-
-
     def __getitem__(self, feature):
-        if self.constant:
-            return [('b/N', 1.0)]
-        else:
-            if not self.vocab:
-                raise ValueError('You need to provide a set of value to choose from first.')
-            return [(foo.tokens_as_str(), 1.) for foo in sample(self.vocab, self.k)]
+        return [('b/N', 1.0)]
 
     get_nearest_neighbours = __getitem__
 
@@ -406,6 +389,23 @@ class DummyThesaurus(Thesaurus):
 
     def __contains__(self, feature):
         return True
+
+
+class RandomThesaurus(DummyThesaurus):
+    """
+    A thesaurus-like object which returns a single random neighbour for every possible entry. That neighbour
+    is chosen from the vocabulary that is passed in (as a dict {feature:index} )
+    """
+    name = 'Random'
+
+    def __init__(self, vocab=None, k=1):
+        self.vocab = vocab
+        self.k = k
+
+    def __getitem__(self, item):
+        if not self.vocab:
+            raise ValueError('You need to provide a set of value to choose from first.')
+        return [(foo.tokens_as_str(), 1.) for foo in sample(self.vocab, self.k)]
 
 
 def _default_row_filter(feat_str:str, feat_df:DocumentFeature):
@@ -471,8 +471,8 @@ def compose_and_write_vectors(unigram_vectors, short_vector_dataset_name, compos
             else:
                 rows2idx = {i: DocumentFeature.from_string(x) for (x, i) in rows.items()}
                 write_vectors_to_disk(mat.tocoo(), rows2idx, cols, events_path,
-                    entry_filter=lambda x: x.type in {'AN', 'NN', 'VO', 'SVO', '1-GRAM'},
-                    gzipped=gzipped)
+                                      entry_filter=lambda x: x.type in {'AN', 'NN', 'VO', 'SVO', '1-GRAM'},
+                                      gzipped=gzipped)
         except ValueError as e:
             logging.error('RED ALERT, RED ALERT')
             logging.error(e)
