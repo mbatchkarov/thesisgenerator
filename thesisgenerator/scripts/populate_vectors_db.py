@@ -211,11 +211,15 @@ def _lda_vectors():
 
 
 def _clustered_vectors():
-    for composer in ['Socher', 'Add']:
-        v = vectors_from_settings('turian', 'turian', composer, 100)
+    def _do_magic(v):
         for num_clusters in [100, 200, 300]:
             db.Clusters.create(vectors=v, num_clusters=num_clusters,
                                path=v.path + '.kmeans%d' % num_clusters)
+
+    for composer in ['Socher', 'Add']:
+        _do_magic(vectors_from_settings('turian', 'turian', composer, 100))
+    for composer in ['Mult', 'Add']:
+        _do_magic(vectors_from_settings('gigaw', 'word2vec', composer, 100))
 
 
 if __name__ == '__main__':
