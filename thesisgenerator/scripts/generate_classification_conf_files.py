@@ -415,9 +415,12 @@ def write_conf_files():
 
             conf['feature_extraction']['decode_token_handler'] = \
                 'thesisgenerator.plugins.bov_feature_handlers.%s' % exp.expansions.decode_handler
-            conf['feature_extraction']['random_neighbour_thesaurus'] = \
-                exp.expansions.vectors is not None and exp.expansions.vectors.algorithm == 'random_neigh'
-            conf['vector_sources']['neighbours_file'] = exp.expansions.vectors.path if exp.expansions.vectors else ''
+            enable_rand_neigh = exp.expansions.vectors is not None and exp.expansions.vectors.algorithm == 'random_neigh'
+            conf['feature_extraction']['random_neighbour_thesaurus'] = enable_rand_neigh
+            if enable_rand_neigh:
+                conf['vector_sources']['neighbours_file'] = ''
+            else:
+                conf['vector_sources']['neighbours_file'] = exp.expansions.vectors.path if exp.expansions.vectors else ''
             conf['vector_sources']['noise'] = exp.expansions.noise
             conf['feature_extraction']['k'] = exp.expansions.k
 
