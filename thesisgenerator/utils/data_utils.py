@@ -137,7 +137,7 @@ def get_pipeline_fit_args(conf):
         raise ValueError('Cannot use both word vectors and word clusters')
 
     if random_thes:
-        result['vectors_source'] = RandomThesaurus(k=conf['feature_extraction']['k'])
+        result['vector_source'] = RandomThesaurus(k=conf['feature_extraction']['k'])
     else:
         if vectors_path and clusters_path:
             raise ValueError('Cannot use both word vectors and word clusters')
@@ -153,7 +153,7 @@ def get_pipeline_fit_args(conf):
         if entries:
             entries = get_thesaurus_entries(entries)
             vs_params['row_filter'] = lambda x, y: x in entries
-        result['vectors_source'] = Vectors.from_tsv(vectors_path, **vs_params)
+        result['vector_source'] = Vectors.from_tsv(vectors_path, **vs_params)
 
     if clusters_path:
         result['clusters'] = pd.read_hdf(clusters_path, key='clusters')

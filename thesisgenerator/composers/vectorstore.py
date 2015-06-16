@@ -376,10 +376,9 @@ class DummyThesaurus(Thesaurus):
     def __init__(self):
         pass
 
-    def __getitem__(self, feature):
+    def get_nearest_neighbours(self, feature):
         return [('b/N', 1.0)]
 
-    get_nearest_neighbours = __getitem__
 
     def get_vector(self):
         pass
@@ -405,7 +404,7 @@ class RandomThesaurus(DummyThesaurus):
         self.vocab = vocab
         self.k = k
 
-    def __getitem__(self, item):
+    def get_nearest_neighbours(self, item):
         if not self.vocab:
             raise ValueError('You need to provide a set of value to choose from first.')
         return [(foo.tokens_as_str(), 1.) for foo in sample(self.vocab, self.k)]
