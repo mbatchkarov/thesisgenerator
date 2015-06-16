@@ -175,7 +175,7 @@ def _random_baselines():
 def _categorical_vectors():
     pattern = '/mnt/lustre/scratch/inf/mmb28/FeatureExtractionToolkit/categorical/' \
               'AN_NN_{}_{}.events.filtered.strings'
-    ids = ['gigaw-wins-100', 'gigaw-w2v-100', 'wiki-w2v-15', 'wiki-w2v-100', 'gigaw-glove-100']
+    ids = ['wiki-wins-100', 'gigaw-w2v-100', 'wiki-w2v-15', 'wiki-w2v-100', 'wiki-glove-100']
     for composer in [CopyObject]:
         for identifier in ids:
             path = pattern.format(identifier, composer.name)

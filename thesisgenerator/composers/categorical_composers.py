@@ -62,14 +62,14 @@ if __name__ == '__main__':
 
     FET = '/mnt/lustre/scratch/inf/mmb28/FeatureExtractionToolkit/'
 
-    nouns_wins_gigaw = os.path.join(FET, 'exp10-13b/exp10-with-obs-phrases-SVD100.events.filtered.strings')
+    nouns_wins_wiki = os.path.join(FET, 'exp11-13b/exp11-with-obs-phrases-SVD100.events.filtered.strings')
     nouns_w2v_gigaw_100 = os.path.join(FET, 'word2vec_vectors/word2vec-gigaw-100perc.unigr.strings.rep0')
     nouns_w2v_wiki_15 = os.path.join(FET, 'word2vec_vectors/word2vec-wiki-15perc.unigr.strings.rep0')
     nouns_w2v_wiki_100 = os.path.join(FET, 'word2vec_vectors/word2vec-wiki-100perc.unigr.strings.rep0')
     nouns_glove_wiki_100 = os.path.join(FET, 'glove/vectors.miro.h5')
-    all_nouns = [nouns_wins_gigaw, nouns_w2v_gigaw_100, nouns_w2v_wiki_15, nouns_w2v_wiki_100, nouns_glove_wiki_100]
+    all_nouns = [nouns_wins_wiki, nouns_w2v_gigaw_100, nouns_w2v_wiki_15, nouns_w2v_wiki_100, nouns_glove_wiki_100]
 
-    names_composed_files = ['gigaw-wins-100', 'gigaw-w2v-100', 'wiki-w2v-15', 'wiki-w2v-100', 'gigaw-glove-100']
+    names_composed_files = ['wiki-wins-100', 'gigaw-w2v-100', 'wiki-w2v-15', 'wiki-w2v-100', 'wiki-glove-100']
     save_files = ['%s-vector-matrices.hdf' % x for x in names_composed_files]
     for noun_path, save_file, sname in zip(all_nouns,
                                            save_files,
