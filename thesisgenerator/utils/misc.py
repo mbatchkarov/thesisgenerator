@@ -80,13 +80,14 @@ class ChainCallable(object):
         return result
 
 
-def calculate_log_odds(X, y):
+def calculate_log_odds(X, y, column_indices=None):
     """
 
     :param X: term-document matrix, shape (m,n)
     :type X: scipy.sparse
     :param y: document labels, shape (m,)
     :type y: np.array
+    :param column_indices: compute score only for these columns, other will be set to 0
     :return: log odds scores of all features
     :rtype: array-like, shape (n,)
     """
@@ -95,7 +96,9 @@ def calculate_log_odds(X, y):
 
     log_odds = np.empty(X.shape[1])
     class0_indices = y == sorted(set(y))[0]
-    for idx in range(X.shape[1]):
+    if column_indices is None:
+        column_indices = np.arange(X.shape[1])
+    for idx in column_indices:
         all_counts = X[:, idx]  # document counts of this feature
         total_counts = np.count_nonzero(all_counts.data)  # how many docs the feature occurs in
         count_in_class0 = np.count_nonzero(all_counts[class0_indices].data)  # how many of them are class 0
