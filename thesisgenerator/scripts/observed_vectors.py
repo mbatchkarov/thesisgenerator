@@ -1,10 +1,13 @@
 import sys
+
 sys.path.append('.')
 import argparse
 import logging
 from os.path import join, dirname
 from discoutils.cmd_utils import run_and_log_output
 from discoutils.misc import temp_chdir, mkdirs_if_not_exists
+from discoutils.thesaurus_loader import Vectors
+from discoutils.reweighting import ppmi_sparse_matrix
 from thesisgenerator.scripts.extract_NPs_from_labelled_data import NP_MODIFIERS_FILE, VERBS_FILE
 
 """
@@ -68,10 +71,17 @@ if __name__ == '__main__':
                            out3, dirname(out3), *map(str, byblo_filter_thresholds))
         run_and_log_output('./unindex-all.sh {}', out3)
 
+    # remove NPs with too few features
+    obs_vectors_dir = join(prefix, 'FeatureExtractionToolkit', 'observed_vectors')
+    output_path = join(obs_vectors_dir, '%s_NPs_wins_observed' % args.corpus)
+    mkdirs_if_not_exists(obs_vectors_dir)
     with temp_chdir(dirname(out3)):
-        # remove NPs with too few features
-        obs_vectors_dir = join(prefix, 'FeatureExtractionToolkit', 'observed_vectors')
-        mkdirs_if_not_exists(obs_vectors_dir)
         run_and_log_output("awk 'NF>{}' {}-obs-wins.fet.events.filtered.strings >  {}",
                            str(min_features), args.corpus,
-                           join(obs_vectors_dir, '%s_NPs_wins_observed' % args.corpus))
+                           output_path)
+
+    # now do PPMI
+    # todo this should ideally be done together with unigram vectors
+    v = Vectors.from_tsv(output_path)
+    ppmi_sparse_matrix(v.matrix)
+    v.to_tsv(output_path + '_ppmi', gzipped=True)
