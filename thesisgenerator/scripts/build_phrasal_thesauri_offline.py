@@ -73,65 +73,13 @@ def _do_ppmi(vectors_path, output_dir):
     v.to_tsv(join(output_dir, basename(vectors_path)), gzipped=True)
 
 
-def build_unreduced_counting_thesauri(corpus, corpus_name, features,
-                                      stages, use_ppmi):
-    """
-    required files: a Byblo conf file, a labelled classification data set
-    created files:  composed vector files in a dir, thesauri of NPs
-    """
-
-    # SET UP A FEW REQUIRED PATHS
-    unigram_thesaurus_dir = os.path.abspath(join(prefix,
-                                                 'exp%d-%db' % (corpus, features)))
-
-    unigram_thesaurus_dir_ppmi = os.path.abspath(join(prefix,
-                                                      'exp%d-%db-ppmi' % (corpus, features)))
-    mkdirs_if_not_exists(unigram_thesaurus_dir_ppmi)
-
-    ngram_vectors_dir = join(prefix,
-                             'exp%d-%d-composed-ngrams' % (corpus, features))
-    ngram_vectors_dir_ppmi = join(prefix,
-                                  'exp%d-%d-composed-ngrams-ppmi' % (corpus, features))
-
-    composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
-                      RightmostWordComposer]  # observed done through a separate script
-
-    mkdirs_if_not_exists(ngram_vectors_dir)
-    mkdirs_if_not_exists(ngram_vectors_dir_ppmi)
-
-    # EXTRACT UNIGRAM VECTORS WITH BYBLO
-    if 'unigrams' in stages:
-        with temp_chdir(byblo_base_dir):
-            calculate_unigram_vectors(unigram_thesaurus_dir)
-    else:
-        logging.warning('Skipping unigrams stage. Assuming output is at %s',
-                        _find_events_file(unigram_thesaurus_dir))
-
-    if 'ppmi' in stages:
-        _do_ppmi(_find_events_file(unigram_thesaurus_dir),
-                 unigram_thesaurus_dir_ppmi)
-
-    # COMPOSE ALL AN/NN VECTORS IN LABELLED SET
-    if 'compose' in stages:
-        if use_ppmi:
-            unigram_vectors_file = _find_events_file(unigram_thesaurus_dir_ppmi)
-            outdir = ngram_vectors_dir_ppmi
-        else:
-            unigram_vectors_file = _find_events_file(unigram_thesaurus_dir)
-            outdir = ngram_vectors_dir
-        compose_and_write_vectors(unigram_vectors_file,
-                                  corpus_name,
-                                  composer_algos,
-                                  output_dir=outdir)
-    else:
-        logging.warning('Skipping composition stage. Assuming output is at %s', ngram_vectors_dir)
-
-
 def build_full_composed_thesauri_with_baroni_and_svd(corpus, features, stages):
     # SET UP A FEW REQUIRED PATHS
     global prefix, byblo_base_dir
     # INPUT 1:  DIRECTORY. Must contain a single conf file
     unigram_thesaurus_dir = join(prefix, 'exp%d-%db' % (corpus, features))
+    unigram_thesaurus_dir_ppmi = os.path.abspath(join(prefix, 'exp%d-%db-ppmi' % (corpus, features)))
+    mkdirs_if_not_exists(unigram_thesaurus_dir_ppmi)
 
     # INPUT 2: A FILE, TSV, underscore-separated observed vectors for ANs and NNs
     SVD_DIMS = 100
@@ -140,10 +88,10 @@ def build_full_composed_thesauri_with_baroni_and_svd(corpus, features, stages):
     observed_phrasal_vectors = join(prefix, 'observed_vectors',
                                     '%s_NPs_%s_observed' % (dataset_name, features_name))
     ngram_vectors_dir = join(prefix,
-                             'exp%d-%d-composed-ngrams' % (corpus, features))  # output 1
+                             'exp%d-%d-composed-ngrams-ppmi-svd' % (corpus, features))  # output 1
     if features_name == 'wins':
         composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer, VerbComposer,
-                          RightmostWordComposer, BaroniComposer, GuevaraComposer, GrefenstetteMultistepComposer]
+                          RightmostWordComposer, BaroniComposer, GuevaraComposer]
     else:
         # can't train Baroni/Guevara on deps because I don't have observed vectors for phrases
         composer_algos = [AdditiveComposer, MultiplicativeComposer, VerbComposer,
@@ -159,12 +107,17 @@ def build_full_composed_thesauri_with_baroni_and_svd(corpus, features, stages):
         logging.warning('Skipping unigrams stage. Assuming output is at %s',
                         _find_events_file(unigram_thesaurus_dir))
 
+    # FEATURE REWEIGHTING- will always be performed
+    if 'ppmi' in stages:
+        _do_ppmi(_find_events_file(unigram_thesaurus_dir),
+                 unigram_thesaurus_dir_ppmi)
+
     # REDUCE DIMENSIONALITY
     # add in observed AN/NN vectors for SVD processing. Reduce both unigram vectors and observed phrase vectors
     # together and put the output into the same file
-    unreduced_unigram_events_file = _find_events_file(unigram_thesaurus_dir)
+    unreduced_unigram_events_file = _find_events_file(unigram_thesaurus_dir_ppmi)
     # ...exp6-12/exp6.events.filtered.strings --> ...exp6-12/exp6
-    reduced_file_prefix = join(unigram_thesaurus_dir,
+    reduced_file_prefix = join(unigram_thesaurus_dir_ppmi,
                                'exp%d-with-obs-phrases' % corpus)
     # only keep the most frequent types per PoS tag to speed things up
     counts = [('N', 200000), ('V', 200000), ('J', 100000), ('RB', 0), ('AN', 0), ('NN', 0)]
@@ -238,8 +191,8 @@ def get_corpus_features_cmd_parser():
 def get_cmd_parser():
     parser = argparse.ArgumentParser(parents=[get_corpus_features_cmd_parser()])
     # add options specific to this script here
-    parser.add_argument('--stages', choices=('unigrams', 'ppmi', 'svd', 'baroni',
-                                             'gref', 'compose', 'symlink'),
+    parser.add_argument('--stages', choices=('unigrams', 'ppmi', 'svd',
+                                             'baroni', 'gref', 'compose'),
                         required=True,
                         nargs='+',
                         help='What parts of the pipeline to run. Each part is independent, the pipeline can be '
@@ -250,9 +203,6 @@ def get_cmd_parser():
                              '4) baroni: train Baroni composer '
                              '5) gref: train Grefenstette multistep SVO composer'
                              '6) compose: compose all possible NP vectors with all composers ')
-    parser.add_argument('--use-svd', action='store_true',
-                        help='If set, SVD will be performed and a Baroni composer will be trained. Otherwise the'
-                             'svd part of the pipeline is skipped.')
     parser.add_argument('--use-ppmi', action='store_true',
                         help='If set, PPMI will be performed. Currently this is only implemented without SVD')
     return parser
@@ -267,12 +217,6 @@ if __name__ == '__main__':
     corpus_name = parameters.corpus[:5]  # human-readable corpus name
     corpus = {'gigaword': 10, 'wikipedia': 11}
     features = {'dependencies': 12, 'windows': 13}
-    if parameters.use_svd:
-        logging.info('Starting pipeline with SVD and Baroni composer')
-        build_full_composed_thesauri_with_baroni_and_svd(corpus[parameters.corpus], features[parameters.features],
-                                                         parameters.stages)
-    else:
-        logging.info('Starting pipeline without SVD')
-        build_unreduced_counting_thesauri(corpus[parameters.corpus], corpus_name, features[parameters.features],
-                                          parameters.stages, parameters.use_ppmi)
-
+    logging.info('Starting pipeline with PPMI, SVD and Baroni composer')
+    build_full_composed_thesauri_with_baroni_and_svd(corpus[parameters.corpus], features[parameters.features],
+                                                     parameters.stages)
