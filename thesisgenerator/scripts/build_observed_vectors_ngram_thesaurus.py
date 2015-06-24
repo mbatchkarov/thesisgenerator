@@ -26,24 +26,13 @@ def do_work(corpus, features, svd_dims):
     # where should output be written
     svd_appendage = '' if svd_dims == 0 else '-%d' % svd_dims
     output_file = os.path.join(prefix,
-                               'exp%d-%d-composed-ngrams' % (corpus, features),
+                               'exp%d-%d-composed-ngrams-ppmi-svd' % (corpus, features),
                                'AN_NN_%s%s_Observed.events.filtered.strings' % (name, svd_appendage))
 
-    if svd_dims == 0:
-        observed_ngram_vectors_file = '%s/observed_vectors/%s_NPs_wins_observed' % (prefix, name)
-        observed_unigram_vectors_file = os.path.join(prefix, 'exp%d-%db' % (corpus, features),
-                                                     'exp%d.events.filtered.strings' % corpus)
-        logging.info('Mergin unigram events file %s and NP events file %s',
-                     observed_unigram_vectors_file, observed_ngram_vectors_file)
-
-        # read and merge unigram and n-gram vectors files
-        run_and_log_output('cat {} {} > {}', observed_unigram_vectors_file, observed_ngram_vectors_file, output_file)
-
-    else:
-        # contains SVD-reduced N,J and NP observed vectors, built by other script
-        vectors_file = '%s/exp%d-%db/exp%d-with-obs-phrases-SVD%d.events.filtered.strings' % \
-                                      (prefix, corpus, features, corpus, svd_dims)
-        force_symlink(vectors_file, output_file)
+    # contains SVD-reduced N,J and NP observed vectors, built by other script
+    vectors_file = '%s/exp%d-%db/exp%d-with-obs-phrases-SVD%d.events.filtered.strings' % \
+                                  (prefix, corpus, features, corpus, svd_dims)
+    force_symlink(vectors_file, output_file)
 
 
 

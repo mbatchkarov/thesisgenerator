@@ -1,6 +1,6 @@
 import peewee as pw
 import socket
-from discoutils.misc import is_gzipped, is_hdf, is_plaintext, Bunch
+from discoutils.misc import is_gzipped, is_hdf, is_plaintext
 
 hostname = socket.gethostname()
 if 'node' in hostname or 'apollo' in hostname:
@@ -21,12 +21,10 @@ class Vectors(pw.Model):
     path = pw.CharField(null=True)  # where on disk the vectors are stored
     composer = pw.CharField()  # what composer was used to build phrasal vectors (if any)
     rep = pw.IntegerField(default=0)  # if the same vectors have been built multiple times, an explicit identifier
-    use_ppmi = pw.BooleanField(default=0)
 
     modified = pw.DateField(null=True, default=None)  # when was the file last modifier
     size = pw.IntegerField(null=True, default=None)  # file size in MB
     format = pw.CharField(null=True, default=None)  # how the file is stored: plaintext, gzip or hdf
-    contents = pw.CharField(null=True, default=None)  # what vectors there are in the file, e.g. 1-GRAM, AN, NN,...
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -40,13 +38,7 @@ class Vectors(pw.Model):
             elif is_plaintext(self.path):
                 self.format = 'txt'
 
-        if isinstance(self.composer, Bunch):
-            # check what entries are contained in this vector store
-            self.contents = '+'.join(sorted(['1-GRAM', 'AN', 'NN', 'VO', 'SVO']))
-            self.composer = self.composer.name
-        if isinstance(self.composer, type):
-            entry_types = self.composer.entry_types.union({'1-GRAM'})
-            self.contents = '+'.join(sorted(entry_types))
+        if self.composer and not isinstance(self.composer, str):
             self.composer = self.composer.name
 
     class Meta:

@@ -40,20 +40,13 @@ def _make_expansions(**kwargs):
     return e
 
 
-def vectors_by_type(feature_type, composer_name):
-    v = db.Vectors.select().where((db.Vectors.contents.contains(feature_type)) &
-                                  (db.Vectors.composer == composer_name))
-    return list(v)
-
-
-def vectors_from_settings(unlab_name, algorithm, composer_name, svd_dims, percent=100, rep=0, ppmi=False):
+def vectors_from_settings(unlab_name, algorithm, composer_name, svd_dims, percent=100, rep=0):
     assert svd_dims > 1 or svd_dims is None
     v = db.Vectors.select().where((db.Vectors.dimensionality == svd_dims) &
                                   (db.Vectors.unlabelled == unlab_name) &
                                   (db.Vectors.composer == composer_name) &
                                   (db.Vectors.algorithm == algorithm) &
-                                  (db.Vectors.rep == rep) &
-                                  (db.Vectors.use_ppmi == ppmi))
+                                  (db.Vectors.rep == rep))
     # peewee cant easily do selects that contain checks of float values
     # lets do a post-filter
     results = [res for res in v if abs(res.unlabelled_percentage - percent) < 1e-6]
@@ -149,10 +142,10 @@ def all_standard_gigaw_experiments(corpora=None):
 
 
 @printing_decorator
-def hybrid_experiments_turian_word2vec_gigaw():
+def hybrid_experiments_word2vec_gigaw():
     h = 'SignifierSignifiedFeatureHandler'
 
-    for s in chain(word2vec_vector_settings(unlab='wiki'), turian_vector_settings()):
+    for s in word2vec_vector_settings(unlab='wiki'):
         v = vectors_from_settings(*s)
         e = db.ClassificationExperiment(labelled=am_corpus,
                                         expansions=_make_expansions(vectors=v,
@@ -193,18 +186,20 @@ def nondistributional_baselines(corpora=None, document_features_tr='J+N+AN+NN', 
 
 
 @printing_decorator
-def w2v_learning_curve_amazon(unlab='wiki', percent=[1, 10, 20, 30, 40, 50, 60, 70, 80, 90]):
+def w2v_learning_curve_amazon(unlab='wiki', percent=(1, 10, 20, 30, 40, 50, 60, 70, 80, 90), corpus=None):
+    if corpus is None:
+        corpus = am_corpus
     for settings in word2vec_vector_settings(unlab):
         # only up to 90% to avoid duplicating w2v-gigaw-100% (part of "standard experiments")
         for p in percent:
             v = vectors_from_settings(*settings, percent=p)
-            e = db.ClassificationExperiment(labelled=am_corpus, expansions=_make_expansions(vectors=v))
+            e = db.ClassificationExperiment(labelled=corpus, expansions=_make_expansions(vectors=v))
             experiments.append(e)
 
 
 @printing_decorator
 def varying_k_with_w2v_on_amazon():
-    for k in [1, 5]:
+    for k in [1, 5, 10, 20, 30, 40, 50, 75, 100]:
         for settings in word2vec_vector_settings(unlab='wiki'):
             v = vectors_from_settings(*settings)
             e = db.ClassificationExperiment(labelled=am_corpus,
@@ -236,25 +231,15 @@ def initial_wikipedia_w2v_amazon_with_repeats():
 
 
 @printing_decorator
-def corrupted_w2v_wiki_amazon():
+def corrupted_w2v_wiki(corpus=None):
+    if not corpus:
+        corpus = r2_corpus
     for noise in np.arange(.2, 2.1, .2):
         v = vectors_from_settings('wiki', 'word2vec', 'Add', 100, percent=100)
         e = db.ClassificationExperiment(labelled=am_corpus,
                                         expansions=_make_expansions(vectors=v,
                                                                     noise=noise))
         experiments.append(e)
-
-
-@printing_decorator
-def count_wiki_with_svd_no_ppmi_amazon():
-    composers = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer, RightmostWordComposer]
-    for algo in ['count_dependencies', 'count_windows']:
-        if 'windows' in algo:
-            composers.append(Bunch(name='Observed'))
-        for composer in composers:
-            v = vectors_from_settings('wiki', algo, composer.name, svd_dims=100, ppmi=False)
-            e = db.ClassificationExperiment(labelled=am_corpus, expansions=_make_expansions(vectors=v))
-            experiments.append(e)
 
 
 @printing_decorator
@@ -295,32 +280,33 @@ def with_unigrams_at_decode_time():
 
 
 @printing_decorator
-def with_lexical_overlap_and_unigrams_at_decode_time():
+def with_lexical_overlap():
     composers = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer, RightmostWordComposer]
     for composer in composers:
         vect = [vectors_from_settings('gigaw', 'word2vec', composer.name, svd_dims=100, percent=100),
                 vectors_from_settings('wiki', 'word2vec', composer.name, svd_dims=100, percent=15),
-                vectors_from_settings('wiki', 'word2vec', composer.name, svd_dims=100, percent=100),
-                ]
+                vectors_from_settings('wiki', 'word2vec', composer.name, svd_dims=100, percent=100)]
         for v in vect:
             e = db.ClassificationExperiment(expansions=_make_expansions(vectors=v, allow_overlap=True),
-                                            labelled=am_corpus,
-                                            document_features_ev='J+N+AN+NN')
+                                            labelled=am_corpus)
             experiments.append(e)
 
 
 @printing_decorator
-def verb_phrases_svo(document_features_tr, document_features_ev, allow_overlap=True):
-    composers = [AdditiveComposer, MultiplicativeComposer,
-                 GrefenstetteMultistepComposer, VerbComposer, CopyObject]
-    for comp in composers:
-        vect = vectors_by_type('SVO', comp.name)
+def verb_phrases_svo():
+    composers = [AdditiveComposer, MultiplicativeComposer, VerbComposer, CopyObject]
+    algos = ['count_windows', 'glove', 'word2vec']
+    for composer in composers:
+        # w2v vs glove vs count @ wiki 100 (several composers)
+        # wiki 15, giga 100 with w2v only (same composers)
+        vect = [vectors_from_settings('wiki', algo, composer.name, 100) for algo in algos] + \
+               [vectors_from_settings('gigaw', 'word2vec', composer.name, svd_dims=100, percent=100),
+                vectors_from_settings('wiki', 'word2vec', composer.name, svd_dims=100, percent=15)]
         for v in vect:
             e = db.ClassificationExperiment(labelled=am_corpus,
-                                            document_features_tr=document_features_tr,
-                                            document_features_ev=document_features_ev,
-                                            expansions=_make_expansions(vectors=v,
-                                                                        allow_overlap=allow_overlap))
+                                            document_features_tr='J+N+V',
+                                            document_features_ev='SVO',
+                                            expansions=_make_expansions(vectors=v))
             experiments.append(e)
 
 
@@ -331,44 +317,7 @@ def kmeans_experiments():
         experiments.append(e)
 
 
-def write_conf_files():
-    global experiments
-    # re-order experiments so that the hard ones (high-memory, long-running) come first
-    def _myorder(item):
-        """
-        If the thing is AM/Maas move it to the from of the sorted list, leave
-        all other items in the order they were in
-        :param item:
-        :return:
-        """
-        lab = getattr(item[1], 'labelled')
-        if 'amazon' in lab or 'aclImdb' in lab:
-            return chr(1), item[0]
-        return 'whatever', item[0]
-
-    # assign ID's starting from 500 to all fast experiments
-    # I can now add slow experiments at will without messing up the order of the slow ones
-    # e.g. experiment numbers will be 1, 2, 3..., 75, 500, 501, ...
-    # which group into slow and fast (1, 2, 3..., 75), (500, 501, ...)
-    # this is a little buggy in that the first fast exp is in the slow group
-    # i.e. (1, 2, 3..., 74), (75, 500, 501, ...)
-    # but whatever, not worth my time
-    sorted_experiments = sorted(enumerate(experiments), key=_myorder)
-    experiments = []
-    new_id = 1
-    prev_exp = None
-    for old_id, e in sorted_experiments:
-        # print('%d --> %d' % (old_id, new_id))
-        e.id = new_id
-        experiments.append(e)
-        new_id += 1
-        if hasattr(prev_exp, 'labelled') and \
-                        prev_exp.labelled in [am_corpus, maas_corpus] and \
-                        e.labelled not in [am_corpus, maas_corpus]:
-            new_id = 500
-        prev_exp = e
-
-    # sys.exit(0)
+def write_conf_files(experiments):
     for e in experiments:
         e.save(force_insert=True)
 
@@ -420,7 +369,8 @@ def write_conf_files():
             if enable_rand_neigh:
                 conf['vector_sources']['neighbours_file'] = ''
             else:
-                conf['vector_sources']['neighbours_file'] = exp.expansions.vectors.path if exp.expansions.vectors else ''
+                conf['vector_sources'][
+                    'neighbours_file'] = exp.expansions.vectors.path if exp.expansions.vectors else ''
             conf['vector_sources']['noise'] = exp.expansions.noise
             conf['feature_extraction']['k'] = exp.expansions.k
 
@@ -484,12 +434,12 @@ if __name__ == '__main__':
     ################################################################
     # NOUN PHRASES
     ################################################################
-    random_baselines()
-    nondistributional_baselines()
+    random_baselines(corpora=[am_corpus, r2_corpus])
+    nondistributional_baselines(corpora=[am_corpus, r2_corpus])
     nondistributional_baselines(document_features_ev='J+N+AN+NN')
 
     all_standard_gigaw_experiments()
-    hybrid_experiments_turian_word2vec_gigaw()
+    hybrid_experiments_word2vec_gigaw()
     varying_k_with_w2v_on_amazon()
     # wikipedia experiments on amazon
     initial_wikipedia_w2v_amazon_with_repeats()
@@ -498,17 +448,17 @@ if __name__ == '__main__':
     # random_vectors(maas_corpus)
     # all_standard_experiments(corpora=[maas_corpus])
     # other more recent stuff
-    corrupted_w2v_wiki_amazon()
+    corrupted_w2v_wiki()
     glove_vectors_amazon()
     # 15, 50% done as a part of initial_wikipedia_w2v_amazon()
     w2v_learning_curve_amazon(percent=[1, 10, 20, 30, 40, 60, 70, 80, 90, 100])
-    # PPMI-no-SVD ones take days to classify, let's used SVD ones instead
-    # currently can't do PPMI + SVD, and it probably doesn't make sense
-    count_wiki_with_svd_no_ppmi_amazon()
+    # show R2 is too small for a meaningful comparison
+    corrupted_w2v_wiki(corpus=r2_corpus)
+    w2v_learning_curve_amazon(percent=[1, 10, 20, 30, 50, 40, 60, 70, 80, 90, 100], corpus=r2_corpus)
     an_only_nn_only_experiments_amazon()
     equalised_coverage_experiments()
     with_unigrams_at_decode_time()
-    with_lexical_overlap_and_unigrams_at_decode_time()
+    with_lexical_overlap()
 
     ################################################################
     # VERB PHRASES
@@ -516,16 +466,16 @@ if __name__ == '__main__':
 
     # pad with J+N to increase performance a wee bit
     nondistributional_baselines(document_features_tr='J+N+V',
-                                document_features_ev='J+N+V+SVO')
-    verb_phrases_svo(document_features_tr='J+N+V',
-                     document_features_ev='J+N+V+SVO',
-                     allow_overlap=True)
+                                document_features_ev='SVO')
+    verb_phrases_svo()
 
+    ################################################################
+    # CLUSTERING
+    ################################################################
     kmeans_experiments()
+
     # various other experiments that aren't as interesting
     # different_neighbour_strategies() # this takes a long time
 
-
     print('Total experiments: %d' % len(experiments))
-
-    write_conf_files()
+    write_conf_files(experiments)

@@ -73,23 +73,6 @@ def _w2v_vectors():
                 print(v)
 
 
-def _ppmi_vectors(unlab_nums, unlab_names):
-    """ count vectors with PPMI, no SVD"""
-    ppmi_file_pattern = '{prefix}/exp{unlab_num}-{thesf_num}-composed-ngrams-ppmi/' \
-                        'AN_NN_{unlab_name:.5}_{composer_name}.events.filtered.strings'
-    for composer_class in [AdditiveComposer, MultiplicativeComposer,
-                           LeftmostWordComposer, RightmostWordComposer]:
-        for thesf_num, thesf_name in zip([12, 13], ['dependencies', 'windows']):
-            for unlab_num, unlab_name in zip(unlab_nums, unlab_names):
-                thesaurus_file = ppmi_file_pattern.format(**ChainMap(locals(), globals()))
-                modified, size = _get_size(thesaurus_file)
-                v = db.Vectors.create(algorithm='count_' + thesf_name, use_ppmi=True,
-                                      dimensionality=0, unlabelled=unlab_name,
-                                      path=thesaurus_file, composer=composer_class,
-                                      modified=modified, size=size)
-                print(v)
-
-
 def _glove_vectors_wiki():
     # GloVe vectors with simple composition
     for comp in [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
@@ -111,36 +94,31 @@ def _count_vectors_gigaw_wiki():
                       BaroniComposer, GuevaraComposer, GrefenstetteMultistepComposer,
                       Bunch(name='Observed')]
 
-    # e.g. exp10-12-composed-ngrams/AN_NN_gigaw_Add.events.filtered.strings
-    unred_pattern = '{prefix}/exp{unlab_num}-{thesf_num}-composed-ngrams/' \
-                    'AN_NN_{unlab_name:.5}_{composer_name}.events.filtered.strings'
-
     # e.g. exp10-12-composed-ngrams/AN_NN_gigaw-100_Add.events.filtered.strings
-    reduced_pattern = '{prefix}/exp{unlab_num}-{thesf_num}-composed-ngrams/' \
+    filename_pattern = '{prefix}/exp{unlab_num}-{thesf_num}-composed-ngrams-ppmi-svd/' \
                       'AN_NN_{unlab_name:.5}-{svd_dims}_{composer_name}.events.filtered.strings'
 
     for thesf_num, thesf_name in zip([12, 13], ['dependencies', 'windows']):
         for unlab_num, unlab_name in zip([10, 11], ['gigaw', 'wiki']):
-            for svd_dims in [100]:  # unreduced ones take a lot of memory
-                for composer_class in composer_algos:
-                    composer_name = composer_class.name
+            svd_dims = 100  # unreduced ones take a lot of memory
+            for composer_class in composer_algos:
+                composer_name = composer_class.name
 
-                    if composer_name in ['Baroni', 'Guevara', 'Multistep', 'CopyObj'] and svd_dims == 0:
-                        continue  # not training these without SVD
-                    if thesf_name == 'dependencies' and composer_name in ['Baroni', 'Guevara', 'Observed']:
-                        continue  # can't easily run Julie's observed vectors code, so pretend it doesnt exist
-                    if unlab_name == 'wiki' and svd_dims == 0 and composer_name != 'Observed':
-                        # unreduced wiki vectors are too large and take too long to classify
-                        # Observed is an exception as it tends to be small due to NP sparsity
-                        continue
-                    pattern = unred_pattern if svd_dims < 1 else reduced_pattern
-                    thesaurus_file = pattern.format(**ChainMap(locals(), globals()))
-                    modified, size = _get_size(thesaurus_file)
-                    v = db.Vectors.create(algorithm='count_' + thesf_name,
-                                          dimensionality=svd_dims, unlabelled=unlab_name,
-                                          path=thesaurus_file, composer=composer_class,
-                                          modified=modified, size=size)
-                    print(v)
+                if composer_name in ['Baroni', 'Guevara', 'Multistep', 'CopyObj'] and svd_dims == 0:
+                    continue  # not training these without SVD
+                if thesf_name == 'dependencies' and composer_name in ['Baroni', 'Guevara', 'Observed']:
+                    continue  # can't easily run Julie's observed vectors code, so pretend it doesnt exist
+                if unlab_name == 'wiki' and svd_dims == 0 and composer_name != 'Observed':
+                    # unreduced wiki vectors are too large and take too long to classify
+                    # Observed is an exception as it tends to be small due to NP sparsity
+                    continue
+                thesaurus_file = filename_pattern.format(**ChainMap(locals(), globals()))
+                modified, size = _get_size(thesaurus_file)
+                v = db.Vectors.create(algorithm='count_' + thesf_name,
+                                      dimensionality=svd_dims, unlabelled=unlab_name,
+                                      path=thesaurus_file, composer=composer_class,
+                                      modified=modified, size=size)
+                print(v)
 
 
 def _turian_vectors():
@@ -212,7 +190,7 @@ def _lda_vectors():
 
 def _clustered_vectors():
     def _do_magic(v):
-        for num_clusters in [100, 200, 300]:
+        for num_clusters in [100, 200, 300, 500, 2000, 5000, 10000]:
             db.Clusters.create(vectors=v, num_clusters=num_clusters,
                                path=v.path + '.kmeans%d' % num_clusters)
 
@@ -220,6 +198,7 @@ def _clustered_vectors():
         _do_magic(vectors_from_settings('turian', 'turian', composer, 100))
     for composer in ['Mult', 'Add']:
         _do_magic(vectors_from_settings('gigaw', 'word2vec', composer, 100))
+        _do_magic(vectors_from_settings('wiki', 'word2vec', composer, 100))
 
 
 if __name__ == '__main__':
@@ -237,8 +216,6 @@ if __name__ == '__main__':
     _lda_vectors()
 
     _clustered_vectors()
-    # _ppmi_vectors([10], ['gigaw'])
-    # _ppmi_vectors([11], ['wikipedia'])
 
     # verify vectors have been included just once
     vectors = []
