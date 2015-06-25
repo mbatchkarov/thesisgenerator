@@ -190,6 +190,8 @@ def _build_pipeline(conf, predefined_fit_args, cv_i):
             fit_args['%s__%s' % (step_name, param_name)] = param_val
         fit_args['%s__cv_fold' % step_name] = cv_i
     fit_args['stripper__strategy'] = conf['vector_sources']['neighbour_strategy']
+    # tell vector source to retrieve a few more neighbours than would be needed
+    fit_args['stripper__k'] = int(conf['feature_extraction']['k'] * 1.5)
     pipeline.set_params(**init_args)
     logging.debug('Pipeline is:\n %s', pipeline)
     return pipeline, fit_args
@@ -355,7 +357,7 @@ def _prepare_output_directory(clean, output):
         os.makedirs(output)
 
 
-def go(conf_file, data, fit_args, clean=False, n_jobs=1):
+def go(conf_file, data, fit_args, clean=False):
     config, configspec_file = parse_config_file(conf_file)
 
     logging.info('Reading configuration file from %s, conf spec from %s',
