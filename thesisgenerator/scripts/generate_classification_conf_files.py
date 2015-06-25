@@ -54,8 +54,7 @@ def vectors_from_settings(unlab_name, algorithm, composer_name, svd_dims, percen
     return list(results)[0]
 
 
-def window_vector_settings():
-    unlab = 'gigaw'
+def window_vector_settings(unlab='gigaw'):
     algo = 'count_windows'
     composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
                       RightmostWordComposer, BaroniComposer, GuevaraComposer,
@@ -67,8 +66,7 @@ def window_vector_settings():
             yield unlab, algo, c.name, svd_dims
 
 
-def dependency_vector_settings():
-    unlab = 'gigaw'
+def dependency_vector_settings(unlab='gigaw'):
     algo = 'count_dependencies'
     # can't easily run Julie's observed dependency code, ignore it
     composer_algos = [AdditiveComposer, MultiplicativeComposer,
@@ -103,11 +101,13 @@ def glove_vector_settings(unlab='wiki'):
         yield unlab, algo, c.name, 100
 
 
-def all_vector_settings():
-    yield from dependency_vector_settings()
-    yield from window_vector_settings()
+def all_vector_settings(unlab=['gigaw', 'wiki']):
+    for u in unlab:
+        yield from dependency_vector_settings(unlab=u)
+        yield from window_vector_settings(unlab=u)
+        yield from word2vec_vector_settings(unlab=u)
+
     yield from turian_vector_settings()
-    yield from word2vec_vector_settings()
 
 
 @printing_decorator
@@ -130,11 +130,11 @@ def random_baselines(corpora=None, document_features_tr='J+N+AN+NN', document_fe
 
 
 @printing_decorator
-def all_standard_gigaw_experiments(corpora=None):
-    if not corpora:
-        corpora = [am_corpus]
-    for s in all_vector_settings():  # yields 28 times
-        for labelled_corpus in corpora:
+def all_standard_experiments(labelled=None):
+    if not labelled:
+        labelled = [am_corpus]
+    for s in all_vector_settings():  # yields 35 times
+        for labelled_corpus in labelled:
             v = vectors_from_settings(*s)
             e = db.ClassificationExperiment(labelled=labelled_corpus,
                                             expansions=_make_expansions(vectors=v))
@@ -186,11 +186,10 @@ def nondistributional_baselines(corpora=None, document_features_tr='J+N+AN+NN', 
 
 
 @printing_decorator
-def w2v_learning_curve_amazon(unlab='wiki', percent=(1, 10, 20, 30, 40, 50, 60, 70, 80, 90), corpus=None):
+def w2v_wiki_learning_curve(percent, unlab='wiki', corpus=None):
     if corpus is None:
         corpus = am_corpus
     for settings in word2vec_vector_settings(unlab):
-        # only up to 90% to avoid duplicating w2v-gigaw-100% (part of "standard experiments")
         for p in percent:
             v = vectors_from_settings(*settings, percent=p)
             e = db.ClassificationExperiment(labelled=corpus, expansions=_make_expansions(vectors=v))
@@ -199,7 +198,7 @@ def w2v_learning_curve_amazon(unlab='wiki', percent=(1, 10, 20, 30, 40, 50, 60, 
 
 @printing_decorator
 def varying_k_with_w2v_on_amazon():
-    for k in [1, 5, 10, 20, 30, 40, 50, 75, 100]:
+    for k in [1, 5, 10, 20, 30, 40, 50, 75, 100]: # k=3 is a "standard" experiment
         for settings in word2vec_vector_settings(unlab='wiki'):
             v = vectors_from_settings(*settings)
             e = db.ClassificationExperiment(labelled=am_corpus,
@@ -222,21 +221,18 @@ def different_neighbour_strategies_r2():
 @printing_decorator
 def initial_wikipedia_w2v_amazon_with_repeats():
     unlab = 'wiki'
-    for p in [15, 50]:
-        for rep in [-1, 0, 1, 2]:
-            for _, algo, composer_name, dims in word2vec_vector_settings():
-                v = vectors_from_settings(unlab, algo, composer_name, dims, percent=p, rep=rep)
-                e = db.ClassificationExperiment(labelled=am_corpus, expansions=_make_expansions(vectors=v))
-                experiments.append(e)
+    for rep in [-1, 0, 1, 2]:
+        for _, algo, composer_name, dims in word2vec_vector_settings():
+            v = vectors_from_settings(unlab, algo, composer_name, dims, percent=15, rep=rep)
+            e = db.ClassificationExperiment(labelled=am_corpus, expansions=_make_expansions(vectors=v))
+            experiments.append(e)
 
 
 @printing_decorator
-def corrupted_w2v_wiki(corpus=None):
-    if not corpus:
-        corpus = r2_corpus
+def corrupted_w2v_wiki(corpus):
     for noise in np.arange(.2, 2.1, .2):
         v = vectors_from_settings('wiki', 'word2vec', 'Add', 100, percent=100)
-        e = db.ClassificationExperiment(labelled=am_corpus,
+        e = db.ClassificationExperiment(labelled=corpus,
                                         expansions=_make_expansions(vectors=v,
                                                                     noise=noise))
         experiments.append(e)
@@ -438,7 +434,7 @@ if __name__ == '__main__':
     nondistributional_baselines(corpora=[am_corpus, r2_corpus])
     nondistributional_baselines(document_features_ev='J+N+AN+NN')
 
-    all_standard_gigaw_experiments()
+    all_standard_experiments()
     hybrid_experiments_word2vec_gigaw()
     varying_k_with_w2v_on_amazon()
     # wikipedia experiments on amazon
@@ -448,13 +444,13 @@ if __name__ == '__main__':
     # random_vectors(maas_corpus)
     # all_standard_experiments(corpora=[maas_corpus])
     # other more recent stuff
-    corrupted_w2v_wiki()
+    corrupted_w2v_wiki(am_corpus)
     glove_vectors_amazon()
-    # 15, 50% done as a part of initial_wikipedia_w2v_amazon()
-    w2v_learning_curve_amazon(percent=[1, 10, 20, 30, 40, 60, 70, 80, 90, 100])
+    # only up to 90% to avoid duplicating w2v-gigaw-100% (part of "standard experiments")
+    w2v_wiki_learning_curve(percent=[1, 10, 20, 30, 40, 50, 60, 70, 80, 90])
     # show R2 is too small for a meaningful comparison
-    corrupted_w2v_wiki(corpus=r2_corpus)
-    w2v_learning_curve_amazon(percent=[1, 10, 20, 30, 50, 40, 60, 70, 80, 90, 100], corpus=r2_corpus)
+    w2v_wiki_learning_curve(percent=[1, 10, 20, 30, 50, 40, 60, 70, 80, 90, 100], corpus=r2_corpus)
+    corrupted_w2v_wiki(r2_corpus) # no noise@100% done as part of learning curve
     an_only_nn_only_experiments_amazon()
     equalised_coverage_experiments()
     with_unigrams_at_decode_time()

@@ -134,8 +134,8 @@ class ClassificationExperiment(pw.Model):
         key = (self.document_features_tr,
                self.document_features_ev,
                self.labelled,
-               self.expansions.id if self.expansions else None,
-               self.clusters.id if self.clusters else None)
+               self.expansions.__hash__() if self.expansions else None,
+               self.clusters.__hash__() if self.clusters else None)
         return key
 
     def __eq__(x, y):

@@ -49,7 +49,7 @@ def _w2v_vectors():
     # wikipedia thesauri, some with repetition and averaging over repeated runs
     for composer_class in composers:
         composer = composer_class.name
-        for percent in [1, 10, 20, 30, 40, 60, 70, 80, 90, 100]:
+        for percent in [1] + list(range(10, 101, 10)):
             # note: 50 missing on purpose. These experiments were not repeated
             rep = 0
             thesaurus_file = wiki_rep_pattern.format(**ChainMap(locals(), globals()))
@@ -59,7 +59,7 @@ def _w2v_vectors():
                                   unlabelled='wiki', path=thesaurus_file, unlabelled_percentage=percent,
                                   composer=composer_class, modified=modified, size=size, rep=0)
             print(v)
-        for percent in [15, 50]:  # these are where repeats were done
+        for percent in [15]:  # these are where repeats were done
             for rep in [-1, 0, 1, 2]:  # -1 signifies averaging across multiple runs
                 if rep < 0:
                     thesaurus_file = wiki_avg_pattern.format(**ChainMap(locals(), globals()))
