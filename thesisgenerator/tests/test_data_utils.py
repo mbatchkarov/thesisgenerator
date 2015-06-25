@@ -6,7 +6,7 @@ import numpy as np
 
 
 def test_jsonify_XML_corpus():
-    conf_file = 'thesisgenerator/resources/conf/exp0/exp0_base.conf'
+    conf_file = 'thesisgenerator/resources/conf/exp0/exp0.conf'
     conf, _ = parse_config_file(conf_file)
     train_set = conf['training_data']
     json_train_set = train_set + '.gz'

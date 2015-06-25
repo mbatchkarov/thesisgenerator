@@ -2,7 +2,6 @@ from functools import wraps
 from glob import glob
 from collections import Counter
 import sys
-from itertools import chain
 from peewee import IntegrityError
 
 sys.path.append('.')
@@ -334,7 +333,7 @@ def write_conf_files(experiments):
         experiment_dir = 'conf/exp%d' % exp.id
         mkdirs_if_not_exists(experiment_dir)
 
-        base_conf_file = os.path.join(experiment_dir, 'exp%d_base.conf' % exp.id)
+        conf_file = os.path.join(experiment_dir, 'exp%d.conf' % exp.id)
         conf, _ = parse_config_file(megasuperbase_conf_file)
 
         # options for all experiments
@@ -392,7 +391,7 @@ def write_conf_files(experiments):
             # not used, remove
             del conf['feature_extraction']['sim_compressor']
 
-        with open(base_conf_file, 'wb') as inf:
+        with open(conf_file, 'wb') as inf:
             conf.write(inf)
 
         # we've just written a conf file to a directory that may have contained results from before
@@ -400,7 +399,7 @@ def write_conf_files(experiments):
         # because as we reorder experiments existing results may end up with a different ID
         # otherwise the experiment will have to be re-run
         # only checking some of the important parameters
-        previous_conf_file = 'conf/exp{0}/exp{0}_base-variants/exp{0}-0.conf'.format(exp.id)
+        previous_conf_file = 'conf/exp{0}/output/exp{0}.conf'.format(exp.id)
         if os.path.exists(previous_conf_file):
             old_conf, _ = parse_config_file(previous_conf_file)
             for a, b in [(old_conf['vector_sources']['neighbours_file'],

@@ -25,8 +25,7 @@ def stats_files(request):
     # load a mock unigram thesaurus, bypassing the similarity calculation provided by CompositeVectorSource
     vector_source = Thesaurus.from_tsv('thesisgenerator/resources/exp0-0a.strings')
     # exp1 is like exp0, but using Signified encoding
-    run_experiment(1, num_workers=1, predefined_sized=[3],
-                   prefix=prefix, thesaurus=vector_source)
+    run_experiment(1,prefix=prefix, thesaurus=vector_source)
 
     # setup goes like this:
     # for each sample size K (here set to [3])
@@ -49,7 +48,7 @@ def stats_files(request):
     request.addfinalizer(fin)
 
     # prefix of all stats files that get produced
-    return ['statistics/stats-tests-exp1-0.tc.csv.gz', 'statistics/stats-tests-exp1-0.par.csv.gz']
+    return ['statistics/stats-tests-exp1.tc.csv.gz', 'statistics/stats-tests-exp1.par.csv.gz']
 
 
 def test_coverage_statistics(stats_files):

@@ -359,7 +359,6 @@ def _prepare_output_directory(clean, output):
 
 def go(conf_file, data, fit_args, clean=False):
     config, configspec_file = parse_config_file(conf_file)
-
     logging.info('Reading configuration file from %s, conf spec from %s',
                  glob(conf_file)[0], configspec_file)
     output = config['output_dir']

@@ -1,4 +1,5 @@
 from os import path as path
+import os
 from pprint import pprint
 import sys
 from configobj import ConfigObj, flatten_errors
@@ -30,6 +31,8 @@ def set_in_conf_file(conf_file, keys, new_value):
 
 
 def parse_config_file(conf_file):
+    if not os.path.exists(conf_file):
+        raise ValueError('Conf file %s does not exits!'%conf_file)
     configspec_file = get_confrc(conf_file)
     config = ConfigObj(conf_file, configspec=configspec_file)
     validator = validate.Validator()

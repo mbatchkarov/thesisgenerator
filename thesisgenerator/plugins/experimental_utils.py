@@ -14,7 +14,6 @@ import os
 import logging
 from thesisgenerator.utils.data_utils import get_pipeline_fit_args, get_tokenized_data, get_tokenizer_settings_from_conf
 from thesisgenerator.utils.conf_file_utils import parse_config_file
-from thesisgenerator.plugins.file_generators import vary_training_size_file_iterator
 from thesisgenerator.__main__ import go
 from thesisgenerator.plugins.dumpers import consolidate_single_experiment
 
@@ -31,10 +30,8 @@ def _clear_old_files(i, prefix):
         os.remove(f)
 
 
-def run_experiment(expid, num_workers=1,
-                   predefined_sized=[],
-                   prefix='/mnt/lustre/scratch/inf/mmb28/thesisgenerator',
-                   thesaurus=None):
+def run_experiment(expid, thesaurus=None,
+                   prefix='/mnt/lustre/scratch/inf/mmb28/thesisgenerator'):
     """
 
     :param expid: int experiment identified. exp 0 reserved for development purpose and many of the values
@@ -47,20 +44,9 @@ def run_experiment(expid, num_workers=1,
     """
     logging.info('RUNNING EXPERIMENT %d', expid)
 
-    sizes = [500]  # this is only used if crossval type is subsampled_test_set
-    if expid == 0:
-        # exp0 is for debugging only, we don't have to do much
-        sizes = [180]
-        num_workers = 1
-
-    if predefined_sized:
-        sizes = predefined_sized
-
-    base_conf_file = '%s/conf/exp%d/exp%d_base.conf' % (prefix, expid, expid)
-    conf_file_iterator = vary_training_size_file_iterator(sizes, expid, base_conf_file)
-
+    conf_file = '%s/conf/exp%d/exp%d.conf' % (prefix, expid, expid)
     _clear_old_files(expid, prefix)
-    conf, configspec_file = parse_config_file(base_conf_file)
+    conf, configspec_file = parse_config_file(conf_file)
 
     if thesaurus:
         fit_args = {'vector_source': thesaurus}
@@ -79,8 +65,7 @@ def run_experiment(expid, num_workers=1,
                                         get_tokenizer_settings_from_conf(conf),
                                         test_data=test_path)
     # run data through the pipeline
-    return [go(new_conf_file, tokenised_data, fit_args, n_jobs=num_workers)
-            for new_conf_file, log_dir in conf_file_iterator]
+    return go(conf_file, tokenised_data, fit_args)
 
 
 if __name__ == '__main__':
