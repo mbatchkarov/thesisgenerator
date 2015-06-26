@@ -9,25 +9,12 @@ sys.path.append('.')
 sys.path.append('..')
 sys.path.append('../..')
 
-import glob
 import os
 import logging
 from thesisgenerator.utils.data_utils import get_pipeline_fit_args, get_tokenized_data, get_tokenizer_settings_from_conf
 from thesisgenerator.utils.conf_file_utils import parse_config_file
 from thesisgenerator.__main__ import go
 from thesisgenerator.plugins.dumpers import consolidate_single_experiment
-
-
-def _clear_old_files(i, prefix):
-    """
-    clear old conf, logs and result files for this experiment
-    """
-    for f in glob.glob('%s/conf/exp%d/exp%d_base-variants/*' % (prefix, i, i)):
-        os.remove(f)
-    for f in glob.glob('%s/conf/exp%d/output/*' % (prefix, i)):
-        os.remove(f)
-    for f in glob.glob('%s/conf/exp%d/logs/*' % (prefix, i)):
-        os.remove(f)
 
 
 def run_experiment(expid, thesaurus=None,
@@ -45,7 +32,6 @@ def run_experiment(expid, thesaurus=None,
     logging.info('RUNNING EXPERIMENT %d', expid)
 
     conf_file = '%s/conf/exp%d/exp%d.conf' % (prefix, expid, expid)
-    _clear_old_files(expid, prefix)
     conf, configspec_file = parse_config_file(conf_file)
 
     if thesaurus:

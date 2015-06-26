@@ -21,7 +21,7 @@ from numpy.ma import hstack
 from sklearn import cross_validation
 from sklearn.pipeline import Pipeline
 
-from discoutils.misc import Bunch, Delayed
+from discoutils.misc import Bunch, mkdirs_if_not_exists
 from thesisgenerator.composers.feature_selectors import MetadataStripper
 from thesisgenerator.utils.reflection_utils import get_named_object, get_intersection_of_parameters
 from thesisgenerator.utils.misc import ChainCallable
@@ -342,27 +342,12 @@ def _analyze(scores, output_dir, name, class_names):
     return csv
 
 
-def _prepare_output_directory(clean, output):
-    # **********************************
-    # CLEAN OUTPUT DIRECTORY
-    # **********************************
-    if clean and os.path.exists(output):
-        shutil.rmtree(output)
-
-    # **********************************
-    # CREATE OUTPUT DIRECTORY
-    # **********************************
-    if not os.path.exists(output):
-        logging.info('Creating output directory %s', glob(output))
-        os.makedirs(output)
-
-
-def go(conf_file, data, fit_args, clean=False):
+def go(conf_file, data, fit_args):
     config, configspec_file = parse_config_file(conf_file)
     logging.info('Reading configuration file from %s, conf spec from %s',
                  glob(conf_file)[0], configspec_file)
     output = config['output_dir']
-    _prepare_output_directory(clean, output)
+    mkdirs_if_not_exists(output)
     shutil.copy(conf_file, output)
 
     # Runs all commands specified in the configuration file
