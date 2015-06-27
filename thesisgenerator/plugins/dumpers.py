@@ -162,7 +162,7 @@ def insert_full_results_to_database(prefix, expid):
     # there's a notebook for this
     logging.info('Adding full results to database')
     df = pd.read_csv(os.path.join(prefix,
-                                  'conf/exp{0}/output/exp{0}-0.out-raw.csv'.format(expid)))
+                                  'conf/exp{0}/output/exp{0}.out-raw.csv'.format(expid)))
     df.drop(df.columns[0], axis=1, inplace=True)
     myset = {'microavg_rec', 'macroavg_rec',
              'microavg_prec', 'macroavg_prec',
@@ -182,7 +182,7 @@ def insert_full_results_to_database(prefix, expid):
 
 def consolidate_single_experiment(expid, prefix='/mnt/lustre/scratch/inf/mmb28/thesisgenerator'):
     output_dir = '%s/conf/exp%d/output/' % (prefix, expid)
-    conf_dir = '%s/conf/exp%d/exp%d_base-variants' % (prefix, expid, expid)
+    conf_dir = '%s/conf/exp%d' % (prefix, expid)
     try:
         csv_out_fh = open(os.path.join(output_dir, "summary%d.csv" % expid), "w")
         writer = ConsolidatedResultsCsvWriter(csv_out_fh)
@@ -202,7 +202,7 @@ def consolidate_single_experiment(expid, prefix='/mnt/lustre/scratch/inf/mmb28/t
     if output_db_conn:
         logging.info('Writing short results to database')
         # do some SQL-fu here
-        output_file = os.path.join(output_dir, 'exp%d-0.out.csv' % expid)
+        output_file = os.path.join(output_dir, 'exp%d.out.csv' % expid)
         df = pd.read_csv(output_file)
         data = {'id': expid}
         for classifier in set(df.classifier):
