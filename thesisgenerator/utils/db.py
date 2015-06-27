@@ -116,6 +116,7 @@ class ClassificationExperiment(pw.Model):
 
     date_ran = pw.DateField(null=True, default=None)
     git_hash = pw.CharField(null=True, default=None)
+    minutes_taken = pw.FloatField(null=True, default=None)
 
     class Meta:
         database = db

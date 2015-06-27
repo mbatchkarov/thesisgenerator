@@ -3,6 +3,7 @@
 
 # if one tries to run this script from the main project directory the
 # thesisgenerator package would not be on the path, add it and try again
+from datetime import datetime
 import sys
 
 sys.path.append('.')
@@ -30,6 +31,7 @@ def run_experiment(expid, thesaurus=None,
     :return:
     """
     logging.info('RUNNING EXPERIMENT %d', expid)
+    start_time = datetime.now()
 
     conf_file = '%s/conf/exp%d/exp%d.conf' % (prefix, expid, expid)
     conf, configspec_file = parse_config_file(conf_file)
@@ -51,7 +53,10 @@ def run_experiment(expid, thesaurus=None,
                                         get_tokenizer_settings_from_conf(conf),
                                         test_data=test_path)
     # run data through the pipeline
-    return go(conf_file, tokenised_data, fit_args)
+    go(conf_file, tokenised_data, fit_args)
+    total_time = (datetime.now() - start_time).seconds / 60
+    logging.info('MINUTES TAKEN %.2f' % total_time)
+    return total_time
 
 
 if __name__ == '__main__':
@@ -61,8 +66,8 @@ if __name__ == '__main__':
     logging.info(sys.executable)
     if len(sys.argv) == 2:
         i = int(sys.argv[1])  # experiment id, e.g. 1 or 2 or 1532
-        run_experiment(i)
+        time = run_experiment(i)
         if i:
-            consolidate_single_experiment(i)
+            consolidate_single_experiment(i, time_taken=time)
     else:
         print(('Expected one int parameter, got %s' % (sys.argv)))

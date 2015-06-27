@@ -180,7 +180,8 @@ def insert_full_results_to_database(prefix, expid):
         r.save(force_insert=True)
 
 
-def consolidate_single_experiment(expid, prefix='/mnt/lustre/scratch/inf/mmb28/thesisgenerator'):
+def consolidate_single_experiment(expid, prefix='/mnt/lustre/scratch/inf/mmb28/thesisgenerator',
+                                  time_taken=None):
     output_dir = '%s/conf/exp%d/output/' % (prefix, expid)
     conf_dir = '%s/conf/exp%d' % (prefix, expid)
     try:
@@ -234,7 +235,10 @@ def consolidate_single_experiment(expid, prefix='/mnt/lustre/scratch/inf/mmb28/t
         e = db.ClassificationExperiment.get(id=expid)
         e.git_hash = get_git_hash()
         e.date_ran = dt.fromtimestamp(os.path.getmtime(output_file))
-        e.save(only=[db.ClassificationExperiment.git_hash, db.ClassificationExperiment.date_ran])
+        e.minutes_taken = time_taken
+        e.save(only=[db.ClassificationExperiment.git_hash,
+                     db.ClassificationExperiment.date_ran,
+                     db.ClassificationExperiment.minutes_taken])
 
 
 if __name__ == '__main__':
