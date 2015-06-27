@@ -299,7 +299,7 @@ def verb_phrases_svo():
                 vectors_from_settings('wiki', 'word2vec', composer.name, svd_dims=100, percent=15)]
         for v in vect:
             e = db.ClassificationExperiment(labelled=am_corpus,
-                                            document_features_tr='J+N+V',
+                                            document_features_tr='J+N+V+SVO',
                                             document_features_ev='SVO',
                                             expansions=_make_expansions(vectors=v))
             experiments.append(e)
@@ -460,7 +460,7 @@ if __name__ == '__main__':
     ################################################################
 
     # pad with J+N to increase performance a wee bit
-    nondistributional_baselines(document_features_tr='J+N+V',
+    nondistributional_baselines(document_features_tr='J+N+V+SVO',
                                 document_features_ev='SVO')
     verb_phrases_svo()
 
