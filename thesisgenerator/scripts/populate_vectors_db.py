@@ -96,7 +96,7 @@ def _count_vectors_gigaw_wiki():
 
     # e.g. exp10-12-composed-ngrams/AN_NN_gigaw-100_Add.events.filtered.strings
     filename_pattern = '{prefix}/exp{unlab_num}-{thesf_num}-composed-ngrams-ppmi-svd/' \
-                      'AN_NN_{unlab_name:.5}-{svd_dims}_{composer_name}.events.filtered.strings'
+                       'AN_NN_{unlab_name:.5}-{svd_dims}_{composer_name}.events.filtered.strings'
 
     for thesf_num, thesf_name in zip([12, 13], ['dependencies', 'windows']):
         for unlab_num, unlab_name in zip([10, 11], ['gigaw', 'wiki']):
@@ -190,7 +190,7 @@ def _lda_vectors():
 
 def _clustered_vectors():
     def _do_magic(v):
-        for num_clusters in [100, 200, 300, 500, 2000, 5000, 10000]:
+        for num_clusters in [100, 200, 300, 500, 2000]:  # 2k takes 3-4 days @ 4 cores
             db.Clusters.create(vectors=v, num_clusters=num_clusters,
                                path=v.path + '.kmeans%d' % num_clusters)
 
