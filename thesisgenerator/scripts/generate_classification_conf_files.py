@@ -368,6 +368,9 @@ def write_conf_files(experiments):
                     'neighbours_file'] = exp.expansions.vectors.path if exp.expansions.vectors else ''
             conf['vector_sources']['noise'] = exp.expansions.noise
             conf['feature_extraction']['k'] = exp.expansions.k
+            if exp.expansions.k > 5:
+                # some debug info
+                conf['feature_extraction']['record_stats'] = True
 
             # do not allow lexical overlap to prevent Left and Right from relying on word identity
             conf['vector_sources']['allow_lexical_overlap'] = exp.expansions.allow_overlap
