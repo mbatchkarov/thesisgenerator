@@ -196,8 +196,8 @@ def w2v_wiki_learning_curve(percent, unlab='wiki', corpus=None):
 
 
 @printing_decorator
-def varying_k_with_w2v_on_amazon():
-    for k in [1, 5, 10, 20, 30, 40, 50, 75, 100]: # k=3 is a "standard" experiment
+def varying_k_with_w2v_on_amazon(ks=[1, 5, 10, 20, 30, 40, 50, 75, 100]):
+    for k in ks:  # k=3 is a "standard" experiment
         for settings in word2vec_vector_settings(unlab='wiki'):
             v = vectors_from_settings(*settings)
             e = db.ClassificationExperiment(labelled=am_corpus,
@@ -241,7 +241,6 @@ def corrupted_w2v_wiki(corpus):
 def equalised_coverage_experiments():
     # w2v with 4 composers (high-coverage model) with coverage of corresponding count windows (low-coverage)
     # CW add (high-coverage) with coverage of CW baroni (low-coverage)
-    algo = 'count_windows'
     composers = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer, RightmostWordComposer]
     for composer in composers:
         regular_vect = vectors_from_settings('wiki', 'word2vec', composer.name, 100)
@@ -253,6 +252,19 @@ def equalised_coverage_experiments():
 
         regular_vect = vectors_from_settings('wiki', 'count_windows', composer.name, 100)
         entries_of = vectors_from_settings('wiki', 'count_windows', 'Baroni', 100)
+        e = db.ClassificationExperiment(labelled=am_corpus,
+                                        expansions=_make_expansions(vectors=regular_vect,
+                                                                    entries_of=entries_of))
+        experiments.append(e)
+
+
+@printing_decorator
+def equalised_coverage_experiments_v2():
+    #  MORE EQUALISED COVERAGE EXPERIMENTS- WIKI-100% REDUCED TO WIKI-15%
+    composers = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer, RightmostWordComposer]
+    for composer in composers:
+        regular_vect = vectors_from_settings('wiki', 'word2vec', composer.name, 100, percent=100)
+        entries_of = vectors_from_settings('wiki', 'word2vec', composer.name, 100, percent=15)
         e = db.ClassificationExperiment(labelled=am_corpus,
                                         expansions=_make_expansions(vectors=regular_vect,
                                                                     entries_of=entries_of))
@@ -452,7 +464,7 @@ if __name__ == '__main__':
     w2v_wiki_learning_curve(percent=[1, 10, 20, 30, 40, 50, 60, 70, 80, 90])
     # show R2 is too small for a meaningful comparison
     w2v_wiki_learning_curve(percent=[1, 10, 20, 30, 50, 40, 60, 70, 80, 90, 100], corpus=r2_corpus)
-    corrupted_w2v_wiki(r2_corpus) # no noise@100% done as part of learning curve
+    corrupted_w2v_wiki(r2_corpus)  # no noise@100% done as part of learning curve
     an_only_nn_only_experiments_amazon()
     equalised_coverage_experiments()
     with_unigrams_at_decode_time()
@@ -471,6 +483,12 @@ if __name__ == '__main__':
     # CLUSTERING
     ################################################################
     kmeans_experiments()
+
+    ################################################################
+    # STUFF I DID NOT RUN AT FIRST BUT SHOULD
+    ################################################################
+    varying_k_with_w2v_on_amazon(ks=[250, 500, 1000])  # push k param further
+    equalised_coverage_experiments_v2()
 
     # various other experiments that aren't as interesting
     # different_neighbour_strategies() # this takes a long time
