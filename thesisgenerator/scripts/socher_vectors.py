@@ -1,14 +1,14 @@
 import sys
+
 sys.path.append('.')
 import argparse
 import logging
 from operator import itemgetter
 import os
-import re
 import numpy as np
 import scipy.sparse as sp
 from discoutils.tokens import DocumentFeature
-from discoutils.io_utils import write_vectors_to_disk
+from discoutils.io_utils import write_vectors_to_hdf
 from discoutils.cmd_utils import run_and_log_output
 from discoutils.misc import temp_chdir, mkdirs_if_not_exists
 from thesisgenerator.composers.vectorstore import (MultiplicativeComposer, AdditiveComposer,
@@ -29,7 +29,7 @@ phrases_to_compose = os.path.join(prefix, '..', 'thesisgenerator',
                                   'features_in_labelled', 'socher.txt')
 socher_input_file = os.path.join(socher_base_dir, 'parsed.txt')
 plaintext_socher_input_file = os.path.join(prefix, '..', 'thesisgenerator',
-                                  'features_in_labelled', 'all_features.txt')
+                                           'features_in_labelled', 'all_features.txt')
 
 socher_output_phrases_file = os.path.join(socher_base_dir, 'phrases.txt')
 socher_output_vectors_file = os.path.join(socher_base_dir, 'outVectors.txt')
@@ -78,13 +78,10 @@ def reformat_socher_vectors():
     assert len(composed_phrases) == mat.shape[0]  # same number of rows
 
     # do the actual writing
-    write_vectors_to_disk(
-        sp.coo_matrix(mat),
-        composed_phrases,
-        ['RAE-feat%d' % i for i in range(100)],  # Socher provides 100-dimensional vectors
-        vectors_file,
-        gzipped=True)
-
+    write_vectors_to_hdf(sp.coo_matrix(mat),
+                         composed_phrases,
+                         ['RAE-feat%d' % i for i in range(100)],  # Socher provides 100-dimensional vectors
+                         vectors_file)
     return vectors_file
 
 
