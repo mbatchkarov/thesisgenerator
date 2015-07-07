@@ -112,4 +112,4 @@ if __name__ == '__main__':
         compose_and_write_vectors(vectors_file,
                                   'turian',
                                   composers,
-                                  output_dir=output_dir)
+                                  output_dir=output_dir, gzipped=False, dense_hd5=True)
