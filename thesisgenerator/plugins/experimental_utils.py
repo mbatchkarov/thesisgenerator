@@ -12,6 +12,7 @@ sys.path.append('../..')
 
 import os
 import logging
+from discoutils.misc import mkdirs_if_not_exists
 from thesisgenerator.utils.data_utils import get_pipeline_fit_args, get_tokenized_data, get_tokenizer_settings_from_conf
 from thesisgenerator.utils.conf_file_utils import parse_config_file
 from thesisgenerator.__main__ import go
@@ -60,12 +61,25 @@ def run_experiment(expid, thesaurus=None,
 
 
 if __name__ == '__main__':
+    i = int(sys.argv[1])  # experiment id, e.g. 1 or 2 or 1532
+    mkdirs_if_not_exists('conf/exp%d/output' % i)
+    # set up logging to file
     logging.basicConfig(level=logging.INFO,
-                        format="%(asctime)s\t%(module)s.%(funcName)s (line %(lineno)d)\t%(levelname)s : %(message)s")
-    logging.info(sys.version_info)
-    logging.info(sys.executable)
+                        format="%(asctime)s\t%(module)s.%(funcName)s (line %(lineno)d)\t%(levelname)s : %(message)s",
+                        datefmt='%m-%d %H:%M',
+                        filename='conf/exp%d/output/log.txt' % i,
+                        filemode='w')
+    # define a Handler which writes INFO messages or higher to the sys.stderr
+    console = logging.StreamHandler()
+    console.setLevel(logging.INFO)
+    # set a format which is simpler for console use
+    formatter = logging.Formatter("%(asctime)s\t%(module)s.%(funcName)s (line %(lineno)d)\t%(levelname)s : %(message)s")
+    # tell the handler to use this format
+    console.setFormatter(formatter)
+    # add the handler to the root logger
+    logging.getLogger('').addHandler(console)
+
     if len(sys.argv) == 2:
-        i = int(sys.argv[1])  # experiment id, e.g. 1 or 2 or 1532
         time = run_experiment(i)
         if i:
             consolidate_single_experiment(i, time_taken=time)

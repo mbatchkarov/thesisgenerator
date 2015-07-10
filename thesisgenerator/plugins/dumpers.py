@@ -6,6 +6,7 @@ import json
 import logging
 import os
 from datetime import datetime as dt
+import re
 from numpy import count_nonzero
 import sys
 from glob import glob
@@ -194,6 +195,15 @@ def consolidate_single_experiment(expid, prefix='/mnt/lustre/scratch/inf/mmb28/t
         logging.error('-----------------------------------')
         return
 
+    if time_taken is None:
+        log_file = 'conf/exp%d/output/log.txt' % expid
+        if os.path.exists(log_file):
+            with open(log_file) as lf:
+                log = lf.read()
+            pattern = re.compile('MINUTES TAKEN ([0-9\.]+)')
+            time_taken = re.search(pattern, log)
+            if time_taken:
+                time_taken = float(time_taken.groups(0)[0])
     # insert a subset of the data to MySQL
     if expid == 0:
         # can't have experiment ID 0 in mysql, so can't have the results point to it
