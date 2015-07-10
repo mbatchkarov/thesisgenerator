@@ -1,3 +1,4 @@
+import logging
 import sys
 
 sys.path.append('.')
@@ -39,6 +40,10 @@ class KmeansVectorizer(ThesaurusVectorizer):
 
 if __name__ == '__main__':
     import sys
-
+    logging.basicConfig(level=logging.INFO,
+                        format="%(asctime)s\t%(module)s.%(funcName)s (line %(lineno)d)\t%(levelname)s : %(message)s",
+                        datefmt='%m-%d %H:%M')
+    logging.info('Starting clustering')
     infile, outfile, num_cl = sys.argv[1:]
     cluster_vectors(infile, outfile, int(num_cl))
+    logging.info('Done')

@@ -33,12 +33,15 @@ def _w2v_vectors():
                     'AN_NN_word2vec-gigaw_100percent-rep0_{composer}.events.filtered.strings'
     # and some files were done on Wikipedia and have a different naming scheme
     wiki_rep_pattern = '{prefix}/word2vec_vectors/composed/' \
-                       'AN_NN_word2vec-wiki_{percent:d}percent-rep{rep}_{composer}.events.filtered.strings'
+                       'AN_NN_word2vec-wiki_{percent:d}percent-rep{rep}_{' \
+                       'composer}.events.filtered.strings'
     wiki_avg_pattern = '{prefix}/word2vec_vectors/composed/' \
-                       'AN_NN_word2vec-wiki_{percent:d}percent-avg3_{composer}.events.filtered.strings'
+                       'AN_NN_word2vec-wiki_{percent:d}percent-avg3_{' \
+                       'composer}.events.filtered.strings'
 
     # gigaword thesauri
-    composers = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer, RightmostWordComposer, VerbComposer]
+    composers = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
+                 RightmostWordComposer, VerbComposer]
     for composer_class in composers:
         thesaurus_file = gigaw_pattern.format(prefix=prefix, composer=composer_class.name)
         modified, size = _get_size(thesaurus_file)
@@ -56,7 +59,8 @@ def _w2v_vectors():
 
             modified, size = _get_size(thesaurus_file)
             v = db.Vectors.create(algorithm='word2vec', dimensionality=100,
-                                  unlabelled='wiki', path=thesaurus_file, unlabelled_percentage=percent,
+                                  unlabelled='wiki', path=thesaurus_file,
+                                  unlabelled_percentage=percent,
                                   composer=composer_class, modified=modified, size=size, rep=0)
             print(v)
         for percent in [15]:  # these are where repeats were done
@@ -68,8 +72,10 @@ def _w2v_vectors():
 
                 modified, size = _get_size(thesaurus_file)
                 v = db.Vectors.create(algorithm='word2vec', dimensionality=100,
-                                      unlabelled='wiki', path=thesaurus_file, unlabelled_percentage=percent,
-                                      composer=composer_class, modified=modified, size=size, rep=rep)
+                                      unlabelled='wiki', path=thesaurus_file,
+                                      unlabelled_percentage=percent,
+                                      composer=composer_class, modified=modified, size=size,
+                                      rep=rep)
                 print(v)
 
 
@@ -104,10 +110,13 @@ def _count_vectors_gigaw_wiki():
             for composer_class in composer_algos:
                 composer_name = composer_class.name
 
-                if composer_name in ['Baroni', 'Guevara', 'Multistep', 'CopyObj'] and svd_dims == 0:
+                if composer_name in ['Baroni', 'Guevara', 'Multistep',
+                                     'CopyObj'] and svd_dims == 0:
                     continue  # not training these without SVD
-                if thesf_name == 'dependencies' and composer_name in ['Baroni', 'Guevara', 'Observed']:
-                    continue  # can't easily run Julie's observed vectors code, so pretend it doesnt exist
+                if thesf_name == 'dependencies' and composer_name in ['Baroni', 'Guevara',
+                                                                      'Observed']:
+                    continue  # can't easily run Julie's observed vectors code, so pretend it
+                    # doesnt exist
                 if unlab_name == 'wiki' and svd_dims == 0 and composer_name != 'Observed':
                     # unreduced wiki vectors are too large and take too long to classify
                     # Observed is an exception as it tends to be small due to NP sparsity
@@ -126,7 +135,8 @@ def _turian_vectors():
     for composer in [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
                      RightmostWordComposer, VerbComposer, Bunch(name='Socher')]:
         composer_name = composer.name
-        pattern = '{prefix}/socher_vectors/composed/AN_NN_turian_{composer_name}.events.filtered.strings'
+        pattern = '{prefix}/socher_vectors/composed/AN_NN_turian_{' \
+                  'composer_name}.events.filtered.strings'
         thesaurus_file = pattern.format(**ChainMap(locals(), globals()))
         modified, size = _get_size(thesaurus_file)
         v = db.Vectors.create(algorithm='turian',
@@ -189,16 +199,20 @@ def _lda_vectors():
 
 
 def _clustered_vectors():
-    def _do_magic(v):
-        for num_clusters in [100, 200, 300, 500, 2000]:  # 2k takes 3-4 days @ 4 cores
-            db.Clusters.create(vectors=v, num_clusters=num_clusters,
-                               path=v.path + '.kmeans%d' % num_clusters)
+    def _do_magic(v, num_clusters=[100, 200, 300, 500, 2000]):
+        for n in num_clusters:  # 2k takes 3-4 days @ 4 cores
+            db.Clusters.create(vectors=v, num_clusters=n,
+                               path=v.path + '.kmeans%d' % n)
 
     for composer in ['Socher', 'Add']:
         _do_magic(vectors_from_settings('turian', 'turian', composer, 100))
     for composer in ['Mult', 'Add']:
         _do_magic(vectors_from_settings('gigaw', 'word2vec', composer, 100))
         _do_magic(vectors_from_settings('wiki', 'word2vec', composer, 100))
+
+    for p in [1, 15, 30, 50, 70]:
+        _do_magic(vectors_from_settings('wiki', 'word2vec', 'Add', 100, percent=p),
+                  num_clusters=[100])
 
 
 if __name__ == '__main__':

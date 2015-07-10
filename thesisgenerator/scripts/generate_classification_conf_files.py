@@ -318,10 +318,11 @@ def verb_phrases_svo():
 
 
 @printing_decorator
-def kmeans_experiments():
+def kmeans_experiments(min_id=1, max_id=30):
     for cl in db.Clusters.select():
-        e = db.ClassificationExperiment(labelled=am_corpus, clusters=cl)
-        experiments.append(e)
+        if min_id <= cl.id <= max_id:
+            e = db.ClassificationExperiment(labelled=am_corpus, clusters=cl)
+            experiments.append(e)
 
 
 def write_conf_files(experiments):
@@ -510,6 +511,8 @@ if __name__ == '__main__':
 
     # various other experiments that aren't as interesting
     # different_neighbour_strategies() # this takes a long time
+
+    kmeans_experiments(min_id=31, max_id=35)
 
     print('Total experiments: %d' % len(experiments))
     write_conf_files(experiments)
