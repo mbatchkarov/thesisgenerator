@@ -426,6 +426,24 @@ def write_conf_files(experiments):
                     print('Exp: %d, was %r, is now %r' % (exp.id, a, b))
 
 
+def write_metafiles(experiments):
+    """
+    Dynamically decide whether to run an experiment. Used when I ran one long experiment and don't want to repeat it,
+    but don't want to delete it from the list of experiments either. With this file I can just submit all experiments
+    and delete the ones that shouldn't be ran.
+
+    :param experiments:
+    """
+    with open('slow_experiments.txt', 'w') as outf:
+        for e in experiments:
+            try:
+                if e.expansions.k >= 500 or e.clusters.num_clusters > 2000:
+                    outf.write(str(e.id) + '\n')
+            except AttributeError:
+                # experiment doesnt have expansions or clusters, it is some baseline
+                pass
+
+
 if __name__ == '__main__':
     prefix = '/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data'
     techtc_corpora = sorted(list(os.path.join(*x.split(os.sep)[-2:]) \
@@ -495,3 +513,4 @@ if __name__ == '__main__':
 
     print('Total experiments: %d' % len(experiments))
     write_conf_files(experiments)
+    write_metafiles(experiments)
