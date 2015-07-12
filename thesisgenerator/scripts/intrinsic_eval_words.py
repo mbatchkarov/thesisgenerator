@@ -102,7 +102,7 @@ def _intrinsic_eval_words(vectors, intrinsic_dataset, noise=0, reload=True):
     # bootstrap a CI for the data
     res = []
     for boot_i in range(NBOOT):
-        idx = np.random.randint(0, len(intrinsic_dataset), len(intrinsic_dataset))
+        idx = np.random.randint(0, len(model_sims), len(model_sims))
         relaxed, rel_pval = spearmanr(np.array(model_sims)[idx],
                                       np.array(human_sims)[idx])
 
@@ -259,3 +259,5 @@ if __name__ == '__main__':
         learning_curve_wiki()
     if parameters.stages == 'turney':
         turney_evaluation()
+
+    logging.info('Done')
