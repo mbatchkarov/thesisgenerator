@@ -1,12 +1,13 @@
 from collections import defaultdict
+from itertools import chain
 import os, sys
 
 sys.path.append('.')
 from thesisgenerator.composers.vectorstore import (AdditiveComposer,
                                                    RightmostWordComposer,
                                                    MultiplicativeComposer)
-from discoutils.thesaurus_loader import Vectors as vv
-
+from discoutils.thesaurus_loader import Vectors
+from joblib.parallel import delayed, Parallel
 import argparse
 import logging
 from scipy.stats import spearmanr
@@ -18,8 +19,7 @@ import numpy as np
 ALLOW_OVERLAP = False
 PATHS = ['../FeatureExtractionToolkit/word2vec_vectors/word2vec-gigaw-100perc.unigr.strings.rep0',
          '../FeatureExtractionToolkit/word2vec_vectors/word2vec-wiki-15perc.unigr.strings.rep0']
-NAMES = ['w2v-giga-100',
-         'w2v-wiki-15']
+NAMES = ['w2v-giga-100', 'w2v-wiki-15']
 
 
 def _ws353():
@@ -67,7 +67,7 @@ def word_level_datasets():
 
 
 def _intrinsic_eval_words(vectors, intrinsic_dataset, noise=0, reload=True):
-    v = vv.from_tsv(vectors, noise=noise) if reload else vectors
+    v = Vectors.from_tsv(vectors, noise=noise) if reload else vectors
 
     def get_vector_for(word):
         vectors = []
@@ -87,6 +87,7 @@ def _intrinsic_eval_words(vectors, intrinsic_dataset, noise=0, reload=True):
         return vectors
 
     # bootstrap a CI for the data
+    res = []
     for boot_i in range(500):
         if boot_i % 100 == 0:
             logging.info('Doing boostrap number %d', boot_i)
@@ -109,7 +110,8 @@ def _intrinsic_eval_words(vectors, intrinsic_dataset, noise=0, reload=True):
         human_sims += [0] * missing
         strict, str_pval = spearmanr(model_sims, human_sims)
 
-        yield strict, relaxed, noise, rel_pval, str_pval, missing / len(intrinsic_dataset), boot_i
+        res.append([strict, relaxed, noise, rel_pval, str_pval, missing / len(intrinsic_dataset), boot_i])
+    return res
 
 
 def noise_eval():
@@ -122,10 +124,11 @@ def noise_eval():
     for dname, df in word_level_datasets():
         for vname, path in zip(NAMES, PATHS):
             logging.info('starting %s %s', dname, vname)
-            for noise in np.arange(0, 3.1, .2):
-                for strict, relaxed, noise, rel_pval, str_pval, _, boot_i in _intrinsic_eval_words(path, df, noise):
-                    noise_data.append((vname, dname, noise, 'strict', strict, str_pval, boot_i))
-                    noise_data.append((vname, dname, noise, 'relaxed', relaxed, rel_pval, boot_i))
+            res = Parallel(n_jobs=4)(delayed(_intrinsic_eval_words)(path, df, noise) \
+                                     for noise in np.arange(0, 3.1, .2))
+            for strict, relaxed, noise, rel_pval, str_pval, _, boot_i in chain.from_iterable(res):
+                noise_data.append((vname, dname, noise, 'strict', strict, str_pval, boot_i))
+                noise_data.append((vname, dname, noise, 'relaxed', relaxed, rel_pval, boot_i))
     noise_df = pd.DataFrame(noise_data, columns=['vect', 'test', 'noise', 'kind', 'corr', 'pval', 'folds'])
     noise_df.to_csv('intrinsic_noise_word_level.csv')
 
@@ -153,7 +156,7 @@ def learning_curve_wiki():
     curve_data = []
     for percent, filename in paths:
         logging.info('Doing percentage: %d', percent)
-        vectors = vv.from_tsv(os.path.join(prefix, filename))
+        vectors = Vectors.from_tsv(os.path.join(prefix, filename))
         for dname, intr_data in word_level_datasets():
             for strict, relaxed, noise, rel_pval, str_pval, missing, boot_i in _intrinsic_eval_words(vectors,
                                                                                                      intr_data,
@@ -200,9 +203,10 @@ def turney_predict(phrase, possible_answers, composer, unigram_source):
 
 
 def turney_measure_accuracy(path, composer_class, df):
-    unigram_source = vv.from_tsv(path)
+    unigram_source = Vectors.from_tsv(path)
     composer = composer_class(unigram_source)
 
+    res = []
     for boot_i in range(500):
         attempted, correct = 0, 0
         for phrase, candidates in df.sample(n=len(df), replace=True).iterrows():
@@ -214,7 +218,8 @@ def turney_measure_accuracy(path, composer_class, df):
                     correct += 1
         coverage = attempted / len(df)
         accuracy = correct / attempted
-        yield coverage, accuracy, composer.name, boot_i
+        res.append([coverage, accuracy, composer.name, boot_i])
+    return res
 
 
 def turney_evaluation():
@@ -230,12 +235,13 @@ def turney_evaluation():
     results = []
     for path, vname in zip(PATHS, NAMES):
         logging.info('Turney test doing %s', vname)
-        for comp in composers:
-            for cov, acc, comp_name, boot in turney_measure_accuracy(path, comp, df):
-                results.append((vname, comp_name, cov, acc, boot))
+        res = Parallel(n_jobs=4)(delayed(turney_measure_accuracy)(path, comp, df) \
+                                 for comp in composers)
+        for cov, acc, comp_name, boot in chain.from_iterable(res):
+            results.append((vname, comp_name, cov, acc, boot))
 
     df_res = pd.DataFrame(results, columns=['unigrams', 'composer', 'coverage', 'accuracy', 'folds'])
-    df_res.to_csv('intrinsic_turney_word_level.csv')
+    df_res.to_csv('intrinsic_turney_phraselevel.csv')
 
 
 if __name__ == '__main__':
