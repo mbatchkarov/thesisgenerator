@@ -106,10 +106,10 @@ def _intrinsic_eval_words(vectors, intrinsic_dataset, noise=0, reload=True):
         relaxed, rel_pval = spearmanr(np.array(model_sims)[idx],
                                       np.array(human_sims)[idx])
 
-        model_sims += [0] * missing
-        human_sims += [0] * missing
-        strict, str_pval = spearmanr(np.array(model_sims)[idx],
-                                     np.array(human_sims)[idx])
+        a = model_sims + [0] * missing
+        b = human_sims + [0] * missing
+        strict, str_pval = spearmanr(np.array(a)[idx],
+                                     np.array(b)[idx])
 
         res.append([strict, relaxed, noise, rel_pval, str_pval, missing / len(intrinsic_dataset), boot_i])
     return res
