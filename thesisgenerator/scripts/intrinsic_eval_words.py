@@ -209,11 +209,11 @@ def turney_measure_accuracy(path, composer_class, df):
 
     res = []
     predictions, gold = [], []
-    for phrase, candidates in df.sample(n=len(df), replace=True).iterrows():
+    for phrase, candidates in df.iterrows():
         most_similar, _ = turney_predict(phrase, candidates, composer, unigram_source)
         if most_similar:
             predictions.append(most_similar)
-            gold.append(most_similar)
+            gold.append(candidates[0])
 
     coverage = len(predictions) / len(df)
     for boot_i in range(NBOOT):
