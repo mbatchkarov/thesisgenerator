@@ -1,6 +1,7 @@
 from collections import defaultdict
 from itertools import chain
 import os, sys
+from sklearn.metrics import accuracy_score
 
 sys.path.append('.')
 from thesisgenerator.composers.vectorstore import (AdditiveComposer,
@@ -20,7 +21,7 @@ ALLOW_OVERLAP = False
 PATHS = ['../FeatureExtractionToolkit/word2vec_vectors/word2vec-gigaw-100perc.unigr.strings.rep0',
          '../FeatureExtractionToolkit/word2vec_vectors/word2vec-wiki-15perc.unigr.strings.rep0']
 NAMES = ['w2v-giga-100', 'w2v-wiki-15']
-
+NBOOT = 100
 
 def _ws353():
     return pd.read_csv('similarity-data/wordsim353/combined.csv',
@@ -86,29 +87,29 @@ def _intrinsic_eval_words(vectors, intrinsic_dataset, noise=0, reload=True):
         # logging.info('multiple vectors for', word, len(vectors))
         return vectors
 
+    model_sims, human_sims = [], []
+    missing = 0
+    for w1, w2, human in zip(intrinsic_dataset.w1,
+                             intrinsic_dataset.w2,
+                             intrinsic_dataset.sim):
+        v1, v2 = get_vector_for(w1), get_vector_for(w2)
+        if v1 and v2:
+            model_sims.append(cosine_similarity(v1[0], v2[0])[0][0])
+            human_sims.append(human)
+        else:
+            missing += 1
+
     # bootstrap a CI for the data
     res = []
-    for boot_i in range(500):
-        if boot_i % 100 == 0:
-            logging.info('Doing boostrap number %d', boot_i)
-        model_sims, human_sims = [], []
-        missing = 0
+    for boot_i in range(NBOOT):
         idx = np.random.randint(0, len(intrinsic_dataset), len(intrinsic_dataset))
-        for w1, w2, human in zip(intrinsic_dataset.w1[idx],
-                                 intrinsic_dataset.w2[idx],
-                                 intrinsic_dataset.sim[idx]):
-            v1, v2 = get_vector_for(w1), get_vector_for(w2)
-            if v1 and v2:
-                model_sims.append(cosine_similarity(v1[0], v2[0])[0][0])
-                human_sims.append(human)
-            else:
-                missing += 1
-
-        relaxed, rel_pval = spearmanr(model_sims, human_sims)
+        relaxed, rel_pval = spearmanr(np.array(model_sims)[idx],
+                                      np.array(human_sims)[idx])
 
         model_sims += [0] * missing
         human_sims += [0] * missing
-        strict, str_pval = spearmanr(model_sims, human_sims)
+        strict, str_pval = spearmanr(np.array(model_sims)[idx],
+                                     np.array(human_sims)[idx])
 
         res.append([strict, relaxed, noise, rel_pval, str_pval, missing / len(intrinsic_dataset), boot_i])
     return res
@@ -207,17 +208,18 @@ def turney_measure_accuracy(path, composer_class, df):
     composer = composer_class(unigram_source)
 
     res = []
-    for boot_i in range(500):
-        attempted, correct = 0, 0
-        for phrase, candidates in df.sample(n=len(df), replace=True).iterrows():
-            most_similar, _ = turney_predict(phrase, candidates, composer, unigram_source)
-            if most_similar:
-                attempted += 1
-                #             print('phrase: %s, gold: %s, pred: %s' %(phrase, candidates[0], most_similar))
-                if most_similar == candidates[0]:
-                    correct += 1
-        coverage = attempted / len(df)
-        accuracy = correct / attempted
+    predictions, gold = [], []
+    for phrase, candidates in df.sample(n=len(df), replace=True).iterrows():
+        most_similar, _ = turney_predict(phrase, candidates, composer, unigram_source)
+        if most_similar:
+            predictions.append(most_similar)
+            gold.append(most_similar)
+
+    coverage = len(predictions) / len(df)
+    for boot_i in range(NBOOT):
+        idx = np.random.randint(0, len(gold), len(gold))
+        accuracy = accuracy_score(np.array(predictions)[idx],
+                                  np.array(gold)[idx])
         res.append([coverage, accuracy, composer.name, boot_i])
     return res
 
