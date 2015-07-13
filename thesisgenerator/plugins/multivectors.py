@@ -25,7 +25,7 @@ class MultiVectors(Vectors):
 
         data = []
         for tid, t in enumerate(self.vectors):
-            neighbours = t.get_nearest_neighbours(entry)
+            neighbours = t.get_nearest_neighbours_linear(entry)
             if neighbours:
                 for rank, (neigh, sim) in enumerate(neighbours):
                     data.append([tid, rank, neigh, sim])

@@ -11,12 +11,13 @@ def test_multivectors(ones_vectors):
     assert 'a/NP' not in mv
 
     for entry in ones_vectors.keys():
+        neigh = mv.get_nearest_neighbours(entry)
         n1 = [foo[0] for foo in ones_vectors.get_nearest_neighbours(entry)]
-        n2 = [foo[0] for foo in mv.get_nearest_neighbours(entry)]
+        n2 = [foo[0] for foo in neigh]
         assert n1 == n2
 
-        sims = [foo[1] for foo in mv.get_nearest_neighbours(entry)]
-        assert sims == [1, 1 / 2, 1 / 3, 1 / 4]
+        sims = [foo[1] for foo in neigh]
+        assert sims == [1, 1 / 2, 1 / 3]
     assert mv.get_nearest_neighbours('asdf/N') is None
 
 
