@@ -294,6 +294,9 @@ def _cv_loop(config, cv_i, score_func, test_idx, train_idx, predefined_fit_args,
                  score])
         logging.info('Done with %s', clf)
     logging.info('Finished CV fold %d', cv_i)
+    v = predefined_fit_args['vector_source']
+    if v:
+        logging.info('Cache info: %s', v.get_nearest_neighbours.cache_info())
     return scores_this_cv_run
 
 
