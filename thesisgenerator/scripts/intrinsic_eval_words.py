@@ -23,6 +23,7 @@ PATHS = ['../FeatureExtractionToolkit/word2vec_vectors/word2vec-gigaw-100perc.un
 NAMES = ['w2v-giga-100', 'w2v-wiki-15']
 NBOOT = 100
 
+
 def _ws353():
     return pd.read_csv('similarity-data/wordsim353/combined.csv',
                        names=['w1', 'w2', 'sim'])
@@ -99,19 +100,21 @@ def _intrinsic_eval_words(vectors, intrinsic_dataset, noise=0, reload=True):
         else:
             missing += 1
 
-    # bootstrap a CI for the data
+    model_sims_w_zeros = model_sims + [0] * missing
+    human_sims_w_zeros = human_sims + [0] * missing
+    # bootstrap model_sims_w_zeros CI for the data
     res = []
     for boot_i in range(NBOOT):
         idx = np.random.randint(0, len(model_sims), len(model_sims))
         relaxed, rel_pval = spearmanr(np.array(model_sims)[idx],
                                       np.array(human_sims)[idx])
 
-        a = model_sims + [0] * missing
-        b = human_sims + [0] * missing
-        strict, str_pval = spearmanr(np.array(a)[idx],
-                                     np.array(b)[idx])
+        idx = np.random.randint(0, len(model_sims_w_zeros), len(model_sims_w_zeros))
+        strict, str_pval = spearmanr(np.array(model_sims_w_zeros)[idx],
+                                     np.array(human_sims_w_zeros)[idx])
 
-        res.append([strict, relaxed, noise, rel_pval, str_pval, missing / len(intrinsic_dataset), boot_i])
+        res.append(
+            [strict, relaxed, noise, rel_pval, str_pval, missing / len(intrinsic_dataset), boot_i])
     return res
 
 
@@ -130,7 +133,8 @@ def noise_eval():
             for strict, relaxed, noise, rel_pval, str_pval, _, boot_i in chain.from_iterable(res):
                 noise_data.append((vname, dname, noise, 'strict', strict, str_pval, boot_i))
                 noise_data.append((vname, dname, noise, 'relaxed', relaxed, rel_pval, boot_i))
-    noise_df = pd.DataFrame(noise_data, columns=['vect', 'test', 'noise', 'kind', 'corr', 'pval', 'folds'])
+    noise_df = pd.DataFrame(noise_data,
+                            columns=['vect', 'test', 'noise', 'kind', 'corr', 'pval', 'folds'])
     noise_df.to_csv('intrinsic_noise_word_level.csv')
 
 
@@ -159,13 +163,17 @@ def learning_curve_wiki():
         logging.info('Doing percentage: %d', percent)
         vectors = Vectors.from_tsv(os.path.join(prefix, filename))
         for dname, intr_data in word_level_datasets():
-            for strict, relaxed, noise, rel_pval, str_pval, missing, boot_i in _intrinsic_eval_words(vectors,
-                                                                                                     intr_data,
-                                                                                                     0,
-                                                                                                     reload=False):
+            for strict, relaxed, noise, rel_pval, str_pval, missing, boot_i in \
+                    _intrinsic_eval_words(
+                    vectors,
+                    intr_data,
+                    0,
+                    reload=False):
                 curve_data.append((percent, dname, missing, 'strict', strict, str_pval, boot_i))
                 curve_data.append((percent, dname, missing, 'relaxed', relaxed, rel_pval, boot_i))
-    curve_df = pd.DataFrame(curve_data, columns=['percent', 'test', 'missing', 'kind', 'corr', 'pval', 'folds'])
+    curve_df = pd.DataFrame(curve_data,
+                            columns=['percent', 'test', 'missing', 'kind', 'corr', 'pval',
+                                     'folds'])
     curve_df.to_csv('intrinsic_learning_curve_word_level.csv')
 
 
@@ -227,7 +235,8 @@ def turney_measure_accuracy(path, composer_class, df):
 def turney_evaluation():
     df = _turney2010(ALLOW_OVERLAP)
     if ALLOW_OVERLAP:
-        assert list(df.values[0, :]) == ['binary', 'double', 'star', 'dual', 'lumen', 'neutralism', 'keratoplasty']
+        assert list(df.values[0, :]) == ['binary', 'double', 'star', 'dual', 'lumen', 'neutralism',
+                                         'keratoplasty']
     else:
         assert list(df.values[0, :]) == ['binary', 'dual', 'lumen', 'neutralism', 'keratoplasty']
 
@@ -242,13 +251,15 @@ def turney_evaluation():
         for cov, acc, comp_name, boot in chain.from_iterable(res):
             results.append((vname, comp_name, cov, acc, boot))
 
-    df_res = pd.DataFrame(results, columns=['unigrams', 'composer', 'coverage', 'accuracy', 'folds'])
+    df_res = pd.DataFrame(results,
+                          columns=['unigrams', 'composer', 'coverage', 'accuracy', 'folds'])
     df_res.to_csv('intrinsic_turney_phraselevel.csv')
 
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO,
-                        format="%(asctime)s\t%(module)s.%(funcName)s (line %(lineno)d)\t%(levelname)s : %(message)s")
+                        format="%(asctime)s\t%(module)s.%(funcName)s (line %(lineno)d)\t%("
+                               "levelname)s : %(message)s")
     parser = argparse.ArgumentParser()
     parser.add_argument('--stages', choices=('noise', 'curve', 'turney'), required=True)
     parameters = parser.parse_args()
