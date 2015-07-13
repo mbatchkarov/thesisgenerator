@@ -30,17 +30,18 @@ def set_in_conf_file(conf_file, keys, new_value):
     config_obj.write()
 
 
-def parse_config_file(conf_file):
+def parse_config_file(conf_file, quit_on_error=True):
     if not os.path.exists(conf_file):
-        raise ValueError('Conf file %s does not exits!'%conf_file)
+        raise ValueError('Conf file %s does not exits!' % conf_file)
     configspec_file = get_confrc(conf_file)
     config = ConfigObj(conf_file, configspec=configspec_file)
     validator = validate.Validator()
     result = config.validate(validator, preserve_errors=True)
     if result != True and len(result) > 0:
-        print('Invalid configuration')
+        print('Invalid configuration in', conf_file)
         pprint(flatten_errors(config, result))
-        sys.exit(1)
+        if quit_on_error:
+            sys.exit(1)
     return config, configspec_file
 
 

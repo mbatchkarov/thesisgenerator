@@ -327,6 +327,15 @@ def kmeans_experiments(min_id=1, max_id=30, labelled=None):
             experiments.append(e)
 
 
+def multivectors():
+    for v in db.Vectors.select():
+        if v.rep == -2:
+            for use_sim in [True, False]:
+                e = db.ClassificationExperiment(labelled=am_corpus,
+                                                expansions=_make_expansions(vectors=v, use_similarity=use_sim))
+                experiments.append(e)
+
+
 def write_conf_files(experiments):
     for e in experiments:
         e.save(force_insert=True)
@@ -374,13 +383,14 @@ def write_conf_files(experiments):
 
             conf['feature_extraction']['decode_token_handler'] = \
                 'thesisgenerator.plugins.bov_feature_handlers.%s' % exp.expansions.decode_handler
-            enable_rand_neigh = exp.expansions.vectors is not None and exp.expansions.vectors.algorithm == 'random_neigh'
+            enable_rand_neigh = exp.expansions.vectors is not None and \
+                                exp.expansions.vectors.algorithm == 'random_neigh'
             conf['feature_extraction']['random_neighbour_thesaurus'] = enable_rand_neigh
             if enable_rand_neigh:
-                conf['vector_sources']['neighbours_file'] = ''
+                conf['vector_sources']['neighbours_file'] = []
             else:
-                conf['vector_sources'][
-                    'neighbours_file'] = exp.expansions.vectors.path if exp.expansions.vectors else ''
+                neig_f = exp.expansions.vectors.path if exp.expansions.vectors else ''
+                conf['vector_sources']['neighbours_file'] = neig_f.split(',')
             conf['vector_sources']['noise'] = exp.expansions.noise
             conf['feature_extraction']['k'] = exp.expansions.k
             if exp.expansions.k > 5:
@@ -419,7 +429,7 @@ def write_conf_files(experiments):
         # only checking some of the important parameters
         previous_conf_file = 'conf/exp{0}/output/exp{0}.conf'.format(exp.id)
         if os.path.exists(previous_conf_file):
-            old_conf, _ = parse_config_file(previous_conf_file)
+            old_conf, _ = parse_config_file(previous_conf_file, quit_on_error=False)
             for a, b in [(old_conf['vector_sources']['neighbours_file'],
                           conf['vector_sources']['neighbours_file']),
                          (old_conf['feature_extraction']['decode_token_handler'],
@@ -517,6 +527,7 @@ if __name__ == '__main__':
     kmeans_experiments(min_id=31, max_id=35)
     kmeans_experiments(min_id=31, max_id=35, labelled=r2_corpus)
 
+    multivectors()
     print('Total experiments: %d' % len(experiments))
     write_conf_files(experiments)
     write_metafiles(experiments)

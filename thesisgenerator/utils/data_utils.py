@@ -22,6 +22,7 @@ from thesisgenerator.utils.conf_file_utils import parse_config_file
 from thesisgenerator.utils.misc import force_symlink
 from thesisgenerator.composers.vectorstore import RandomThesaurus
 from thesisgenerator.plugins.bov import ThesaurusVectorizer
+from thesisgenerator.plugins.multivectors import MultiVectors
 
 
 def tokenize_data(data, tokenizer, corpus_ids):
@@ -147,13 +148,17 @@ def get_pipeline_fit_args(conf):
                 raise ValueError('You must provide at least one source of distributional information '
                                  'because you requested %s and must_be_in_thesaurus=%s' % (handler_, vectors_exist))
 
-    if vectors_path:
+    if len(vectors_path) == 1:
         # set up a row filter, if needed
         entries = vs_params['entries_of']
         if entries:
             entries = get_thesaurus_entries(entries)
             vs_params['row_filter'] = lambda x, y: x in entries
-        result['vector_source'] = Vectors.from_tsv(vectors_path, **vs_params)
+        result['vector_source'] = Vectors.from_tsv(vectors_path[0], **vs_params)
+    if len(vectors_path) > 1:
+        all_vect = [Vectors.from_tsv(p, **vs_params) for p in vectors_path]
+        result['vector_source'] = MultiVectors(all_vect)
+
 
     if clusters_path:
         result['clusters'] = pd.read_hdf(clusters_path, key='clusters')

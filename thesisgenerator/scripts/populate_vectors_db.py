@@ -215,6 +215,25 @@ def _clustered_vectors():
                   num_clusters=[100])
 
 
+def _repeated_runs_multivect():
+    wiki_rep_pattern = '{prefix}/word2vec_vectors/composed/' \
+                       'AN_NN_word2vec-wiki_15percent-rep{rep}_{' \
+                       'composer}.events.filtered.strings'
+    composers = [AdditiveComposer, MultiplicativeComposer]
+    for composer_class in composers:
+        paths = [wiki_rep_pattern.format(prefix=prefix,
+                                         rep=rep,
+                                         composer=composer_class.name) for rep in [0, 1, 2]]
+        modified, size = _get_size(paths[0])
+        v = db.Vectors.create(algorithm='word2vec', dimensionality=100,
+                              unlabelled='wiki',
+                              unlabelled_percentage=15,
+                              composer=composer_class,
+                              modified=modified, size=size,
+                              path=','.join(paths), rep=-2)
+        print(v)
+
+
 if __name__ == '__main__':
     prefix = '/mnt/lustre/scratch/inf/mmb28/FeatureExtractionToolkit'
 
@@ -230,6 +249,8 @@ if __name__ == '__main__':
     _lda_vectors()
 
     _clustered_vectors()
+
+    _repeated_runs_multivect()
 
     # verify vectors have been included just once
     vectors = []

@@ -21,6 +21,8 @@ class Vectors(pw.Model):
     path = pw.CharField(null=True)  # where on disk the vectors are stored
     composer = pw.CharField()  # what composer was used to build phrasal vectors (if any)
     rep = pw.IntegerField(default=0)  # if the same vectors have been built multiple times, an explicit identifier
+    # -1 stands for "average vectors over 3 repetitions"
+    # -2 stands for "combine vectors from 3 repetitions using MultiVectors logic"
 
     modified = pw.DateField(null=True, default=None)  # when was the file last modifier
     size = pw.IntegerField(null=True, default=None)  # file size in MB
@@ -31,11 +33,12 @@ class Vectors(pw.Model):
 
         # find out what format the file is in
         if self.path and self.size:  # check file exists
-            if is_gzipped(self.path):
+            path = self.path.split(',')[0] # multiple comma-separated files may be specified
+            if is_gzipped(path):
                 self.format = 'gz'
-            elif is_hdf(self.path):
+            elif is_hdf(path):
                 self.format = 'hdf'
-            elif is_plaintext(self.path):
+            elif is_plaintext(path):
                 self.format = 'txt'
 
         if self.composer and not isinstance(self.composer, str):

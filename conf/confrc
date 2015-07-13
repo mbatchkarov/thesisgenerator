@@ -45,7 +45,7 @@ min_train_features = float() # these need to be a float when using similarity sc
 	remove_long_words=boolean(default=False)
 
 [vector_sources] # this section will eventually replace all thesaurus-related options. There will not be a pre-computed sim matrix, just vectors in a suitable datastructure that allows fast online sim calculation
-	neighbours_file = string(default='') # path to either a Byblo neighbours.strings file or an events.filtered.string file
+	neighbours_file = list(default=[]) # path to either a Byblo neighbours.strings file or an events.filtered.string file
     entries_of = string(default='') # path to a thesaurus/vector set. All entries of `neighbours_file` not contained in this file are removed. This is used to compensate for some model's higher coverage.
 	sim_threshold=float(default=0.0) # exclude neighbours from thesaurus if sim is less than threshold
 	allow_lexical_overlap = boolean(default=True) # when a thesaurus is loaded from disk and this is set to true, neighbours that overlap lexically with the base entry will be removed. See unit test for spec.
