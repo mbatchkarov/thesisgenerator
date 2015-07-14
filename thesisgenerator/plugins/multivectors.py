@@ -25,15 +25,17 @@ class MultiVectors(Vectors):
 
         data = []
         for tid, t in enumerate(self.vectors):
-            neighbours = t.get_nearest_neighbours(entry)
+            neighbours = t.get_nearest_neighbours_linear(entry)
             if neighbours:
                 for rank, (neigh, sim) in enumerate(neighbours):
                     data.append([tid, rank, neigh, sim])
+        if not data:
+            return None
         df = pd.DataFrame(data, columns='tid, rank, neigh, sim'.split(', '))
 
         # Watch out! Higher rank is currently better! This makes sense if we use this is a similarity metric or a
         # pseudo term count, but doesn't match the rest of the codebase, where distances are used (lower is better)
-        ddf = df.groupby('neigh').aggregate({'rank': lambda arr: np.mean(1/(1+arr)),
+        ddf = df.groupby('neigh').aggregate({'rank': lambda arr: np.mean(1 / (1 + arr)),
                                              'sim': np.mean,
                                              'tid': len}).rename(columns={'tid': 'contained_in',
                                                                           'rank': 'mean_rank',
