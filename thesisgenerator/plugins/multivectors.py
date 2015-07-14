@@ -21,7 +21,7 @@ class MultiVectors(Vectors):
     @lru_cache(maxsize=2 ** 16)
     def get_nearest_neighbours(self, entry):
         if entry not in self:
-            return None
+            return []
 
         data = []
         for tid, t in enumerate(self.vectors):
@@ -30,7 +30,7 @@ class MultiVectors(Vectors):
                 for rank, (neigh, sim) in enumerate(neighbours):
                     data.append([tid, rank, neigh, sim])
         if not data:
-            return None
+            return []
         df = pd.DataFrame(data, columns='tid, rank, neigh, sim'.split(', '))
 
         # Watch out! Higher rank is currently better! This makes sense if we use this is a similarity metric or a
