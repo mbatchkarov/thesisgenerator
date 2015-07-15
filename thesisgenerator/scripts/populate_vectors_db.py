@@ -219,7 +219,7 @@ def _repeated_runs_multivect():
     wiki_rep_pattern = '{prefix}/word2vec_vectors/composed/' \
                        'AN_NN_word2vec-wiki_15percent-rep{rep}_{' \
                        'composer}.events.filtered.strings'
-    composers = [AdditiveComposer, MultiplicativeComposer]
+    composers = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer, RightmostWordComposer]
     for composer_class in composers:
         paths = [wiki_rep_pattern.format(prefix=prefix,
                                          rep=rep,
