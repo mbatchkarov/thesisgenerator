@@ -330,10 +330,9 @@ def kmeans_experiments(min_id=1, max_id=30, labelled=None):
 def multivectors():
     for v in db.Vectors.select():
         if v.rep == -2:
-            for use_sim in [True, False]:
-                e = db.ClassificationExperiment(labelled=am_corpus,
-                                                expansions=_make_expansions(vectors=v, use_similarity=use_sim))
-                experiments.append(e)
+            e = db.ClassificationExperiment(labelled=am_corpus,
+                                            expansions=_make_expansions(vectors=v))
+            experiments.append(e)
 
 
 def write_conf_files(experiments):
