@@ -124,7 +124,7 @@ class ConsolidatedResultsCsvWriter(object):
             raise FileNotFoundError  # let the caller worry about that
         logging.info('Processing file %s' % conf_file)
 
-        config_obj, configspec_file = parse_config_file(conf_file)
+        config_obj, configspec_file = parse_config_file(conf_file, quit_on_error=False)
 
         exp_name = config_obj['name']
         cv_folds = config_obj['crossvalidation']['k']
