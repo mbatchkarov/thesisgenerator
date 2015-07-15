@@ -35,12 +35,13 @@ class MultiVectors(Vectors):
 
         # Watch out! Higher rank is currently better! This makes sense if we use this is a similarity metric or a
         # pseudo term count, but doesn't match the rest of the codebase, where distances are used (lower is better)
-        ddf = df.groupby('neigh').aggregate({'rank': lambda arr: np.mean(1 / (1 + arr)),
-                                             'sim': np.mean,
-                                             'tid': len}).rename(columns={'tid': 'contained_in',
-                                                                          'rank': 'mean_rank',
-                                                                          'sim': 'mean_dist'})
+        ddf = df.groupby('neigh').aggregate({'rank': 'mean',
+                                             'sim': 'mean',
+                                             'tid': 'count'}).rename(columns={'tid': 'contained_in',
+                                                                              'rank': 'mean_rank',
+                                                                              'sim': 'mean_dist'})
         ddf = ddf.sort(['contained_in', 'mean_rank', 'mean_dist'],
-                       ascending=[False, False, True], kind='mergesort')  # must be stable
-
+                       ascending=[False, True, True], kind='mergesort')  # must be stable
+        a = 1. + ddf.mean_rank.values
+        ddf.mean_rank = 1 / a
         return list(zip(ddf.index, ddf.mean_rank) if len(ddf) else [])
