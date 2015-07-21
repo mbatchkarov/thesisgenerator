@@ -7,6 +7,7 @@ sys.path.append('.')
 from thesisgenerator.composers.vectorstore import (AdditiveComposer,
                                                    RightmostWordComposer,
                                                    MultiplicativeComposer)
+from thesisgenerator.plugins.multivectors import MultiVectors
 from discoutils.thesaurus_loader import Vectors
 from joblib.parallel import delayed, Parallel
 import argparse
@@ -164,17 +165,31 @@ def learning_curve_wiki():
         vectors = Vectors.from_tsv(os.path.join(prefix, filename))
         for dname, intr_data in word_level_datasets():
             for strict, relaxed, noise, rel_pval, str_pval, missing, boot_i in \
-                    _intrinsic_eval_words(
-                    vectors,
-                    intr_data,
-                    0,
-                    reload=False):
+                    _intrinsic_eval_words(vectors, intr_data, 0, reload=False):
                 curve_data.append((percent, dname, missing, 'strict', strict, str_pval, boot_i))
                 curve_data.append((percent, dname, missing, 'relaxed', relaxed, rel_pval, boot_i))
     curve_df = pd.DataFrame(curve_data,
                             columns=['percent', 'test', 'missing', 'kind', 'corr', 'pval',
                                      'folds'])
     curve_df.to_csv('intrinsic_learning_curve_word_level.csv')
+
+
+def repeated_runs_w2v():
+    prefix = '/mnt/lustre/scratch/inf/mmb28/FeatureExtractionToolkit/word2vec_vectors/'
+    pattern = os.path.join(prefix, 'word2vec-wiki-15perc.unigr.strings.rep%d')
+    rep_vectors = [Vectors.from_tsv(pattern % i) for i in [0, 1, 2]]
+    avg_vectors = [Vectors.from_tsv(os.path.join(prefix, 'word2vec-wiki-15perc.unigr.strings.avg3'))]
+    mv = [MultiVectors(tuple(rep_vectors))]
+
+    data = []
+    for v, rep_id in zip(rep_vectors + avg_vectors + mv, [0, 1, 2, -1, -2]):
+        for dname, intr_data in word_level_datasets():
+            for strict, relaxed, noise, rel_pval, str_pval, missing, boot_i in \
+                    _intrinsic_eval_words(v, intr_data, 0, reload=False):
+                data.append((rep_id, dname, missing, 'strict', strict, str_pval, boot_i))
+                data.append((rep_id, dname, missing, 'relaxed', relaxed, rel_pval, boot_i))
+    df = pd.DataFrame(data, columns=['rep_id', 'test', 'missing', 'kind', 'corr', 'pval', 'folds'])
+    df.to_csv('intrinsic_w2v_repeats_word_level.csv')
 
 
 def turney_predict(phrase, possible_answers, composer, unigram_source):
@@ -261,7 +276,9 @@ if __name__ == '__main__':
                         format="%(asctime)s\t%(module)s.%(funcName)s (line %(lineno)d)\t%("
                                "levelname)s : %(message)s")
     parser = argparse.ArgumentParser()
-    parser.add_argument('--stages', choices=('noise', 'curve', 'turney'), required=True)
+    parser.add_argument('--stages',
+                        choices=('noise', 'curve', 'turney', 'repeats'),
+                        required=True)
     parameters = parser.parse_args()
 
     if parameters.stages == 'noise':
@@ -270,5 +287,6 @@ if __name__ == '__main__':
         learning_curve_wiki()
     if parameters.stages == 'turney':
         turney_evaluation()
-
+    if parameters.stages == 'repeats':
+        repeated_runs_w2v()
     logging.info('Done')
