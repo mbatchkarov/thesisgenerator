@@ -153,7 +153,7 @@ def _random_baselines():
                       dimensionality=None, unlabelled_percentage=None,
                       unlabelled=None, composer='random_neigh')
     # random VECTORS for use in baseline
-    path = '/mnt/lustre/scratch/inf/mmb28/FeatureExtractionToolkit/random_vectors.gz'
+    path = '/lustre/scratch/inf/mmb28/FeatureExtractionToolkit/random_vectors.gz'
     modified, size = _get_size(path)
     db.Vectors.create(algorithm='random_vect', composer='random_vect', path=path,
                       dimensionality=None, unlabelled_percentage=None,
@@ -161,7 +161,7 @@ def _random_baselines():
 
 
 def _categorical_vectors():
-    pattern = '/mnt/lustre/scratch/inf/mmb28/FeatureExtractionToolkit/categorical/' \
+    pattern = '/lustre/scratch/inf/mmb28/FeatureExtractionToolkit/categorical/' \
               'AN_NN_{}_{}.events.filtered.strings'
     ids = ['wiki-wins-100', 'gigaw-w2v-100', 'wiki-w2v-15', 'wiki-w2v-100', 'wiki-glove-100']
     for composer in [CopyObject]:
@@ -185,7 +185,7 @@ def _categorical_vectors():
 
 
 def _lda_vectors():
-    pattern = '/mnt/lustre/scratch/inf/mmb28/FeatureExtractionToolkit/lda_vectors/' \
+    pattern = '/lustre/scratch/inf/mmb28/FeatureExtractionToolkit/lda_vectors/' \
               'composed/AN_NN_lda-gigaw_{}percent_{}.events.filtered.strings'
     percent = 100
     composers = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
@@ -235,7 +235,7 @@ def _repeated_runs_multivect():
 
 
 if __name__ == '__main__':
-    prefix = '/mnt/lustre/scratch/inf/mmb28/FeatureExtractionToolkit'
+    prefix = '/lustre/scratch/inf/mmb28/FeatureExtractionToolkit'
 
     _random_baselines()
 

@@ -181,7 +181,7 @@ def insert_full_results_to_database(prefix, expid):
         r.save(force_insert=True)
 
 
-def consolidate_single_experiment(expid, prefix='/mnt/lustre/scratch/inf/mmb28/thesisgenerator',
+def consolidate_single_experiment(expid, prefix='/lustre/scratch/inf/mmb28/thesisgenerator',
                                   time_taken=None):
     output_dir = '%s/conf/exp%d/output/' % (prefix, expid)
     conf_dir = '%s/conf/exp%d' % (prefix, expid)

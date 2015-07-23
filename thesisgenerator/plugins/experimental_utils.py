@@ -20,7 +20,7 @@ from thesisgenerator.plugins.dumpers import consolidate_single_experiment
 
 
 def run_experiment(expid, thesaurus=None,
-                   prefix='/mnt/lustre/scratch/inf/mmb28/thesisgenerator'):
+                   prefix='/lustre/scratch/inf/mmb28/thesisgenerator'):
     """
 
     :param expid: int experiment identified. exp 0 reserved for development purpose and many of the values

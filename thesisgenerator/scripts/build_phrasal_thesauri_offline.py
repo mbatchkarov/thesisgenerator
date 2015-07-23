@@ -25,7 +25,7 @@ from thesisgenerator.composers.baroni_group import (train_baroni_guevara_compose
 """
 Composed wiki/gigaw dependency/window vectors and writes them to FeatureExtractionToolkit/exp10-13-composed-ngrams
 """
-prefix = '/mnt/lustre/scratch/inf/mmb28/FeatureExtractionToolkit/'
+prefix = '/lustre/scratch/inf/mmb28/FeatureExtractionToolkit/'
 byblo_base_dir = join(prefix, 'Byblo-2.2.0')
 
 

@@ -268,16 +268,16 @@ def get_all_corpora():
     :rtype: list
     """
     return [
-        '/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data/techtc100-clean/Exp_47456_497201-tagged',
-        '/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data/techtc100-clean/Exp_324745_85489-tagged',
-        '/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data/techtc100-clean/Exp_69753_85489-tagged',
-        '/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data/techtc100-clean/Exp_186330_94142-tagged',
-        '/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data/techtc100-clean/Exp_22294_25575-tagged',
+        '/lustre/scratch/inf/mmb28/thesisgenerator/sample-data/techtc100-clean/Exp_47456_497201-tagged',
+        '/lustre/scratch/inf/mmb28/thesisgenerator/sample-data/techtc100-clean/Exp_324745_85489-tagged',
+        '/lustre/scratch/inf/mmb28/thesisgenerator/sample-data/techtc100-clean/Exp_69753_85489-tagged',
+        '/lustre/scratch/inf/mmb28/thesisgenerator/sample-data/techtc100-clean/Exp_186330_94142-tagged',
+        '/lustre/scratch/inf/mmb28/thesisgenerator/sample-data/techtc100-clean/Exp_22294_25575-tagged',
 
-        '/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data/reuters21578/r8-tagged-grouped',
-        '/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data/movie-reviews-tagged',
-        '/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data/amazon_grouped-tagged',
-        '/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data/aclImdb-tagged',
+        '/lustre/scratch/inf/mmb28/thesisgenerator/sample-data/reuters21578/r8-tagged-grouped',
+        '/lustre/scratch/inf/mmb28/thesisgenerator/sample-data/movie-reviews-tagged',
+        '/lustre/scratch/inf/mmb28/thesisgenerator/sample-data/amazon_grouped-tagged',
+        '/lustre/scratch/inf/mmb28/thesisgenerator/sample-data/aclImdb-tagged',
     ]
 
 

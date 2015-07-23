@@ -12,7 +12,7 @@ from discoutils.misc import mkdirs_if_not_exists
 from thesisgenerator.composers.vectorstore import CopyObject, compose_and_write_vectors
 
 
-VERBS_HDF_DIR = '/mnt/lustre/scratch/inf/mmb28/FeatureExtractionToolkit/categorical/'
+VERBS_HDF_DIR = '/lustre/scratch/inf/mmb28/FeatureExtractionToolkit/categorical/'
 MIN_SVO_PER_VERB = 3  # todo does this filter exist in the original paper?
 
 
@@ -60,7 +60,7 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO,
                         format="%(asctime)s\t%(module)s.%(funcName)s (line %(lineno)d)\t%(levelname)s : %(message)s")
 
-    FET = '/mnt/lustre/scratch/inf/mmb28/FeatureExtractionToolkit/'
+    FET = '/lustre/scratch/inf/mmb28/FeatureExtractionToolkit/'
 
     nouns_wins_wiki = os.path.join(FET, 'exp11-13b/exp11-with-obs-phrases-SVD100.events.filtered.strings')
     nouns_w2v_gigaw_100 = os.path.join(FET, 'word2vec_vectors/word2vec-gigaw-100perc.unigr.strings.rep0')
@@ -79,9 +79,9 @@ if __name__ == '__main__':
         # the list of subject/objects of a given verb is determined from the unlabelled corpus,
         # and so are the noun vectors
         if 'wiki' in sname:
-            svos_path = '/mnt/lustre/scratch/inf/mmb28/DiscoUtils/wiki_NPs_in_MR_R2_TechTC_am_maas.uniq.10.txt'
+            svos_path = '/lustre/scratch/inf/mmb28/DiscoUtils/wiki_NPs_in_MR_R2_TechTC_am_maas.uniq.10.txt'
         elif 'giga' in sname:
-            svos_path = '/mnt/lustre/scratch/inf/mmb28/DiscoUtils/gigaw_NPs_in_MR_R2_TechTC_am_maas.uniq.10.txt'
+            svos_path = '/lustre/scratch/inf/mmb28/DiscoUtils/gigaw_NPs_in_MR_R2_TechTC_am_maas.uniq.10.txt'
         else:
             raise ValueError('What unlabelled corpus is this???')
         train_verb_tensors(svos_path, noun_path, trained_verb_matrices_file)

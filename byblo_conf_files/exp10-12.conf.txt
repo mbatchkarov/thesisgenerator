@@ -1,7 +1,7 @@
 --input
-/mnt/lustre/scratch/inf/mmb28/FeatureExtractionToolkit/feoutput-deppars/exp10filtered-NJV-deps-100
+/lustre/scratch/inf/mmb28/FeatureExtractionToolkit/feoutput-deppars/exp10filtered-NJV-deps-100
 --output
-/mnt/lustre/scratch/inf/mmb28/FeatureExtractionToolkit/exp10-12b
+/lustre/scratch/inf/mmb28/FeatureExtractionToolkit/exp10-12b
 --threads
 20
 --filter-feature-freq
