@@ -27,5 +27,5 @@
 # Merge stdout and stderr streams: yes/no
 #$ -j yes
 
-cd /mnt/lustre/scratch/inf/mmb28/DiscoUtils
+cd /lustre/scratch/inf/mmb28/DiscoUtils
 python discoutils/prebyblo_filter.py -pos N V J $@

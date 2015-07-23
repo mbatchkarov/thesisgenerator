@@ -34,9 +34,10 @@ composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer
 
 
 class MySentences(object):
-    def __init__(self, dirname, file_percentage, repeat_num=0):
+    def __init__(self, dirname, file_percentage, repeat_num=0, remove_pos=False):
         self.dirname = dirname
         self.limit = file_percentage / 100
+        self.remove_pos = remove_pos
 
         files = [x for x in sorted(os.listdir(self.dirname)) if not x.startswith('.')]
         count = math.ceil(self.limit * len(files))
@@ -59,13 +60,16 @@ class MySentences(object):
                            DocumentFeature.from_string(w).type != 'EMPTY']
                     if len(res) > 8:
                         # ignore short sentences, they are probably noise
-                        yield res
+                        if self.remove_pos:
+                            yield [x.split('/')[0] for x in res]
+                        else:
+                            yield res
 
 
-def _train_model(percent, data_dir, repeat_num):
+def _train_model(percent, data_dir, repeat_num, remove_pos):
     # train a word2vec model
     logging.info('Training word2vec on %d percent of %s', percent, data_dir)
-    sentences = MySentences(data_dir, percent, repeat_num=repeat_num)
+    sentences = MySentences(data_dir, percent, repeat_num=repeat_num, remove_pos=remove_pos)
     model = Word2Vec(sentences, workers=WORKERS, min_count=MIN_COUNT, seed=repeat_num)
     return model
 
@@ -125,13 +129,13 @@ def reformat_data(conll_data_dir, pos_only_data_dir):
         with open(join(conll_data_dir, filename)) as infile, open(outfile_name, 'w') as outfile:
             for line in infile:
                 if not line.strip():  # conll empty line = sentence boundary
-                    outfile.write('.\n')  # todo why is this dor there???
+                    outfile.write('.\n')  # todo why is this dot there???
                     continue
                 idx, word, lemma, pos, ner, dep, _ = line.strip().split('\t')
                 outfile.write('%s/%s ' % (lemma.lower(), pos_coarsification_map[pos]))
 
 
-def compute_and_write_vectors(corpus_name, stages, percent, repeat):
+def compute_and_write_vectors(corpus_name, stages, percent, repeat, remove_pos):
     prefix = '/lustre/scratch/inf/mmb28/FeatureExtractionToolkit'
     composed_output_dir = join(prefix, 'word2vec_vectors', 'composed')
     mkdirs_if_not_exists(composed_output_dir)
@@ -142,11 +146,17 @@ def compute_and_write_vectors(corpus_name, stages, percent, repeat):
         # pos_only_data_dir = join(prefix, 'data/gigaword-afe-split-pos/gigaword/')
         pos_only_data_dir = join(prefix, 'data/gigaword-afe-split-pos/gigaword-small-files/')
         # outputs
-        unigram_events_file = join(prefix, 'word2vec_vectors/word2vec-gigaw-%dperc.unigr.strings')
+        if remove_pos:
+            unigram_events_file = join(prefix, 'word2vec_vectors/word2vec-gigaw-nopos-%dperc.unigr.strings')
+        else:
+            unigram_events_file = join(prefix, 'word2vec_vectors/word2vec-gigaw-%dperc.unigr.strings')
     elif corpus_name == 'wiki':
         conll_data_dir = None  # wiki data is already in the right format, no point in reformatting
         pos_only_data_dir = join(prefix, 'data/wikipedia-tagged-pos/wikipedia/')
-        unigram_events_file = join(prefix, 'word2vec_vectors/word2vec-wiki-%dperc.unigr.strings')
+        if remove_pos:
+            unigram_events_file = join(prefix, 'word2vec_vectors/word2vec-wiki-nopos-%dperc.unigr.strings')
+        else:
+            unigram_events_file = join(prefix, 'word2vec_vectors/word2vec-wiki-%dperc.unigr.strings')
     else:
         raise ValueError('Unknown corpus %s' % corpus_name)
 
@@ -161,7 +171,7 @@ def compute_and_write_vectors(corpus_name, stages, percent, repeat):
         reformat_data(conll_data_dir, pos_only_data_dir)
 
     if 'vectors' in stages:
-        models = [_train_model(percent, pos_only_data_dir, i) for i in range(repeat)]
+        models = [_train_model(percent, pos_only_data_dir, i, remove_pos) for i in range(repeat)]
 
         vectors = []
         # write the output of each run separately
@@ -207,12 +217,13 @@ def get_args_from_cmd_line():
     parser.add_argument('--percent', default=100, type=int)
     # multiplier for args.percent. Set to 0.1 to use fractional percentages of corpus
     parser.add_argument('--repeat', default=1, type=int)
+    parser.add_argument('--remove-pos', action='store_true')
     return parser.parse_args()
 
 
 if __name__ == '__main__':
     args = get_args_from_cmd_line()
     logging.info('Params are: %r', args)
-    compute_and_write_vectors(args.corpus, args.stages, args.percent, args.repeat)
-
-
+    if args.remove_pos and args.stages != ['vectors']:
+        raise ValueError('For now lets not do much without a PoS tag, the entire pipeline may collapse.')
+    compute_and_write_vectors(args.corpus, args.stages, args.percent, args.repeat, args.remove_pos)
