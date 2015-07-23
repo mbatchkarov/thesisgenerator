@@ -145,7 +145,7 @@ def learning_curve_wiki():
 
     Evaluate vectors intrinsically as more unlabelled training data is added
     """
-    prefix = '/mnt/lustre/scratch/inf/mmb28/FeatureExtractionToolkit/word2vec_vectors/composed'
+    prefix = '/lustre/scratch/inf/mmb28/FeatureExtractionToolkit/word2vec_vectors/composed'
     paths = [(1, 'AN_NN_word2vec-wiki_1percent-rep0_Add.events.filtered.strings'),
              (10, 'AN_NN_word2vec-wiki_10percent-rep0_Add.events.filtered.strings'),
              (15, 'AN_NN_word2vec-wiki_15percent-rep0_Add.events.filtered.strings'),
@@ -175,7 +175,7 @@ def learning_curve_wiki():
 
 
 def repeated_runs_w2v():
-    prefix = '/mnt/lustre/scratch/inf/mmb28/FeatureExtractionToolkit/word2vec_vectors/'
+    prefix = '/lustre/scratch/inf/mmb28/FeatureExtractionToolkit/word2vec_vectors/'
     pattern = os.path.join(prefix, 'word2vec-wiki-15perc.unigr.strings.rep%d')
     rep_vectors = [Vectors.from_tsv(pattern % i) for i in [0, 1, 2]]
     avg_vectors = [Vectors.from_tsv(os.path.join(prefix, 'word2vec-wiki-15perc.unigr.strings.avg3'))]

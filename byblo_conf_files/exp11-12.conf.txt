@@ -1,7 +1,7 @@
 --input
-/mnt/lustre/scratch/inf/mmb28/FeatureExtractionToolkit/feoutput-deppars/exp11filtered-NJV-deps-100
+/lustre/scratch/inf/mmb28/FeatureExtractionToolkit/feoutput-deppars/exp11filtered-NJV-deps-100
 --output
-/mnt/lustre/scratch/inf/mmb28/FeatureExtractionToolkit/Byblo-2.2.0/../exp11-12b
+/lustre/scratch/inf/mmb28/FeatureExtractionToolkit/Byblo-2.2.0/../exp11-12b
 --threads
 30
 --filter-entry-freq

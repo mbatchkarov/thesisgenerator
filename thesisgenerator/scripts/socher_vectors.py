@@ -27,7 +27,7 @@ from thesisgenerator.utils.misc import force_symlink
 # before running this function, put all phrases to be composed in parsed.txt, wrapping them
 # up to make them look like fragment of a syntactic parser. Do NOT let the Stanford parser that ships with
 # that code run.
-prefix = '/mnt/lustre/scratch/inf/mmb28/FeatureExtractionToolkit'
+prefix = '/lustre/scratch/inf/mmb28/FeatureExtractionToolkit'
 socher_base_dir = os.path.join(prefix, 'socher_vectors')  # copy downloaded content here
 
 # the two paths below needs to point to the same thing

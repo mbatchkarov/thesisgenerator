@@ -457,7 +457,7 @@ def write_metafiles(experiments):
 
 
 if __name__ == '__main__':
-    prefix = '/mnt/lustre/scratch/inf/mmb28/thesisgenerator/sample-data'
+    prefix = '/lustre/scratch/inf/mmb28/thesisgenerator/sample-data'
     techtc_corpora = sorted(list(os.path.join(*x.split(os.sep)[-2:]) \
                                  for x in glob('%s/techtc100-clean/*' % prefix) \
                                  if not x.endswith('.gz')))

@@ -28,7 +28,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     fet_output = 'exp10' if args.corpus == 'gigaw' else 'exp11'  # the output of Feature Extraction Toolkit
-    prefix = '/mnt/lustre/scratch/inf/mmb28/'
+    prefix = '/lustre/scratch/inf/mmb28/'
     TG = join(prefix, 'thesisgenerator')
     byblo_base_dir = join(prefix, 'FeatureExtractionToolkit/', 'Byblo-2.2.0')
     discoutils = join(prefix, 'DiscoUtils')

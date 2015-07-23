@@ -58,7 +58,7 @@ def train_lda_model(data_dir, unigram_events_file, tmp_file_prefix, percent):
 
 
 def main(corpus_name, stages, percent):
-    prefix = '/mnt/lustre/scratch/inf/mmb28/FeatureExtractionToolkit'
+    prefix = '/lustre/scratch/inf/mmb28/FeatureExtractionToolkit'
     composed_output_dir = join(prefix, 'lda_vectors', 'composed')
     mkdirs_if_not_exists(composed_output_dir)
     composer_algos = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
