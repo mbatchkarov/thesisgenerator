@@ -82,9 +82,15 @@ def _intrinsic_eval_words(vectors, intrinsic_dataset, noise=0, reload=True):
             human_sims.append(human)
         else:
             missing += 1
-    # where model failed to answer insert the a dummy answer that would minimise correlation
-    model_sims_w_zeros = model_sims + [min(model_sims)] * missing
-    human_sims_w_zeros = human_sims + [max(human_sims)] * missing
+    # where model failed to answer insert something at random
+    model_sims_w_zeros = model_sims + list(np.random.uniform(min(model_sims), max(model_sims), missing))
+    human_sims_w_zeros = human_sims + list(np.random.uniform(min(human_sims), max(human_sims), missing))
+
+    # sanity check: strict accuracy results must be lower than relaxed
+    relaxed, _ = spearmanr(model_sims, human_sims)
+    strict, _ = spearmanr(model_sims_w_zeros, human_sims_w_zeros)
+    assert strict <= relaxed, (strict, relaxed)
+
     # bootstrap model_sims_w_zeros CI for the data
     res = []
     for boot_i in range(NBOOT):
@@ -95,11 +101,7 @@ def _intrinsic_eval_words(vectors, intrinsic_dataset, noise=0, reload=True):
         idx = np.random.randint(0, len(model_sims_w_zeros), len(model_sims_w_zeros))
         strict, str_pval = spearmanr(np.array(model_sims_w_zeros)[idx],
                                      np.array(human_sims_w_zeros)[idx])
-        if missing / len(intrinsic_dataset) > 0.1: # arbitrary threshold
-            # sanity check: strict results must be lower
-            # if all questions were attempted, strict == relaxed, but bootstrapping may affect results
-            # in the case I can't assert anything
-            assert strict <= relaxed, (strict, relaxed)
+
         res.append([strict, relaxed, noise, rel_pval, str_pval,
                     missing / len(intrinsic_dataset), boot_i])
     return res
@@ -186,7 +188,7 @@ def turney_predict(phrase, possible_answers, composer, unigram_source):
     if phrase in composer and composer.get_vector(phrase) is not None:
         phrase_vector = composer.get_vector(phrase).A
         for wordid, word in enumerate(possible_answers):
-            if word in unigram_source: # todo this is a strict experiment
+            if word in unigram_source:  # todo this is a strict experiment
                 word_vector = unigram_source.get_vector(word).A
                 distance = euclidean(phrase_vector.ravel(), word_vector.ravel())
                 if distance < sims[word]:
