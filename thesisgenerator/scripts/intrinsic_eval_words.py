@@ -87,9 +87,10 @@ def _intrinsic_eval_words(vectors, intrinsic_dataset, noise=0, reload=True):
     human_sims_w_zeros = human_sims + list(np.random.uniform(min(human_sims), max(human_sims), missing))
 
     # sanity check: strict accuracy results must be lower than relaxed
+    # some allowance for change- random guesses may slightly improve results
     relaxed, _ = spearmanr(model_sims, human_sims)
     strict, _ = spearmanr(model_sims_w_zeros, human_sims_w_zeros)
-    assert strict <= relaxed, (strict, relaxed)
+    assert strict + 0.05 <= relaxed, (strict, relaxed)
 
     # bootstrap model_sims_w_zeros CI for the data
     res = []
