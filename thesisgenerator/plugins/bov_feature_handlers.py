@@ -66,7 +66,7 @@ class BaseFeatureHandler():
             # these should by now only the used in testing though
             neighbours = [(neighbour, sim) for (neighbour, sim) in neighbours
                           if DocumentFeature.from_string(neighbour) in vocabulary]
-        event = [feature.tokens_as_str(), len(neighbours)]
+        event = [str(feature), len(neighbours)]
         for neighbour, sim in neighbours[:self.k]:
             # the document may already contain the feature we
             # are about to insert into it,

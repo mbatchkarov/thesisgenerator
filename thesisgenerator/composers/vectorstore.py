@@ -44,7 +44,7 @@ class ComposerMixin(object):
         old_len = len(self.unigram_source.name2row)
         all_rows = deepcopy(self.unigram_source.name2row)  # can't mutate the unigram datastructure
         for i, phrase in enumerate(composable_phrases):
-            key = phrase if isinstance(phrase, str) else phrase.tokens_as_str()
+            key = phrase if isinstance(phrase, str) else str(phrase)
             # phrase shouln't be in the unigram source.
             assert key not in all_rows
             all_rows[key] = i + old_len  # this will not append to all_rows if phrase is contained in unigram_source
@@ -70,20 +70,23 @@ class AdditiveComposer(Vectors, ComposerMixin):
         if isinstance(feature, six.string_types):
             feature = DocumentFeature.from_string(feature)
         return sp.csr_matrix(reduce(self.function,
-                                    [self.unigram_source.get_vector(t.tokens_as_str()).A for t in feature[:]]))
+                                    [self.unigram_source.get_vector(str(t)).A for t in feature[:]]))
 
     def contains_impl(self, feature):
         """
         Contains all sequences of words where we have a distrib vector for each unigram
         they contain. Rejects unigrams.
         """
-        if isinstance(feature, six.string_types):
-            feature = DocumentFeature.from_string(feature)
+        # if isinstance(feature, six.string_types):
+        #     feature = DocumentFeature.from_string(feature)
 
-        if feature.type not in self.entry_types:
+        feat_str = str(feature) if isinstance(feature, DocumentFeature) else feature
+        feat_df = feature if isinstance(feature, DocumentFeature) else DocumentFeature.from_string(feature)
+
+        if feat_df.type not in self.entry_types:
             # no point in trying
             return False
-        return all(f.tokens_as_str() in self.unigram_source for f in feature[:])
+        return all(f in self.unigram_source for f in feat_str.split(DocumentFeature.ngram_separator))
 
     def __contains__(self, feature):
         return self.contains_impl(feature)
@@ -131,7 +134,7 @@ class LeftmostWordComposer(AdditiveComposer):
     def get_vector(self, feature):
         if isinstance(feature, six.string_types):
             feature = DocumentFeature.from_string(feature)
-        return self.unigram_source.get_vector(feature[self.hardcoded_index].tokens_as_str())
+        return self.unigram_source.get_vector(str(feature[self.hardcoded_index]))
 
     def contains_impl(self, feature):
         if isinstance(feature, six.string_types):
@@ -139,7 +142,7 @@ class LeftmostWordComposer(AdditiveComposer):
         if feature.type not in self.entry_types:
             # no point in composing single-word document features
             return False
-        return feature[self.hardcoded_index].tokens_as_str() in self.unigram_source
+        return str(feature[self.hardcoded_index]) in self.unigram_source
 
 
 class RightmostWordComposer(LeftmostWordComposer):
@@ -265,7 +268,7 @@ class GuevaraComposer(BaroniComposer):
         if feature.type not in self.entry_types:
             # no point in trying
             return False
-        return all(f.tokens_as_str() in self.unigram_source for f in feature[:])
+        return all(str(f) in self.unigram_source for f in feature[:])
 
 
 class GrefenstetteMultistepComposer(BaroniComposer):
@@ -379,7 +382,6 @@ class DummyThesaurus(Thesaurus):
     def get_nearest_neighbours(self, feature):
         return [('b/N', 1.0)]
 
-
     def get_vector(self):
         pass
 
@@ -407,10 +409,10 @@ class RandomThesaurus(DummyThesaurus):
     def get_nearest_neighbours(self, item):
         if not self.vocab:
             raise ValueError('You need to provide a set of value to choose from first.')
-        return [(foo.tokens_as_str(), 1.) for foo in sample(self.vocab, self.k)]
+        return [(str(foo), 1.) for foo in sample(self.vocab, self.k)]
 
 
-def _default_row_filter(feat_str:str, feat_df:DocumentFeature):
+def _default_row_filter(feat_str: str, feat_df: DocumentFeature):
     return feat_df.tokens[0].pos in {'N', 'J', 'V'} and feat_df.type == '1-GRAM'
 
 

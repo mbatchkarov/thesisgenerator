@@ -78,14 +78,16 @@ def test_unigr_source_contains(small_vectors):
     Test if the unigram model only accepts unigram features
     """
     # for thing in (known_features | unk_unigram_feature | unk_bigram_feature):
-    assert unigram_feature.tokens_as_str() in small_vectors
+    assert str(unigram_feature) in small_vectors
     for thing in (unk_unigram_feature, bigram_feature, unk_unigram_feature):
-        assert thing.tokens_as_str() not in small_vectors
+        assert str(thing) not in small_vectors
 
 
 def test_additive_composer_contains(small_vectors):
     composer = AdditiveComposer(small_vectors)
     assert str(bigram_feature) in composer
+    assert bigram_feature in composer
+
     for s in ['b/V_c/J', 'a/N_c/J', 'b/V_b/V_b/V']:
         assert s in composer
         assert str(s) in composer

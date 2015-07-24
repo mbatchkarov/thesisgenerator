@@ -43,7 +43,7 @@ class StatsRecorder(object):
                     store.write(bytes('\n', encoding='UTF8'))
 
     def register_token(self, feature, iv, it):
-        self.token_counts[(self.cv_fold, self.stage, feature.tokens_as_str(), int(iv), int(it))] += 1
+        self.token_counts[(self.cv_fold, self.stage, str(feature), int(iv), int(it))] += 1
 
     def consolidate_stats(self):
         self._flush_data_to_csv(self.par_file, self.paraphrases)

@@ -136,7 +136,7 @@ class MetadataStripper(BaseEstimator, TransformerMixin):
             # but the latter needs this method to be called first
             if not k:
                 k = 10
-            self.vector_source.init_sims([foo.tokens_as_str() for foo in self.voc.keys()],
+            self.vector_source.init_sims([str(foo) for foo in self.voc.keys()],
                                          strategy=strategy, n_neighbors=k)
         return self
 
