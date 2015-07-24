@@ -82,9 +82,9 @@ def _intrinsic_eval_words(vectors, intrinsic_dataset, noise=0, reload=True):
             human_sims.append(human)
         else:
             missing += 1
-    # todo padding with 0 is a bad idea because it actually improves correlation
-    model_sims_w_zeros = model_sims + [0] * missing
-    human_sims_w_zeros = human_sims + [0] * missing
+    # where model failed to answer insert the a dummy answer that would minimise correlation
+    model_sims_w_zeros = model_sims + [min(model_sims)] * missing
+    human_sims_w_zeros = human_sims + [max(human_sims)] * missing
     # bootstrap model_sims_w_zeros CI for the data
     res = []
     for boot_i in range(NBOOT):
@@ -95,7 +95,11 @@ def _intrinsic_eval_words(vectors, intrinsic_dataset, noise=0, reload=True):
         idx = np.random.randint(0, len(model_sims_w_zeros), len(model_sims_w_zeros))
         strict, str_pval = spearmanr(np.array(model_sims_w_zeros)[idx],
                                      np.array(human_sims_w_zeros)[idx])
-
+        if missing / len(intrinsic_dataset) > 0.1: # arbitrary threshold
+            # sanity check: strict results must be lower
+            # if all questions were attempted, strict == relaxed, but bootstrapping may affect results
+            # in the case I can't assert anything
+            assert strict <= relaxed, (strict, relaxed)
         res.append([strict, relaxed, noise, rel_pval, str_pval,
                     missing / len(intrinsic_dataset), boot_i])
     return res
@@ -178,7 +182,6 @@ def turney_predict(phrase, possible_answers, composer, unigram_source):
         return 1e19
 
     sims = defaultdict(_maxint)
-    # todo AdditiveComposer.__contains__ broken when PoS tag missing
     phrase = phrase.replace(' ', '_')
     if phrase in composer and composer.get_vector(phrase) is not None:
         phrase_vector = composer.get_vector(phrase).A
@@ -233,8 +236,7 @@ def turney_evaluation():
     results = []
     for path, vname in zip(PATHS, NAMES):
         logging.info('Turney test doing %s', vname)
-        # todo 4 cores
-        res = Parallel(n_jobs=1)(delayed(turney_measure_accuracy)(path, comp, df) \
+        res = Parallel(n_jobs=4)(delayed(turney_measure_accuracy)(path, comp, df) \
                                  for comp in composers)
         for cov, acc, comp_name, boot in chain.from_iterable(res):
             results.append((vname, comp_name, cov, acc, boot))
