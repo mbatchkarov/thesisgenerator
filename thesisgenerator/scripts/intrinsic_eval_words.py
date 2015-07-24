@@ -26,8 +26,11 @@ NBOOT = 100
 
 
 def _ws353():
-    return pd.read_csv('similarity-data/wordsim353/combined.csv',
-                       names=['w1', 'w2', 'sim'])
+    df = pd.read_csv('similarity-data/wordsim353/combined.csv',
+                     names=['w1', 'w2', 'sim'])
+    df.w1 = df.w1.map(str.lower)
+    df.w2 = df.w2.map(str.lower)
+    return df
 
 
 def _mc():
