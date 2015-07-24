@@ -43,6 +43,12 @@ def ones_vectors():
 
 
 @pytest.fixture
+def ones_vectors_no_pos():
+    return Vectors.from_tsv('thesisgenerator/resources/ones.vectors.nopos.txt',
+                            enforce_word_entry_pos_format=False)
+
+
+@pytest.fixture
 def min_composer(ones_vectors):
     return MinComposer(ones_vectors)
 
@@ -87,6 +93,19 @@ def test_additive_composer_contains(small_vectors):
     assert unigram_feature not in composer
     assert unk_unigram_feature not in composer
     assert unk_bigram_feature not in composer
+
+
+def test_additive_composer_contains_nopos(ones_vectors_no_pos):
+    for ch in 'abcd':
+        assert ch in ones_vectors_no_pos
+
+    composer = AdditiveComposer(ones_vectors_no_pos)
+    for s in ['b_c', 'a_c', 'b_b_b', 'a_b']:
+        assert composer.__contains__(s)  # todo s in composer
+
+    assert 'd' not in composer
+    assert 'd/N' not in composer
+    assert 'a/N' not in composer
 
 
 def test_add_mult_compose_with_real_data(small_vectors):
@@ -186,7 +205,7 @@ def test_left_right_compose_all(left_comp):
     original_matrix, original_cols, original_rows = left_comp.unigram_source.to_sparse_matrix()
     matrix, cols, rows = left_comp.compose_all(['cat/N_game/N',
                                                 DocumentFeature.from_string('dog/N_game/N'),
-                                                'cat/N_a/N','cat/N_b/N','cat/N_c/N','cat/N_d/N',])
+                                                'cat/N_a/N', 'cat/N_b/N', 'cat/N_c/N', 'cat/N_d/N', ])
 
     # the columns should remain unchanges
     assert original_cols == cols
@@ -204,6 +223,7 @@ def test_left_right_compose_all(left_comp):
     for i in range(9, 12):
         assert_array_equal(matrix.A[i, :],
                            left_comp.unigram_source.get_vector('cat/N').A.ravel())
+
 
 def test_verb_composer(ones_vectors):
     verb_composer = VerbComposer(ones_vectors)
