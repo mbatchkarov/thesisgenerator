@@ -90,7 +90,7 @@ def _intrinsic_eval_words(vectors, intrinsic_dataset, noise=0, reload=True):
     # some allowance for change- random guesses may slightly improve results
     relaxed, _ = spearmanr(model_sims, human_sims)
     strict, _ = spearmanr(model_sims_w_zeros, human_sims_w_zeros)
-    assert strict + 0.05 <= relaxed, (strict, relaxed)
+    assert strict - 0.05 <= relaxed, (strict, relaxed)
 
     # bootstrap model_sims_w_zeros CI for the data
     res = []
