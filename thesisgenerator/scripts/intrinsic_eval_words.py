@@ -19,8 +19,8 @@ import pandas as pd
 import numpy as np
 
 ALLOW_OVERLAP = False
-PATHS = ['../FeatureExtractionToolkit/word2vec_vectors/word2vec-gigaw-100perc.unigr.strings.rep0',
-         '../FeatureExtractionToolkit/word2vec_vectors/word2vec-wiki-15perc.unigr.strings.rep0']
+PATHS = ['../FeatureExtractionToolkit/word2vec_vectors/word2vec-gigaw-nopos-100perc.unigr.strings.rep0',
+         '../FeatureExtractionToolkit/word2vec_vectors/word2vec-wiki-nopos-15perc.unigr.strings.rep0']
 NAMES = ['w2v-giga-100', 'w2v-wiki-15']
 NBOOT = 100
 
@@ -44,11 +44,11 @@ def _men():
     df = pd.read_csv('similarity-data/MEN/MEN_dataset_lemma_form_full',
                      names=['w1', 'w2', 'sim'], sep=' ')
 
-    def _convert_tag(word):
-        return '%s/%s' % (word[:-2], word[-1].upper())
+    def _remove_pos_tag(word):
+        return word[:-2]
 
-    df.w1 = df.w1.map(_convert_tag)
-    df.w2 = df.w2.map(_convert_tag)
+    df.w1 = df.w1.map(_remove_pos_tag)
+    df.w2 = df.w2.map(_remove_pos_tag)
     return df
 
 
@@ -71,36 +71,18 @@ def word_level_datasets():
 
 def _intrinsic_eval_words(vectors, intrinsic_dataset, noise=0, reload=True):
     v = Vectors.from_tsv(vectors, noise=noise) if reload else vectors
-
-    def get_vector_for(word):
-        vectors = []
-        if word[-2] == '/':
-            # pos tag is there already, let's just do it
-            if word in v:
-                vectors.append(v.get_vector(word))
-        else:
-            # what could the pos tag be?
-            for pos in 'JNV':
-                candidate = '%s/%s' % (word.lower(), pos)
-                if candidate in v:
-                    vectors.append(v.get_vector(candidate))
-        if len(vectors) > 1:
-            pass
-        # logging.info('multiple vectors for', word, len(vectors))
-        return vectors
-
     model_sims, human_sims = [], []
     missing = 0
     for w1, w2, human in zip(intrinsic_dataset.w1,
                              intrinsic_dataset.w2,
                              intrinsic_dataset.sim):
-        v1, v2 = get_vector_for(w1), get_vector_for(w2)
-        if v1 and v2:
-            model_sims.append(cosine_similarity(v1[0], v2[0])[0][0])
+        v1, v2 = v.get_vector(w1), v.get_vector(w2)
+        if v1 is not None and v2 is not None:
+            model_sims.append(cosine_similarity(v1, v2)[0][0])
             human_sims.append(human)
         else:
             missing += 1
-
+    # todo padding with 0 is a bad idea because it actually improves correlation
     model_sims_w_zeros = model_sims + [0] * missing
     human_sims_w_zeros = human_sims + [0] * missing
     # bootstrap model_sims_w_zeros CI for the data
@@ -114,8 +96,8 @@ def _intrinsic_eval_words(vectors, intrinsic_dataset, noise=0, reload=True):
         strict, str_pval = spearmanr(np.array(model_sims_w_zeros)[idx],
                                      np.array(human_sims_w_zeros)[idx])
 
-        res.append(
-            [strict, relaxed, noise, rel_pval, str_pval, missing / len(intrinsic_dataset), boot_i])
+        res.append([strict, relaxed, noise, rel_pval, str_pval,
+                    missing / len(intrinsic_dataset), boot_i])
     return res
 
 
@@ -145,19 +127,19 @@ def learning_curve_wiki():
 
     Evaluate vectors intrinsically as more unlabelled training data is added
     """
-    prefix = '/lustre/scratch/inf/mmb28/FeatureExtractionToolkit/word2vec_vectors/composed'
-    paths = [(1, 'AN_NN_word2vec-wiki_1percent-rep0_Add.events.filtered.strings'),
-             (10, 'AN_NN_word2vec-wiki_10percent-rep0_Add.events.filtered.strings'),
-             (15, 'AN_NN_word2vec-wiki_15percent-rep0_Add.events.filtered.strings'),
-             (20, 'AN_NN_word2vec-wiki_20percent-rep0_Add.events.filtered.strings'),
-             (30, 'AN_NN_word2vec-wiki_30percent-rep0_Add.events.filtered.strings'),
-             (40, 'AN_NN_word2vec-wiki_40percent-rep0_Add.events.filtered.strings'),
-             (50, 'AN_NN_word2vec-wiki_50percent-rep0_Add.events.filtered.strings'),
-             (60, 'AN_NN_word2vec-wiki_60percent-rep0_Add.events.filtered.strings'),
-             (70, 'AN_NN_word2vec-wiki_70percent-rep0_Add.events.filtered.strings'),
-             (80, 'AN_NN_word2vec-wiki_80percent-rep0_Add.events.filtered.strings'),
-             (90, 'AN_NN_word2vec-wiki_90percent-rep0_Add.events.filtered.strings'),
-             (100, 'AN_NN_word2vec-wiki_100percent-rep0_Add.events.filtered.strings')
+    prefix = '/lustre/scratch/inf/mmb28/FeatureExtractionToolkit/word2vec_vectors'
+    paths = [(1, 'word2vec-wiki-nopos-1perc.unigr.strings.rep0'),
+             (10, 'word2vec-wiki-nopos-10perc.unigr.strings.rep0'),
+             (15, 'word2vec-wiki-nopos-15perc.unigr.strings.rep0'),
+             (20, 'word2vec-wiki-nopos-20perc.unigr.strings.rep0'),
+             (30, 'word2vec-wiki-nopos-30perc.unigr.strings.rep0'),
+             (40, 'word2vec-wiki-nopos-40perc.unigr.strings.rep0'),
+             (50, 'word2vec-wiki-nopos-50perc.unigr.strings.rep0'),
+             (60, 'word2vec-wiki-nopos-60perc.unigr.strings.rep0'),
+             (70, 'word2vec-wiki-nopos-70perc.unigr.strings.rep0'),
+             (80, 'word2vec-wiki-nopos-80perc.unigr.strings.rep0'),
+             (90, 'word2vec-wiki-nopos-90perc.unigr.strings.rep0'),
+             (100, 'word2vec-wiki-nopos-100perc.unigr.strings.rep0')
              ]
     curve_data = []
     for percent, filename in paths:
@@ -176,13 +158,12 @@ def learning_curve_wiki():
 
 def repeated_runs_w2v():
     prefix = '/lustre/scratch/inf/mmb28/FeatureExtractionToolkit/word2vec_vectors/'
-    pattern = os.path.join(prefix, 'word2vec-wiki-15perc.unigr.strings.rep%d')
+    pattern = os.path.join(prefix, 'word2vec-wiki-nopos-15perc.unigr.strings.rep%d')
     rep_vectors = [Vectors.from_tsv(pattern % i) for i in [0, 1, 2]]
-    avg_vectors = [Vectors.from_tsv(os.path.join(prefix, 'word2vec-wiki-15perc.unigr.strings.avg3'))]
     mv = [MultiVectors(tuple(rep_vectors))]
 
     data = []
-    for v, rep_id in zip(rep_vectors + avg_vectors + mv, [0, 1, 2, -1, -2]):
+    for v, rep_id in zip(rep_vectors + mv, [0, 1, 2, -2]):
         for dname, intr_data in word_level_datasets():
             for strict, relaxed, noise, rel_pval, str_pval, missing, boot_i in \
                     _intrinsic_eval_words(v, intr_data, 0, reload=False):
@@ -196,29 +177,20 @@ def turney_predict(phrase, possible_answers, composer, unigram_source):
     def _maxint():
         return 1e19
 
-    def _add_tags(phrase):
-        words = phrase.split()
-        for pos in 'JN':
-            yield '{1}/{0}_{2}/N'.format(pos, *words)
-
-    def _add_pos(word):
-        for pos in 'NJ':
-            yield '{}/{}'.format(word, pos)
-
     sims = defaultdict(_maxint)
-    for candidate_phrase in _add_tags(phrase):
-        if candidate_phrase in composer and composer.get_vector(candidate_phrase) is not None:
-            phrase_vector = composer.get_vector(candidate_phrase).A
-            for wordid, word in enumerate(possible_answers):
-                for candidate_word in _add_pos(word):
-                    if candidate_word in unigram_source:
-                        word_vector = unigram_source.get_vector(candidate_word).A
-                        distance = euclidean(phrase_vector.ravel(), word_vector.ravel())
-                        if distance < sims[word]:
-                            sims[word] = distance
-                if wordid == 0 and sims[word] > 1e10:
-                    # don't have a word vector for the gold std neighbour
-                    return None, None
+    # todo AdditiveComposer.__contains__ broken when PoS tag missing
+    phrase = phrase.replace(' ', '_')
+    if phrase in composer and composer.get_vector(phrase) is not None:
+        phrase_vector = composer.get_vector(phrase).A
+        for wordid, word in enumerate(possible_answers):
+            if word in unigram_source: # todo this is a strict experiment
+                word_vector = unigram_source.get_vector(word).A
+                distance = euclidean(phrase_vector.ravel(), word_vector.ravel())
+                if distance < sims[word]:
+                    sims[word] = distance
+            if wordid == 0 and sims[word] > 1e10:
+                # don't have a word vector for the gold std neighbour
+                return None, None
     if not sims:
         #         print('cant process', phrase)
         return None, None
@@ -261,7 +233,8 @@ def turney_evaluation():
     results = []
     for path, vname in zip(PATHS, NAMES):
         logging.info('Turney test doing %s', vname)
-        res = Parallel(n_jobs=4)(delayed(turney_measure_accuracy)(path, comp, df) \
+        # todo 4 cores
+        res = Parallel(n_jobs=1)(delayed(turney_measure_accuracy)(path, comp, df) \
                                  for comp in composers)
         for cov, acc, comp_name, boot in chain.from_iterable(res):
             results.append((vname, comp_name, cov, acc, boot))
