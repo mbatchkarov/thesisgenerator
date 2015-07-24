@@ -18,7 +18,7 @@ from scipy.spatial.distance import euclidean
 import pandas as pd
 import numpy as np
 
-ALLOW_OVERLAP = False
+ALLOW_OVERLAP = True
 PATHS = ['../FeatureExtractionToolkit/word2vec_vectors/word2vec-gigaw-nopos-100perc.unigr.strings.rep0',
          '../FeatureExtractionToolkit/word2vec_vectors/word2vec-wiki-nopos-15perc.unigr.strings.rep0']
 PATHS2 = PATHS + ['../FeatureExtractionToolkit/word2vec_vectors/word2vec-wiki-nopos-100perc.unigr.strings.rep0']
@@ -187,27 +187,29 @@ def repeated_runs_w2v():
 
 
 def turney_predict(phrase, possible_answers, composer, unigram_source):
-    def _maxint():
-        return 1e19
-
-    sims = defaultdict(_maxint)
+    distances = np.nan * np.ones(len(possible_answers))
     phrase = phrase.replace(' ', '_')
+
     if phrase in composer and composer.get_vector(phrase) is not None:
         phrase_vector = composer.get_vector(phrase).A
         for wordid, word in enumerate(possible_answers):
-            if word in unigram_source:  # todo this is a strict experiment
+            if word in unigram_source:
                 word_vector = unigram_source.get_vector(word).A
-                distance = euclidean(phrase_vector.ravel(), word_vector.ravel())
-                if distance < sims[word]:
-                    sims[word] = distance
-            if wordid == 0 and sims[word] > 1e10:
-                # don't have a word vector for the gold std neighbour
-                return None, None
-    if not sims:
-        #         print('cant process', phrase)
-        return None, None
+                distances[wordid] = euclidean(phrase_vector.ravel(), word_vector.ravel())
+
+    # strict means we must always predict a neighbour, even if we don't know
+    if np.all(np.isnan(distances)):
+        # we have absolutely no idea, ignore the question
+        relaxed_pred = strict_pred = None
     else:
-        return min(sims, key=sims.get), sims
+        relaxed_pred = strict_pred = possible_answers[np.nanargmin(distances)]
+
+    if np.isnan(distances[0]):
+        # we don't have a word vector for the gold std neighbour, refuse to predict
+        # because there's no way to get it right. that is sort of cheating though
+        relaxed_pred = None
+
+    return strict_pred, relaxed_pred, np.log10(distances)
 
 
 def turney_measure_accuracy(path, composer_class, df):
@@ -215,19 +217,29 @@ def turney_measure_accuracy(path, composer_class, df):
     composer = composer_class(unigram_source)
 
     res = []
-    predictions, gold = [], []
+    str_predictions, str_gold, rel_predictions, rel_gold = [], [], [], []
     for phrase, candidates in df.iterrows():
-        most_similar, _ = turney_predict(phrase, candidates, composer, unigram_source)
-        if most_similar:
-            predictions.append(most_similar)
-            gold.append(candidates[0])
+        strict_pred, relaxed_pred, d = turney_predict(phrase, candidates.values,
+                                                      composer, unigram_source)
+        # print(phrase, '--->', strict_pred, relaxed_pred)
+        if relaxed_pred:
+            rel_predictions.append(relaxed_pred)
+            rel_gold.append(candidates[0])
+        if strict_pred:
+            str_predictions.append(strict_pred)
+            str_gold.append(candidates[0])
 
-    coverage = len(predictions) / len(df)
+    str_coverage = len(str_predictions) / len(df)
+    rel_coverage = len(rel_predictions) / len(df)
     for boot_i in range(NBOOT):
-        idx = np.random.randint(0, len(gold), len(gold))
-        accuracy = accuracy_score(np.array(predictions)[idx],
-                                  np.array(gold)[idx])
-        res.append([coverage, accuracy, composer.name, boot_i])
+        idx = np.random.randint(0, len(str_gold), len(str_gold))
+        str_accuracy = accuracy_score(np.array(str_predictions)[idx],
+                                      np.array(str_gold)[idx])
+
+        idx = np.random.randint(0, len(rel_gold), len(rel_gold))
+        rel_accuracy = accuracy_score(np.array(rel_predictions)[idx],
+                                      np.array(rel_gold)[idx])
+        res.append([str_coverage, rel_coverage, str_accuracy, rel_accuracy, composer.name, boot_i])
     return res
 
 
@@ -247,11 +259,12 @@ def turney_evaluation():
         logging.info('Turney test doing %s', vname)
         res = Parallel(n_jobs=4)(delayed(turney_measure_accuracy)(path, comp, df) \
                                  for comp in composers)
-        for cov, acc, comp_name, boot in chain.from_iterable(res):
-            results.append((vname, comp_name, cov, acc, boot))
+        for str_cov, rel_cov, str_acc, rel_acc, comp_name, boot in chain.from_iterable(res):
+            results.append((vname, comp_name, str_cov, 'strict', str_acc, boot))
+            results.append((vname, comp_name, rel_cov, 'relaxed', rel_acc, boot))
 
     df_res = pd.DataFrame(results,
-                          columns=['unigrams', 'composer', 'coverage', 'accuracy', 'folds'])
+                          columns=['unigrams', 'composer', 'coverage', 'kind', 'accuracy', 'folds'])
     df_res.to_csv('intrinsic_turney_phraselevel.csv')
 
 
