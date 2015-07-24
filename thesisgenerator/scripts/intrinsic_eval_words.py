@@ -21,8 +21,10 @@ import numpy as np
 ALLOW_OVERLAP = False
 PATHS = ['../FeatureExtractionToolkit/word2vec_vectors/word2vec-gigaw-nopos-100perc.unigr.strings.rep0',
          '../FeatureExtractionToolkit/word2vec_vectors/word2vec-wiki-nopos-15perc.unigr.strings.rep0']
+PATHS2 = PATHS + ['../FeatureExtractionToolkit/word2vec_vectors/word2vec-wiki-nopos-100perc.unigr.strings.rep0']
 NAMES = ['w2v-giga-100', 'w2v-wiki-15']
-NBOOT = 100
+NAMES2 = NAMES + ['w2v-wiki-100']
+NBOOT = 500
 
 
 def _ws353():
@@ -241,7 +243,7 @@ def turney_evaluation():
     # right/left should always score 0 with overlap
 
     results = []
-    for path, vname in zip(PATHS, NAMES):
+    for path, vname in zip(PATHS2, NAMES2):
         logging.info('Turney test doing %s', vname)
         res = Parallel(n_jobs=4)(delayed(turney_measure_accuracy)(path, comp, df) \
                                  for comp in composers)
