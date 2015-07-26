@@ -16,7 +16,7 @@ from thesisgenerator.utils import db
 def printing_decorator(f):
     @wraps(f)
     def wrapper(*args, **kwds):
-        print('Before function %s: %d experiments' % (f.__name__, len(experiments)))
+        print('Before function %s: %d experiments' % (f.__name__, len(list(db.ClassificationExperiment.select()))))
         return f(*args, **kwds)
 
     return wrapper
@@ -39,13 +39,17 @@ def _make_expansions(**kwargs):
     return e
 
 
-def vectors_from_settings(unlab_name, algorithm, composer_name, svd_dims, percent=100, rep=0):
+def vectors_from_settings(unlab_name, algorithm, composer_name, svd_dims, percent=100, rep=0,
+                          avg=False, reorder=False):
     assert svd_dims > 1 or svd_dims is None
     v = db.Vectors.select().where((db.Vectors.dimensionality == svd_dims) &
                                   (db.Vectors.unlabelled == unlab_name) &
                                   (db.Vectors.composer == composer_name) &
                                   (db.Vectors.algorithm == algorithm) &
-                                  (db.Vectors.rep == rep))
+                                  (db.Vectors.rep == rep) &
+                                  (db.Vectors.avg == avg) &
+                                  (db.Vectors.reorder == reorder)
+                                  )
     # peewee cant easily do selects that contain checks of float values
     # lets do a post-filter
     results = [res for res in v if abs(res.unlabelled_percentage - percent) < 1e-6]
@@ -125,7 +129,7 @@ def random_baselines(corpora=None, document_features_tr='J+N+AN+NN', document_fe
                                             expansions=_make_expansions(vectors=v.id),
                                             document_features_tr=document_features_tr,
                                             document_features_ev=document_features_ev)
-            experiments.append(e)
+            e.save(force_insert=True)
 
 
 @printing_decorator
@@ -137,7 +141,7 @@ def all_standard_experiments(labelled=None):
             v = vectors_from_settings(*s)
             e = db.ClassificationExperiment(labelled=labelled_corpus,
                                             expansions=_make_expansions(vectors=v))
-            experiments.append(e)
+            e.save(force_insert=True)
 
 
 @printing_decorator
@@ -149,7 +153,7 @@ def hybrid_experiments_word2vec_gigaw():
         e = db.ClassificationExperiment(labelled=am_corpus,
                                         expansions=_make_expansions(vectors=v,
                                                                     decode_handler=h))
-        experiments.append(e)
+        e.save(force_insert=True)
 
 
 @printing_decorator
@@ -160,7 +164,7 @@ def an_only_nn_only_experiments_amazon():
             e = db.ClassificationExperiment(expansions=_make_expansions(vectors=v),
                                             labelled=am_corpus,
                                             document_features_ev=feature_type)
-            experiments.append(e)
+            e.save(force_insert=True)
 
 
 @printing_decorator
@@ -168,7 +172,7 @@ def glove_vectors_amazon():
     for s in glove_vector_settings():
         v = vectors_from_settings(*s)
         e = db.ClassificationExperiment(labelled=am_corpus, expansions=_make_expansions(vectors=v))
-        experiments.append(e)
+        e.save(force_insert=True)
 
 
 @printing_decorator
@@ -181,7 +185,7 @@ def nondistributional_baselines(corpora=None, document_features_tr='J+N+AN+NN', 
                                         document_features_tr=document_features_tr,
                                         document_features_ev=document_features_ev,
                                         expansions=_make_expansions(decode_handler='BaseFeatureHandler'))
-        experiments.append(e)
+        e.save(force_insert=True)
 
 
 @printing_decorator
@@ -192,7 +196,7 @@ def w2v_wiki_learning_curve(percent, unlab='wiki', corpus=None):
         for p in percent:
             v = vectors_from_settings(*settings, percent=p)
             e = db.ClassificationExperiment(labelled=corpus, expansions=_make_expansions(vectors=v))
-            experiments.append(e)
+            e.save(force_insert=True)
 
 
 @printing_decorator
@@ -203,7 +207,7 @@ def varying_k_with_w2v_on_amazon(ks=[1, 5, 10, 20, 30, 40, 50, 75, 100]):
             e = db.ClassificationExperiment(labelled=am_corpus,
                                             expansions=_make_expansions(vectors=v,
                                                                         k=k))
-            experiments.append(e)
+            e.save(force_insert=True)
 
 
 @printing_decorator
@@ -214,17 +218,18 @@ def different_neighbour_strategies_r2():
         e = db.ClassificationExperiment(labelled=r2_corpus,
                                         expansions=_make_expansions(vectors=v,
                                                                     neighbour_strategy=strat))
-        experiments.append(e)
+        e.save(force_insert=True)
 
 
 @printing_decorator
 def initial_wikipedia_w2v_amazon_with_repeats():
     unlab = 'wiki'
-    for rep in [-1, 0, 1, 2]:
+    for rep in [3, 0, 1, 2]:
+        avg = (rep == 3)
         for _, algo, composer_name, dims in word2vec_vector_settings():
-            v = vectors_from_settings(unlab, algo, composer_name, dims, percent=15, rep=rep)
+            v = vectors_from_settings(unlab, algo, composer_name, dims, percent=15, rep=rep, avg=avg)
             e = db.ClassificationExperiment(labelled=am_corpus, expansions=_make_expansions(vectors=v))
-            experiments.append(e)
+            e.save(force_insert=True)
 
 
 @printing_decorator
@@ -234,7 +239,7 @@ def corrupted_w2v_wiki(corpus):
         e = db.ClassificationExperiment(labelled=corpus,
                                         expansions=_make_expansions(vectors=v,
                                                                     noise=noise))
-        experiments.append(e)
+        e.save(force_insert=True)
 
 
 @printing_decorator
@@ -248,27 +253,32 @@ def equalised_coverage_experiments():
         e = db.ClassificationExperiment(labelled=am_corpus,
                                         expansions=_make_expansions(vectors=regular_vect,
                                                                     entries_of=entries_of))
-        experiments.append(e)
+        e.save(force_insert=True)
 
         regular_vect = vectors_from_settings('wiki', 'count_windows', composer.name, 100)
         entries_of = vectors_from_settings('wiki', 'count_windows', 'Baroni', 100)
         e = db.ClassificationExperiment(labelled=am_corpus,
                                         expansions=_make_expansions(vectors=regular_vect,
                                                                     entries_of=entries_of))
-        experiments.append(e)
+        e.save(force_insert=True)
 
 
 @printing_decorator
-def equalised_coverage_experiments_v2():
+def equalised_coverage_experiments_v2(composers=None, percent_reduce_from=None):
     #  MORE EQUALISED COVERAGE EXPERIMENTS- WIKI-100% REDUCED TO WIKI-15%
-    composers = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer, RightmostWordComposer]
+    if composers is None:
+        composers = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer, RightmostWordComposer]
+    if percent_reduce_from is None:
+        percent_reduce_from = [100]
+
     for composer in composers:
-        regular_vect = vectors_from_settings('wiki', 'word2vec', composer.name, 100, percent=100)
         entries_of = vectors_from_settings('wiki', 'word2vec', composer.name, 100, percent=15)
-        e = db.ClassificationExperiment(labelled=am_corpus,
-                                        expansions=_make_expansions(vectors=regular_vect,
-                                                                    entries_of=entries_of))
-        experiments.append(e)
+        for p in percent_reduce_from:
+            regular_vect = vectors_from_settings('wiki', 'word2vec', composer.name, 100, percent=p)
+            e = db.ClassificationExperiment(labelled=am_corpus,
+                                            expansions=_make_expansions(vectors=regular_vect,
+                                                                        entries_of=entries_of))
+            e.save(force_insert=True)
 
 
 @printing_decorator
@@ -283,7 +293,7 @@ def with_unigrams_at_decode_time():
             e = db.ClassificationExperiment(expansions=_make_expansions(vectors=v),
                                             labelled=am_corpus,
                                             document_features_ev='J+N+AN+NN')
-            experiments.append(e)
+            e.save(force_insert=True)
 
 
 @printing_decorator
@@ -296,7 +306,7 @@ def with_lexical_overlap():
         for v in vect:
             e = db.ClassificationExperiment(expansions=_make_expansions(vectors=v, allow_overlap=True),
                                             labelled=am_corpus)
-            experiments.append(e)
+            e.save(force_insert=True)
 
 
 @printing_decorator
@@ -314,7 +324,7 @@ def verb_phrases_svo():
                                             document_features_tr='J+N+V+SVO',
                                             document_features_ev='SVO',
                                             expansions=_make_expansions(vectors=v))
-            experiments.append(e)
+            e.save(force_insert=True)
 
 
 @printing_decorator
@@ -324,31 +334,23 @@ def kmeans_experiments(min_id=1, max_id=30, labelled=None):
     for cl in db.Clusters.select():
         if min_id <= cl.id <= max_id:
             e = db.ClassificationExperiment(labelled=labelled, clusters=cl)
-            experiments.append(e)
+            e.save(force_insert=True)
 
 
 def multivectors():
     for v in db.Vectors.select():
-        if v.rep == -2:
+        if v.reorder:
             e = db.ClassificationExperiment(labelled=am_corpus,
                                             expansions=_make_expansions(vectors=v))
-            experiments.append(e)
+            e.save(force_insert=True)
 
 
-def write_conf_files(experiments):
-    for e in experiments:
-        e.save(force_insert=True)
+def write_conf_files():
+    check_experiments()
 
-    # verify experiments aren't being duplicated
-    if len(set(experiments)) != len(experiments):
-        dupl = [x for x in experiments if x.__hash__() == Counter(experiments).most_common(1)[0][0].__hash__()]
-        for x in dupl:
-            print(x._key(), '\n', x.expansions._key(), x.clusters)
-        raise ValueError('Duplicated experiments exist: %s' % dupl)
-
-    # sys.exit(0)
     print('Writing conf files')
     megasuperbase_conf_file = 'conf/exp1-superbase.conf'
+    experiments = db.ClassificationExperiment.select()
     for exp in experiments:
         if exp.id % 50 == 0:
             print('Writing exp %d' % exp.id)
@@ -438,7 +440,17 @@ def write_conf_files(experiments):
                     print('Exp: %d, was %r, is now %r' % (exp.id, a, b))
 
 
-def write_metafiles(experiments):
+def check_experiments():
+    # verify experiments aren't being duplicated
+    experiments = list(db.ClassificationExperiment.select())
+    if len(set(experiments)) != len(experiments):
+        dupl = [x for x in experiments if x.__hash__() == Counter(experiments).most_common(1)[0][0].__hash__()]
+        for x in dupl:
+            print(x._key(), x.expansions._key(), x.clusters)
+        raise ValueError('Duplicated experiments exist: %s' % dupl)
+
+
+def write_metafiles():
     """
     Dynamically decide whether to run an experiment. Used when I ran one long experiment and don't want to repeat it,
     but don't want to delete it from the list of experiments either. With this file I can just submit all experiments
@@ -447,7 +459,7 @@ def write_metafiles(experiments):
     :param experiments:
     """
     with open('slow_experiments.txt', 'w') as outf:
-        for e in experiments:
+        for e in db.ClassificationExperiment.select():
             try:
                 if e.expansions.k >= 500 or e.clusters.num_clusters > 2000:
                     outf.write(str(e.id) + '\n')
@@ -467,9 +479,6 @@ if __name__ == '__main__':
     maas_corpus = 'aclImdb-tagged'
     # havent added maas to all_corpora to avoid changing the ids of long running amazon jobs
     all_corpora = techtc_corpora + [r2_corpus, mr_corpus, am_corpus]
-
-    # db.ClassificationExperiment.raw('TRUNCATE TABLE `classificationexperiment`;')
-    experiments = []
 
     ################################################################
     # NOUN PHRASES
@@ -527,6 +536,9 @@ if __name__ == '__main__':
     kmeans_experiments(min_id=31, max_id=35, labelled=r2_corpus)
 
     multivectors()
-    print('Total experiments: %d' % len(experiments))
-    write_conf_files(experiments)
-    write_metafiles(experiments)
+    equalised_coverage_experiments_v2(composers=[AdditiveComposer],
+                                      percent_reduce_from=[20, 30, 50, 40, 60, 70, 80, 90])
+
+    print('Total experiments: %d' % len(list(db.ClassificationExperiment.select())))
+    write_conf_files()
+    write_metafiles()

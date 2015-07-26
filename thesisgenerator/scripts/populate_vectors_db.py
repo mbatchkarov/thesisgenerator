@@ -67,7 +67,10 @@ def _w2v_vectors():
             for rep in [-1, 0, 1, 2]:  # -1 signifies averaging across multiple runs
                 if rep < 0:
                     thesaurus_file = wiki_avg_pattern.format(**ChainMap(locals(), globals()))
+                    rep = 3
+                    avg = True
                 else:
+                    avg = False
                     thesaurus_file = wiki_rep_pattern.format(**ChainMap(locals(), globals()))
 
                 modified, size = _get_size(thesaurus_file)
@@ -75,7 +78,7 @@ def _w2v_vectors():
                                       unlabelled='wiki', path=thesaurus_file,
                                       unlabelled_percentage=percent,
                                       composer=composer_class, modified=modified, size=size,
-                                      rep=rep)
+                                      rep=rep, avg=avg)
                 print(v)
 
 
@@ -221,16 +224,26 @@ def _repeated_runs_multivect():
                        'composer}.events.filtered.strings'
     composers = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer, RightmostWordComposer]
     for composer_class in composers:
-        paths = [wiki_rep_pattern.format(prefix=prefix,
-                                         rep=rep,
-                                         composer=composer_class.name) for rep in [0, 1, 2]]
-        modified, size = _get_size(paths[0])
-        v = db.Vectors.create(algorithm='word2vec', dimensionality=100,
-                              unlabelled='wiki',
-                              unlabelled_percentage=15,
-                              composer=composer_class,
-                              modified=modified, size=size,
-                              path=','.join(paths), rep=-2)
+        for repetitions in [[0, 1], [0, 1, 2], [0, 1, 2, 3], [0, 1, 2, 3, 4]]:
+            if len(repetitions) > 3 and composer_class != AdditiveComposer:
+                continue  # save some time, experiments w/ these guys are a slowish
+            paths = [wiki_rep_pattern.format(prefix=prefix,
+                                             rep=rep,
+                                             composer=composer_class.name) for rep in repetitions]
+            modified, _ = _get_size(paths[0])
+            try:
+                size = sum(_get_size(path)[1] for path in paths)
+            except TypeError:
+                # some of the files are missing, can't sum None objects
+                print("WARNING: missing files")
+                size = None
+            v = db.Vectors.create(algorithm='word2vec', dimensionality=100,
+                                  unlabelled='wiki',
+                                  unlabelled_percentage=15,
+                                  composer=composer_class,
+                                  modified=modified, size=size,
+                                  path=','.join(paths),
+                                  rep=len(repetitions), reorder=True)
         print(v)
 
 

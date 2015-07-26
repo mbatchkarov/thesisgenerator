@@ -21,8 +21,10 @@ class Vectors(pw.Model):
     path = pw.CharField(null=True)  # where on disk the vectors are stored
     composer = pw.CharField()  # what composer was used to build phrasal vectors (if any)
     rep = pw.IntegerField(default=0)  # if the same vectors have been built multiple times, an explicit identifier
-    # -1 stands for "average vectors over 3 repetitions"
-    # -2 stands for "combine vectors from 3 repetitions using MultiVectors logic"
+    avg = pw.BooleanField(default=False)  # identifies vectors where averaging over multiple runs is done,
+    # e.g. rep=3 and avg=True mean "average vectors over 3 repetitions"
+    reorder = pw.BooleanField(default=False)  # identifies vectors where neighbour reordering over multiple runs is done
+    # e.g. rep=3 and reorder=True mean "reorder neighbours using vectors from 3 repetitions"
 
     modified = pw.DateField(null=True, default=None)  # when was the file last modifier
     size = pw.IntegerField(null=True, default=None)  # file size in MB
@@ -33,7 +35,7 @@ class Vectors(pw.Model):
 
         # find out what format the file is in
         if self.path and self.size:  # check file exists
-            path = self.path.split(',')[0] # multiple comma-separated files may be specified
+            path = self.path.split(',')[0]  # multiple comma-separated files may be specified
             if is_gzipped(path):
                 self.format = 'gz'
             elif is_hdf(path):
@@ -48,8 +50,9 @@ class Vectors(pw.Model):
         database = db
 
     def __str__(self):
-        return 'Vectors: ' + ','.join(str(x) for x in [self.unlabelled, self.algorithm, self.composer,
-                                                       self.dimensionality, self.rep, self.unlabelled_percentage])
+        return 'Vectors%d: ' % self.id + ','.join(str(x) for x in [self.unlabelled, self.algorithm, self.composer,
+                                                                   self.dimensionality, self.rep,
+                                                                   self.unlabelled_percentage])
 
 
 class Expansions(pw.Model):
@@ -67,15 +70,15 @@ class Expansions(pw.Model):
         database = db
 
     def _key(self):
-        return (self.use_similarity,
-                self.allow_overlap,
-                self.use_random_neighbours,
-                self.decode_handler,
-                self.vectors.id if self.vectors else None,
-                self.entries_of.id if self.entries_of else None,
-                self.k,
-                self.neighbour_strategy,
-                self.noise)
+        return ('use_sim:%r' % self.use_similarity,
+                'overlap:%r' % self.allow_overlap,
+                'random:%r' % self.use_random_neighbours,
+                'handler:%r' % self.decode_handler,
+                'vid:%r' % (self.vectors.id if self.vectors else None),
+                'entriesof_id:%r' % (self.entries_of.id if self.entries_of else None),
+                'k:%r' % self.k,
+                'strat:%r' % self.neighbour_strategy,
+                'noise:%r' % self.noise)
 
     def __eq__(x, y):
         return x._key() == y._key()
@@ -135,11 +138,11 @@ class ClassificationExperiment(pw.Model):
         return str(self)
 
     def _key(self):
-        key = (self.document_features_tr,
-               self.document_features_ev,
-               self.labelled,
-               self.expansions.__hash__() if self.expansions else None,
-               self.clusters.__hash__() if self.clusters else None)
+        key = ('tr-feats::%r' % self.document_features_tr,
+               'ev-feats:%r' % self.document_features_ev,
+               'lab:%r' % self.labelled,
+               'expansions_hash:%r' % self.expansions.__hash__() if self.expansions else None,
+               'clusters_hash:%r' % self.clusters.__hash__() if self.clusters else None)
         return key
 
     def __eq__(x, y):
