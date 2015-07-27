@@ -10,7 +10,8 @@ import pandas as pd
 from discoutils.thesaurus_loader import Vectors
 from discoutils.tokens import DocumentFeature
 from discoutils.misc import mkdirs_if_not_exists
-from thesisgenerator.composers.vectorstore import (CopyObject, Relational, FrobeniusAdd, compose_and_write_vectors)
+from thesisgenerator.composers.vectorstore import (CopyObject, FrobeniusAdd, FrobeniusMult,
+                                                   compose_and_write_vectors)
 
 VERBS_HDF_DIR = '/lustre/scratch/inf/mmb28/FeatureExtractionToolkit/categorical/'
 MIN_SVO_PER_VERB = 3  # todo does this filter exist in the original paper?
@@ -88,7 +89,7 @@ if __name__ == '__main__':
 
         compose_and_write_vectors(noun_path,  # a vector store containing noun vectors
                                   sname,  # something to identify the source of unigram vectors
-                                  [CopyObject, Relational, FrobeniusAdd],
+                                  [CopyObject, FrobeniusAdd, FrobeniusMult],
                                   # filename of output of training stage
                                   categorical_vector_matrix_file=trained_verb_matrices_file,
                                   output_dir=VERBS_HDF_DIR, dense_hd5=True)
