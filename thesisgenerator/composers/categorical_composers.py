@@ -4,13 +4,13 @@ sys.path.append('.')
 import logging
 import os
 from itertools import groupby
+from operator import itemgetter
 import numpy as np
 import pandas as pd
 from discoutils.thesaurus_loader import Vectors
-from discoutils.tokens import DocumentFeature, itemgetter
+from discoutils.tokens import DocumentFeature
 from discoutils.misc import mkdirs_if_not_exists
-from thesisgenerator.composers.vectorstore import CopyObject, compose_and_write_vectors
-
+from thesisgenerator.composers.vectorstore import (CopyObject, Relational, FrobeniusAdd, compose_and_write_vectors)
 
 VERBS_HDF_DIR = '/lustre/scratch/inf/mmb28/FeatureExtractionToolkit/categorical/'
 MIN_SVO_PER_VERB = 3  # todo does this filter exist in the original paper?
@@ -62,7 +62,7 @@ if __name__ == '__main__':
 
     FET = '/lustre/scratch/inf/mmb28/FeatureExtractionToolkit/'
 
-    nouns_wins_wiki = os.path.join(FET, 'exp11-13b/exp11-with-obs-phrases-SVD100.events.filtered.strings')
+    nouns_wins_wiki = os.path.join(FET, 'exp11-13b-ppmi/exp11-with-obs-phrases-SVD100.events.filtered.strings')
     nouns_w2v_gigaw_100 = os.path.join(FET, 'word2vec_vectors/word2vec-gigaw-100perc.unigr.strings.rep0')
     nouns_w2v_wiki_15 = os.path.join(FET, 'word2vec_vectors/word2vec-wiki-15perc.unigr.strings.rep0')
     nouns_w2v_wiki_100 = os.path.join(FET, 'word2vec_vectors/word2vec-wiki-100perc.unigr.strings.rep0')
@@ -88,7 +88,7 @@ if __name__ == '__main__':
 
         compose_and_write_vectors(noun_path,  # a vector store containing noun vectors
                                   sname,  # something to identify the source of unigram vectors
-                                  [CopyObject],
+                                  [CopyObject, Relational, FrobeniusAdd],
                                   # filename of output of training stage
                                   categorical_vector_matrix_file=trained_verb_matrices_file,
                                   output_dir=VERBS_HDF_DIR, dense_hd5=True)

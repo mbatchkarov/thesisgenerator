@@ -383,6 +383,34 @@ class CopyObject(Vectors, ComposerMixin):
                                                               len(self.unigram_source))
 
 
+class Relational(CopyObject):
+    name = 'Relational'
+    entry_types = {'SVO'}
+
+    def get_vector(self, phrase_df):
+        subj, verb, obj = map(str, phrase_df.tokens)
+        subj_v = self.unigram_source.get_vector(subj).A.T  # shape 100x1
+        verb_m = self.verb_tensors[verb]  # shape 100x100
+        obj_v = self.unigram_source.get_vector(obj).A.T  # shape 100x1
+
+        vec = verb_m * np.outer(subj_v, obj_v)
+        return sp.csr_matrix(vec.T)
+
+
+class FrobeniusAdd(CopyObject):
+    name = 'FAdd'
+    entry_types = {'SVO'}
+
+    def get_vector(self, phrase_df):
+        subj, verb, obj = map(str, phrase_df.tokens)
+        subj_v = self.unigram_source.get_vector(subj).A.T  # shape 100x1
+        verb_m = self.verb_tensors[verb]  # shape 100x100
+        obj_v = self.unigram_source.get_vector(obj).A.T  # shape 100x1
+
+        vec = (subj_v * np.dot(verb_m, obj_v)) + (obj_v * np.dot(verb_m.T, subj_v))
+        return sp.csr_matrix(vec.T)
+
+
 class DummyThesaurus(Thesaurus):
     """
     A thesaurus-like object which return "b/N" as the only neighbour of every possible entry
@@ -481,8 +509,8 @@ def compose_and_write_vectors(unigram_vectors, short_vector_dataset_name, compos
             mat, cols, rows = composer.compose_all(phrases_to_compose)
 
             events_path = os.path.join(output_dir,  # todo name AN_NN no longer appropriate, whatever
-                                       'AN_NN_%s_%s.events.filtered.strings' % (
-                                           short_vector_dataset_name, composer.name))
+                                       'AN_NN_%s_%s.events.filtered.strings' % (short_vector_dataset_name,
+                                                                                composer.name))
             if dense_hd5:
                 write_vectors_to_hdf(mat, rows, cols, events_path)
             else:
