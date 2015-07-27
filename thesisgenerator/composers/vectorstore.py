@@ -499,8 +499,8 @@ def compose_and_write_vectors(unigram_vectors, short_vector_dataset_name, compos
         elif composer_class == GrefenstetteMultistepComposer:
             assert pretrained_Gref_composer_file is not None
             composer = GrefenstetteMultistepComposer(unigram_vectors, pretrained_Gref_composer_file)
-        elif composer_class == CopyObject:
-            composer = CopyObject(categorical_vector_matrix_file, unigram_vectors)
+        elif composer_class in [CopyObject, Relational, FrobeniusAdd]:
+            composer = composer_class(categorical_vector_matrix_file, unigram_vectors)
         else:
             composer = composer_class(unigram_vectors)
 
