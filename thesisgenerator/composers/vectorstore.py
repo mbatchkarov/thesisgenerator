@@ -99,6 +99,19 @@ class AdditiveComposer(Vectors, ComposerMixin):
         return len(self.unigram_source)
 
 
+class AverageComposer(AdditiveComposer):
+    name = 'Avg'
+    entry_types = {'2-GRAM', '3-GRAM', 'AN', 'NN', 'VO', 'SVO'}
+
+    def __init__(self, unigram_source):
+        self.unigram_source = check_vectors(unigram_source)
+        self.function = np.add
+
+    def get_vector(self, feature):
+        v = super().get_vector(feature)  # Add
+        return v / 2
+
+
 class MultiplicativeComposer(AdditiveComposer):
     name = 'Mult'
 

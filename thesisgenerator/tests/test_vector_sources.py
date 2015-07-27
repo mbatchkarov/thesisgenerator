@@ -110,9 +110,10 @@ def test_additive_composer_contains_nopos(ones_vectors_no_pos):
     assert 'a/N' not in composer
 
 
-def test_add_mult_compose_with_real_data(small_vectors):
+def test_add_mult_avg_compose_with_real_data(small_vectors):
     add = AdditiveComposer(small_vectors)
     mult = MultiplicativeComposer(small_vectors)
+    avg = AverageComposer(small_vectors)
 
     assert_array_equal(
         np.array([[0, 0, 0, 0, 0, 9, 0, 0]]),
@@ -127,6 +128,11 @@ def test_add_mult_compose_with_real_data(small_vectors):
     assert_array_equal(
         np.array([[5, 11, 15, 1, 2, 6, 10, 4]]),
         add.get_vector('a/N_b/V_c/J').A
+    )
+
+    assert_array_equal(
+        np.array([[5, 2, 7, 1, 2, 6, 0, 0]]) / 2,
+        avg.get_vector('a/N_b/V').A
     )
 
 
