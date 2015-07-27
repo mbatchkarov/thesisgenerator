@@ -1,4 +1,4 @@
-from collections import defaultdict
+from collections import defaultdict, Counter
 from itertools import chain
 import os, sys
 from sklearn.metrics import accuracy_score
@@ -6,7 +6,8 @@ from sklearn.metrics import accuracy_score
 sys.path.append('.')
 from thesisgenerator.composers.vectorstore import (AdditiveComposer,
                                                    RightmostWordComposer,
-                                                   MultiplicativeComposer)
+                                                   MultiplicativeComposer,
+                                                   AverageComposer)
 from thesisgenerator.plugins.multivectors import MultiVectors
 from discoutils.thesaurus_loader import Vectors
 from joblib.parallel import delayed, Parallel
@@ -201,15 +202,17 @@ def turney_predict(phrase, possible_answers, composer, unigram_source):
     if np.all(np.isnan(distances)):
         # we have absolutely no idea, ignore the question
         relaxed_pred = strict_pred = None
+        idx_of_pred = -1  # of strict version
     else:
-        relaxed_pred = strict_pred = possible_answers[np.nanargmin(distances)]
+        idx_of_pred = np.nanargmin(distances)
+        relaxed_pred = strict_pred = possible_answers[idx_of_pred]
 
     if np.isnan(distances[0]):
         # we don't have a word vector for the gold std neighbour, refuse to predict
         # because there's no way to get it right. that is sort of cheating though
         relaxed_pred = None
 
-    return strict_pred, relaxed_pred, np.log10(distances)
+    return strict_pred, relaxed_pred, np.log10(distances), idx_of_pred
 
 
 def turney_measure_accuracy(path, composer_class, df):
@@ -218,9 +221,11 @@ def turney_measure_accuracy(path, composer_class, df):
 
     res = []
     str_predictions, str_gold, rel_predictions, rel_gold = [], [], [], []
+    indices_of_predictions = []
     for phrase, candidates in df.iterrows():
-        strict_pred, relaxed_pred, d = turney_predict(phrase, candidates.values,
-                                                      composer, unigram_source)
+        strict_pred, relaxed_pred, d, ind = turney_predict(phrase, candidates.values,
+                                                           composer, unigram_source)
+        indices_of_predictions.append(ind)
         # print(phrase, '--->', strict_pred, relaxed_pred)
         if relaxed_pred:
             rel_predictions.append(relaxed_pred)
@@ -228,9 +233,11 @@ def turney_measure_accuracy(path, composer_class, df):
         if strict_pred:
             str_predictions.append(strict_pred)
             str_gold.append(candidates[0])
-
+    print(path, composer_class.name, Counter(indices_of_predictions))
     str_coverage = len(str_predictions) / len(df)
     rel_coverage = len(rel_predictions) / len(df)
+    if len(str_gold) == 0 or len(rel_gold) == 0:
+        print("WARNING: absolutely zero coverage, cannot bootstrap. Joblib may propagate a non-existant syntax error")
     for boot_i in range(NBOOT):
         idx = np.random.randint(0, len(str_gold), len(str_gold))
         str_accuracy = accuracy_score(np.array(str_predictions)[idx],
@@ -251,7 +258,7 @@ def turney_evaluation():
     else:
         assert list(df.values[0, :]) == ['binary', 'dual', 'lumen', 'neutralism', 'keratoplasty']
 
-    composers = [AdditiveComposer, MultiplicativeComposer, RightmostWordComposer]
+    composers = [AdditiveComposer, MultiplicativeComposer, RightmostWordComposer, AverageComposer]
     # right/left should always score 0 with overlap
 
     results = []
