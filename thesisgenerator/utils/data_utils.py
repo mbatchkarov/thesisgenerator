@@ -132,7 +132,6 @@ def get_pipeline_fit_args(conf):
     vs_params = conf['vector_sources']
     vectors_path = vs_params['neighbours_file']
     clusters_path = vs_params['clusters_file']
-    use_shelf = vs_params['use_shelf']
 
     if vectors_path and clusters_path:
         raise ValueError('Cannot use both word vectors and word clusters')
@@ -159,15 +158,9 @@ def get_pipeline_fit_args(conf):
         all_vect = [Vectors.from_tsv(p, **vs_params) for p in vectors_path]
         result['vector_source'] = MultiVectors(all_vect)
 
-
     if clusters_path:
         result['clusters'] = pd.read_hdf(clusters_path, key='clusters')
 
-    # if not thesaurus: # todo why was this needed?
-    #     # if a vector source has not been passed in and has not been initialised, then init it to avoid
-    #     # accessing empty things
-    #     logging.warning('RETURNING AN EMPTY THESAURUS')
-    #     thesaurus = []
     return result
 
 

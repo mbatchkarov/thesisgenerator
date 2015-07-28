@@ -1,6 +1,6 @@
 import os
 from thesisgenerator.utils.data_utils import (get_tokenized_data, jsonify_single_labelled_corpus,
-                                              get_tokenizer_settings_from_conf)
+                                              get_tokenizer_settings_from_conf, get_pipeline_fit_args)
 from thesisgenerator.utils.conf_file_utils import parse_config_file
 import numpy as np
 
@@ -25,3 +25,27 @@ def test_jsonify_XML_corpus():
         assert set(str(f) for f in a[0].nodes()) == set(b)
     np.testing.assert_array_equal(y_tr, y_tr1)
     os.unlink(json_train_set)
+
+
+def test_get_pipeline_fit_args():
+    conf = {
+        'feature_selection': {
+            'must_be_in_thesaurus': True
+        },
+        'feature_extraction': {
+            'decode_token_handler': 'thesisgenerator.plugins.bov_feature_handlers.SignifiedOnlyFeatureHandler',
+            'random_neighbour_thesaurus': False,
+        },
+        'vector_sources': {
+            'neighbours_file': ['thesisgenerator/resources/twos.vectors.txt'],
+            'entries_of': 'thesisgenerator/resources/ones.vectors.txt',
+            'clusters_file': ''
+        }
+    }
+
+    res = get_pipeline_fit_args(conf)
+    v = res['vector_source']
+    assert len(v) == 4
+    assert set(v.keys()) == set('a/N b/V c/J d/N'.split())
+    assert v.get_vector('a/N').A.ravel().tolist() == [1, 0, 0, 0]
+    assert v.get_vector('c/J').A.ravel().tolist() == [0, 0, 1, 0]
