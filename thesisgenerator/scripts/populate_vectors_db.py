@@ -11,7 +11,8 @@ from thesisgenerator.scripts.generate_classification_conf_files import vectors_f
 from thesisgenerator.composers.vectorstore import (AdditiveComposer, MultiplicativeComposer,
                                                    LeftmostWordComposer, RightmostWordComposer,
                                                    BaroniComposer, GuevaraComposer, VerbComposer,
-                                                   GrefenstetteMultistepComposer, CopyObject)
+                                                   GrefenstetteMultistepComposer, CopyObject,
+                                                   FrobeniusAdd, FrobeniusMult)
 
 
 def _get_size(thesaurus_file):
@@ -167,7 +168,7 @@ def _categorical_vectors():
     pattern = '/lustre/scratch/inf/mmb28/FeatureExtractionToolkit/categorical/' \
               'AN_NN_{}_{}.events.filtered.strings'
     ids = ['wiki-wins-100', 'gigaw-w2v-100', 'wiki-w2v-15', 'wiki-w2v-100', 'wiki-glove-100']
-    for composer in [CopyObject]:
+    for composer in [CopyObject, FrobeniusAdd, FrobeniusMult]:
         for identifier in ids:
             path = pattern.format(identifier, composer.name)
             if 'wins' in identifier:

@@ -310,8 +310,9 @@ def with_lexical_overlap():
 
 
 @printing_decorator
-def verb_phrases_svo():
-    composers = [AdditiveComposer, MultiplicativeComposer, VerbComposer, CopyObject]
+def verb_phrases_svo(composers=None):
+    if not composers:
+        composers = [AdditiveComposer, MultiplicativeComposer, VerbComposer, CopyObject]
     algos = ['count_windows', 'glove', 'word2vec']
     for composer in composers:
         # w2v vs glove vs count @ wiki 100 (several composers)
@@ -539,6 +540,7 @@ if __name__ == '__main__':
     equalised_coverage_experiments_v2(composers=[AdditiveComposer],
                                       percent_reduce_from=[20, 30, 50, 40, 60, 70, 80, 90])
 
+    verb_phrases_svo(composers=[FrobeniusAdd, FrobeniusMult])
     print('Total experiments: %d' % len(list(db.ClassificationExperiment.select())))
     write_conf_files()
     write_metafiles()
