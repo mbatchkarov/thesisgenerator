@@ -23,6 +23,10 @@ class MultiVectors(Vectors):
         if entry not in self:
             return []
 
+        if sum(entry in v for v in self.vectors) < 2:
+            # entry contained in too few of the repeated runs, it is probably a spurious word
+            # with a low-quality vector. pretend it is not there
+            return []
         data = []
         for tid, t in enumerate(self.vectors):
             neighbours = t.get_nearest_neighbours_linear(entry)
