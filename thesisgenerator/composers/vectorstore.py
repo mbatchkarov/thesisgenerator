@@ -383,23 +383,10 @@ class CopyObject(Vectors, ComposerMixin):
                                                               len(self.unigram_source))
 
 
-class Relational(CopyObject):
-    name = 'Relational'
-    entry_types = {'SVO'}
-
-    def get_vector(self, phrase_df):
-        subj, verb, obj = map(str, phrase_df.tokens)
-        subj_v = self.unigram_source.get_vector(subj).A.T  # shape 100x1
-        verb_m = self.verb_tensors[verb]  # shape 100x100
-        obj_v = self.unigram_source.get_vector(obj).A.T  # shape 100x1
-
-        vec = verb_m * np.outer(subj_v, obj_v)
-        return sp.csr_matrix(vec.T)
-
-
 class FrobeniusAdd(CopyObject):
     name = 'FAdd'
     entry_types = {'SVO'}
+    function = np.add
 
     def get_vector(self, phrase_df):
         subj, verb, obj = map(str, phrase_df.tokens)
@@ -407,8 +394,14 @@ class FrobeniusAdd(CopyObject):
         verb_m = self.verb_tensors[verb]  # shape 100x100
         obj_v = self.unigram_source.get_vector(obj).A.T  # shape 100x1
 
-        vec = (subj_v * np.dot(verb_m, obj_v)) + (obj_v * np.dot(verb_m.T, subj_v))
+        vec = self.function((subj_v * np.dot(verb_m, obj_v)), (obj_v * np.dot(verb_m.T, subj_v)))
         return sp.csr_matrix(vec.T)
+
+
+class FrobeniusMult(FrobeniusAdd):
+    name = 'FMult'
+    entry_types = {'SVO'}
+    function = np.multiply
 
 
 class DummyThesaurus(Thesaurus):
@@ -499,7 +492,7 @@ def compose_and_write_vectors(unigram_vectors, short_vector_dataset_name, compos
         elif composer_class == GrefenstetteMultistepComposer:
             assert pretrained_Gref_composer_file is not None
             composer = GrefenstetteMultistepComposer(unigram_vectors, pretrained_Gref_composer_file)
-        elif composer_class in [CopyObject, Relational, FrobeniusAdd]:
+        elif composer_class in [CopyObject, FrobeniusAdd, FrobeniusMult]:
             composer = composer_class(categorical_vector_matrix_file, unigram_vectors)
         else:
             composer = composer_class(unigram_vectors)
