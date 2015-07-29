@@ -31,7 +31,7 @@ def get_all_NPs_VPs(path_to_existing=ALL_FEATURES_FILE, include_unigrams=False, 
         result = dict()
         with open(path_to_existing) as infile:
             for line in infile:
-                df, count = line.strip().split()
+                df, count = line.strip().split('\t')
                 df = DocumentFeature.from_string(df)
                 if df.type in accepted_df_types:
                     result[df] = int(count)
