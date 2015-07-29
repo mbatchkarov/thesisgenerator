@@ -17,7 +17,7 @@ VERBS_FILE = '%s/verbs.txt' % ROOT
 SOCHER_FILE = '%s/socher.txt' % ROOT
 
 
-def get_all_NPs_VPs(path_to_existing=ALL_FEATURES_FILE, include_unigrams=False):
+def get_all_NPs_VPs(path_to_existing=ALL_FEATURES_FILE, include_unigrams=False, return_counts=False):
     """
     Finds all noun-noun and adj-noun compounds (and optionally adjs and nouns) in all labelled corpora
     mentioned in the conf files.
@@ -28,15 +28,16 @@ def get_all_NPs_VPs(path_to_existing=ALL_FEATURES_FILE, include_unigrams=False):
     accepted_df_types = {'AN', 'NN', 'VO', 'SVO', '1-GRAM'} if include_unigrams else {'AN', 'NN', 'VO', 'SVO'}
     if path_to_existing:
         logging.info('Returning precompiled list of NPs from %s', path_to_existing)
-        result = set()
+        result = dict()
         with open(path_to_existing) as infile:
             for line in infile:
-                df = DocumentFeature.from_string(line.strip())
+                df, count = line.strip().split()
+                df = DocumentFeature.from_string(df)
                 if df.type in accepted_df_types:
-                    result.add(df)
-            return result
+                    result[df] = int(count)
+            return result if return_counts else set(result.keys())
 
-    all_nps = set()
+    all_nps = Counter()
     conf, _ = parse_config_file('conf/exp1-superbase.conf')
     for corpus_path in get_all_corpora():
         logging.info('--------------------')
@@ -56,11 +57,15 @@ def get_all_NPs_VPs(path_to_existing=ALL_FEATURES_FILE, include_unigrams=False):
                                    train_time_opts={'extract_unigram_features': set('JNV'),
                                                     'extract_phrase_features': set(['AN', 'NN', 'VO', 'SVO'])})
         data_matrix, voc = vect.fit_transform(x_tr, np.ones(len(x_tr)))
+        feature_counts = np.array(data_matrix.sum(axis=0)).ravel()
         logging.info('Found %d document features in this corpus', len(voc))
-        all_nps |= set(foo for foo in voc.keys() if foo.type in accepted_df_types)  # set union
+        for df, idx in voc.items():
+            if df.type in accepted_df_types:
+                all_nps[df] += feature_counts[idx]
     logging.info('Found a total of %d features in all corpora', len(all_nps))
-    logging.info('Their types are %r', Counter(df.type for df in all_nps))
-    logging.info('PoS tags of unigrams are are %r', Counter(df.tokens[0].pos for df in all_nps if df.type == '1-GRAM'))
+    logging.info('Their types are %r', Counter(df.type for df in all_nps.keys()))
+    logging.info('PoS tags of unigrams are are %r',
+                 Counter(df.tokens[0].pos for df in all_nps.keys() if df.type == '1-GRAM'))
     return all_nps
 
 
@@ -95,16 +100,16 @@ if __name__ == '__main__':
     stanford_unigram_pattern = '(ROOT\n (NP ({} {})))\n\n'
 
     mkdirs_if_not_exists(ROOT)
-    logging.info('Writing these features to files')
+    logging.info('Writing all document features to files')
     seen_modifiers, seen_verbs = set(), set()
     with open(SOCHER_FILE, 'w') as outf_socher, \
             open(NP_MODIFIERS_FILE, 'w') as outf_mods, \
             open(VERBS_FILE, 'w') as outf_verbs, \
             open(ALL_FEATURES_FILE, 'w') as outf_plain:
         all_phrases = get_all_NPs_VPs(path_to_existing=False, include_unigrams=True)
-        for item in all_phrases:
+        for item, count in all_phrases.items():
             # write in my underscore-separated format
-            outf_plain.write(item.tokens_as_str())
+            outf_plain.write('%s\t%s' % (str(item), int(count)))
             outf_plain.write('\n')
 
             if item.type in {'AN', 'NN'}:
@@ -144,6 +149,3 @@ if __name__ == '__main__':
                 raise ValueError('Item %r has the wrong feature type: %s' % (item, item.type))
 
     logging.info('Done')
-
-
-
