@@ -18,6 +18,7 @@ def info(**kwargs):
     stats.update({'param_%s' % k: v for k, v in kwargs.items() if k not in ['path', 'size', 'modified', 'format']})
 
     if not os.path.exists(kwargs['path']):
+        logging.error('Vectors  file %s does not exist', kwargs['path'])
         return stats
 
     v = Vectors.from_tsv(kwargs['path'])
@@ -54,7 +55,8 @@ if __name__ == '__main__':
                         format="%(asctime)s\t%(module)s.%(funcName)s """
                                "(line %(lineno)d)\t%(levelname)s : %(""message)s")
     vectors = db.Vectors.select().where((db.Vectors.rep == 0) & (db.Vectors.path != None))
-    res = Parallel(n_jobs=2)(delayed(info)(**v._data) for v in vectors)
+    settings = [v._data for v in vectors]
+    res = Parallel(n_jobs=4)(delayed(info)(**v) for v in settings)
     df = pd.DataFrame(res)
     df.sort_index(axis=1).to_csv('coverage_stats.csv')
     logging.info('Done')
