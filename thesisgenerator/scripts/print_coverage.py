@@ -46,6 +46,7 @@ def info(**kwargs):
     pos_counts_lab = Counter(x.tokens[0].pos for x in keys_in_labelled if x.type == '1-GRAM')
     stats.update({'%s_count_total' % k: v for k, v in pos_counts.items()})
     stats.update({'%s_count_in_labelled' % k: v for k, v in pos_counts_lab.items()})
+    return stats
 
 
 if __name__ == '__main__':
