@@ -264,7 +264,7 @@ def equalised_coverage_experiments():
 
 
 @printing_decorator
-def equalised_coverage_experiments_v2(composers=None, percent_reduce_from=None):
+def equalised_coverage_experiments_v2(composers=None, percent_reduce_from=None, percent_reduce_to=15):
     #  MORE EQUALISED COVERAGE EXPERIMENTS- WIKI-100% REDUCED TO WIKI-15%
     if composers is None:
         composers = [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer, RightmostWordComposer]
@@ -272,7 +272,7 @@ def equalised_coverage_experiments_v2(composers=None, percent_reduce_from=None):
         percent_reduce_from = [100]
 
     for composer in composers:
-        entries_of = vectors_from_settings('wiki', 'word2vec', composer.name, 100, percent=15)
+        entries_of = vectors_from_settings('wiki', 'word2vec', composer.name, 100, percent=percent_reduce_to)
         for p in percent_reduce_from:
             regular_vect = vectors_from_settings('wiki', 'word2vec', composer.name, 100, percent=p)
             e = db.ClassificationExperiment(labelled=am_corpus,
@@ -541,6 +541,10 @@ if __name__ == '__main__':
                                       percent_reduce_from=[20, 30, 50, 40, 60, 70, 80, 90])
 
     verb_phrases_svo(composers=[FrobeniusAdd, FrobeniusMult])
+    for prt in [1, 10, 20]:
+        equalised_coverage_experiments_v2(composers=[AdditiveComposer],
+                                          percent_reduce_from=[20, 30, 50, 40, 60, 70, 80, 90],
+                                          percent_reduce_to=prt)
     print('Total experiments: %d' % len(list(db.ClassificationExperiment.select())))
     write_conf_files()
     write_metafiles()
