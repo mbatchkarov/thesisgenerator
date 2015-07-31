@@ -157,6 +157,13 @@ def compute_and_write_vectors(corpus_name, stages, percent, repeat, remove_pos):
             unigram_events_file = join(prefix, 'word2vec_vectors/word2vec-wiki-nopos-%dperc.unigr.strings')
         else:
             unigram_events_file = join(prefix, 'word2vec_vectors/word2vec-wiki-%dperc.unigr.strings')
+    elif corpus_name == 'cwiki':
+        conll_data_dir = None  # wiki data is already in the right format, no point in reformatting
+        pos_only_data_dir = join(prefix, 'data/cwiki-tagged-clean/')
+        if remove_pos:
+            unigram_events_file = join(prefix, 'word2vec_vectors/word2vec-cwiki-nopos-%dperc.unigr.strings')
+        else:
+            unigram_events_file = join(prefix, 'word2vec_vectors/word2vec-cwiki-%dperc.unigr.strings')
     else:
         raise ValueError('Unknown corpus %s' % corpus_name)
 
@@ -212,7 +219,7 @@ def get_args_from_cmd_line():
     parser = argparse.ArgumentParser()
     parser.add_argument('--stages', choices=('reformat', 'vectors', 'average', 'compose'),
                         required=True, nargs='+')
-    parser.add_argument('--corpus', choices=('gigaw', 'wiki'), required=True)
+    parser.add_argument('--corpus', choices=('gigaw', 'wiki', 'cwiki'), required=True)
     # percent of files to use. SGE makes it easy for this to be 1, 2, ...
     parser.add_argument('--percent', default=100, type=int)
     # multiplier for args.percent. Set to 0.1 to use fractional percentages of corpus
