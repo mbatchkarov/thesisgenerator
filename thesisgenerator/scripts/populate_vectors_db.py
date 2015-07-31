@@ -261,24 +261,38 @@ def _unigram_w2v():
         print(v)
 
 
+def _w2v_cleaned_wiki():
+    # composed/AN_NN_word2vec-cwiki_1percent-rep0_Add.events.filtered.strings
+    wiki_rep_pattern = '{prefix}/word2vec_vectors/composed/' \
+                       'AN_NN_word2vec-cwiki_{percent:d}percent-rep0_{composer}.events.filtered.strings'
+    for composer_class in [AdditiveComposer, MultiplicativeComposer, LeftmostWordComposer,
+                           RightmostWordComposer, VerbComposer]:
+        composer = composer_class.name
+        for percent in [1, 15] + list(range(10, 101, 10)):
+            path = wiki_rep_pattern.format(**ChainMap(locals(), globals()))
+            modified, size = _get_size(path)
+            v = db.Vectors.create(algorithm='word2vec', dimensionality=100,
+                                  unlabelled_percentage=percent,
+                                  unlabelled='cwiki', composer=composer, path=path,
+                                  modified=modified, size=size, rep=0)
+            print(v)
+
+
+
 if __name__ == '__main__':
     prefix = '/lustre/scratch/inf/mmb28/FeatureExtractionToolkit'
 
     _random_baselines()
-
     _count_vectors_gigaw_wiki()
-
     _turian_vectors()
     _glove_vectors_wiki()
     _w2v_vectors()
-
     _categorical_vectors()
     _lda_vectors()
-
     _clustered_vectors()
-
     _repeated_runs_multivect()
     _unigram_w2v()
+    _w2v_cleaned_wiki()
 
     # verify vectors have been included just once
     vectors = []

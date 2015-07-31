@@ -348,13 +348,21 @@ def multivectors():
 
 
 @printing_decorator
-def unigram_only_vary_k():
+def unigram_only_vary_k(ks=[1, 5, 10, 20, 30, 40, 50, 75, 100, 200]):
     v = vectors_from_settings('wiki', 'word2vec', None, 100)
-    for k in [1, 5, 10, 20, 30, 40, 50, 75, 100, 200]:
+    for k in ks:
         e = db.ClassificationExperiment(labelled=am_corpus,
                                         document_features_tr='J+N+V',
                                         document_features_ev='J+N+V',
                                         expansions=_make_expansions(vectors=v, k=k))
+        e.save(force_insert=True)
+
+
+@printing_decorator
+def cleaned_wiki():
+    for percent in [1, 15] + list(range(10, 101, 10)):
+        v = vectors_from_settings('cwiki', 'word2vec', 'Add', 100, percent=percent)
+        e = db.ClassificationExperiment(labelled=am_corpus, expansions=_make_expansions(vectors=v))
         e.save(force_insert=True)
 
 
@@ -558,6 +566,9 @@ if __name__ == '__main__':
                                           percent_reduce_from=[20, 30, 50, 40, 60, 70, 80, 90],
                                           percent_reduce_to=prt)
     unigram_only_vary_k()
+    unigram_only_vary_k(ks=[3, 7, 15])
+    cleaned_wiki()
+
     print('Total experiments: %d' % len(list(db.ClassificationExperiment.select())))
     write_conf_files()
     write_metafiles()
