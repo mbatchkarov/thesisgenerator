@@ -49,3 +49,13 @@ def test_get_pipeline_fit_args():
     assert set(v.keys()) == set('a/N b/V c/J d/N'.split())
     assert v.get_vector('a/N').A.ravel().tolist() == [1, 0, 0, 0]
     assert v.get_vector('c/J').A.ravel().tolist() == [0, 0, 1, 0]
+
+    conf['vector_sources']['entries_of'] = conf['vector_sources']['neighbours_file'][0]
+    print(conf)
+    res = get_pipeline_fit_args(conf)
+    v = res['vector_source']
+    assert len(v) == 8
+    assert set(v.keys()) == set('a/N b/V c/J d/N e/N f/V g/J h/N'.split())
+    assert v.get_vector('a/N').A.ravel().tolist() == [1, 0, 0, 0]
+    assert v.get_vector('c/J').A.ravel().tolist() == [0, 0, 1, 0]
+    assert v.get_vector('g/J').A.ravel().tolist() == [0, 0, 1.1, 0]
