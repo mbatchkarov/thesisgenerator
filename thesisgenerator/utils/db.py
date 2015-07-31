@@ -19,7 +19,7 @@ class Vectors(pw.Model):
     unlabelled_percentage = pw.IntegerField(default=100, null=True)  # how much of the unlabelled data was used
     unlabelled = pw.CharField(null=True)  # path to unlabelled corpus that data was used, if I did it
     path = pw.CharField(null=True)  # where on disk the vectors are stored
-    composer = pw.CharField()  # what composer was used to build phrasal vectors (if any)
+    composer = pw.CharField(null=True)  # what composer was used to build phrasal vectors (if any)
     rep = pw.IntegerField(default=0)  # if the same vectors have been built multiple times, an explicit identifier
     avg = pw.BooleanField(default=False)  # identifies vectors where averaging over multiple runs is done,
     # e.g. rep=3 and avg=True mean "average vectors over 3 repetitions"

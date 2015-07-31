@@ -248,6 +248,19 @@ def _repeated_runs_multivect():
         print(v)
 
 
+def _unigram_w2v():
+    wiki_rep_pattern = '/lustre/scratch/inf/mmb28/FeatureExtractionToolkit' \
+                       '/word2vec_vectors/word2vec-wiki-{}perc.unigr.strings.rep0'
+    for percent in [1, 15] + list(range(10, 101, 10)):
+        path = wiki_rep_pattern.format(percent)
+        modified, size = _get_size(path)
+        v = db.Vectors.create(algorithm='word2vec', dimensionality=100,
+                              unlabelled_percentage=percent,
+                              unlabelled='wiki', composer=None, path=path,
+                              modified=modified, size=size, rep=0)
+        print(v)
+
+
 if __name__ == '__main__':
     prefix = '/lustre/scratch/inf/mmb28/FeatureExtractionToolkit'
 
@@ -265,6 +278,7 @@ if __name__ == '__main__':
     _clustered_vectors()
 
     _repeated_runs_multivect()
+    _unigram_w2v()
 
     # verify vectors have been included just once
     vectors = []

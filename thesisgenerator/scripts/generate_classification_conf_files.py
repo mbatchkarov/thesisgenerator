@@ -338,12 +338,24 @@ def kmeans_experiments(min_id=1, max_id=30, labelled=None):
             e.save(force_insert=True)
 
 
+@printing_decorator
 def multivectors():
     for v in db.Vectors.select():
         if v.reorder:
             e = db.ClassificationExperiment(labelled=am_corpus,
                                             expansions=_make_expansions(vectors=v))
             e.save(force_insert=True)
+
+
+@printing_decorator
+def unigram_only_vary_k():
+    v = vectors_from_settings('wiki', 'word2vec', None, 100)
+    for k in [1, 5, 10, 20, 30, 40, 50, 75, 100, 200]:
+        e = db.ClassificationExperiment(labelled=am_corpus,
+                                        document_features_tr='J+N+V',
+                                        document_features_ev='J+N+V',
+                                        expansions=_make_expansions(vectors=v, k=k))
+        e.save(force_insert=True)
 
 
 def write_conf_files():
@@ -545,6 +557,7 @@ if __name__ == '__main__':
         equalised_coverage_experiments_v2(composers=[AdditiveComposer],
                                           percent_reduce_from=[20, 30, 50, 40, 60, 70, 80, 90],
                                           percent_reduce_to=prt)
+    unigram_only_vary_k()
     print('Total experiments: %d' % len(list(db.ClassificationExperiment.select())))
     write_conf_files()
     write_metafiles()
