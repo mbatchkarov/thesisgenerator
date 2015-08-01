@@ -200,7 +200,7 @@ def w2v_wiki_learning_curve(percent, unlab='wiki', corpus=None):
 
 
 @printing_decorator
-def varying_k_with_w2v_on_amazon(ks=[1, 5, 10, 20, 30, 40, 50, 75, 100]):
+def varying_k_with_w2v_on_amazon(ks=[1, 10, 30, 50, 75, 100]):
     for k in ks:  # k=3 is a "standard" experiment
         for settings in word2vec_vector_settings(unlab='wiki'):
             v = vectors_from_settings(*settings)
@@ -348,7 +348,7 @@ def multivectors():
 
 
 @printing_decorator
-def unigram_only_vary_k(ks=[1, 5, 10, 20, 30, 40, 50, 75, 100, 200]):
+def unigram_only_vary_k(ks=[1, 3, 5, 7, 10, 15, 20, 30, 40, 50, 75, 100]):
     v = vectors_from_settings('wiki', 'word2vec', None, 100)
     for k in ks:
         e = db.ClassificationExperiment(labelled=am_corpus,
@@ -482,7 +482,8 @@ def write_metafiles():
     with open('slow_experiments.txt', 'w') as outf:
         for e in db.ClassificationExperiment.select():
             try:
-                if e.expansions.k >= 500 or e.clusters.num_clusters > 2000:
+                if e.expansions.k >= 250 or e.clusters.num_clusters > 2000 or \
+                        (e.expansions.vectors.reorder and e.expansions.vectors.rep > 3):
                     outf.write(str(e.id) + '\n')
             except AttributeError:
                 # experiment doesnt have expansions or clusters, it is some baseline
@@ -521,7 +522,7 @@ if __name__ == '__main__':
     corrupted_w2v_wiki(am_corpus)
     glove_vectors_amazon()
     # only up to 90% to avoid duplicating w2v-gigaw-100% (part of "standard experiments")
-    w2v_wiki_learning_curve(percent=[1, 10, 20, 30, 40, 50, 60, 70, 80, 90])
+    w2v_wiki_learning_curve(percent=[1, 10, 20, 40, 60, 80])
     # show R2 is too small for a meaningful comparison
     w2v_wiki_learning_curve(percent=[1, 10, 20, 30, 50, 40, 60, 70, 80, 90, 100], corpus=r2_corpus)
     corrupted_w2v_wiki(r2_corpus)  # no noise@100% done as part of learning curve
@@ -563,10 +564,9 @@ if __name__ == '__main__':
     verb_phrases_svo(composers=[FrobeniusAdd, FrobeniusMult])
     for prt in [1, 10, 20]:
         equalised_coverage_experiments_v2(composers=[AdditiveComposer],
-                                          percent_reduce_from=[20, 30, 50, 40, 60, 70, 80, 90],
+                                          percent_reduce_from=[20, 40, 60, 80, 100],
                                           percent_reduce_to=prt)
     unigram_only_vary_k()
-    unigram_only_vary_k(ks=[3, 7, 15])
     cleaned_wiki()
 
     print('Total experiments: %d' % len(list(db.ClassificationExperiment.select())))
