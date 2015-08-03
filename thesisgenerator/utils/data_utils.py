@@ -133,6 +133,9 @@ def get_pipeline_fit_args(conf):
     vectors_path = vs_params['neighbours_file']
     clusters_path = vs_params['clusters_file']
 
+    if 'Base' in handler_:
+        # don't need vectors, this is a non-distributional experiment
+        return result
     if vectors_path and clusters_path:
         raise ValueError('Cannot use both word vectors and word clusters')
 
