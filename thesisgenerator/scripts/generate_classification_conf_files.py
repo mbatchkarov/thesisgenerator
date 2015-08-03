@@ -233,6 +233,15 @@ def initial_wikipedia_w2v_amazon_with_repeats():
 
 
 @printing_decorator
+def wikipedia_w2v_R2_repeats():
+    for rep in [3, 0, 1, 2]:
+        avg = (rep == 3)
+        v = vectors_from_settings('wiki', 'word2vec', 'Add', 100, percent=15, rep=rep, avg=avg)
+        e = db.ClassificationExperiment(labelled=r2_corpus, expansions=_make_expansions(vectors=v))
+        e.save(force_insert=True)
+
+
+@printing_decorator
 def corrupted_w2v_wiki(corpus):
     for noise in np.arange(.2, 2.1, .2):
         v = vectors_from_settings('wiki', 'word2vec', 'Add', 100, percent=100)
@@ -565,6 +574,7 @@ if __name__ == '__main__':
                                           percent_reduce_to=prt)
     unigram_only_vary_k()
     cleaned_wiki()
+    wikipedia_w2v_R2_repeats()
 
     print('Total experiments: %d' % len(list(db.ClassificationExperiment.select())))
     write_conf_files()
