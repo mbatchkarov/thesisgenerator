@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 import argparse
+import contextlib
+import gzip
 import os
 import sys
 import math
@@ -14,9 +16,10 @@ sys.path.append('.')
 sys.path.append('..')
 sys.path.append('../..')
 
-from discoutils.misc import mkdirs_if_not_exists
+from discoutils.misc import mkdirs_if_not_exists, is_gzipped
 from discoutils.tokens import DocumentFeature
 from discoutils.thesaurus_loader import Vectors
+from joblib import Parallel, delayed
 from thesisgenerator.plugins.tokenizers import pos_coarsification_map
 from thesisgenerator.composers.vectorstore import (AdditiveComposer, MultiplicativeComposer,
                                                    LeftmostWordComposer, RightmostWordComposer,
@@ -53,9 +56,13 @@ class MySentences(object):
 
     def __iter__(self):
         for fname in self.files:
-            with open(join(self.dirname, fname)) as infile:
+            filename = join(self.dirname, fname)
+            infile = gzip.open(filename) if is_gzipped(filename) else open(filename)
+            with contextlib.closing(infile):
                 for line in infile:
                     # yield gensim.utils.tokenize(line, lower=True)
+                    if isinstance(line, bytes):
+                        line = line.decode()
                     res = [DocumentFeature.smart_lower(w) for w in line.split() if
                            DocumentFeature.from_string(w).type != 'EMPTY']
                     if len(res) > 8:
@@ -123,16 +130,25 @@ def reformat_data(conll_data_dir, pos_only_data_dir):
     :param pos_only_data_dir: output directory
     """
     mkdirs_if_not_exists(pos_only_data_dir)
-    for filename in os.listdir(conll_data_dir):
-        outfile_name = join(pos_only_data_dir, filename)
-        logging.info('Reformatting %s to %s', filename, outfile_name)
-        with open(join(conll_data_dir, filename)) as infile, open(outfile_name, 'w') as outfile:
-            for line in infile:
-                if not line.strip():  # conll empty line = sentence boundary
-                    outfile.write('.\n')  # todo why is this dot there???
-                    continue
-                idx, word, lemma, pos, ner, dep, _ = line.strip().split('\t')
-                outfile.write('%s/%s ' % (lemma.lower(), pos_coarsification_map[pos]))
+    Parallel(n_jobs=5)(delayed(_reformat_single_file)(conll_data_dir, filename, pos_only_data_dir) for filename in
+                       os.listdir(conll_data_dir))
+
+
+def _reformat_single_file(conll_data_dir, filename, pos_only_data_dir):
+    outfile_name = join(pos_only_data_dir, filename)
+    logging.info('Reformatting %s to %s', filename, outfile_name)
+    with gzip.open(join(conll_data_dir, filename)) as infile, gzip.open(outfile_name, 'w') as outfile:
+        for i, line in enumerate(infile):
+            line = line.decode('utf8')
+            if not line.strip():  # conll empty line = sentence boundary
+                outfile.write(b'\n')
+                continue
+            try:
+                idx, word, lemma, pos, *rest = line.strip().split('\t')
+            except ValueError:
+                # some words in david's data are missing a PoS tag
+                logging.warning('ignoring messed up token in', filename)
+            outfile.write(('%s/%s ' % (lemma.lower(), pos_coarsification_map[pos])).encode())
 
 
 def compute_and_write_vectors(corpus_name, stages, percent, repeat, remove_pos):
@@ -164,6 +180,13 @@ def compute_and_write_vectors(corpus_name, stages, percent, repeat, remove_pos):
             unigram_events_file = join(prefix, 'word2vec_vectors/word2vec-cwiki-nopos-%dperc.unigr.strings')
         else:
             unigram_events_file = join(prefix, 'word2vec_vectors/word2vec-cwiki-%dperc.unigr.strings')
+    elif corpus_name == 'giga5':
+        conll_data_dir = None  # wiki data is already in the right format, no point in reformatting
+        pos_only_data_dir = join(prefix, 'data/giga5/')
+        if remove_pos:
+            unigram_events_file = join(prefix, 'word2vec_vectors/word2vec-giga5-nopos-%dperc.unigr.strings')
+        else:
+            unigram_events_file = join(prefix, 'word2vec_vectors/word2vec-giga5-%dperc.unigr.strings')
     else:
         raise ValueError('Unknown corpus %s' % corpus_name)
 
@@ -219,7 +242,7 @@ def get_args_from_cmd_line():
     parser = argparse.ArgumentParser()
     parser.add_argument('--stages', choices=('reformat', 'vectors', 'average', 'compose'),
                         required=True, nargs='+')
-    parser.add_argument('--corpus', choices=('gigaw', 'wiki', 'cwiki'), required=True)
+    parser.add_argument('--corpus', choices=('gigaw', 'wiki', 'cwiki', 'giga5'), required=True)
     # percent of files to use. SGE makes it easy for this to be 1, 2, ...
     parser.add_argument('--percent', default=100, type=int)
     # multiplier for args.percent. Set to 0.1 to use fractional percentages of corpus
