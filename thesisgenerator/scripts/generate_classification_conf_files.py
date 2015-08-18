@@ -355,6 +355,13 @@ def multivectors():
                                             expansions=_make_expansions(vectors=v))
             e.save(force_insert=True)
 
+@printing_decorator
+def multivectors_higher_k():
+    for v in db.Vectors.select():
+        if v.reorder and v.composer == 'Add':
+            e = db.ClassificationExperiment(labelled=am_corpus,
+                                            expansions=_make_expansions(vectors=v, k=30))
+            e.save(force_insert=True)
 
 @printing_decorator
 def unigram_only_vary_k(ks=[1, 3, 5, 7, 10, 15, 20, 30, 40, 50, 75, 100]):
@@ -575,6 +582,7 @@ if __name__ == '__main__':
     unigram_only_vary_k()
     cleaned_wiki()
     wikipedia_w2v_R2_repeats()
+    multivectors_higher_k()
 
     print('Total experiments: %d' % len(list(db.ClassificationExperiment.select())))
     write_conf_files()
