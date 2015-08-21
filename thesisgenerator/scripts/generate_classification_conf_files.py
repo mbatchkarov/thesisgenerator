@@ -583,6 +583,7 @@ if __name__ == '__main__':
     cleaned_wiki()
     wikipedia_w2v_R2_repeats()
     multivectors_higher_k()
+    kmeans_experiments(min_id=36, max_id=47)
 
     print('Total experiments: %d' % len(list(db.ClassificationExperiment.select())))
     write_conf_files()

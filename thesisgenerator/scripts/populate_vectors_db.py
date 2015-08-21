@@ -4,6 +4,7 @@ import os
 import sys
 
 sys.path.append('.')
+import numpy as np
 from datetime import datetime as dt
 from discoutils.misc import Bunch
 from thesisgenerator.utils import db
@@ -203,10 +204,13 @@ def _lda_vectors():
 
 
 def _clustered_vectors():
-    def _do_magic(v, num_clusters=[100, 200, 300, 500, 2000]):
-        for n in num_clusters:  # 2k takes 3-4 days @ 4 cores
-            db.Clusters.create(vectors=v, num_clusters=n,
-                               path=v.path + '.kmeans%d' % n)
+    def _do_magic(v, num_clusters=[100, 200, 300, 500, 2000], noise=0):
+        for n in num_clusters:  # k=2000 takes 3-4 days @ 4 cores, k=100 takes 2-3h
+            if noise > 0:
+                path = '%s.noise%1.1fkmeans%d' % (v.path, noise, n)
+            else:
+                path = v.path + '.kmeans%d' % n
+            db.Clusters.create(vectors=v, num_clusters=n, path=path, noise=noise)
 
     for composer in ['Socher', 'Add']:
         _do_magic(vectors_from_settings('turian', 'turian', composer, 100))
@@ -217,6 +221,16 @@ def _clustered_vectors():
     for p in [1, 15, 30, 50, 70]:
         _do_magic(vectors_from_settings('wiki', 'word2vec', 'Add', 100, percent=p),
                   num_clusters=[100])
+
+    _do_magic(vectors_from_settings('cwiki', 'word2vec', 'Add', 100),
+              num_clusters=[100])
+
+    _do_magic(vectors_from_settings('wiki', 'glove', 'Add', 100),
+              num_clusters=[100])
+
+    for n in np.arange(.2, 2.1, .2):
+        _do_magic(vectors_from_settings('gigaw', 'word2vec', composer, 100),
+                  num_clusters=[100], noise=n)
 
 
 def _repeated_runs_multivect():
@@ -278,7 +292,6 @@ def _w2v_cleaned_wiki():
             print(v)
 
 
-
 if __name__ == '__main__':
     prefix = '/lustre/scratch/inf/mmb28/FeatureExtractionToolkit'
 
@@ -289,10 +302,10 @@ if __name__ == '__main__':
     _w2v_vectors()
     _categorical_vectors()
     _lda_vectors()
-    _clustered_vectors()
     _repeated_runs_multivect()
     _unigram_w2v()
     _w2v_cleaned_wiki()
+    _clustered_vectors()
 
     # verify vectors have been included just once
     vectors = []

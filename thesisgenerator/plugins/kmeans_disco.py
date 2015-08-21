@@ -9,8 +9,8 @@ import pandas as pd
 from thesisgenerator.plugins.bov import ThesaurusVectorizer
 
 
-def cluster_vectors(path_to_vectors, output_path, n_clusters=100, n_jobs=4):
-    vectors = Vectors.from_tsv(path_to_vectors)
+def cluster_vectors(path_to_vectors, output_path, n_clusters=100, noise=0, n_jobs=4):
+    vectors = Vectors.from_tsv(path_to_vectors, noise=noise)
     km = KMeans(n_clusters=n_clusters, n_jobs=n_jobs, random_state=0)
     clusters = km.fit_predict(vectors.matrix)
     num2word = np.array(vectors.row_names)
@@ -40,10 +40,11 @@ class KmeansVectorizer(ThesaurusVectorizer):
 
 if __name__ == '__main__':
     import sys
+
     logging.basicConfig(level=logging.INFO,
                         format="%(asctime)s\t%(module)s.%(funcName)s (line %(lineno)d)\t%(levelname)s : %(message)s",
                         datefmt='%m-%d %H:%M')
-    logging.info('Starting clustering')
-    infile, outfile, num_cl = sys.argv[1:]
-    cluster_vectors(infile, outfile, int(num_cl))
+    infile, outfile, num_cl, noise = sys.argv[1:]
+    logging.info('Starting clustering with k=%r and noise %1.1f', num_cl, noise)
+    cluster_vectors(infile, outfile, int(num_cl), noise)
     logging.info('Done')

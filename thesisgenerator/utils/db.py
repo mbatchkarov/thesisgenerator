@@ -92,6 +92,7 @@ class Clusters(pw.Model):
     path = pw.CharField(null=True, default=None)
     # vectors must be consistent with Experiment.vectors
     vectors = pw.ForeignKeyField(Vectors, null=True, default=None, on_delete='SET NULL')
+    noise = pw.FloatField(default=0)
 
     class Meta:
         database = db
