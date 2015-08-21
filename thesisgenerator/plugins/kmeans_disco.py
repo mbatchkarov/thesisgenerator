@@ -45,6 +45,6 @@ if __name__ == '__main__':
                         format="%(asctime)s\t%(module)s.%(funcName)s (line %(lineno)d)\t%(levelname)s : %(message)s",
                         datefmt='%m-%d %H:%M')
     infile, outfile, num_cl, noise = sys.argv[1:]
-    logging.info('Starting clustering with k=%r and noise %1.1f', num_cl, noise)
-    cluster_vectors(infile, outfile, int(num_cl), noise)
+    logging.info('Starting clustering with k=%r and noise %r', num_cl, noise)
+    cluster_vectors(infile, outfile, int(num_cl), float(noise))
     logging.info('Done')
