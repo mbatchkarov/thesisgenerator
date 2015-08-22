@@ -36,6 +36,8 @@ class KmeansVectorizer(ThesaurusVectorizer):
         except KeyError:
             # the feature is not contained in the distributional model, ignore it
             pass
+        except IndexError:
+            logging.warning('IndexError for feature %r', feature)
 
 
 if __name__ == '__main__':
