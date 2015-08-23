@@ -54,7 +54,18 @@ def vectors_from_settings(unlab_name, algorithm, composer_name, svd_dims, percen
     # lets do a post-filter
     results = [res for res in v if abs(res.unlabelled_percentage - percent) < 1e-6]
     assert len(results) == 1
-    return list(results)[0]
+    return results[0]
+
+
+def clusters_from_settings(vectors, num_clusters, noise=0):
+    v = db.Clusters.select().where((db.Clusters.vectors == vectors) &
+                                   (db.Clusters.num_clusters == num_clusters)
+                                   )
+    # peewee cant easily do selects that contain checks of float values
+    # lets do a post-filter
+    results = [res for res in v if abs(res.noise - noise) < 1e-6]
+    assert len(results) == 1
+    return results[0]
 
 
 def window_vector_settings(unlab='gigaw'):
@@ -355,6 +366,7 @@ def multivectors():
                                             expansions=_make_expansions(vectors=v))
             e.save(force_insert=True)
 
+
 @printing_decorator
 def multivectors_higher_k():
     for v in db.Vectors.select():
@@ -362,6 +374,7 @@ def multivectors_higher_k():
             e = db.ClassificationExperiment(labelled=am_corpus,
                                             expansions=_make_expansions(vectors=v, k=30))
             e.save(force_insert=True)
+
 
 @printing_decorator
 def unigram_only_vary_k(ks=[1, 3, 5, 7, 10, 15, 20, 30, 40, 50, 75, 100]):
@@ -379,6 +392,31 @@ def cleaned_wiki():
     for percent in [1, 15] + list(range(10, 101, 10)):
         v = vectors_from_settings('cwiki', 'word2vec', 'Add', 100, percent=percent)
         e = db.ClassificationExperiment(labelled=am_corpus, expansions=_make_expansions(vectors=v))
+        e.save(force_insert=True)
+
+
+@printing_decorator
+def sentiment_task():
+    # with best replacement model
+    v = vectors_from_settings('cwiki', 'word2vec', 'Add', 100)
+
+    e = db.ClassificationExperiment(labelled=maas_corpus, expansions=_make_expansions(vectors=v))
+    e.save(force_insert=True)
+
+    e = db.ClassificationExperiment(labelled=mr_corpus, expansions=_make_expansions(vectors=v))
+    e.save(force_insert=True)
+
+    # with best VQ model
+    v = vectors_from_settings('wiki', 'word2vec', 'Add', 100)
+    for num_cl in [100, 500, 2000]:
+        e = db.ClassificationExperiment(labelled=maas_corpus,
+                                        clusters=clusters_from_settings(v, num_cl))
+        e.save(force_insert=True)
+
+    for corpus, algo in zip(['cwiki', 'wiki'], ['word2vec', 'glove']):
+        v = vectors_from_settings(corpus, algo, 'Add', 100)
+        e = db.ClassificationExperiment(labelled=maas_corpus,
+                                        clusters=clusters_from_settings(v, 100))
         e.save(force_insert=True)
 
 
@@ -584,6 +622,7 @@ if __name__ == '__main__':
     wikipedia_w2v_R2_repeats()
     multivectors_higher_k()
     kmeans_experiments(min_id=36, max_id=47)
+    sentiment_task()
 
     print('Total experiments: %d' % len(list(db.ClassificationExperiment.select())))
     write_conf_files()

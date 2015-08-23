@@ -103,6 +103,7 @@ class Clusters(pw.Model):
     def _key(self):
         return (self.vectors.id,
                 self.num_clusters,
+                self.noise,
                 self.path)
 
     def __eq__(x, y):
