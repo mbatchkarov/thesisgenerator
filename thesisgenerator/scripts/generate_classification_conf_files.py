@@ -420,6 +420,18 @@ def sentiment_task():
         e.save(force_insert=True)
 
 
+@printing_decorator
+def wiki15_k30():
+    """this complements multivectors_higher_k, which is missing two bits baseline to compare against"""
+    v = vectors_from_settings('wiki', 'word2vec', 'Add', 100, percent=15)
+    e = db.ClassificationExperiment(labelled=am_corpus, expansions=_make_expansions(vectors=v, k=30))
+    e.save(force_insert=True)
+
+    v = vectors_from_settings('wiki', 'word2vec', 'Add', 100, percent=15, rep=3, avg=True)
+    e = db.ClassificationExperiment(labelled=am_corpus, expansions=_make_expansions(vectors=v, k=30))
+    e.save(force_insert=True)
+
+
 def write_conf_files():
     check_experiments()
 
@@ -623,6 +635,7 @@ if __name__ == '__main__':
     multivectors_higher_k()
     kmeans_experiments(min_id=36, max_id=47)
     sentiment_task()
+    wiki15_k30()
 
     print('Total experiments: %d' % len(list(db.ClassificationExperiment.select())))
     write_conf_files()
