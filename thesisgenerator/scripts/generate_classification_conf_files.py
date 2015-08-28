@@ -435,14 +435,13 @@ def wiki15_k30():
 
 @printing_decorator
 def reuters_wiki_gigaw():
-    unlab_percentages = {'wiki': 15, 'cwiki': 40, 'gigaw': 100}
-    for unlab in sorted((unlab_percentages.keys())):
-        for algo in 'word2vec glove count_windows'.split():
+    for unlab in 'wiki cwiki gigaw'.split():
+        for algo in 'word2vec glove count_windows count_dependencies'.split():
             if algo == 'word2vec' and unlab == 'wiki':
                 # did that experiment earlier
                 continue
             try:
-                v = vectors_from_settings(unlab, algo, 'Add', 100, percent=unlab_percentages[unlab])
+                v = vectors_from_settings(unlab, algo, 'Add', 100, percent=100)
             except AssertionError:
                 # haven't got them vectors, eg glove on cwiki. whatever
                 continue
@@ -655,6 +654,7 @@ if __name__ == '__main__':
     sentiment_task()
     wiki15_k30()
     corrupted_w2v_wiki(r2_corpus, k=30, include_zero=True)
+    corrupted_w2v_wiki(r2_corpus, k=60, include_zero=True)
     reuters_wiki_gigaw()
 
     print('Total experiments: %d' % len(list(db.ClassificationExperiment.select())))
