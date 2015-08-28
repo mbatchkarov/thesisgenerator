@@ -53,7 +53,7 @@ def vectors_from_settings(unlab_name, algorithm, composer_name, svd_dims, percen
     # peewee cant easily do selects that contain checks of float values
     # lets do a post-filter
     results = [res for res in v if abs(res.unlabelled_percentage - percent) < 1e-6]
-    assert len(results) == 1
+    assert len(results) == 1, 'Expected unique vectors id, found %d' % len(results)
     return results[0]
 
 
@@ -253,12 +253,13 @@ def wikipedia_w2v_R2_repeats():
 
 
 @printing_decorator
-def corrupted_w2v_wiki(corpus):
-    for noise in np.arange(.2, 2.1, .2):
+def corrupted_w2v_wiki(corpus, k=3, include_zero=False):
+    for noise in np.arange(0 if include_zero else .2, 2.1, .2):
         v = vectors_from_settings('wiki', 'word2vec', 'Add', 100, percent=100)
         e = db.ClassificationExperiment(labelled=corpus,
                                         expansions=_make_expansions(vectors=v,
-                                                                    noise=noise))
+                                                                    noise=noise,
+                                                                    k=k))
         e.save(force_insert=True)
 
 
@@ -430,6 +431,23 @@ def wiki15_k30():
     v = vectors_from_settings('wiki', 'word2vec', 'Add', 100, percent=15, rep=3, avg=True)
     e = db.ClassificationExperiment(labelled=am_corpus, expansions=_make_expansions(vectors=v, k=30))
     e.save(force_insert=True)
+
+
+@printing_decorator
+def reuters_wiki_gigaw():
+    unlab_percentages = {'wiki': 15, 'cwiki': 40, 'gigaw': 100}
+    for unlab in sorted((unlab_percentages.keys())):
+        for algo in 'word2vec glove count_windows'.split():
+            if algo == 'word2vec' and unlab == 'wiki':
+                # did that experiment earlier
+                continue
+            try:
+                v = vectors_from_settings(unlab, algo, 'Add', 100, percent=unlab_percentages[unlab])
+            except AssertionError:
+                # haven't got them vectors, eg glove on cwiki. whatever
+                continue
+            e = db.ClassificationExperiment(labelled=r2_corpus, expansions=_make_expansions(vectors=v))
+            e.save(force_insert=True)
 
 
 def write_conf_files():
@@ -636,6 +654,8 @@ if __name__ == '__main__':
     kmeans_experiments(min_id=36, max_id=47)
     sentiment_task()
     wiki15_k30()
+    corrupted_w2v_wiki(r2_corpus, k=30, include_zero=True)
+    reuters_wiki_gigaw()
 
     print('Total experiments: %d' % len(list(db.ClassificationExperiment.select())))
     write_conf_files()
