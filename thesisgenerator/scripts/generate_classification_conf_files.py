@@ -449,6 +449,16 @@ def reuters_wiki_gigaw():
             e.save(force_insert=True)
 
 
+@printing_decorator
+def wikipedia_w2v_amazon_with_repeats_k100():
+    unlab = 'wiki'
+    for rep in [0, 1, 2]:
+        for _, algo, composer_name, dims in word2vec_vector_settings():
+            v = vectors_from_settings(unlab, algo, composer_name, dims, percent=15, rep=rep)
+            e = db.ClassificationExperiment(labelled=am_corpus, expansions=_make_expansions(vectors=v, k=100))
+            e.save(force_insert=True)
+
+
 def write_conf_files():
     check_experiments()
 
@@ -656,6 +666,7 @@ if __name__ == '__main__':
     corrupted_w2v_wiki(r2_corpus, k=30, include_zero=True)
     corrupted_w2v_wiki(r2_corpus, k=60, include_zero=True)
     reuters_wiki_gigaw()
+    wikipedia_w2v_amazon_with_repeats_k100()
 
     print('Total experiments: %d' % len(list(db.ClassificationExperiment.select())))
     write_conf_files()
