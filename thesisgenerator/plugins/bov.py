@@ -186,6 +186,9 @@ class ThesaurusVectorizer(TfidfVectorizer):
         except Exception:
             # may not be a shelf after all
             pass
+        if (self.thesaurus and hasattr(self.thesaurus, 'get_nearest_neighbours') and
+                hasattr(self.thesaurus.get_nearest_neighbours, 'cache_info')):
+            logging.info('NN cache info: %s', self.thesaurus.get_nearest_neighbours.cache_info())
         return X, self.vocabulary_
 
     def _remove_features_containing_named_entities(self, features):
