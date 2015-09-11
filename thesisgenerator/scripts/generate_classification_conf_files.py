@@ -200,13 +200,13 @@ def nondistributional_baselines(corpora=None, document_features_tr='J+N+AN+NN', 
 
 
 @printing_decorator
-def w2v_wiki_learning_curve(percent, unlab='wiki', corpus=None):
+def w2v_wiki_learning_curve(percent, unlab='wiki', corpus=None, k=3):
     if corpus is None:
         corpus = am_corpus
     for settings in word2vec_vector_settings(unlab):
         for p in percent:
             v = vectors_from_settings(*settings, percent=p)
-            e = db.ClassificationExperiment(labelled=corpus, expansions=_make_expansions(vectors=v))
+            e = db.ClassificationExperiment(labelled=corpus, expansions=_make_expansions(vectors=v, k=k))
             e.save(force_insert=True)
 
 
@@ -667,6 +667,9 @@ if __name__ == '__main__':
     corrupted_w2v_wiki(r2_corpus, k=60, include_zero=True)
     reuters_wiki_gigaw()
     wikipedia_w2v_amazon_with_repeats_k100()
+    # 100% done earlier as a part of noise-corrupted experiments
+    w2v_wiki_learning_curve(percent=[1, 10, 20, 30, 50, 40, 60, 70, 80, 90], corpus=r2_corpus, k=30)
+    w2v_wiki_learning_curve(percent=[1, 10, 20, 30, 50, 40, 60, 70, 80, 90], corpus=r2_corpus, k=60)
 
     print('Total experiments: %d' % len(list(db.ClassificationExperiment.select())))
     write_conf_files()
