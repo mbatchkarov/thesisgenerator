@@ -604,10 +604,7 @@ if __name__ == '__main__':
     varying_k_with_w2v_on_amazon()
     # wikipedia experiments on amazon
     initial_wikipedia_w2v_amazon_with_repeats()
-    # maas IMDB sentiment experiments
-    # baselines(corpora=[maas_corpus])
-    # random_vectors(maas_corpus)
-    # all_standard_experiments(corpora=[maas_corpus])
+
     # other more recent stuff
     corrupted_w2v_wiki(am_corpus)
     glove_vectors_amazon()
@@ -670,6 +667,12 @@ if __name__ == '__main__':
     # 100% done earlier as a part of noise-corrupted experiments
     w2v_wiki_learning_curve(percent=[1, 10, 20, 30, 50, 40, 60, 70, 80, 90], corpus=r2_corpus, k=30)
     w2v_wiki_learning_curve(percent=[1, 10, 20, 30, 50, 40, 60, 70, 80, 90], corpus=r2_corpus, k=60)
+
+    # # maas IMDB sentiment experiments
+    # baselines(corpora=[maas_corpus])
+    # random_vectors(maas_corpus)
+    all_standard_experiments(labelled=[maas_corpus])
+
 
     print('Total experiments: %d' % len(list(db.ClassificationExperiment.select())))
     write_conf_files()
