@@ -682,7 +682,7 @@ if __name__ == '__main__':
     # baselines(corpora=[maas_corpus])
     # random_vectors(maas_corpus)
     all_standard_experiments(labelled=[maas_corpus])
-
+    equalised_coverage_experiments_v3()
 
     print('Total experiments: %d' % len(list(db.ClassificationExperiment.select())))
     write_conf_files()
