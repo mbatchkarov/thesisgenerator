@@ -283,6 +283,16 @@ def equalised_coverage_experiments():
                                                                     entries_of=entries_of))
         e.save(force_insert=True)
 
+@printing_decorator
+def equalised_coverage_experiments_v3():
+    # count windows with Add composers (high-coverage model) with coverage of count windows with Guevara composition
+    regular_vect = vectors_from_settings('wiki', 'count_windows', AdditiveComposer.name, 100)
+    entries_of = vectors_from_settings('wiki', 'count_windows', GuevaraComposer.name, 100)
+    e = db.ClassificationExperiment(labelled=am_corpus,
+                                    expansions=_make_expansions(vectors=regular_vect,
+                                                                entries_of=entries_of))
+    e.save(force_insert=True)
+
 
 @printing_decorator
 def equalised_coverage_experiments_v2(composers=None, percent_reduce_from=None, percent_reduce_to=15):
