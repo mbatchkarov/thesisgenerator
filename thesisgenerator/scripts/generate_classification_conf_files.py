@@ -294,6 +294,15 @@ def equalised_coverage_experiments_v3():
     e.save(force_insert=True)
 
 
+    # count windows with Guev composers (medium-coverage model) with coverage of count windows with Baroni composition
+    regular_vect = vectors_from_settings('wiki', 'count_windows', GuevaraComposer.name, 100)
+    entries_of = vectors_from_settings('wiki', 'count_windows', BaroniComposer.name, 100)
+    e = db.ClassificationExperiment(labelled=am_corpus,
+                                    expansions=_make_expansions(vectors=regular_vect,
+                                                                entries_of=entries_of))
+    e.save(force_insert=True)
+
+
 @printing_decorator
 def equalised_coverage_experiments_v2(composers=None, percent_reduce_from=None, percent_reduce_to=15):
     #  MORE EQUALISED COVERAGE EXPERIMENTS- WIKI-100% REDUCED TO WIKI-15%
